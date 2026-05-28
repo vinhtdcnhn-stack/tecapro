@@ -19,6 +19,7 @@ function App() {
   const [newPassword, setNewPassword] = useState('')
   const [newFullName, setNewFullName] = useState('')
   const [newPhone, setNewPhone] = useState('')
+  const [newEmployeeCode, setNewEmployeeCode] = useState('')
 
   const menus = [
     'Trang chủ',
@@ -349,6 +350,19 @@ async function loadUsers() {
                           }
                         />
                       </div>
+
+                      <div className="field">
+                        <label>Mã nhân viên</label>
+
+                        <input
+                          type="text"
+                          value={newEmployeeCode}
+                          onChange={(e) =>
+                            setNewEmployeeCode(e.target.value)
+                          }
+                        />
+                      </div>
+
                       <div className="field">
                         <label>Số điện thoại</label>
 
@@ -399,7 +413,8 @@ async function loadUsers() {
                                   email: newEmail,
                                   password: newPassword,
                                   full_name: newFullName,
-                                  phone: newPhone
+                                  phone: newPhone,
+                                  employee_code: newEmployeeCode
                                 })
                               }
                             )

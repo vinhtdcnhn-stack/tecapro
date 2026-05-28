@@ -72,7 +72,8 @@ app.post('/api/users', async (req, res) => {
     email,
     password,
     full_name,
-    phone
+    phone,
+    employee_code
   } = req.body
 
   if (!username || !email || !password) {
@@ -93,9 +94,10 @@ app.post('/api/users', async (req, res) => {
       email,
       password_hash,
       full_name,
-      phone
+      phone,
+      employee_code
     )
-    VALUES ($1, $2, $3, $4, $5)
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING id
     `,
     [
@@ -103,7 +105,8 @@ app.post('/api/users', async (req, res) => {
       email,
       passwordHash,
       full_name,
-      phone
+      phone,
+      employee_code
     ]
   )
 
