@@ -13,7 +13,12 @@ function App() {
   const [error, setError] = useState('')
   const [users, setUsers] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
-
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newFullName, setNewFullName] = useState('')
+  const [newPhone, setNewPhone] = useState('')
 
   const menus = [
     'Trang chủ',
@@ -131,7 +136,7 @@ async function loadUsers() {
             {user ? (
               <>
                 <span className="user-pill" title={user.email}>
-                  {user.email}
+                  {user.full_name}
                 </span>
                 <button type="button" className="topbar-btn" onClick={handleLogout}>
                   Đăng xuất
@@ -264,7 +269,9 @@ async function loadUsers() {
           <>
             <h2 className="section-title">QUẢN LÝ NGƯỜI DÙNG</h2>
             {user?.role == 1 && (
-              <button className="add-btn">
+              <button className="add-btn"
+              onClick={() => setShowAddModal(true)}
+              >
                 Thêm người dùng
               </button>
             )}
@@ -277,6 +284,7 @@ async function loadUsers() {
                   <th>Email</th>
                   <th>Số điện thoại</th>
                   <th>Vai trò</th>
+                  <th>Hành động</th>
                 </tr>
               </thead>
 
@@ -289,10 +297,131 @@ async function loadUsers() {
                     <td>{u.email}</td>
                     <td>{u.phone}</td>
                     <td>{u.role}</td>
+                    <td> {user?.role == 1 && ( <button className="edit-btn"> Sửa </button> )} </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+              {showAddModal && (
+                <div className="modal-overlay">
+
+                  <div className="modal">
+
+                    <div className="modal-header">
+                      <h2>THÊM NGƯỜI DÙNG</h2>
+
+                      <button
+                        className="close-btn"
+                        onClick={() => setShowAddModal(false)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="modal-body">
+
+                      <div className="field">
+                        <label>Tên đăng nhập</label>
+                        <input
+                          type="text"
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="field">
+                        <label>Email</label>
+                        <input
+                          type="email"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="field">
+                        <label>Họ tên</label>
+
+                        <input
+                          type="text"
+                          value={newFullName}
+                          onChange={(e) =>
+                            setNewFullName(e.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="field">
+                        <label>Số điện thoại</label>
+
+                        <input
+                          type="text"
+                          value={newPhone}
+                          onChange={(e) =>
+                            setNewPhone(e.target.value)
+                          }
+                        />
+                      </div>
+
+                      <div className="field">
+                        <label>Mật khẩu</label>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                        />
+                      </div>
+
+                    </div>
+
+                    <div className="modal-footer">
+
+                      <button
+                        className="cancel-btn"
+                        onClick={() => setShowAddModal(false)}
+                      >
+                        Hủy
+                      </button>
+
+                      <button
+                          className="save-btn"
+                          onClick={async () => {
+
+                            const res = await fetch(
+                              'http://localhost:5174/api/users',
+                              {
+                                method: 'POST',
+
+                                headers: {
+                                  'Content-Type': 'application/json'
+                                },
+
+                                body: JSON.stringify({
+                                  username: newUsername,
+                                  email: newEmail,
+                                  password: newPassword,
+                                  full_name: newFullName,
+                                  phone: newPhone
+                                })
+                              }
+                            )
+
+                            const data = await res.json()
+
+                            await loadUsers()
+
+                            setShowAddModal(false)
+                          }}
+                        >
+                          Lưu
+                        </button>
+
+                    </div>
+
+                  </div>
+
+
+                </div>
+              )}
+
           </>
         )}
       </section>

@@ -65,6 +65,54 @@ app.post('/api/auth/seed', async (req, res) => {
   res.json({ user: r.rows[0], password })
 })
 
+app.post('/api/users', async (req, res) => {
+
+  const {
+    username,
+    email,
+    password,
+    full_name,
+    phone
+  } = req.body
+
+  if (!username || !email || !password) {
+    res.status(400).json({
+      error: 'Thiếu dữ liệu.'
+    })
+
+    return
+  }
+
+  const passwordHash =
+    await bcrypt.hash(password, 10)
+
+  const { rows } = await pool.query(
+    `
+    INSERT INTO app_user (
+      username,
+      email,
+      password_hash,
+      full_name,
+      phone
+    )
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id
+    `,
+    [
+      username,
+      email,
+      passwordHash,
+      full_name,
+      phone
+    ]
+  )
+
+  res.json({
+    success: true,
+    id: rows[0].id
+  })
+})
+
 app.get('/api/users', async (_req, res) => {
   const { rows } = await pool.query(
     'select id, full_name, email, phone, role from app_user order by id'
@@ -72,6 +120,49 @@ app.get('/api/users', async (_req, res) => {
 
   res.json(rows)
 })
+
+app.post('/api/users', async (req, res) => {
+
+  const {
+    username,
+    email,
+    password
+  } = req.body
+
+  if (!username || !email || !password) {
+    res.status(400).json({
+      error: 'Thiếu dữ liệu.'
+    })
+
+    return
+  }
+
+  const passwordHash =
+    await bcrypt.hash(password, 10)
+
+  const { rows } = await pool.query(
+    `
+    INSERT INTO app_user (
+      username,
+      email,
+      password_hash
+    )
+    VALUES ($1, $2, $3)
+    RETURNING id
+    `,
+    [
+      username,
+      email,
+      passwordHash
+    ]
+  )
+
+  res.json({
+    success: true,
+    id: rows[0].id
+  })
+})
+
 const port = Number(process.env.PORT ?? 5174)
 
 app.listen(port, () => {

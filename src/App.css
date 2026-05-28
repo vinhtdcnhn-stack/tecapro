@@ -508,3 +508,126 @@ background:
 .add-btn:hover {
   background: #166534;
 }
+
+.edit-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.edit-btn:hover {
+  background: #1d4ed8;
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+
+  background: rgba(0,0,0,0.4);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 999;
+}
+
+.modal {
+  background: white;
+
+  width: 500px;
+  max-width: 90%;
+
+  padding: 24px;
+
+  border-radius: 16px;
+
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.2);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin-bottom: 24px;
+}
+
+.close-btn {
+  border: none;
+  background: transparent;
+
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+
+  margin-top: 24px;
+}
+
+.cancel-btn {
+  background: #e5e7eb;
+  border: none;
+
+  padding: 10px 18px;
+  border-radius: 10px;
+
+  cursor: pointer;
+}
+
+.save-btn {
+  background: #15803d;
+  color: white;
+
+  border: none;
+
+  padding: 10px 18px;
+  border-radius: 10px;
+
+  cursor: pointer;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.field input {
+  width: 100%;
+
+  padding: 12px 14px;
+
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+
+  font-size: 14px;
+
+  outline: none;
+
+  transition: 0.2s;
+}
+
+.field input:focus {
+  border-color: #15803d;
+
+  box-shadow:
+    0 0 0 3px rgba(21,128,61,0.15);
+}
