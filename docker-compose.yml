@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: hello_world_postgres
+    environment:
+      POSTGRES_DB: hello_world
+      POSTGRES_USER: hello
+      POSTGRES_PASSWORD: hello
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+
