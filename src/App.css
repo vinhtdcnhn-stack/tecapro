@@ -494,3 +494,17 @@ background:
 .section-title {
   text-align: center;
 }
+.add-btn {
+  background: #15803d;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.add-btn:hover {
+  background: #166534;
+}

@@ -24,7 +24,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const { rows } = await pool.query(
-    'select id, email, password_hash from app_user where email = $1',
+    'select id, email, full_name, role, password_hash from app_user where email = $1',
     [email],
   )
   const user = rows[0]
@@ -39,7 +39,13 @@ app.post('/api/auth/login', async (req, res) => {
     return
   }
 
-  res.json({ id: user.id, email: user.email })
+res.json({
+  id: user.id,
+  email: user.email,
+  full_name: user.full_name,
+  role: user.role
+})
+
 })
 
 app.post('/api/auth/seed', async (req, res) => {

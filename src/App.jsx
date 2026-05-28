@@ -12,6 +12,8 @@ function App() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [users, setUsers] = useState([])
+  const [currentUser, setCurrentUser] = useState(null)
+
 
   const menus = [
     'Trang chủ',
@@ -61,7 +63,13 @@ async function loadUsers() {
           return
         }
 
-        setUser({ email: data.email, id: data.id })
+          setUser({
+                        id: data.id,
+            email: data.email,
+            full_name: data.full_name,
+            role: data.role
+          })
+          
         setPassword('')
         setView('home')
         setActiveMenu('Trang chủ')
@@ -255,6 +263,11 @@ async function loadUsers() {
         {activeMenu === 'Quản lý người dùng' && (
           <>
             <h2 className="section-title">QUẢN LÝ NGƯỜI DÙNG</h2>
+            {user?.role == 1 && (
+              <button className="add-btn">
+                Thêm người dùng
+              </button>
+            )}
 
             <table className="user-table">
               <thead>
