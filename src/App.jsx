@@ -187,11 +187,12 @@ useEffect(() => {
                 type="button"
                 className={`menu-item ${activeMenu === m ? 'is-active' : ''}`}
                 onClick={() => {
-                  setActiveMenu(m)
                   if (m === 'Quản trị hệ thống') {
                     setError('')
                     setView(user ? 'home' : 'login')
+                    setActiveMenu('Quản lý người dùng') // ✅ Tự động chuyển sang tab con đầu tiên
                   } else {
+                    setActiveMenu(m)
                     setView('home')
                   }
                 }}
@@ -348,12 +349,11 @@ useEffect(() => {
             <table className="user-table">
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>Họ tên</th>
-                  <th>Email</th>
-                  <th>Số điện thoại</th>
-                  <th>Vai trò</th>
-                  <th>Hành động</th>
+                    <th>Phòng ban</th>
+                    <th>Số điện thoại</th>
+                    <th>Quản lý trực tiếp</th>
+                    <th>Hành động</th>
                 </tr>
               </thead>
 
@@ -361,11 +361,10 @@ useEffect(() => {
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id}>
-                    <td>{u.id}</td>
                     <td>{u.full_name}</td>
-                    <td>{u.email}</td>
-                    <td>{u.phone}</td>
-                    <td>{u.role}</td>
+                    <td>{u.department_name || '-'}</td>
+                    <td>{u.phone || '-'}</td>
+                    <td>{u.manager_name || '-'}</td>
                     <td> {user?.role == 1 && ( <button className="edit-btn"> Sửa </button> )} </td>
                   </tr>
                 ))}

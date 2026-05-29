@@ -129,9 +129,31 @@ app.post('/api/users', async (req, res) => {
 })
 
 app.get('/api/users', async (_req, res) => {
-  const { rows } = await pool.query(
-    'select id, full_name, email, phone, role from app_user order by id'
-  )
+  const { rows } = await pool.query(`
+  select
+    u.id,
+    u.full_name,
+    u.email,
+    u.phone,
+    u.role,
+
+    d.name as department_name,
+    p.name as position_name,
+    m.full_name as manager_name
+
+  from app_user u
+
+  left join department d
+    on d.id = u.department_id
+
+  left join position p
+    on p.id = u.position_id
+
+  left join app_user m
+    on m.id = u.manager_id
+
+  order by u.id
+`)
 
   res.json(rows)
 })
