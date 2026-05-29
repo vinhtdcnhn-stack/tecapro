@@ -14,7 +14,7 @@ export default function CustomerTable({ customers, searchTerm, userRole, onEdit 
   })
 
   return (
-    <>
+    <div className="table-wrapper">
       <table className="user-table">
         <thead>
           <tr>
@@ -64,6 +64,6 @@ export default function CustomerTable({ customers, searchTerm, userRole, onEdit 
           )}
         </tbody>
       </table>
-    </>
+    </div>
   )
 }
