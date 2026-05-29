@@ -1,73 +1,138 @@
-import { useEffect, useState } from 'react'
-import tecaproLogo from './assets/tecapro-logo.png'
+import { useState, useEffect } from 'react'
 import homeHero from './assets/home-hero.png'
+import Header from './components/layout/Header'
+import LoginForm from './components/auth/LoginForm'
+import Sidebar from './components/layout/Sidebar'
+import UserTable from './components/users/UserTable'
+import UserModal from './components/users/UserModal'
+import DataTable from './components/common/DataTable'
+import CustomerTable from './components/customers/CustomerTable'
+import CustomerModal from './components/customers/CustomerModal'
 import './App.css'
-
 
 function App() {
   const [view, setView] = useState('home')
   const [activeMenu, setActiveMenu] = useState('Trang chủ')
   const [user, setUser] = useState(null)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [users, setUsers] = useState([])
-  const [currentUser, setCurrentUser] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  
+  // Modal state for users
   const [showAddModal, setShowAddModal] = useState(false)
-  const [newUsername, setNewUsername] = useState('')
-  const [newEmail, setNewEmail] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [newFullName, setNewFullName] = useState('')
-  const [newPhone, setNewPhone] = useState('')
-  const [newEmployeeCode, setNewEmployeeCode] = useState('')
- const [departments, setDepartments] = useState([])
-const [positions, setPositions] = useState([])
-const [managers, setManagers] = useState([])
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingUserId, setEditingUserId] = useState(null)
 
-const [newDepartmentId, setNewDepartmentId] = useState('')
-const [newPositionId, setNewPositionId] = useState('')
-const [newManagerId, setNewManagerId] = useState('')
-const [newRole, setNewRole] = useState('2')
+  // Modal state for customers
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
+  const [showEditCustomerModal, setShowEditCustomerModal] = useState(false)
+  const [editingCustomerId, setEditingCustomerId] = useState(null)
 
+  // Dropdown data
+  const [departments, setDepartments] = useState([])
+  const [positions, setPositions] = useState([])
+  const [managers, setManagers] = useState([])
 
-  const menus = [
-    'Trang chủ',
-    'Hợp đồng bán',
-    'Tài liệu',
-    'Các tác vụ',
-    'Quản trị hệ thống',
-  ]
+  // Customer data
+  const [customers, setCustomers] = useState([])
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('')
 
-async function loadUsers() {
-  const base =
-    (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(
-      /\/$/,
-      '',
-    )
+  const getBaseUrl = () => {
+    return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
+  }
 
-  const res = await fetch(`${base}/api/users`)
-  const data = await res.json()
+  async function loadUsers() {
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/users`)
+      const data = await res.json()
+      setUsers(data)
+    } catch (err) {
+      console.error('Failed to load users:', err)
+    }
+  }
 
-  setUsers(data)
-}
+  async function loadDropdowns() {
+    try {
+      const depRes = await fetch(`${getBaseUrl()}/api/departments`)
+      const posRes = await fetch(`${getBaseUrl()}/api/positions`)
+      const manRes = await fetch(`${getBaseUrl()}/api/managers`)
+      setDepartments(await depRes.json())
+      setPositions(await posRes.json())
+      setManagers(await manRes.json())
+    } catch (err) {
+      console.error('Failed to load dropdowns:', err)
+    }
+  }
 
-async function loadDropdowns() {
+  async function loadCustomers() {
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/customers`)
+      const data = await res.json()
+      setCustomers(data)
+    } catch (err) {
+      console.error('Failed to load customers:', err)
+    }
+  }
 
-  const depRes =
-    await fetch('http://localhost:5174/api/departments')
+  async function checkEmailExists(emailToCheck, callback) {
+    if (!emailToCheck || !emailToCheck.includes('@')) {
+      callback(false)
+      return
+    }
 
-  const posRes =
-    await fetch('http://localhost:5174/api/positions')
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/users/check-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToCheck }),
+      })
+      const data = await res.json()
+      callback(data.exists)
+    } catch (err) {
+      console.error('Lỗi kiểm tra email:', err)
+      callback(false)
+    }
+  }
 
-  const manRes =
-    await fetch('http://localhost:5174/api/managers')
+  async function checkUsernameExists(usernameToCheck, callback) {
+    if (!usernameToCheck) {
+      callback(false)
+      return
+    }
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/users/check-username`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameToCheck }),
+      })
+      const data = await res.json()
+      callback(data.exists)
+    } catch (error) {
+      console.error('Lỗi kiểm tra username:', error)
+      callback(false)
+    }
+  }
 
-  setDepartments(await depRes.json())
-  setPositions(await posRes.json())
-  setManagers(await manRes.json())
-}
+  async function checkEmployeeCodeExists(codeToCheck, callback) {
+    if (!codeToCheck) {
+      callback(false)
+      return
+    }
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/users/check-employee-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employee_code: codeToCheck }),
+      })
+      const data = await res.json()
+      callback(data.exists)
+    } catch (error) {
+      console.error('Lỗi kiểm tra mã NV:', error)
+      callback(false)
+    }
+  }
 
-  function handleLogin(e) {
+  function handleLogin(e, email, password) {
     e.preventDefault()
     setError('')
 
@@ -78,12 +143,7 @@ async function loadDropdowns() {
 
     ;(async () => {
       try {
-        const base =
-          (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(
-            /\/$/,
-            '',
-          )
-        const res = await fetch(`${base}/api/auth/login`, {
+        const res = await fetch(`${getBaseUrl()}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
@@ -94,18 +154,13 @@ async function loadDropdowns() {
           return
         }
 
-          setUser({
-                        id: data.id,
-            email: data.email,
-            full_name: data.full_name,
-            role: data.role
-          })
-          localStorage.setItem(
-            'userId',
-            data.id
-          )
-          
-        setPassword('')
+        setUser({
+          id: data.id,
+          email: data.email,
+          full_name: data.full_name,
+          role: data.role
+        })
+        localStorage.setItem('userId', data.id)
         setView('home')
         setActiveMenu('Trang chủ')
       } catch {
@@ -117,497 +172,267 @@ async function loadDropdowns() {
   function handleLogout() {
     localStorage.removeItem('userId')
     setUser(null)
-    setEmail('')
-    setPassword('')
     setError('')
   }
 
-  useEffect(() => {
-  loadUsers()
-  loadDropdowns()
-}, [])
-
-useEffect(() => {
-
-  const userId =
-    localStorage.getItem('userId')
-
-  if (!userId) {
-    return
+  function handleNavigate(menu, viewName) {
+    setActiveMenu(menu)
+    setView(viewName)
   }
 
-  ;(async () => {
-
+  async function handleSaveUser(formData, isEdit) {
     try {
+      const url = isEdit 
+        ? `${getBaseUrl()}/api/users/${editingUserId}`
+        : `${getBaseUrl()}/api/users`
+      
+      const method = isEdit ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
 
-      const res = await fetch(
-        `http://localhost:5174/api/me/${userId}`
-      )
-
+      const data = await res.json()
       if (!res.ok) {
-
-        localStorage.removeItem('userId')
-
+        alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!'))
         return
       }
 
-      const data = await res.json()
-
-      setUser(data)
-
-    } catch {
-
-      localStorage.removeItem('userId')
+      alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
+      await loadUsers()
+      setShowAddModal(false)
+      setShowEditModal(false)
+      setEditingUserId(null)
+    } catch (err) {
+      console.error(err)
+      alert('Có lỗi xảy ra.')
     }
+  }
 
-  })()
+  function handleEdit(user) {
+    setEditingUserId(user.id)
+    setShowEditModal(true)
+  }
 
-}, [])
+  function handleEditCustomer(customer) {
+    setEditingCustomerId(customer.id)
+    setShowEditCustomerModal(true)
+  }
+
+  async function handleSaveCustomer(formData, isEdit) {
+    try {
+      const url = isEdit 
+        ? `${getBaseUrl()}/api/customers/${editingCustomerId}`
+        : `${getBaseUrl()}/api/customers`
+      
+      const method = isEdit ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!'))
+        return
+      }
+
+      alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
+      await loadCustomers()
+      setShowAddCustomerModal(false)
+      setShowEditCustomerModal(false)
+      setEditingCustomerId(null)
+    } catch (err) {
+      console.error(err)
+      alert('Có lỗi xảy ra.')
+    }
+  }
+
+  useEffect(() => {
+    loadUsers()
+    loadDropdowns()
+    loadCustomers()
+  }, [])
+
+  useEffect(() => {
+    const userId = localStorage.getItem('userId')
+    if (!userId) return
+
+    ;(async () => {
+      try {
+        const res = await fetch(`${getBaseUrl()}/api/me/${userId}`)
+        if (!res.ok) {
+          localStorage.removeItem('userId')
+          return
+        }
+        const data = await res.json()
+        setUser(data)
+      } catch {
+        localStorage.removeItem('userId')
+      }
+    })()
+  }, [])
 
   return (
     <div className="shell">
-      <header className="topbar">
-        <div className="topbar-inner">
-          <button
-            type="button"
-            className="brand"
-            onClick={() => {
-              setActiveMenu('Trang chủ')
-              setView('home')
-            }}
-            aria-label="Trang chủ"
-          >
-            <img className="brand-logo" src={tecaproLogo} alt="TECAPRO" />
-          </button>
+      <Header 
+        user={user}
+        activeMenu={activeMenu}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+      />
 
-          <nav className="menu" aria-label="Chính">
-            {menus.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={`menu-item ${activeMenu === m ? 'is-active' : ''}`}
-                onClick={() => {
-                  if (m === 'Quản trị hệ thống') {
-                    setError('')
-                    setView(user ? 'home' : 'login')
-                    setActiveMenu('Quản lý người dùng') // ✅ Tự động chuyển sang tab con đầu tiên
-                  } else {
-                    setActiveMenu(m)
-                    setView('home')
-                  }
-                }}
-              >
-                {m}
-              </button>
-            ))}
-          </nav>
-
-          <div className="topbar-actions">
-            {user ? (
-              <>
-                <span className="user-pill" title={user.email}>
-                  {user.full_name}
-                </span>
-                <button type="button" className="topbar-btn" onClick={handleLogout}>
-                  Đăng xuất
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="topbar-btn"
-                onClick={() => {
-                  setActiveMenu('Quản trị hệ thống')
-                  setError('')
-                  setView('login')
-                }}
-              >
-                Đăng nhập
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
       {view === 'login' ? (
-  <main className="page">
-      
+        <main className="page">
+          <LoginForm onLogin={handleLogin} error={error} />
+        </main>
+      ) : activeMenu === 'Trang chủ' ? (
+        <main className="page page--home">
+          <div className="home-hero">
+            <img className="home-hero-img" src={homeHero} alt="" />
+          </div>
+        </main>
+      ) : (
+        <main className="page admin-page">
+          <div className="admin-layout">
+            <Sidebar activeMenu={activeMenu} onNavigate={setActiveMenu} />
 
-<div className="content">
-
-  <div className="login-header">
-    <p className="eyebrow">TECAPRO</p>
-
-    <h2 className="login-title">
-      ĐĂNG NHẬP
-    </h2>
-
-    <p className="subtitle login-subtitle">
-      Hệ thống quản lý nội bộ
-    </p>
-  </div>
-
-  <form className="login-form" onSubmit={handleLogin}>
-
-    <div className="field">
-      <label className="field-label">
-        Email
-      </label>
-
-      <input
-        type="email"
-        className="field-input"
-        placeholder="Nhập email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-    </div>
-
-    <div className="field">
-      <label className="field-label">
-        Mật khẩu
-      </label>
-
-      <input
-        type="password"
-        className="field-input"
-        placeholder="Nhập mật khẩu"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-    </div>
-
-    {error && (
-      <p className="form-error">
-        {error}
-      </p>
-    )}
-
-    <button
-      type="submit"
-      className="btn btn--full"
-    >
-      Đăng nhập
-    </button>
-
-  </form>
-
-</div>
-
-  </main>
-) : activeMenu === 'Trang chủ' ? (
-  <main className="page page--home">
-    <div className="home-hero">
-      <img className="home-hero-img" src={homeHero} alt="" />
-    </div>
-  </main>
-) : (
-  <main className="page admin-page">
-    <div className="admin-layout">
-      <aside className="sidebar">
-        <button
-          className={`sidebar-btn ${
-            activeMenu === 'Quản lý người dùng' ? 'active' : ''
-          }`}
-          onClick={() => setActiveMenu('Quản lý người dùng')}
-        >
-          QUẢN LÝ NGƯỜI DÙNG
-        </button>
-
-        <button
-          className={`sidebar-btn ${
-            activeMenu === "departments" ? "active" : ""
-          }`}
-          onClick={() => setActiveMenu("departments")}
-        >
-          QUẢN LÝ PHÒNG BAN
-        </button>
-
-        <button
-          className={`sidebar-btn ${
-            activeMenu === "positions" ? "active" : ""
-          }`}
-          onClick={() => setActiveMenu("positions")}
-        >
-          QUẢN LÝ VỊ TRÍ
-        </button>
-
-
-      </aside>
-
-      <section className="content-area">
-        {activeMenu === 'Quản lý người dùng' && (
-          <>
-            <h2 className="section-title">QUẢN LÝ NGƯỜI DÙNG</h2>
-            {user?.role == 1 && (
-              <button className="add-btn"
-              onClick={() => setShowAddModal(true)}
-              >
-                Thêm người dùng
-              </button>
-            )}
-
-            <table className="user-table">
-              <thead>
-                <tr>
-                  <th>Họ tên</th>
-                    <th>Phòng ban</th>
-                    <th>Số điện thoại</th>
-                    <th>Quản lý trực tiếp</th>
-                    <th>Hành động</th>
-                </tr>
-              </thead>
-
-
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td>{u.full_name}</td>
-                    <td>{u.department_name || '-'}</td>
-                    <td>{u.phone || '-'}</td>
-                    <td>{u.manager_name || '-'}</td>
-                    <td> {user?.role == 1 && ( <button className="edit-btn"> Sửa </button> )} </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-              {showAddModal && (
-                <div className="modal-overlay">
-
-                  <div className="modal">
-
-                    <div className="modal-header">
-                      <h2>THÊM NGƯỜI DÙNG</h2>
-
-                      <button
-                        className="close-btn"
-                        onClick={() => setShowAddModal(false)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    <div className="modal-body">
-
-                      <div className="field">
-                        <label>Tên đăng nhập</label>
-                        <input
-                          type="text"
-                          value={newUsername}
-                          onChange={(e) => setNewUsername(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label>Email</label>
-                        <input
-                          type="email"
-                          value={newEmail}
-                          onChange={(e) => setNewEmail(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label>Họ tên</label>
-
-                        <input
-                          type="text"
-                          value={newFullName}
-                          onChange={(e) =>
-                            setNewFullName(e.target.value)
-                          }
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label>Mã nhân viên</label>
-
-                        <input
-                          type="text"
-                          value={newEmployeeCode}
-                          onChange={(e) =>
-                            setNewEmployeeCode(e.target.value)
-                          }
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label>Phòng ban</label>
-
-                        <select
-                          value={newDepartmentId}
-                          onChange={(e) =>
-                            setNewDepartmentId(e.target.value)
-                          }
-                        >
-                          <option value="">
-                            Chọn phòng ban
-                          </option>
-
-                          {departments.map(dep => (
-                            <option
-                              key={dep.id}
-                              value={dep.id}
-                            >
-                              {dep.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="field">
-                        <label>Vị trí</label>
-
-                        <select
-                          value={newPositionId}
-                          onChange={(e) =>
-                            setNewPositionId(e.target.value)
-                          }
-                        >
-                          <option value="">
-                            Chọn vị trí
-                          </option>
-
-                          {positions.map(pos => (
-                            <option
-                              key={pos.id}
-                              value={pos.id}
-                            >
-                              {pos.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="field">
-                        <label>Quản lý trực tiếp</label>
-
-                        <select
-                          value={newManagerId}
-                          onChange={(e) =>
-                            setNewManagerId(e.target.value)
-                          }
-                        >
-                          <option value="">
-                            Chọn quản lý
-                          </option>
-
-                          {managers.map(manager => (
-                            <option
-                              key={manager.id}
-                              value={manager.id}
-                            >
-                              {manager.full_name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="field">
-                        <label>Vai trò</label>
-
-                        <select
-                          value={newRole}
-                          onChange={(e) =>
-                            setNewRole(e.target.value)
-                          }
-                        >
-                          <option value="1">
-                            Admin
-                          </option>
-
-                          <option value="2">
-                            User
-                          </option>
-                        </select>
-                      </div>
-
-                      <div className="field">
-                        <label>Số điện thoại</label>
-
-                        <input
-                          type="text"
-                          value={newPhone}
-                          onChange={(e) =>
-                            setNewPhone(e.target.value)
-                          }
-                        />
-                      </div>
-
-                      <div className="field">
-                        <label>Mật khẩu</label>
-                        <input
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                        />
-                      </div>
-
-                    </div>
-
-                    <div className="modal-footer">
-
-                      <button
-                        className="cancel-btn"
-                        onClick={() => setShowAddModal(false)}
-                      >
-                        Hủy
-                      </button>
-
-                      <button
-                          className="save-btn"
-                          onClick={async () => {
-
-                            const res = await fetch(
-                              'http://localhost:5174/api/users',
-                              {
-                                method: 'POST',
-
-                                headers: {
-                                  'Content-Type': 'application/json'
-                                },
-
-                                body: JSON.stringify({
-                                  username: newUsername,
-                                  email: newEmail,
-                                  password: newPassword,
-                                  full_name: newFullName,
-                                  phone: newPhone,
-                                  employee_code: newEmployeeCode,
-                                  department_id: newDepartmentId,
-                                  position_id: newPositionId,
-                                  manager_id: newManagerId,
-                                  role: newRole
-                                })
-                              }
-                            )
-
-                            const data = await res.json()
-                            console.log(data)
-                            await loadUsers()
-
-                            setShowAddModal(false)
-                          }}
-                        >
-                          Lưu
-                        </button>
-
-                    </div>
-
+            <section className="content-area">
+              {activeMenu === 'Quản lý người dùng' && (
+                <>
+                  <h2 className="section-title">QUẢN LÝ NGƯỜI DÙNG</h2>
+                  <div style={{ marginBottom: '15px', maxWidth: '300px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Tìm kiếm (Tên, Email, SĐT...)"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        fontSize: '14px'
+                      }}
+                    />
                   </div>
+                  {user?.role == 1 && (
+                    <button className="add-btn" onClick={() => setShowAddModal(true)}>
+                      Thêm người dùng
+                    </button>
+                  )}
 
+                  <UserTable 
+                    users={users}
+                    searchTerm={searchTerm}
+                    userRole={user?.role}
+                    onEdit={handleEdit}
+                  />
 
-                </div>
+                  <UserModal
+                    isOpen={showAddModal}
+                    onClose={() => setShowAddModal(false)}
+                    onSave={handleSaveUser}
+                    departments={departments}
+                    positions={positions}
+                    managers={managers}
+                    checkEmailExists={checkEmailExists}
+                    checkUsernameExists={checkUsernameExists}
+                    checkEmployeeCodeExists={checkEmployeeCodeExists}
+                  />
+
+                  <UserModal
+                    isOpen={showEditModal}
+                    onClose={() => { setShowEditModal(false); setEditingUserId(null) }}
+                    onSave={handleSaveUser}
+                    user={users.find(u => u.id === editingUserId)}
+                    departments={departments}
+                    positions={positions}
+                    managers={managers}
+                    checkEmailExists={checkEmailExists}
+                    checkUsernameExists={checkUsernameExists}
+                    checkEmployeeCodeExists={checkEmployeeCodeExists}
+                  />
+                </>
               )}
 
-          </>
-        )}
-      </section>
+              {activeMenu === "departments" && (
+                <DataTable
+                  title="QUẢN LÝ PHÒNG BAN"
+                  columns={[
+                    { header: 'Mã phòng ban', field: 'code' },
+                    { header: 'Tên phòng ban', field: 'name' }
+                  ]}
+                  data={departments}
+                />
+              )}
+
+              {activeMenu === "positions" && (
+                <DataTable
+                  title="QUẢN LÝ VỊ TRÍ"
+                  columns={[
+                    { header: 'Mã vị trí', field: 'code' },
+                    { header: 'Tên vị trí', field: 'name' }
+                  ]}
+                  data={positions}
+                />
+              )}
+
+              {activeMenu === "customers" && (
+                <>
+                  <h2 className="section-title">QUẢN LÝ KHÁCH HÀNG</h2>
+                  <div style={{ marginBottom: '15px', maxWidth: '300px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Tìm kiếm (Tên, Mã, MST, SĐT...)"
+                      value={customerSearchTerm}
+                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                  {user?.role == 1 && (
+                    <button className="add-btn" onClick={() => setShowAddCustomerModal(true)}>
+                      Thêm khách hàng
+                    </button>
+                  )}
+
+                  <CustomerTable 
+                    customers={customers}
+                    searchTerm={customerSearchTerm}
+                    userRole={user?.role}
+                    onEdit={handleEditCustomer}
+                  />
+
+                  <CustomerModal
+                    isOpen={showAddCustomerModal}
+                    onClose={() => setShowAddCustomerModal(false)}
+                    onSave={handleSaveCustomer}
+                  />
+
+                  <CustomerModal
+                    isOpen={showEditCustomerModal}
+                    onClose={() => { setShowEditCustomerModal(false); setEditingCustomerId(null) }}
+                    onSave={handleSaveCustomer}
+                    customer={customers.find(c => c.id === editingCustomerId)}
+                  />
+                </>
+              )}
+            </section>
+          </div>
+        </main>
+      )}
     </div>
-  </main>
-)}
-  
-</div>
-)
+  )
 }
 
 export default App
