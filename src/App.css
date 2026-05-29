@@ -445,6 +445,23 @@ background:
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  display: block;
+}
+
+.user-table thead {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.user-table tbody {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+  max-height: calc(100vh - 340px);
+  overflow-y: auto;
 }
 
 .user-table th,
@@ -452,10 +469,14 @@ background:
   border-bottom: 1px solid #ddd;
   padding: 12px;
   text-align: left;
+  word-wrap: break-word;
 }
 
 .user-table th {
   background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .admin-page {
