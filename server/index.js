@@ -91,40 +91,93 @@ app.post('/api/users', async (req, res) => {
   const passwordHash =
     await bcrypt.hash(password, 10)
 
-  const { rows } = await pool.query(
-    `
-    INSERT INTO app_user (
-      username,
-      email,
-      password_hash,
-      full_name,
-      phone,
-      employee_code,
-      department_id,
-      position_id,
-      manager_id,
-      role
+  try {
+    const { rows } = await pool.query(
+      `
+      INSERT INTO app_user (
+        username,
+        email,
+        password_hash,
+        full_name,
+        phone,
+        employee_code,
+        department_id,
+        position_id,
+        manager_id,
+        role
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING id
+      `,
+      [
+        username,
+        email,
+        passwordHash,
+        full_name,
+        phone,
+        employee_code,
+        department_id || null,
+        position_id || null,
+        manager_id || null,
+        role
+      ]
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-    RETURNING id
-    `,
-    [
-      username,
-      email,
-      passwordHash,
-      full_name,
-      phone,
-      employee_code,
-      department_id || null,
-      position_id || null,
-      manager_id || null,
-      role
-    ]
-  )
 
+    res.json({
+      success: true,
+      id: rows[0].id
+    })
+  } catch (err) {
+    // Xử lý lỗi duplicate key
+    if (err.code === '23505') {
+      const constraint = err.constraint || err.detail || ''
+      
+      if (constraint.includes('email')) {
+        res.status(400).json({
+          error: 'Email này đã tồn tại trong hệ thống.'
+        })
+      } else if (constraint.includes('username')) {
+        res.status(400).json({
+          error: 'Tên đăng nhập này đã tồn tại.'
+        })
+      } else if (constraint.includes('employee_code')) {
+        res.status(400).json({
+          error: 'Mã nhân viên này đã tồn tại.'
+        })
+      } else {
+        res.status(400).json({
+          error: 'Dữ liệu bị trùng lặp trong hệ thống.'
+        })
+      }
+      return
+    }
+    
+    // Lỗi khác
+    console.error('Lỗi khi tạo user:', err)
+    res.status(500).json({
+      error: 'Có lỗi xảy ra khi tạo nhân viên.'
+    })
+  }
+})
+
+// API kiểm tra email đã tồn tại chưa
+app.post('/api/users/check-email', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim().toLowerCase()
+  
+  if (!email) {
+    res.status(400).json({
+      error: 'Email không được để trống.'
+    })
+    return
+  }
+  
+  const { rows } = await pool.query(
+    'SELECT id FROM app_user WHERE email = $1',
+    [email]
+  )
+  
   res.json({
-    success: true,
-    id: rows[0].id
+    exists: rows.length > 0
   })
 })
 
