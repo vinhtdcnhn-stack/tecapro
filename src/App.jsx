@@ -385,7 +385,7 @@ function App() {
               {activeMenu === "customers" && (
                 <>
                   <h2 className="section-title">QUẢN LÝ KHÁCH HÀNG</h2>
-                  <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     {user?.role == 1 && (
                       <button className="add-btn" onClick={() => setShowAddCustomerModal(true)}>
                         Thêm khách hàng
@@ -408,12 +408,14 @@ function App() {
                     </div>
                   </div>
 
-                  <CustomerTable 
-                    customers={customers}
-                    searchTerm={customerSearchTerm}
-                    userRole={user?.role}
-                    onEdit={handleEditCustomer}
-                  />
+                  <div className="content-scrollable">
+                    <CustomerTable 
+                      customers={customers}
+                      searchTerm={customerSearchTerm}
+                      userRole={user?.role}
+                      onEdit={handleEditCustomer}
+                    />
+                  </div>
 
                   <CustomerModal
                     isOpen={showAddCustomerModal}
