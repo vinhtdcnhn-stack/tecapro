@@ -486,6 +486,17 @@ background:
   min-height: 500px;
 
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 140px);
+  overflow: hidden;
+}
+
+.content-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 .login-card {
   width: 100%;

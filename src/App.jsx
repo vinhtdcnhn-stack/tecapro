@@ -406,12 +406,14 @@ function App() {
                     </button>
                   )}
 
-                  <CustomerTable 
-                    customers={customers}
-                    searchTerm={customerSearchTerm}
-                    userRole={user?.role}
-                    onEdit={handleEditCustomer}
-                  />
+                  <div className="content-scrollable">
+                    <CustomerTable 
+                      customers={customers}
+                      searchTerm={customerSearchTerm}
+                      userRole={user?.role}
+                      onEdit={handleEditCustomer}
+                    />
+                  </div>
 
                   <CustomerModal
                     isOpen={showAddCustomerModal}
