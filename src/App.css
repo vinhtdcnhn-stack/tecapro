@@ -493,10 +493,15 @@ background:
   overflow: hidden;
 }
 
+.content-header {
+  flex-shrink: 0;
+}
+
 .content-scrollable {
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
+  min-height: 0;
 }
 .login-card {
   width: 100%;

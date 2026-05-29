@@ -385,35 +385,35 @@ function App() {
               {activeMenu === "customers" && (
                 <>
                   <h2 className="section-title">QUẢN LÝ KHÁCH HÀNG</h2>
-                  <div style={{ marginBottom: '15px', maxWidth: '300px' }}>
-                    <input
-                      type="text"
-                      placeholder="🔍 Tìm kiếm (Tên, Mã, MST, SĐT...)"
-                      value={customerSearchTerm}
-                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc',
-                        fontSize: '14px'
-                      }}
-                    />
+                  <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {user?.role == 1 && (
+                      <button className="add-btn" onClick={() => setShowAddCustomerModal(true)}>
+                        Thêm khách hàng
+                      </button>
+                    )}
+                    <div style={{ maxWidth: '300px' }}>
+                      <input
+                        type="text"
+                        placeholder="🔍 Tìm kiếm (Tên, Mã, MST, SĐT...)"
+                        value={customerSearchTerm}
+                        onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: '4px',
+                          border: '1px solid #ccc',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
                   </div>
-                  {user?.role == 1 && (
-                    <button className="add-btn" onClick={() => setShowAddCustomerModal(true)}>
-                      Thêm khách hàng
-                    </button>
-                  )}
 
-                  <div className="content-scrollable">
-                    <CustomerTable 
-                      customers={customers}
-                      searchTerm={customerSearchTerm}
-                      userRole={user?.role}
-                      onEdit={handleEditCustomer}
-                    />
-                  </div>
+                  <CustomerTable 
+                    customers={customers}
+                    searchTerm={customerSearchTerm}
+                    userRole={user?.role}
+                    onEdit={handleEditCustomer}
+                  />
 
                   <CustomerModal
                     isOpen={showAddCustomerModal}
