@@ -12,7 +12,7 @@ export default function UserTable({ users, searchTerm, userRole, onEdit }) {
   })
 
   return (
-    <>
+    <div className="table-wrapper">
       <table className="user-table">
         <thead>
           <tr>
@@ -49,6 +49,6 @@ export default function UserTable({ users, searchTerm, userRole, onEdit }) {
           )}
         </tbody>
       </table>
-    </>
+    </div>
   )
 }
