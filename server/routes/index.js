@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import * as authController from '../controllers/authController.js'
+import customerRoutes from './customerRoutes.js'
 
 const router = Router()
 
@@ -10,6 +11,7 @@ router.post('/auth/seed', authController.seedAdmin)
 // User routes
 router.get('/users', authController.getAllUsers)
 router.get('/users/:id', authController.getUserById)
+router.get('/me/:id', authController.getUserById) // Alias for user info
 router.post('/users', authController.createUser)
 router.put('/users/:id', authController.updateUser)
 router.post('/users/check-email', authController.checkEmailExists)
@@ -24,5 +26,8 @@ router.get('/positions', authController.getAllPositions)
 
 // Manager routes
 router.get('/managers', authController.getAllManagers)
+
+// Customer routes
+router.use('/customers', customerRoutes)
 
 export default router
