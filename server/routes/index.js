@@ -1,0 +1,28 @@
+import { Router } from 'express'
+import * as authController from '../controllers/authController.js'
+
+const router = Router()
+
+// Auth routes
+router.post('/auth/login', authController.login)
+router.post('/auth/seed', authController.seedAdmin)
+
+// User routes
+router.get('/users', authController.getAllUsers)
+router.get('/users/:id', authController.getUserById)
+router.post('/users', authController.createUser)
+router.put('/users/:id', authController.updateUser)
+router.post('/users/check-email', authController.checkEmailExists)
+router.post('/users/check-username', authController.checkUsernameExists)
+router.post('/users/check-employee-code', authController.checkEmployeeCodeExists)
+
+// Department routes
+router.get('/departments', authController.getAllDepartments)
+
+// Position routes
+router.get('/positions', authController.getAllPositions)
+
+// Manager routes
+router.get('/managers', authController.getAllManagers)
+
+export default router

@@ -9,7 +9,7 @@ node_modules/
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
 # Editors
 .vscode/
@@ -30,13 +30,18 @@ __pycache__/
 *.class
 *.jar
 *.war
+*.ear
+*.nar
+target/
 
 # C/C++
 *.o
 *.obj
 *.so
 *.a
+*.lib
 *.dll
+*.dylib
 *.exe
 
 # Compression
@@ -66,4 +71,20 @@ __pycache__/
 # System
 .DS_Store
 Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Testing
+.mypy_cache/
+.pytest_cache/
+
+# Gradle
+.gradle/
+
+# Temporary files
+*.swp
+*.swo
 ```
