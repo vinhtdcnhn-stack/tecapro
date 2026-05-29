@@ -536,9 +536,9 @@ background:
 }
 
 .modal {
-  background: white;
+  background: #f3f8f3;
 
-  width: 500px;
+  width: 900px;
   max-width: 90%;
 
   padding: 24px;
@@ -556,6 +556,16 @@ background:
   margin-bottom: 24px;
 }
 
+.modal-header h2 {
+  margin: 0;
+
+  font-size: 24px;
+
+  font-weight: 700;
+
+  color: #1f2937;
+}
+
 .close-btn {
   border: none;
   background: transparent;
@@ -565,9 +575,12 @@ background:
 }
 
 .modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+   display: grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap: 16px 20px;
 }
 
 .modal-footer {
@@ -631,3 +644,11 @@ background:
   box-shadow:
     0 0 0 3px rgba(21,128,61,0.15);
 }
+.field select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+}
+

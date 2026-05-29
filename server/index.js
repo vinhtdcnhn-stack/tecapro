@@ -73,7 +73,11 @@ app.post('/api/users', async (req, res) => {
     password,
     full_name,
     phone,
-    employee_code
+    employee_code,
+    department_id,
+    position_id,
+    manager_id,
+    role
   } = req.body
 
   if (!username || !email || !password) {
@@ -95,9 +99,13 @@ app.post('/api/users', async (req, res) => {
       password_hash,
       full_name,
       phone,
-      employee_code
+      employee_code,
+      department_id,
+      position_id,
+      manager_id,
+      role
     )
-    VALUES ($1, $2, $3, $4, $5, $6)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING id
     `,
     [
@@ -106,7 +114,11 @@ app.post('/api/users', async (req, res) => {
       passwordHash,
       full_name,
       phone,
-      employee_code
+      employee_code,
+      department_id || null,
+      position_id || null,
+      manager_id || null,
+      role
     ]
   )
 
@@ -124,46 +136,35 @@ app.get('/api/users', async (_req, res) => {
   res.json(rows)
 })
 
-app.post('/api/users', async (req, res) => {
 
-  const {
-    username,
-    email,
-    password
-  } = req.body
+app.get('/api/me/:id', async (req, res) => {
 
-  if (!username || !email || !password) {
-    res.status(400).json({
-      error: 'Thiếu dữ liệu.'
+  const id = req.params.id
+
+  const { rows } = await pool.query(
+    `
+    SELECT
+      id,
+      email,
+      full_name,
+      role
+    FROM app_user
+    WHERE id = $1
+    `,
+    [id]
+  )
+
+  const user = rows[0]
+
+  if (!user) {
+    res.status(404).json({
+      error: 'User không tồn tại.'
     })
 
     return
   }
 
-  const passwordHash =
-    await bcrypt.hash(password, 10)
-
-  const { rows } = await pool.query(
-    `
-    INSERT INTO app_user (
-      username,
-      email,
-      password_hash
-    )
-    VALUES ($1, $2, $3)
-    RETURNING id
-    `,
-    [
-      username,
-      email,
-      passwordHash
-    ]
-  )
-
-  res.json({
-    success: true,
-    id: rows[0].id
-  })
+  res.json(user)
 })
 
 const port = Number(process.env.PORT ?? 5174)
@@ -173,3 +174,42 @@ app.listen(port, () => {
   console.log(`[server] listening on http://localhost:${port}`)
 })
 
+app.get('/api/departments', async (_req, res) => {
+
+  const { rows } = await pool.query(`
+    SELECT
+      id,
+      name
+    FROM department
+    WHERE is_active = true
+    ORDER BY id
+  `)
+
+  res.json(rows)
+})
+
+app.get('/api/positions', async (_req, res) => {
+
+  const { rows } = await pool.query(`
+    SELECT
+      id,
+      name
+    FROM position
+    ORDER BY id
+  `)
+
+  res.json(rows)
+})
+
+  app.get('/api/managers', async (_req, res) => {
+
+  const { rows } = await pool.query(`
+    SELECT
+      id,
+      full_name
+    FROM app_user
+    ORDER BY full_name
+  `)
+
+  res.json(rows)
+})

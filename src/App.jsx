@@ -20,6 +20,15 @@ function App() {
   const [newFullName, setNewFullName] = useState('')
   const [newPhone, setNewPhone] = useState('')
   const [newEmployeeCode, setNewEmployeeCode] = useState('')
+ const [departments, setDepartments] = useState([])
+const [positions, setPositions] = useState([])
+const [managers, setManagers] = useState([])
+
+const [newDepartmentId, setNewDepartmentId] = useState('')
+const [newPositionId, setNewPositionId] = useState('')
+const [newManagerId, setNewManagerId] = useState('')
+const [newRole, setNewRole] = useState('2')
+
 
   const menus = [
     'Trang chủ',
@@ -40,6 +49,22 @@ async function loadUsers() {
   const data = await res.json()
 
   setUsers(data)
+}
+
+async function loadDropdowns() {
+
+  const depRes =
+    await fetch('http://localhost:5174/api/departments')
+
+  const posRes =
+    await fetch('http://localhost:5174/api/positions')
+
+  const manRes =
+    await fetch('http://localhost:5174/api/managers')
+
+  setDepartments(await depRes.json())
+  setPositions(await posRes.json())
+  setManagers(await manRes.json())
 }
 
   function handleLogin(e) {
@@ -75,6 +100,10 @@ async function loadUsers() {
             full_name: data.full_name,
             role: data.role
           })
+          localStorage.setItem(
+            'userId',
+            data.id
+          )
           
         setPassword('')
         setView('home')
@@ -86,6 +115,7 @@ async function loadUsers() {
   }
 
   function handleLogout() {
+    localStorage.removeItem('userId')
     setUser(null)
     setEmail('')
     setPassword('')
@@ -94,6 +124,44 @@ async function loadUsers() {
 
   useEffect(() => {
   loadUsers()
+  loadDropdowns()
+}, [])
+
+useEffect(() => {
+
+  const userId =
+    localStorage.getItem('userId')
+
+  if (!userId) {
+    return
+  }
+
+  ;(async () => {
+
+    try {
+
+      const res = await fetch(
+        `http://localhost:5174/api/me/${userId}`
+      )
+
+      if (!res.ok) {
+
+        localStorage.removeItem('userId')
+
+        return
+      }
+
+      const data = await res.json()
+
+      setUser(data)
+
+    } catch {
+
+      localStorage.removeItem('userId')
+    }
+
+  })()
+
 }, [])
 
   return (
@@ -364,6 +432,97 @@ async function loadUsers() {
                       </div>
 
                       <div className="field">
+                        <label>Phòng ban</label>
+
+                        <select
+                          value={newDepartmentId}
+                          onChange={(e) =>
+                            setNewDepartmentId(e.target.value)
+                          }
+                        >
+                          <option value="">
+                            Chọn phòng ban
+                          </option>
+
+                          {departments.map(dep => (
+                            <option
+                              key={dep.id}
+                              value={dep.id}
+                            >
+                              {dep.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="field">
+                        <label>Vị trí</label>
+
+                        <select
+                          value={newPositionId}
+                          onChange={(e) =>
+                            setNewPositionId(e.target.value)
+                          }
+                        >
+                          <option value="">
+                            Chọn vị trí
+                          </option>
+
+                          {positions.map(pos => (
+                            <option
+                              key={pos.id}
+                              value={pos.id}
+                            >
+                              {pos.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="field">
+                        <label>Quản lý trực tiếp</label>
+
+                        <select
+                          value={newManagerId}
+                          onChange={(e) =>
+                            setNewManagerId(e.target.value)
+                          }
+                        >
+                          <option value="">
+                            Chọn quản lý
+                          </option>
+
+                          {managers.map(manager => (
+                            <option
+                              key={manager.id}
+                              value={manager.id}
+                            >
+                              {manager.full_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="field">
+                        <label>Vai trò</label>
+
+                        <select
+                          value={newRole}
+                          onChange={(e) =>
+                            setNewRole(e.target.value)
+                          }
+                        >
+                          <option value="1">
+                            Admin
+                          </option>
+
+                          <option value="2">
+                            User
+                          </option>
+                        </select>
+                      </div>
+
+                      <div className="field">
                         <label>Số điện thoại</label>
 
                         <input
@@ -414,13 +573,17 @@ async function loadUsers() {
                                   password: newPassword,
                                   full_name: newFullName,
                                   phone: newPhone,
-                                  employee_code: newEmployeeCode
+                                  employee_code: newEmployeeCode,
+                                  department_id: newDepartmentId,
+                                  position_id: newPositionId,
+                                  manager_id: newManagerId,
+                                  role: newRole
                                 })
                               }
                             )
 
                             const data = await res.json()
-
+                            console.log(data)
                             await loadUsers()
 
                             setShowAddModal(false)
