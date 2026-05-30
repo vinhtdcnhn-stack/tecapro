@@ -395,6 +395,7 @@ function App() {
                 onLoadContracts={loadContracts}
                 currentUser={user}
                 users={users}
+                customers={customers}
               />
             </section>
           </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import ContractModal from './ContractModal'
 
-export default function ContractListPage({ contracts, searchTerm: parentSearchTerm, onManage, onLoadContracts, currentUser, users }) {
+export default function ContractListPage({ contracts, searchTerm: parentSearchTerm, onManage, onLoadContracts, currentUser, users, customers }) {
   const [localContracts, setLocalContracts] = useState([])
   const [localSearchTerm, setLocalSearchTerm] = useState(parentSearchTerm || '')
   const [filters, setFilters] = useState({ contract_no: '', project_name: '', customer_name: '', pm_name: '', status: '' })
@@ -243,6 +243,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           currentUser={currentUser}
           contracts={localContracts}
           users={users || []}
+          customers={customers || []}
         />
       )}
     </div>
