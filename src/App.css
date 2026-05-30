@@ -447,12 +447,6 @@ background:
   min-height: 0;
 }
 
-.table-wrapper {
-  flex: 1;
-  overflow: auto;
-  border-radius: 8px;
-  min-height: 0;
-}
 
 .user-table {
   width: 100%;

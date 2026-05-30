@@ -43,13 +43,13 @@
   
   /* Table wrapper for scroll */
   .table-wrapper {
-    @apply overflow-x-auto overflow-y-auto;
-    height: 100%;
-    box-sizing: border-box;
-    display: block;
-    flex: 1;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 65vh;
     min-height: 0;
-  }
+    width: 100%;
+    display: block;
+}
   
   /* Force table to be wide enough for horizontal scroll */
   .contract-table {
