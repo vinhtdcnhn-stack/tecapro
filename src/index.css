@@ -46,6 +46,11 @@
     max-height: 60vh;
   }
   
+  /* Force table to be wide enough for horizontal scroll */
+  .table-wrapper table {
+    min-width: 1600px;
+  }
+  
   /* Table body for vertical scroll */
   .table-body {
     @apply bg-white;
