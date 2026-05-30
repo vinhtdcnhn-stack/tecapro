@@ -330,26 +330,34 @@ function App() {
               {activeMenu === 'Quản lý người dùng' && (
                 <>
                   <h2 className="section-title">QUẢN LÝ NGƯỜI DÙNG</h2>
-                  <div style={{ marginBottom: '15px', maxWidth: '300px' }}>
-                    <input
-                      type="text"
-                      placeholder="🔍 Tìm kiếm (Tên, Email, SĐT...)"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc',
-                        fontSize: '14px'
-                      }}
-                    />
+                  <div style={{ 
+                    marginBottom: '15px', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    {user?.role == 1 && (
+                      <button className="add-btn" onClick={() => setShowAddModal(true)}>
+                        Thêm người dùng
+                      </button>
+                    )}
+                    <div style={{ flex: 1, maxWidth: '300px' }}>
+                      <input
+                        type="text"
+                        placeholder="🔍 Tìm kiếm (Tên, Email, SĐT...)"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: '4px',
+                          border: '1px solid #ccc',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
                   </div>
-                  {user?.role == 1 && (
-                    <button className="add-btn" onClick={() => setShowAddModal(true)}>
-                      Thêm người dùng
-                    </button>
-                  )}
 
                   <UserTable 
                     users={users}
