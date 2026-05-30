@@ -472,28 +472,6 @@ background:
   z-index: 10;
 }
 
-th.sticky-col-1,
-td.sticky-col-1 {
-  position: sticky;
-  left: 0;
-  z-index: 30;
-  background: white;
-}
-
-th.sticky-col-2,
-td.sticky-col-2 {
-  position: sticky;
-  left: 70px;
-  z-index: 29;
-  background: white;
-}
-
-thead th.sticky-col-1,
-thead th.sticky-col-2 {
-  z-index: 50;
-  background: #f8fafc;
-}
-
 .admin-page {
   padding: 24px 32px;
 }
