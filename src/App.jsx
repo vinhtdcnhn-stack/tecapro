@@ -9,6 +9,7 @@ import DataTable from './components/common/DataTable'
 import CustomerTable from './components/customers/CustomerTable'
 import CustomerModal from './components/customers/CustomerModal'
 import ContractListPage from './components/contracts/ContractListPage'
+import ContractManagementPage from './pages/ContractManagementPage'
 import './App.css'
 
 function App() {
@@ -41,6 +42,9 @@ function App() {
   // Contract data
   const [contracts, setContracts] = useState([])
   const [contractSearchTerm, setContractSearchTerm] = useState('')
+
+  // Contract management route
+  const [isContractManagementRoute, setIsContractManagementRoute] = useState(false)
 
   const getBaseUrl = () => {
     return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
@@ -272,7 +276,31 @@ function App() {
     loadDropdowns()
     loadCustomers()
     loadContracts()
+
+    // Check for contract management route
+    checkContractManagementRoute()
+
+    // Listen for popstate (browser back/forward)
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
   }, [])
+
+  function handlePopState() {
+    checkContractManagementRoute()
+  }
+
+  function checkContractManagementRoute() {
+    const path = window.location.pathname
+    const match = path.match(/^\/contracts\/(\d+)$/)
+    if (match) {
+      setIsContractManagementRoute(true)
+    } else {
+      setIsContractManagementRoute(false)
+    }
+  }
 
   useEffect(() => {
     const userId = localStorage.getItem('userId')
@@ -302,7 +330,13 @@ function App() {
         onLogout={handleLogout}
       />
 
-      {view === 'login' ? (
+      {isContractManagementRoute ? (
+        <main className="page admin-page">
+          <div className="admin-layout contract-management-layout">
+            <ContractManagementPage />
+          </div>
+        </main>
+      ) : view === 'login' ? (
         <main className="page">
           <LoginForm onLogin={handleLogin} error={error} />
         </main>
@@ -319,7 +353,10 @@ function App() {
               <ContractListPage 
                 contracts={contracts}
                 searchTerm={contractSearchTerm}
-                onManage={(contract) => console.log('Managing contract:', contract.id)}
+                onManage={(c) => {
+                  window.history.pushState({}, '', `/contracts/${c.id}`)
+                  setIsContractManagementRoute(true)
+                }}
                 onLoadContracts={loadContracts}
               />
             </section>
