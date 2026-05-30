@@ -128,15 +128,14 @@ export async function createContract(req, res) {
           customer_id,
           tender_name,
           amount_before_vat,
-          vat_percent,
           amount_after_vat,
           currency_code,
-          terms,
+          payment_term,
           status,
           created_at,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
         RETURNING id
       `
 
@@ -147,7 +146,6 @@ export async function createContract(req, res) {
         parseInt(customer_id),
         tender_name?.trim() || null,
         parseFloat(amount_before_vat) || 0,
-        parseFloat(vat_percent) || 0,
         parseFloat(amount_after_vat) || 0,
         currency_code || 'VND',
         terms?.trim() || null,
