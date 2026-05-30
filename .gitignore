@@ -1,24 +1,25 @@
 ```
-# Dependencies
-node_modules/
-
 # Build artifacts
 dist/
 build/
-*.js.map
+*.css
+*.js
 
-# Logs and temp files
-*.log
-*.tmp
+# Dependencies
+node_modules/
 
 # Environment
 .env
 .env.local
-*.env.*
+.env.*
 
 # Editors
 .vscode/
 .idea/
+
+# Logs and temp files
+*.log
+*.tmp
 
 # Python
 __pycache__/
@@ -26,23 +27,7 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Distribution / packaging
-.Python
-*.egg-info/
-.eggs/
-.installed.cfg
-*.egg
-
-# Testing
-.pytest_cache/
-.mypy_cache/
-
-# OS generated files
+# System
 .DS_Store
 Thumbs.db
 ```

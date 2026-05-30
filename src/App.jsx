@@ -8,6 +8,8 @@ import UserModal from './components/users/UserModal'
 import DataTable from './components/common/DataTable'
 import CustomerTable from './components/customers/CustomerTable'
 import CustomerModal from './components/customers/CustomerModal'
+import ContractTable from './components/contracts/ContractTable'
+import ContractModal from './components/contracts/ContractModal'
 import './App.css'
 
 function App() {
@@ -28,6 +30,11 @@ function App() {
   const [showEditCustomerModal, setShowEditCustomerModal] = useState(false)
   const [editingCustomerId, setEditingCustomerId] = useState(null)
 
+  // Modal state for contracts
+  const [showAddContractModal, setShowAddContractModal] = useState(false)
+  const [showEditContractModal, setShowEditContractModal] = useState(false)
+  const [editingContractId, setEditingContractId] = useState(null)
+
   // Dropdown data
   const [departments, setDepartments] = useState([])
   const [positions, setPositions] = useState([])
@@ -36,6 +43,10 @@ function App() {
   // Customer data
   const [customers, setCustomers] = useState([])
   const [customerSearchTerm, setCustomerSearchTerm] = useState('')
+
+  // Contract data
+  const [contracts, setContracts] = useState([])
+  const [contractSearchTerm, setContractSearchTerm] = useState('')
 
   const getBaseUrl = () => {
     return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
@@ -71,6 +82,16 @@ function App() {
       setCustomers(data)
     } catch (err) {
       console.error('Failed to load customers:', err)
+    }
+  }
+
+  async function loadContracts() {
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/contracts`)
+      const data = await res.json()
+      setContracts(data)
+    } catch (err) {
+      console.error('Failed to load contracts:', err)
     }
   }
 
@@ -221,6 +242,11 @@ function App() {
     setShowEditCustomerModal(true)
   }
 
+  function handleEditContract(contract) {
+    setEditingContractId(contract.id)
+    setShowEditContractModal(true)
+  }
+
   async function handleSaveCustomer(formData, isEdit) {
     try {
       const url = isEdit 
@@ -252,10 +278,42 @@ function App() {
     }
   }
 
+  async function handleSaveContract(formData, isEdit) {
+    try {
+      const url = isEdit 
+        ? `${getBaseUrl()}/api/contracts/${editingContractId}`
+        : `${getBaseUrl()}/api/contracts`
+      
+      const method = isEdit ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!'))
+        return
+      }
+
+      alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
+      await loadContracts()
+      setShowAddContractModal(false)
+      setShowEditContractModal(false)
+      setEditingContractId(null)
+    } catch (err) {
+      console.error(err)
+      alert('Có lỗi xảy ra.')
+    }
+  }
+
   useEffect(() => {
     loadUsers()
     loadDropdowns()
     loadCustomers()
+    loadContracts()
   }, [])
 
   useEffect(() => {
@@ -428,6 +486,58 @@ function App() {
                     onClose={() => { setShowEditCustomerModal(false); setEditingCustomerId(null) }}
                     onSave={handleSaveCustomer}
                     customer={customers.find(c => c.id === editingCustomerId)}
+                  />
+                </>
+              )}
+
+              {activeMenu === "Hợp đồng bán" && (
+                <>
+                  <h2 className="section-title">QUẢN LÝ HỢP ĐỒNG BÁN</h2>
+                  <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {user?.role == 1 && (
+                      <button className="add-btn" onClick={() => setShowAddContractModal(true)}>
+                        Thêm hợp đồng
+                      </button>
+                    )}
+                    <div style={{ maxWidth: '300px' }}>
+                      <input
+                        type="text"
+                        placeholder="🔍 Tìm kiếm (Số HĐ, Dự án, Chủ đầu tư...)"
+                        value={contractSearchTerm}
+                        onChange={(e) => setContractSearchTerm(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: '4px',
+                          border: '1px solid #ccc',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="content-scrollable">
+                    <ContractTable 
+                      contracts={contracts}
+                      searchTerm={contractSearchTerm}
+                      userRole={user?.role}
+                      onEdit={handleEditContract}
+                    />
+                  </div>
+
+                  <ContractModal
+                    isOpen={showAddContractModal}
+                    onClose={() => setShowAddContractModal(false)}
+                    onSave={handleSaveContract}
+                    customers={customers}
+                  />
+
+                  <ContractModal
+                    isOpen={showEditContractModal}
+                    onClose={() => { setShowEditContractModal(false); setEditingContractId(null) }}
+                    onSave={handleSaveContract}
+                    contract={contracts.find(c => c.id === editingContractId)}
+                    customers={customers}
                   />
                 </>
               )}
