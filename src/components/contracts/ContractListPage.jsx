@@ -50,5 +50,144 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
   const stats = { total: localContracts.length, active: localContracts.filter(c => c.status === 'Active').length, completed: localContracts.filter(c => c.status === 'Completed').length, totalValue: localContracts.reduce((sum, c) => sum + (parseFloat(c.amount_after_vat) || 0), 0) }
 
-  return (<div className="p-6"><div className="page-header"><h1 className="page-title">HỢP ĐỒNG BÁN</h1><p className="page-subtitle">Quản lý danh sách hợp đồng đầu ra của công ty</p></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"><div className="stat-card"><p className="stat-label">Tổng hợp đồng</p><p className="stat-value">{stats.total}</p></div><div className="stat-card"><p className="stat-label">Đang thực hiện</p><p className="stat-value text-green-600">{stats.active}</p></div><div className="stat-card"><p className="stat-label">Hoàn thành</p><p className="stat-value text-blue-600">{stats.completed}</p></div><div className="stat-card"><p className="stat-label">Tổng giá trị</p><p className="stat-value money">{formatCurrency(stats.totalValue)} ₫</p></div></div><div className="flex items-center justify-between mb-4"><button className="btn-primary" onClick={() => alert('Chức năng thêm hợp đồng sẽ được phát triển sau')}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>Thêm hợp đồng</button><input type="text" placeholder="🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)" value={localSearchTerm} onChange={(e) => { setLocalSearchTerm(e.target.value); window.dispatchEvent(new CustomEvent('contract-search-change', { detail: e.target.value })) }} className="search-input" /></div>{hasActiveFilters && (<div className="mb-4 flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2"><div className="flex items-center gap-2 flex-wrap"><span className="text-sm text-gray-500">Bộ lọc:</span>{Object.entries(filters).map(([key, value]) => value && (<span key={key} className="inline-flex items-center gap-1 px-2 py-1 bg-tecapro-100 text-tecapro-700 rounded-md text-xs font-medium">{key === 'contract_no' ? 'Số HĐ' : key === 'project_name' ? 'Dự án' : key === 'customer_name' ? 'CĐT' : key === 'pm_name' ? 'PM' : 'Trạng thái'}: {value}<button onClick={() => setFilters(prev => ({ ...prev, [key]: '' }))} className="hover:text-tecapro-900">×</button></span>))}{sortConfig.key && (<span className="inline-flex items-center gap-1 px-2 py-1 bg-tecapro-100 text-tecapro-700 rounded-md text-xs font-medium">Sort: {sortConfig.key} {sortConfig.direction === 'asc' ? '↑' : '↓'}<button onClick={() => setSortConfig({ key: null, direction: null })} className="hover:text-tecapro-900">×</button></span>)} </div><button onClick={clearAllFilters} className="text-sm text-gray-500 hover:text-gray-700 font-medium">Xóa tất cả bộ lọc</button></div>)}<div className="mb-2 text-sm text-gray-500">Hiển thị: <span className="font-medium text-gray-700">{filteredAndSortedContracts.length}</span> / {localContracts.length} hợp đồng</div><div className="table-container"><div className="table-wrapper"><table className="min-w-full divide-y divide-gray-200"><thead className="table-header"><tr><th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col">Quản trị</th><th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-contract-no" onClick={() => handleSort('contract_no')}>Số HĐ{getSortIcon('contract_no')}{renderFilterDropdown('contract_no', 'Tìm số HĐ')}</th><th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-project-name" onClick={() => handleSort('project_name')}>Tên dự án{getSortIcon('project_name')}{renderFilterDropdown('project_name', 'Tìm dự án')}</th><th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-customer-name" onClick={() => handleSort('customer_name')}>Chủ đầu tư{getSortIcon('customer_name')}{renderFilterDropdown('customer_name', 'Tìm CĐT')}</th><th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('contract_date')}>Ngày ký{getSortIcon('contract_date')}</th><th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col col-tender-name">Gói thầu</th><th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('amount_before_vat')}>Trước VAT{getSortIcon('amount_before_vat')}</th><th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('amount_after_vat')}>Sau VAT{getSortIcon('amount_after_vat')}</th><th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col">USD</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-pm-name" onClick={() => handleSort('pm_name')}>PM chính{getSortIcon('pm_name')}{renderSelectDropdown('pm_name', uniquePMs)}</th><th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-status" onClick={() => handleSort('status')}>Trạng thái{getSortIcon('status')}{renderSelectDropdown('status', uniqueStatuses)}</th></tr></thead><tbody className="bg-white divide-y divide-gray-100">{filteredAndSortedContracts.length === 0 ? (<tr><td colSpan="11" className="px-4 py-12 text-center text-gray-500"><svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg><p className="mt-2 text-sm">Không tìm thấy kết quả nào phù hợp.</p></td></tr>) : (filteredAndSortedContracts.map((c) => (<tr key={c.id} className="table-row"><td className="px-4 py-3 whitespace-nowrap"><button className="btn-manage" onClick={(e) => { e.stopPropagation(); console.log('Contract ID:', c.id); if (onManage) onManage(c) }} title="Quản trị"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button></td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.contract_no || '-'}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.project_name || '-'}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.customer_name || '-'}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDate(c.contract_date)}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.tender_name || '-'}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(c.amount_before_vat)}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(c.amount_after_vat)}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right col-money">{c.currency_code === 'USD' ? formatCurrency(c.amount_after_vat) : '-'}</td><td className="px-6 py-3 whitespace-nowrap">{getAvatarBadge(c.pm_name)}</td><td className="px-6 py-3 whitespace-nowrap">{getStatusBadge(c.status)}</td></tr>)))}</tbody></table></div></div></div>)
+  return (
+    <div className="p-6">
+      {/* Header Page */}
+      <div className="page-header">
+        <h1 className="page-title">HỢP ĐỒNG BÁN</h1>
+        <p className="page-subtitle">Quản lý danh sách hợp đồng đầu ra của công ty</p>
+      </div>
+
+      {/* Card Thống kê */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="stat-card">
+          <p className="stat-label">Tổng hợp đồng</p>
+          <p className="stat-value">{stats.total}</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-label">Đang thực hiện</p>
+          <p className="stat-value text-green-600">{stats.active}</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-label">Hoàn thành</p>
+          <p className="stat-value text-blue-600">{stats.completed}</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-label">Tổng giá trị</p>
+          <p className="stat-value money">{formatCurrency(stats.totalValue)} ₫</p>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center justify-between mb-4">
+        <button className="btn-primary" onClick={() => alert('Chức năng thêm hợp đồng sẽ được phát triển sau')}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          Thêm hợp đồng
+        </button>
+        <input
+          type="text"
+          placeholder="🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)"
+          value={localSearchTerm}
+          onChange={(e) => { setLocalSearchTerm(e.target.value); window.dispatchEvent(new CustomEvent('contract-search-change', { detail: e.target.value })) }}
+          className="search-input"
+        />
+      </div>
+
+      {/* Active Filters Info */}
+      {hasActiveFilters && (
+        <div className="mb-4 flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-gray-500">Bộ lọc:</span>
+            {Object.entries(filters).map(([key, value]) => value && (
+              <span key={key} className="inline-flex items-center gap-1 px-2 py-1 bg-tecapro-100 text-tecapro-700 rounded-md text-xs font-medium">
+                {key === 'contract_no' ? 'Số HĐ' : key === 'project_name' ? 'Dự án' : key === 'customer_name' ? 'CĐT' : key === 'pm_name' ? 'PM' : 'Trạng thái'}: {value}
+                <button onClick={() => setFilters(prev => ({ ...prev, [key]: '' }))} className="hover:text-tecapro-900">×</button>
+              </span>
+            ))}
+            {sortConfig.key && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-tecapro-100 text-tecapro-700 rounded-md text-xs font-medium">
+                Sort: {sortConfig.key} {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                <button onClick={() => setSortConfig({ key: null, direction: null })} className="hover:text-tecapro-900">×</button>
+              </span>
+            )}
+          </div>
+          <button onClick={clearAllFilters} className="text-sm text-gray-500 hover:text-gray-700 font-medium">Xóa tất cả bộ lọc</button>
+        </div>
+      )}
+
+      {/* Result Count */}
+      <div className="mb-2 text-sm text-gray-500">
+        Hiển thị: <span className="font-medium text-gray-700">{filteredAndSortedContracts.length}</span> / {localContracts.length} hợp đồng
+      </div>
+
+      {/* TABLE CARD - SCROLL CONTAINER */}
+      <div className="table-container">
+        <div className="table-wrapper">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="table-header">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col">Quản trị</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-contract-no" onClick={() => handleSort('contract_no')}>
+                  Số HĐ{getSortIcon('contract_no')}{renderFilterDropdown('contract_no', 'Tìm số HĐ')}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-project-name" onClick={() => handleSort('project_name')}>
+                  Tên dự án{getSortIcon('project_name')}{renderFilterDropdown('project_name', 'Tìm dự án')}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-customer-name" onClick={() => handleSort('customer_name')}>
+                  Chủ đầu tư{getSortIcon('customer_name')}{renderFilterDropdown('customer_name', 'Tìm CĐT')}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('contract_date')}>
+                  Ngày ký{getSortIcon('contract_date')}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col col-tender-name">Gói thầu</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('amount_before_vat')}>
+                  Trước VAT{getSortIcon('amount_before_vat')}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('amount_after_vat')}>
+                  Sau VAT{getSortIcon('amount_after_vat')}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col">USD</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-pm-name" onClick={() => handleSort('pm_name')}>
+                  PM chính{getSortIcon('pm_name')}{renderSelectDropdown('pm_name', uniquePMs)}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-status" onClick={() => handleSort('status')}>
+                  Trạng thái{getSortIcon('status')}{renderSelectDropdown('status', uniqueStatuses)}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100 table-body">
+              {filteredAndSortedContracts.length === 0 ? (
+                <tr>
+                  <td colSpan="11" className="px-4 py-12 text-center text-gray-500">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <p className="mt-2 text-sm">Không tìm thấy kết quả nào phù hợp.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredAndSortedContracts.map((c) => (
+                  <tr key={c.id} className="table-row">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <button className="btn-manage" onClick={(e) => { e.stopPropagation(); console.log('Contract ID:', c.id); if (onManage) onManage(c) }} title="Quản trị">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.contract_no || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.project_name || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.customer_name || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDate(c.contract_date)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.tender_name || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(c.amount_before_vat)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(c.amount_after_vat)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right col-money">{c.currency_code === 'USD' ? formatCurrency(c.amount_after_vat) : '-'}</td>
+                    <td className="px-6 py-3 whitespace-nowrap">{getAvatarBadge(c.pm_name)}</td>
+                    <td className="px-6 py-3 whitespace-nowrap">{getStatusBadge(c.status)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
 }

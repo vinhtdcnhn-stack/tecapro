@@ -46,6 +46,11 @@
     max-height: 60vh;
   }
   
+  /* Table body for vertical scroll */
+  .table-body {
+    @apply bg-white;
+  }
+  
   .table-header {
     @apply bg-tecapro-50 text-gray-700 font-semibold text-sm;
   }
