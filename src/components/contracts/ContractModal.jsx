@@ -6,20 +6,20 @@ export default function ContractModal({
   onSave, 
   currentUser,
   contracts = [],
-  users = []
+  users = [],
+  customers = []
 }) {
   const [formData, setFormData] = useState({
     contract_no: '',
     contract_date: new Date().toISOString().split('T')[0],
     project_name: '',
-    customer_name: '',
+    customer_id: '',
     tender_name: '',
     amount_before_vat: '',
     vat_percent: '10',
     amount_after_vat: '',
     currency_code: 'VND',
     terms: '',
-    classification: 'Hợp đồng bán',
     status: 'Pending',
     // Nhân sự
     sale_team: [],
@@ -53,14 +53,13 @@ export default function ContractModal({
       contract_no: '',
       contract_date: new Date().toISOString().split('T')[0],
       project_name: '',
-      customer_name: '',
+      customer_id: '',
       tender_name: '',
       amount_before_vat: '',
       vat_percent: '10',
       amount_after_vat: '',
       currency_code: 'VND',
       terms: '',
-      classification: 'Hợp đồng bán',
       status: 'Pending',
       sale_team: [],
       presale_team: [],
@@ -117,7 +116,7 @@ export default function ContractModal({
       return
     }
 
-    const requiredFields = ['contract_no', 'contract_date', 'project_name', 'customer_name']
+    const requiredFields = ['contract_no', 'contract_date', 'project_name', 'customer_id']
     
     for (const field of requiredFields) {
       if (!formData[field]) {
@@ -201,11 +200,10 @@ export default function ContractModal({
             <div className="form-row">
               <div className="form-group full-width">
                 <label>Chủ đầu tư *</label>
-                <input
-                  type="text"
-                  value={formData.customer_name}
-                  onChange={(e) => updateField('customer_name', e.target.value)}
-                  placeholder="Nhập tên chủ đầu tư"
+                <CustomerSelect
+                  customers={customers}
+                  selectedId={formData.customer_id}
+                  onChange={(id) => updateField('customer_id', id)}
                 />
               </div>
             </div>
@@ -267,16 +265,6 @@ export default function ContractModal({
                 </select>
               </div>
               <div className="form-group">
-                <label>Phân loại</label>
-                <select
-                  value={formData.classification}
-                  onChange={(e) => updateField('classification', e.target.value)}
-                >
-                  <option value="Hợp đồng bán">Hợp đồng bán</option>
-                  <option value="Hợp đồng mua">Hợp đồng mua</option>
-                </select>
-              </div>
-              <div className="form-group">
                 <label>Trạng thái</label>
                 <select
                   value={formData.status}
@@ -315,9 +303,7 @@ export default function ContractModal({
                   value={currentUser?.full_name || ''}
                   readOnly
                   className="readonly-field"
-                  title="Tự động lấy từ người tạo hợp đồng"
                 />
-                <p className="helper-text">Tự động gán từ người tạo hợp đồng</p>
               </div>
             </div>
 
@@ -535,6 +521,156 @@ function MultiSelect({ options, selectedValues, onChange, placeholder }) {
           </div>
           <div 
             className="multi-select-backdrop"
+            onClick={() => setIsOpen(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 99
+            }}
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+// Customer Select Component with Search
+function CustomerSelect({ customers, selectedId, onChange }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const dropdownRef = useRef(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Filter customers by code or name
+  const filteredCustomers = customers.filter(c => {
+    const term = searchTerm.toLowerCase()
+    return c.code?.toLowerCase().includes(term) || c.name?.toLowerCase().includes(term)
+  })
+
+  // Get selected customer name
+  const selectedCustomer = customers.find(c => c.id === parseInt(selectedId))
+  const displayValue = selectedCustomer ? selectedCustomer.name : ''
+
+  // Handle customer selection
+  const handleSelect = (id) => {
+    onChange(id)
+    setIsOpen(false)
+    setSearchTerm('')
+  }
+
+  // Clear selection
+  const handleClear = (e) => {
+    e.stopPropagation()
+    onChange('')
+  }
+
+  return (
+    <div className="customer-select-container" style={{ position: 'relative' }} ref={dropdownRef}>
+      {/* Display area */}
+      <div 
+        className="customer-select-trigger"
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 12px',
+          border: '1px solid #d1d5db',
+          borderRadius: '6px',
+          minHeight: '40px',
+          cursor: 'pointer',
+          backgroundColor: '#fff'
+        }}
+      >
+        <span style={{ color: displayValue ? '#374151' : '#9ca3af' }}>
+          {displayValue || 'Chọn chủ đầu tư...'}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {selectedId && (
+            <button 
+              onClick={handleClear}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0 4px',
+                color: '#6b7280',
+                fontSize: '16px'
+              }}
+            >
+              ×
+            </button>
+          )}
+          <span style={{ color: '#9ca3af' }}>▼</span>
+        </div>
+      </div>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <>
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              marginTop: '4px',
+              backgroundColor: '#fff',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              zIndex: 100,
+              maxHeight: '200px',
+              overflowY: 'auto'
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Tìm theo mã hoặc tên..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: 'none',
+                borderBottom: '1px solid #e5e7eb',
+                outline: 'none'
+              }}
+            />
+            {filteredCustomers.map(c => (
+              <div
+                key={c.id}
+                onClick={() => handleSelect(c.id)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  backgroundColor: selectedId === c.id ? '#dbeafe' : 'transparent',
+                  color: selectedId === c.id ? '#1e40af' : '#374151'
+                }}
+              >
+                {selectedId === c.id && '✓ '}{c.name} {c.code && `(${c.code})`}
+              </div>
+            ))}
+            {filteredCustomers.length === 0 && (
+              <div style={{ padding: '8px 12px', color: '#9ca3af' }}>Không tìm thấy</div>
+            )}
+          </div>
+          <div 
+            className="customer-select-backdrop"
             onClick={() => setIsOpen(false)}
             style={{
               position: 'fixed',
