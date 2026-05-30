@@ -67,6 +67,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const stats = { total: localContracts.length, active: localContracts.filter(c => c.status === 'Active').length, completed: localContracts.filter(c => c.status === 'Completed').length, totalValue: localContracts.reduce((sum, c) => sum + (parseFloat(c.amount_after_vat) || 0), 0) }
 
   async function handleSaveContract(formData) {
+    console.log('CREATE PAYLOAD', formData)
+
     try {
       const res = await fetch(`${getBaseUrl()}/api/contracts`, {
         method: 'POST',
@@ -83,19 +85,23 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
       alert('Tạo hợp đồng thành công!')
       setShowAddContractModal(false)
       if (onLoadContracts) onLoadContracts()
-    } catch (error) {
-      console.error('CREATE CONTRACT ERROR', error)
+    } catch(error) {
+      console.error('==========================')
+      console.error('CREATE CONTRACT ERROR')
+      console.error(error)
 
       if (error.response) {
-        console.error('Status:', error.response.status)
-        console.error('Data:', error.response.data)
+        console.error('STATUS:', error.response.status)
+        console.error('DATA:', error.response.data)
       }
 
-      alert(
-        error?.response?.data?.message ||
-        error?.message ||
-        'Có lỗi xảy ra khi tạo hợp đồng.'
-      )
+      if (error.request) {
+        console.error('REQUEST:', error.request)
+      }
+
+      console.error('==========================')
+
+      throw error
     }
   }
 
