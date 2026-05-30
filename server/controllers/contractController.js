@@ -78,7 +78,6 @@ export async function createContract(req, res) {
     customer_id,
     tender_name,
     amount_before_vat,
-    vat_percent,
     amount_after_vat,
     currency_code,
     terms,
