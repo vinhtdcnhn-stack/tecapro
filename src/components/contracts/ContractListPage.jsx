@@ -13,7 +13,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const [showAddContractModal, setShowAddContractModal] = useState(false)
   
   // Check if user is PM
-  const isPM = currentUser?.position === 'PM'
+  const isPM = currentUser?.position_code === 'PM'
   
   // Debug logs
   console.log('=== DEBUG ContractListPage ===')
