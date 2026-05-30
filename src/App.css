@@ -690,6 +690,13 @@ background:
 }
 
 /* Contract Management Page Styles */
+.contract-management-layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .contract-management-page {
   width: 100%;
   height: 100%;
