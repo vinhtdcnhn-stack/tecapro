@@ -178,7 +178,9 @@ function App() {
           email: data.email,
           full_name: data.full_name,
           role: data.role,
-          position: data.position
+          position_id: data.position_id,
+          position_code: data.position_code,
+          position_name: data.position_name
         })
         localStorage.setItem('userId', data.id)
         setView('home')

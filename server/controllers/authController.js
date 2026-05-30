@@ -13,7 +13,17 @@ export async function login(req, res) {
   }
 
   const { rows } = await pool.query(
-    'select id, email, full_name, role, password_hash from app_user where email = $1',
+    `select 
+      u.id, 
+      u.email, 
+      u.full_name, 
+      u.role, 
+      u.position_id,
+      p.code as position_code,
+      p.name as position_name
+     from app_user u
+     left join position p on p.id = u.position_id
+     where u.email = $1`,
     [email],
   )
   const user = rows[0]
@@ -32,7 +42,10 @@ export async function login(req, res) {
     id: user.id,
     email: user.email,
     full_name: user.full_name,
-    role: user.role
+    role: user.role,
+    position_id: user.position_id,
+    position_code: user.position_code,
+    position_name: user.position_name
   })
 }
 
@@ -246,18 +259,21 @@ export async function getUserById(req, res) {
   const { rows } = await pool.query(
     `
     SELECT
-      id,
-      email,
-      full_name,
-      role,
-      username,
-      phone,
-      employee_code,
-      department_id,
-      position_id,
-      manager_id
-    FROM app_user
-    WHERE id = $1
+      u.id,
+      u.email,
+      u.full_name,
+      u.role,
+      u.username,
+      u.phone,
+      u.employee_code,
+      u.department_id,
+      u.position_id,
+      u.manager_id,
+      p.code as position_code,
+      p.name as position_name
+    FROM app_user u
+    LEFT JOIN position p ON p.id = u.position_id
+    WHERE u.id = $1
     `,
     [id]
   )
