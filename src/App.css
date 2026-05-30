@@ -45,7 +45,7 @@
   align-items: center;
   gap: 0.25rem;
   flex: 1 1 auto;
-  overflow: auto hidden;
+  overflow: hidden; /* Changed from 'auto hidden' to prevent horizontal scroll on menu */
   scrollbar-width: thin;
 }
 
