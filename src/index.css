@@ -44,10 +44,11 @@
   /* Table wrapper for scroll */
   .table-wrapper {
     @apply overflow-x-auto overflow-y-auto;
-    max-height: calc(100vh - 420px);
     height: 100%;
     box-sizing: border-box;
     display: block;
+    flex: 1;
+    min-height: 0;
   }
   
   /* Force table to be wide enough for horizontal scroll */
