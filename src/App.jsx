@@ -290,7 +290,7 @@ function App() {
         <main className="page">
           <LoginForm onLogin={handleLogin} error={error} />
         </main>
-      ) : activeMenu === 'Trang chủ' ? (
+      ) : activeMenu === 'Trang chủ' || activeMenu === 'Hợp đồng bán' || activeMenu === 'Tài liệu' || activeMenu === 'Các tác vụ' ? (
         <main className="page page--home">
           <div className="home-hero">
             <img className="home-hero-img" src={homeHero} alt="" />
