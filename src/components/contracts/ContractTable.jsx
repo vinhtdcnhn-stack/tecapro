@@ -27,8 +27,8 @@ export default function ContractTable({ contracts, searchTerm, onManage }) {
       <table className="user-table">
         <thead>
           <tr>
-            <th className="contract-sticky-col-1">Quản trị</th>
-            <th className="contract-sticky-col-2">Số HĐ</th>
+            <th className="sticky-col-1">Quản trị</th>
+            <th className="sticky-col-2">Số HĐ</th>
             <th>Tên dự án</th>
             <th>Chủ đầu tư</th>
             <th>Ngày ký</th>
@@ -51,7 +51,7 @@ export default function ContractTable({ contracts, searchTerm, onManage }) {
           ) : (
             filteredContracts.map((c) => (
               <tr key={c.id}>
-                <td className="contract-sticky-col-1">
+                <td className="sticky-col-1">
                   <button 
                     className="edit-btn" 
                     onClick={() => {
@@ -62,7 +62,7 @@ export default function ContractTable({ contracts, searchTerm, onManage }) {
                     Quản trị
                   </button>
                 </td>
-                <td className="contract-sticky-col-2">{c.contract_no || '-'}</td>
+                <td className="sticky-col-2">{c.contract_no || '-'}</td>
                 <td>{c.project_name || '-'}</td>
                 <td>{c.customer_name || '-'}</td>
                 <td>{formatDate(c.contract_date)}</td>
