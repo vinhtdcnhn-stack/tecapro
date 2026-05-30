@@ -696,9 +696,9 @@ background:
 }
 
 /* Contract Management Page Styles */
-.contract-management-layout {
-  display: block;
+.contract-management-page {
   width: 100%;
+  height: 100%;
 }
 
 .contract-header {
