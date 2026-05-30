@@ -29,6 +29,14 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     )
   })
 
+  // Tính toán thống kê
+  const stats = {
+    total: localContracts.length,
+    active: localContracts.filter(c => c.status === 'Active').length,
+    completed: localContracts.filter(c => c.status === 'Completed').length,
+    totalValue: localContracts.reduce((sum, c) => sum + (c.amount_after_vat || 0), 0)
+  }
+
   const formatCurrency = (value) => {
     if (value === null || value === undefined) return '-'
     return new Intl.NumberFormat('vi-VN', { 
@@ -43,96 +51,161 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     return date.toLocaleDateString('vi-VN')
   }
 
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      'Active': { bg: 'bg-green-100', text: 'text-green-800', label: 'Đang thực hiện' },
+      'Completed': { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Hoàn thành' },
+      'Pending': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Chờ xử lý' },
+      'Cancelled': { bg: 'bg-red-100', text: 'text-red-800', label: 'Hủy bỏ' }
+    }
+    const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: status }
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+        {config.label}
+      </span>
+    )
+  }
+
+  const getAvatarBadge = (name) => {
+    if (!name) return <span className="text-gray-400">-</span>
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 3)
+    return (
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold">
+          {initials}
+        </span>
+        <span className="text-sm text-gray-700">{name}</span>
+      </div>
+    )
+  }
+
   return (
-    <div className="contract-list-page">
-      <div className="contract-list-toolbar">
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">HỢP ĐỒNG BÁN</h1>
+        <p className="text-sm text-gray-500 mt-1">Quản lý danh sách hợp đồng đầu ra của công ty</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-sm text-gray-500 mb-1">Tổng hợp đồng</p>
+          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-sm text-gray-500 mb-1">Đang thực hiện</p>
+          <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-sm text-gray-500 mb-1">Hoàn thành</p>
+          <p className="text-2xl font-bold text-blue-600">{stats.completed}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-sm text-gray-500 mb-1">Tổng giá trị</p>
+          <p className="text-lg font-bold text-gray-900">{formatCurrency(stats.totalValue)} ₫</p>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center justify-between mb-4">
         <button 
-          className="add-btn" 
+          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
           onClick={() => alert('Chức năng thêm hợp đồng sẽ được phát triển sau')}
         >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
           Thêm hợp đồng
         </button>
-        <div className="search-box">
+        <div className="relative">
           <input
             type="text"
             placeholder="🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)"
             value={localSearchTerm}
             onChange={(e) => {
               setLocalSearchTerm(e.target.value)
-              // Dispatch custom event for global handling if needed
               const event = new CustomEvent('contract-search-change', { detail: e.target.value })
               window.dispatchEvent(event)
             }}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid #ccc',
-              fontSize: '14px'
-            }}
+            className="w-80 pl-4 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
           />
         </div>
       </div>
 
-      <div className="contract-list-table-wrapper">
-        <table className="contract-list-table">
-          <thead>
-            <tr>
-              <th style={{ minWidth: '100px' }}>Quản trị</th>
-              <th style={{ minWidth: '120px' }}>Số HĐ</th>
-              <th style={{ minWidth: '200px' }}>Tên dự án</th>
-              <th style={{ minWidth: '150px' }}>Chủ đầu tư</th>
-              <th style={{ minWidth: '100px' }}>Ngày ký</th>
-              <th style={{ minWidth: '150px' }}>Gói thầu</th>
-              <th style={{ minWidth: '120px', textAlign: 'right' }}>Trước VAT</th>
-              <th style={{ minWidth: '120px', textAlign: 'right' }}>Sau VAT</th>
-              <th style={{ minWidth: '100px', textAlign: 'right' }}>USD</th>
-              <th style={{ minWidth: '150px' }}>PM chính</th>
-              <th style={{ minWidth: '100px' }}>Trạng thái</th>
-              <th style={{ minWidth: '100px' }}>Hoàn thành</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredContracts.length === 0 ? (
+      {/* Table Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-indigo-50">
               <tr>
-                <td colSpan="12" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                  Không tìm thấy kết quả nào phù hợp.
-                </td>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Quản trị</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Số HĐ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Tên dự án</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Chủ đầu tư</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Ngày ký</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Gói thầu</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Trước VAT</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Sau VAT</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">USD</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">PM chính</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Trạng thái</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Hoàn thành</th>
               </tr>
-            ) : (
-              filteredContracts.map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    <button 
-                      className="edit-btn" 
-                      onClick={() => {
-                        console.log('Contract ID:', c.id)
-                        if (onManage) onManage(c)
-                      }}
-                    >
-                      Quản trị
-                    </button>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {filteredContracts.length === 0 ? (
+                <tr>
+                  <td colSpan="12" className="px-4 py-12 text-center text-gray-500">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="mt-2 text-sm">Không tìm thấy kết quả nào phù hợp.</p>
                   </td>
-                  <td>{c.contract_no || '-'}</td>
-                  <td>{c.project_name || '-'}</td>
-                  <td>{c.customer_name || '-'}</td>
-                  <td>{formatDate(c.contract_date)}</td>
-                  <td>{c.tender_name || '-'}</td>
-                  <td style={{ textAlign: 'right' }}>{formatCurrency(c.amount_before_vat)}</td>
-                  <td style={{ textAlign: 'right' }}>{formatCurrency(c.amount_after_vat)}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    {c.currency_code === 'USD' 
-                      ? formatCurrency(c.amount_after_vat) 
-                      : '-'}
-                  </td>
-                  <td>{c.pm_name || '-'}</td>
-                  <td>{c.status || '-'}</td>
-                  <td>-</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredContracts.map((c) => (
+                  <tr 
+                    key={c.id} 
+                    className="hover:bg-indigo-50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <button 
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-100 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          console.log('Contract ID:', c.id)
+                          if (onManage) onManage(c)
+                        }}
+                        title="Quản trị"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.contract_no || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.project_name || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.customer_name || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDate(c.contract_date)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.tender_name || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium">{formatCurrency(c.amount_before_vat)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium">{formatCurrency(c.amount_after_vat)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">
+                      {c.currency_code === 'USD' 
+                        ? formatCurrency(c.amount_after_vat) 
+                        : '-'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">{getAvatarBadge(c.pm_name)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge(c.status)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">-</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
