@@ -37,13 +37,15 @@
   }
   
   .table-container {
-    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden;
+    @apply bg-white rounded-xl shadow-sm border border-gray-100;
+    overflow: visible;
   }
   
   /* Table wrapper for scroll */
   .table-wrapper {
     @apply overflow-x-auto overflow-y-auto;
     max-height: 60vh;
+    border-radius: 12px;
   }
   
   /* Force table to be wide enough for horizontal scroll */
