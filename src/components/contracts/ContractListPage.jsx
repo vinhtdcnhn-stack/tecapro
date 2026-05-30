@@ -76,16 +76,26 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
       const data = await res.json()
       if (!res.ok) {
-        alert(data.error || 'Thêm hợp đồng thất bại!')
+        alert(data.error || data.message || 'Thêm hợp đồng thất bại!')
         return
       }
 
       alert('Tạo hợp đồng thành công!')
       setShowAddContractModal(false)
       if (onLoadContracts) onLoadContracts()
-    } catch (err) {
-      console.error(err)
-      alert('Có lỗi xảy ra khi tạo hợp đồng.')
+    } catch (error) {
+      console.error('CREATE CONTRACT ERROR', error)
+
+      if (error.response) {
+        console.error('Status:', error.response.status)
+        console.error('Data:', error.response.data)
+      }
+
+      alert(
+        error?.response?.data?.message ||
+        error?.message ||
+        'Có lỗi xảy ra khi tạo hợp đồng.'
+      )
     }
   }
 
