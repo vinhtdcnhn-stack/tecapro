@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import homeHero from './assets/home-hero.png'
 import Header from './components/layout/Header'
 import LoginForm from './components/auth/LoginForm'
-import Sidebar from './components/layout/Sidebar'
 import UserTable from './components/users/UserTable'
 import UserModal from './components/users/UserModal'
 import DataTable from './components/common/DataTable'
@@ -357,7 +356,6 @@ function App() {
       ) : (
         <main className="page admin-page">
           <div className="admin-layout">
-            <Sidebar activeMenu={activeMenu} onNavigate={setActiveMenu} />
 
             <section className="content-area">
               {activeMenu === 'Quản lý người dùng' && (

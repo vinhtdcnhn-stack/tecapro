@@ -384,56 +384,6 @@ background:
   width: 100%;
 }
 
-.sidebar {
-  width: 240px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.sidebar-btn {
-  border: none;
-  border-radius: 18px;
-  padding: 16px 18px;
-  cursor: pointer;
-
-  background: linear-gradient(
-    135deg,
-    rgba(22, 101, 52, 0.12),
-    rgba(34, 197, 94, 0.08)
-  );
-
-  color: #1e293b;
-  font-weight: 700;
-  font-size: 15px;
-
-  text-align: left;
-
-  transition: all 0.2s ease;
-
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-
-.sidebar-btn.active {
-  background: linear-gradient(135deg, #166534, #15803d);
-
-  color: white;
-
-  transform: translateY(-1px);
-
-  box-shadow: 0 10px 24px rgba(22, 101, 52, 0.25);
-}
-
-.sidebar-btn:hover {
-  transform: translateY(-2px);
-
-  background: linear-gradient(
-    135deg,
-    rgba(22, 101, 52, 0.18),
-    rgba(34, 197, 94, 0.14)
-  );
-}
-
 .content-area {
   flex: 1;
   background: white;
@@ -484,11 +434,6 @@ background:
   gap: 24px;
   align-items: flex-start;
   width: 100%;
-}
-
-.sidebar {
-  width: 240px;
-  flex-shrink: 0;
 }
 
 .content-area {
