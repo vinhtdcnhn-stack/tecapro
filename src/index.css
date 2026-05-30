@@ -46,11 +46,18 @@
     @apply overflow-x-auto overflow-y-auto;
     max-height: 60vh;
     border-radius: 12px;
+    display: block;
   }
   
   /* Force table to be wide enough for horizontal scroll */
+  .contract-table {
+    min-width: 1600px;
+    width: max-content;
+  }
+  
   .table-wrapper table {
     min-width: 1600px;
+    width: max-content;
   }
   
   /* Table body for vertical scroll */
