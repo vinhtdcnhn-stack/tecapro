@@ -8,7 +8,7 @@ import UserModal from './components/users/UserModal'
 import DataTable from './components/common/DataTable'
 import CustomerTable from './components/customers/CustomerTable'
 import CustomerModal from './components/customers/CustomerModal'
-import ContractTable from './components/contracts/ContractTable'
+import ContractListPage from './components/contracts/ContractListPage'
 import './App.css'
 
 function App() {
@@ -313,42 +313,13 @@ function App() {
           </div>
         </main>
       ) : activeMenu === 'Hợp đồng bán' ? (
-        <main className="page admin-page">
-          <div className="admin-layout">
-            <Sidebar activeMenu={activeMenu} onNavigate={setActiveMenu} />
-
-            <section className="content-area">
-              <h2 className="section-title">DANH SÁCH HỢP ĐỒNG BÁN</h2>
-              <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button className="add-btn" onClick={() => alert('Chức năng thêm hợp đồng sẽ được phát triển sau')}>
-                  Thêm hợp đồng
-                </button>
-                <div style={{ maxWidth: '300px' }}>
-                  <input
-                    type="text"
-                    placeholder="🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)"
-                    value={contractSearchTerm}
-                    onChange={(e) => setContractSearchTerm(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="content-scrollable">
-                <ContractTable 
-                  contracts={contracts}
-                  searchTerm={contractSearchTerm}
-                  onManage={(contract) => console.log('Managing contract:', contract.id)}
-                />
-              </div>
-            </section>
-          </div>
+        <main className="page page--home">
+          <ContractListPage 
+            contracts={contracts}
+            searchTerm={contractSearchTerm}
+            onManage={(contract) => console.log('Managing contract:', contract.id)}
+            onLoadContracts={loadContracts}
+          />
         </main>
       ) : (
         <main className="page admin-page">
