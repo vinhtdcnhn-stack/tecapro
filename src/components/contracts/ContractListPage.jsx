@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 
-export default function ContractListPage({ contracts, searchTerm, onManage, onLoadContracts }) {
+export default function ContractListPage({ contracts, searchTerm: parentSearchTerm, onManage, onLoadContracts }) {
   const [localContracts, setLocalContracts] = useState([])
+  const [localSearchTerm, setLocalSearchTerm] = useState(parentSearchTerm || '')
 
   useEffect(() => {
     console.log('ContractListPage mounted')
@@ -15,8 +16,12 @@ export default function ContractListPage({ contracts, searchTerm, onManage, onLo
     setLocalContracts(contracts || [])
   }, [contracts])
 
+  useEffect(() => {
+    setLocalSearchTerm(parentSearchTerm || '')
+  }, [parentSearchTerm])
+
   const filteredContracts = localContracts.filter(c => {
-    const term = (searchTerm || '').toLowerCase()
+    const term = (localSearchTerm || '').toLowerCase()
     return (
       c.contract_no?.toLowerCase().includes(term) ||
       c.project_name?.toLowerCase().includes(term) ||
@@ -51,8 +56,10 @@ export default function ContractListPage({ contracts, searchTerm, onManage, onLo
           <input
             type="text"
             placeholder="🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)"
-            value={searchTerm}
+            value={localSearchTerm}
             onChange={(e) => {
+              setLocalSearchTerm(e.target.value)
+              // Dispatch custom event for global handling if needed
               const event = new CustomEvent('contract-search-change', { detail: e.target.value })
               window.dispatchEvent(event)
             }}
