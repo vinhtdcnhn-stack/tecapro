@@ -14,6 +14,15 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   
   // Check if user is PM
   const isPM = currentUser?.position === 'PM'
+  
+  // Debug logs
+  console.log('=== DEBUG ContractListPage ===')
+  console.log('Current User:', currentUser)
+  console.log('Position ID:', currentUser?.position_id)
+  console.log('Position Code:', currentUser?.position_code)
+  console.log('Position:', currentUser?.position)
+  console.log('Is PM:', isPM)
+  console.log('=============================')
 
   useEffect(() => { console.log('ContractListPage mounted'); if (onLoadContracts) onLoadContracts() }, [])
   useEffect(() => { console.log('Contract API response:', contracts); setLocalContracts(contracts || []) }, [contracts])
