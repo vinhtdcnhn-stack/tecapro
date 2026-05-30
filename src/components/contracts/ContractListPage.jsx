@@ -155,7 +155,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
+            <tbody className="bg-white divide-y divide-gray-100 table-body">
               {filteredAndSortedContracts.length === 0 ? (
                 <tr>
                   <td colSpan="11" className="px-4 py-12 text-center text-gray-500">
