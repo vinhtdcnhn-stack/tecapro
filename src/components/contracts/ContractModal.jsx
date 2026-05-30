@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export default function ContractModal({ 
   isOpen, 
@@ -380,7 +380,7 @@ export default function ContractModal({
           </button>
           <button
             className="save-btn"
-            disabled={!!errors.contract_no || !formData.contract_no || !formData.contract_date || !formData.project_name || !formData.customer_name}
+            disabled={!!errors.contract_no || !formData.contract_no || !formData.contract_date || !formData.project_name || !formData.customer_id}
             onClick={handleSubmit}
           >
             Lưu
