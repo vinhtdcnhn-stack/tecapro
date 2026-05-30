@@ -167,8 +167,8 @@
     box-shadow: 3px 0 6px rgba(0,0,0,0.05);
   }
   
-  .table-header .sticky-col-1,
-  .table-header .sticky-col-2 {
+  thead .sticky-col-1,
+  thead .sticky-col-2 {
     background: #f1f5f9;
   }
 }
