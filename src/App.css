@@ -456,7 +456,8 @@ background:
 
 .user-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   margin-top: 20px;
   min-width: 800px;
 }
@@ -467,6 +468,7 @@ background:
   padding: 12px;
   text-align: left;
   word-wrap: break-word;
+  white-space: nowrap;
 }
 
 .user-table th {
@@ -474,6 +476,28 @@ background:
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+th.sticky-col-1,
+td.sticky-col-1 {
+  position: sticky;
+  left: 0;
+  z-index: 30;
+  background: white;
+}
+
+th.sticky-col-2,
+td.sticky-col-2 {
+  position: sticky;
+  left: 70px;
+  z-index: 29;
+  background: white;
+}
+
+thead th.sticky-col-1,
+thead th.sticky-col-2 {
+  z-index: 50;
+  background: #f8fafc;
 }
 
 .admin-page {
