@@ -145,6 +145,32 @@
   .table-wrapper::-webkit-scrollbar-thumb:hover {
     @apply bg-gray-400;
   }
+  
+  /* Sticky columns for horizontal scroll */
+  .sticky-col-1 {
+    position: sticky;
+    left: 0;
+    z-index: 30;
+    background: white;
+    width: 70px;
+    min-width: 70px;
+  }
+  
+  .sticky-col-2 {
+    position: sticky;
+    left: 70px;
+    z-index: 29;
+    background: white;
+    width: 160px;
+    min-width: 160px;
+    border-right: 1px solid #e5e7eb;
+    box-shadow: 3px 0 6px rgba(0,0,0,0.05);
+  }
+  
+  .table-header .sticky-col-1,
+  .table-header .sticky-col-2 {
+    background: #f1f5f9;
+  }
 }
 
 body {
