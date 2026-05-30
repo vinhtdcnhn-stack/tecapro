@@ -1,12 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
+import ContractModal from './ContractModal'
 
-export default function ContractListPage({ contracts, searchTerm: parentSearchTerm, onManage, onLoadContracts }) {
+export default function ContractListPage({ contracts, searchTerm: parentSearchTerm, onManage, onLoadContracts, currentUser, users }) {
   const [localContracts, setLocalContracts] = useState([])
   const [localSearchTerm, setLocalSearchTerm] = useState(parentSearchTerm || '')
   const [filters, setFilters] = useState({ contract_no: '', project_name: '', customer_name: '', pm_name: '', status: '' })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
   const [openDropdown, setOpenDropdown] = useState(null)
   const currentDropdownRef = useRef(null)
+  
+  // Modal state for adding contract
+  const [showAddContractModal, setShowAddContractModal] = useState(false)
+  
+  // Check if user is PM
+  const isPM = currentUser?.position === 'PM'
 
   useEffect(() => { console.log('ContractListPage mounted'); if (onLoadContracts) onLoadContracts() }, [])
   useEffect(() => { console.log('Contract API response:', contracts); setLocalContracts(contracts || []) }, [contracts])
@@ -50,6 +57,33 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
   const stats = { total: localContracts.length, active: localContracts.filter(c => c.status === 'Active').length, completed: localContracts.filter(c => c.status === 'Completed').length, totalValue: localContracts.reduce((sum, c) => sum + (parseFloat(c.amount_after_vat) || 0), 0) }
 
+  async function handleSaveContract(formData) {
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/contracts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Thêm hợp đồng thất bại!')
+        return
+      }
+
+      alert('Tạo hợp đồng thành công!')
+      setShowAddContractModal(false)
+      if (onLoadContracts) onLoadContracts()
+    } catch (err) {
+      console.error(err)
+      alert('Có lỗi xảy ra khi tạo hợp đồng.')
+    }
+  }
+
+  function getBaseUrl() {
+    return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
+  }
+
   return (
     <div className="p-6">
       {/* Header Page */}
@@ -80,10 +114,12 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-4">
-        <button className="btn-primary" onClick={() => alert('Chức năng thêm hợp đồng sẽ được phát triển sau')}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Thêm hợp đồng
-        </button>
+        {isPM && (
+          <button className="btn-primary" onClick={() => setShowAddContractModal(true)}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            Thêm hợp đồng
+          </button>
+        )}
         <input
           type="text"
           placeholder="🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)"
@@ -188,6 +224,18 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           </table>
         </div>
       </div>
+
+      {/* Modal Thêm hợp đồng */}
+      {showAddContractModal && (
+        <ContractModal
+          isOpen={showAddContractModal}
+          onClose={() => setShowAddContractModal(false)}
+          onSave={handleSaveContract}
+          currentUser={currentUser}
+          contracts={localContracts}
+          users={users || []}
+        />
+      )}
     </div>
   )
 }
