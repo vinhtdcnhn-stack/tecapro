@@ -448,9 +448,10 @@ background:
 }
 
 .table-wrapper {
-  max-height: calc(100vh - 340px);
+  flex: 1;
   overflow: auto;
   border-radius: 8px;
+  min-height: 0;
 }
 
 .user-table {
@@ -506,7 +507,6 @@ background:
 
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 140px);
   overflow: hidden;
 }
 
@@ -517,6 +517,15 @@ background:
 .content-scrollable {
   flex: 1;
   overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  border-radius: 8px;
   min-height: 0;
 }
 .login-card {
