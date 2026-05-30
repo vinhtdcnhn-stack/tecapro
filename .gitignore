@@ -1,10 +1,32 @@
 ```
-# Dependencies
-node_modules/
-
 # Build artifacts
 dist/
+build/
 
-# Vite cache
-node_modules/.vite/
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Editors
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+*.py~
+.Python
 ```

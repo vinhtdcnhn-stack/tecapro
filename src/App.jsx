@@ -195,6 +195,38 @@ function App() {
   }
 
   function handleNavigate(menu, viewName) {
+    // If currently on contract management route, always navigate by URL
+    if (isContractManagementRoute) {
+      if (menu === 'Trang chủ') {
+        window.history.pushState({}, '', '/')
+        setIsContractManagementRoute(false)
+        setActiveMenu('Trang chủ')
+        setView('home')
+      } else if (menu === 'Hợp đồng bán') {
+        window.history.pushState({}, '', '/contracts')
+        setIsContractManagementRoute(false)
+        setActiveMenu('Hợp đồng bán')
+        setView('contracts')
+      } else if (menu === 'Tài liệu') {
+        window.history.pushState({}, '', '/documents')
+        setIsContractManagementRoute(false)
+        setActiveMenu('Tài liệu')
+        setView('documents')
+      } else if (menu === 'Các tác vụ') {
+        window.history.pushState({}, '', '/tasks')
+        setIsContractManagementRoute(false)
+        setActiveMenu('Các tác vụ')
+        setView('tasks')
+      } else if (menu === 'Quản trị hệ thống') {
+        window.history.pushState({}, '', '/system')
+        setIsContractManagementRoute(false)
+        setActiveMenu(user ? 'Quản lý người dùng' : 'Quản trị hệ thống')
+        setView(user ? 'home' : 'login')
+      }
+      return
+    }
+
+    // Normal navigation for other routes
     setActiveMenu(menu)
     setView(viewName)
   }
