@@ -92,6 +92,8 @@ export default function ContractModal({
       return
     }
 
+    console.log('Checking contract no:', value)
+
     setIsChecking(true)
 
     try {
@@ -102,7 +104,11 @@ export default function ContractModal({
         body: JSON.stringify({ contract_no: value })
       })
 
+      console.log('API response status:', res.status)
+
       const data = await res.json()
+
+      console.log('API data:', data)
 
       setIsChecking(false)
       setErrors(prev => ({
@@ -117,6 +123,10 @@ export default function ContractModal({
         contract_no: 'Có lỗi khi kiểm tra số hợp đồng.'
       }))
     }
+  }
+
+  function getBaseUrl() {
+    return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
   }
 
   function handleMultiSelectChange(group, selectedValues) {
