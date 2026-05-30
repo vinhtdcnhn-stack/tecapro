@@ -38,14 +38,15 @@
   
   .table-container {
     @apply bg-white rounded-xl shadow-sm border border-gray-100;
-    overflow: visible;
+    overflow: hidden;
   }
   
   /* Table wrapper for scroll */
   .table-wrapper {
     @apply overflow-x-auto overflow-y-auto;
-    max-height: 60vh;
-    border-radius: 12px;
+    max-height: calc(100vh - 420px);
+    height: 100%;
+    box-sizing: border-box;
     display: block;
   }
   
