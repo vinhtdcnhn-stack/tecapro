@@ -8,6 +8,7 @@ import UserModal from './components/users/UserModal'
 import DataTable from './components/common/DataTable'
 import CustomerTable from './components/customers/CustomerTable'
 import CustomerModal from './components/customers/CustomerModal'
+import ContractTable from './components/contracts/ContractTable'
 import './App.css'
 
 function App() {
@@ -36,6 +37,10 @@ function App() {
   // Customer data
   const [customers, setCustomers] = useState([])
   const [customerSearchTerm, setCustomerSearchTerm] = useState('')
+
+  // Contract data
+  const [contracts, setContracts] = useState([])
+  const [contractSearchTerm, setContractSearchTerm] = useState('')
 
   const getBaseUrl = () => {
     return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
@@ -71,6 +76,16 @@ function App() {
       setCustomers(data)
     } catch (err) {
       console.error('Failed to load customers:', err)
+    }
+  }
+
+  async function loadContracts() {
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/contracts`)
+      const data = await res.json()
+      setContracts(data)
+    } catch (err) {
+      console.error('Failed to load contracts:', err)
     }
   }
 
@@ -256,6 +271,7 @@ function App() {
     loadUsers()
     loadDropdowns()
     loadCustomers()
+    loadContracts()
   }, [])
 
   useEffect(() => {
@@ -290,10 +306,48 @@ function App() {
         <main className="page">
           <LoginForm onLogin={handleLogin} error={error} />
         </main>
-      ) : activeMenu === 'Trang chủ' || activeMenu === 'Hợp đồng bán' || activeMenu === 'Tài liệu' || activeMenu === 'Các tác vụ' ? (
+      ) : activeMenu === 'Trang chủ' || activeMenu === 'Tài liệu' || activeMenu === 'Các tác vụ' ? (
         <main className="page page--home">
           <div className="home-hero">
             <img className="home-hero-img" src={homeHero} alt="" />
+          </div>
+        </main>
+      ) : activeMenu === 'Hợp đồng bán' ? (
+        <main className="page admin-page">
+          <div className="admin-layout">
+            <Sidebar activeMenu={activeMenu} onNavigate={setActiveMenu} />
+
+            <section className="content-area">
+              <h2 className="section-title">DANH SÁCH HỢP ĐỒNG BÁN</h2>
+              <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button className="add-btn" onClick={() => alert('Chức năng thêm hợp đồng sẽ được phát triển sau')}>
+                  Thêm hợp đồng
+                </button>
+                <div style={{ maxWidth: '300px' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)"
+                    value={contractSearchTerm}
+                    onChange={(e) => setContractSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="content-scrollable">
+                <ContractTable 
+                  contracts={contracts}
+                  searchTerm={contractSearchTerm}
+                  onManage={(contract) => console.log('Managing contract:', contract.id)}
+                />
+              </div>
+            </section>
           </div>
         </main>
       ) : (
