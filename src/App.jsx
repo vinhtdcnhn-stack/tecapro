@@ -332,11 +332,8 @@ function App() {
 
       {isContractManagementRoute ? (
         <main className="page admin-page">
-          <div className="admin-layout">
-            <Sidebar activeMenu={activeMenu} onNavigate={setActiveMenu} />
-            <section className="content-area">
-              <ContractManagementPage />
-            </section>
+          <div className="contract-management-layout">
+            <ContractManagementPage />
           </div>
         </main>
       ) : view === 'login' ? (
