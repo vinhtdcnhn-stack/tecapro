@@ -177,7 +177,8 @@ function App() {
           id: data.id,
           email: data.email,
           full_name: data.full_name,
-          role: data.role
+          role: data.role,
+          position: data.position
         })
         localStorage.setItem('userId', data.id)
         setView('home')
@@ -390,6 +391,8 @@ function App() {
                   setIsContractManagementRoute(true)
                 }}
                 onLoadContracts={loadContracts}
+                currentUser={user}
+                users={users}
               />
             </section>
           </div>
