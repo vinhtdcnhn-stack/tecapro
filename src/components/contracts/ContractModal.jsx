@@ -93,17 +93,30 @@ export default function ContractModal({
     }
 
     setIsChecking(true)
-    
-    // Kiểm tra trùng số hợp đồng trong danh sách hiện có
-    const exists = contracts.some(c => 
-      c.contract_no?.toLowerCase() === value.toLowerCase()
-    )
 
-    setIsChecking(false)
-    setErrors(prev => ({ 
-      ...prev, 
-      contract_no: exists ? 'Số hợp đồng đã tồn tại' : '' 
-    }))
+    try {
+      // Gọi API backend để kiểm tra trùng số hợp đồng
+      const res = await fetch(`${getBaseUrl()}/api/contracts/check-contract-no`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract_no: value })
+      })
+
+      const data = await res.json()
+
+      setIsChecking(false)
+      setErrors(prev => ({
+        ...prev,
+        contract_no: data.exists ? 'Số hợp đồng đã tồn tại' : ''
+      }))
+    } catch (err) {
+      console.error('Error checking contract no:', err)
+      setIsChecking(false)
+      setErrors(prev => ({
+        ...prev,
+        contract_no: 'Có lỗi khi kiểm tra số hợp đồng.'
+      }))
+    }
   }
 
   function handleMultiSelectChange(group, selectedValues) {
@@ -557,11 +570,14 @@ function CustomerSelect({ customers, selectedId, onChange }) {
   // Filter customers by code or name
   const filteredCustomers = customers.filter(c => {
     const term = searchTerm.toLowerCase()
-    return c.code?.toLowerCase().includes(term) || c.name?.toLowerCase().includes(term)
+    return (c.code && c.code.toLowerCase().includes(term)) || (c.name && c.name.toLowerCase().includes(term))
   })
 
-  // Get selected customer name
-  const selectedCustomer = customers.find(c => c.id === parseInt(selectedId))
+  // Get selected customer name - handle both string and number IDs
+  const selectedCustomer = customers.find(c => {
+    if (!selectedId) return false
+    return c.id === parseInt(selectedId) || c.id === selectedId || String(c.id) === String(selectedId)
+  })
   const displayValue = selectedCustomer ? selectedCustomer.name : ''
 
   // Handle customer selection
@@ -651,20 +667,23 @@ function CustomerSelect({ customers, selectedId, onChange }) {
                 outline: 'none'
               }}
             />
-            {filteredCustomers.map(c => (
-              <div
-                key={c.id}
-                onClick={() => handleSelect(c.id)}
-                style={{
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  backgroundColor: selectedId === c.id ? '#dbeafe' : 'transparent',
-                  color: selectedId === c.id ? '#1e40af' : '#374151'
-                }}
-              >
-                {selectedId === c.id && '✓ '}{c.name} {c.code && `(${c.code})`}
-              </div>
-            ))}
+            {filteredCustomers.map(c => {
+              const isSelected = String(c.id) === String(selectedId)
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => handleSelect(c.id)}
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    backgroundColor: isSelected ? '#dbeafe' : 'transparent',
+                    color: isSelected ? '#1e40af' : '#374151'
+                  }}
+                >
+                  {isSelected && '✓ '}{c.name} {c.code && `(${c.code})`}
+                </div>
+              )
+            })}
             {filteredCustomers.length === 0 && (
               <div style={{ padding: '8px 12px', color: '#9ca3af' }}>Không tìm thấy</div>
             )}
