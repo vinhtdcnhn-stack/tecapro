@@ -16,7 +16,6 @@ export default function ContractModal({
     customer_id: '',
     tender_name: '',
     amount_before_vat: '',
-    vat_percent: '10',
     amount_after_vat: '',
     currency_code: 'VND',
     terms: '',
@@ -34,6 +33,7 @@ export default function ContractModal({
   })
 
   const [isChecking, setIsChecking] = useState(false)
+  const [isDuplicate, setIsDuplicate] = useState(false)
 
   useEffect(() => {
     if (isOpen && currentUser) {
@@ -56,7 +56,6 @@ export default function ContractModal({
       customer_id: '',
       tender_name: '',
       amount_before_vat: '',
-      vat_percent: '10',
       amount_after_vat: '',
       currency_code: 'VND',
       terms: '',
@@ -68,6 +67,8 @@ export default function ContractModal({
       followers: []
     })
     setErrors({ contract_no: '' })
+    setIsChecking(false)
+    setIsDuplicate(false)
   }
 
   function updateField(field, value) {
@@ -76,14 +77,7 @@ export default function ContractModal({
     // Clear error when typing contract_no
     if (field === 'contract_no') {
       setErrors(prev => ({ ...prev, contract_no: '' }))
-    }
-
-    // Auto calculate amount_after_vat
-    if (field === 'amount_before_vat' || field === 'vat_percent') {
-      const beforeVat = parseFloat(value) || 0
-      const vatPercent = field === 'vat_percent' ? parseFloat(value) : parseFloat(formData.vat_percent) || 10
-      const afterVat = beforeVat * (1 + vatPercent / 100)
-      setFormData(prev => ({ ...prev, amount_after_vat: afterVat.toFixed(0) }))
+      setIsDuplicate(false)
     }
   }
 
@@ -92,9 +86,10 @@ export default function ContractModal({
       return
     }
 
-    console.log('Checking contract no:', value)
+    console.log('CHECK CONTRACT NO:', value)
 
     setIsChecking(true)
+    setIsDuplicate(false)
 
     try {
       // Gọi API backend để kiểm tra trùng số hợp đồng
@@ -108,20 +103,34 @@ export default function ContractModal({
 
       const data = await res.json()
 
-      console.log('API data:', data)
+      console.log('CHECK RESULT:', data)
 
-      setIsChecking(false)
-      setErrors(prev => ({
-        ...prev,
-        contract_no: data.exists ? 'Số hợp đồng đã tồn tại' : ''
-      }))
+      const duplicate = data.exists === true
+      setIsDuplicate(duplicate)
+
+      console.log('DUPLICATE:', duplicate)
+
+      if (duplicate) {
+        setErrors(prev => ({
+          ...prev,
+          contract_no: 'Số hợp đồng đã tồn tại'
+        }))
+      } else {
+        setErrors(prev => ({
+          ...prev,
+          contract_no: ''
+        }))
+      }
     } catch (err) {
       console.error('Error checking contract no:', err)
-      setIsChecking(false)
       setErrors(prev => ({
         ...prev,
-        contract_no: 'Có lỗi khi kiểm tra số hợp đồng.'
+        contract_no: '⚠ Không kiểm tra được số hợp đồng'
       }))
+      setIsDuplicate(false)
+    } finally {
+      setIsChecking(false)
+      console.log('CHECKING:', false)
     }
   }
 
@@ -134,7 +143,7 @@ export default function ContractModal({
   }
 
   async function handleSubmit() {
-    if (errors.contract_no) {
+    if (errors.contract_no || isDuplicate) {
       alert('Vui lòng sửa lỗi trùng số hợp đồng trước khi lưu!')
       return
     }
@@ -157,8 +166,7 @@ export default function ContractModal({
       ...formData,
       pm_primary_id: currentUser?.id,
       amount_before_vat: parseFloat(formData.amount_before_vat) || 0,
-      amount_after_vat: parseFloat(formData.amount_after_vat) || 0,
-      vat_percent: parseFloat(formData.vat_percent) || 0
+      amount_after_vat: parseFloat(formData.amount_after_vat) || 0
     }
 
     await onSave(submitData)
@@ -195,8 +203,13 @@ export default function ContractModal({
                   placeholder="VD: HD-2026-001"
                   className={errors.contract_no ? 'error' : ''}
                 />
-                {errors.contract_no && <p className="error-text">{errors.contract_no}</p>}
                 {isChecking && <p className="loading-text">Đang kiểm tra...</p>}
+                {isDuplicate && !isChecking && (
+                  <p className="error-text" style={{ color: '#dc2626' }}>❌ Số hợp đồng đã tồn tại</p>
+                )}
+                {!isDuplicate && errors.contract_no && !isChecking && (
+                  <p className="error-text">{errors.contract_no}</p>
+                )}
               </div>
               <div className="form-group">
                 <label>Ngày ký *</label>
@@ -244,8 +257,8 @@ export default function ContractModal({
             </div>
 
             <div className="form-row">
-              <div className="form-group">
-                <label>Trước VAT</label>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Giá trị hợp đồng trước VAT</label>
                 <input
                   type="number"
                   value={formData.amount_before_vat}
@@ -254,24 +267,14 @@ export default function ContractModal({
                   min="0"
                 />
               </div>
-              <div className="form-group">
-                <label>VAT (%)</label>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Giá trị hợp đồng sau VAT</label>
                 <input
                   type="number"
-                  value={formData.vat_percent}
-                  onChange={(e) => updateField('vat_percent', e.target.value)}
-                  min="0"
-                  max="100"
-                />
-              </div>
-              <div className="form-group">
-                <label>Sau VAT</label>
-                <input
-                  type="text"
                   value={formData.amount_after_vat}
-                  readOnly
-                  placeholder="Tự động tính"
-                  className="readonly-field"
+                  onChange={(e) => updateField('amount_after_vat', e.target.value)}
+                  placeholder="0"
+                  min="0"
                 />
               </div>
             </div>
@@ -403,7 +406,7 @@ export default function ContractModal({
           </button>
           <button
             className="save-btn"
-            disabled={!!errors.contract_no || !formData.contract_no || !formData.contract_date || !formData.project_name || !formData.customer_id}
+            disabled={isDuplicate || !!errors.contract_no || !formData.contract_no || !formData.contract_date || !formData.project_name || !formData.customer_id}
             onClick={handleSubmit}
           >
             Lưu
