@@ -34,11 +34,11 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     total: localContracts.length,
     active: localContracts.filter(c => c.status === 'Active').length,
     completed: localContracts.filter(c => c.status === 'Completed').length,
-    totalValue: localContracts.reduce((sum, c) => sum + (c.amount_after_vat || 0), 0)
+    totalValue: localContracts.reduce((sum, c) => sum + (parseFloat(c.amount_after_vat) || 0), 0)
   }
 
   const formatCurrency = (value) => {
-    if (value === null || value === undefined) return '-'
+    if (value === null || value === undefined || isNaN(value)) return '-'
     return new Intl.NumberFormat('vi-VN', { 
       minimumFractionDigits: 0, 
       maximumFractionDigits: 0 
@@ -53,14 +53,14 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      'Active': { bg: 'bg-green-100', text: 'text-green-800', label: 'Đang thực hiện' },
-      'Completed': { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Hoàn thành' },
-      'Pending': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Chờ xử lý' },
-      'Cancelled': { bg: 'bg-red-100', text: 'text-red-800', label: 'Hủy bỏ' }
+      'Active': { className: 'status-active', label: 'Đang thực hiện' },
+      'Completed': { className: 'status-completed', label: 'Hoàn thành' },
+      'Pending': { className: 'status-pending', label: 'Chờ xử lý' },
+      'Cancelled': { className: 'status-cancelled', label: 'Hủy bỏ' }
     }
-    const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: status }
+    const config = statusConfig[status] || { className: 'bg-gray-100 text-gray-800', label: status }
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+      <span className={`status-badge ${config.className}`}>
         {config.label}
       </span>
     )
@@ -70,50 +70,48 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     if (!name) return <span className="text-gray-400">-</span>
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 3)
     return (
-      <div className="flex items-center gap-2">
-        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold">
-          {initials}
-        </span>
-        <span className="text-sm text-gray-700">{name}</span>
+      <div className="pm-badge">
+        <span className="pm-avatar">{initials}</span>
+        <span className="text-gray-700">{name}</span>
       </div>
     )
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">HỢP ĐỒNG BÁN</h1>
-        <p className="text-sm text-gray-500 mt-1">Quản lý danh sách hợp đồng đầu ra của công ty</p>
+      <div className="page-header">
+        <h1 className="page-title">HỢP ĐỒNG BÁN</h1>
+        <p className="page-subtitle">Quản lý danh sách hợp đồng đầu ra của công ty</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-sm text-gray-500 mb-1">Tổng hợp đồng</p>
-          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+        <div className="stat-card">
+          <p className="stat-label">Tổng hợp đồng</p>
+          <p className="stat-value">{stats.total}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-sm text-gray-500 mb-1">Đang thực hiện</p>
-          <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+        <div className="stat-card">
+          <p className="stat-label">Đang thực hiện</p>
+          <p className="stat-value text-green-600">{stats.active}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-sm text-gray-500 mb-1">Hoàn thành</p>
-          <p className="text-2xl font-bold text-blue-600">{stats.completed}</p>
+        <div className="stat-card">
+          <p className="stat-label">Hoàn thành</p>
+          <p className="stat-value text-blue-600">{stats.completed}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <p className="text-sm text-gray-500 mb-1">Tổng giá trị</p>
-          <p className="text-lg font-bold text-gray-900">{formatCurrency(stats.totalValue)} ₫</p>
+        <div className="stat-card">
+          <p className="stat-label">Tổng giá trị</p>
+          <p className="stat-value text-tecapro-600">{formatCurrency(stats.totalValue)} ₫</p>
         </div>
       </div>
 
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-4">
         <button 
-          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+          className="btn-primary"
           onClick={() => alert('Chức năng thêm hợp đồng sẽ được phát triển sau')}
         >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Thêm hợp đồng
@@ -128,29 +126,29 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
               const event = new CustomEvent('contract-search-change', { detail: e.target.value })
               window.dispatchEvent(event)
             }}
-            className="w-80 pl-4 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
+            className="search-input"
           />
         </div>
       </div>
 
       {/* Table Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="table-container">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-indigo-50">
+            <thead className="table-header">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Quản trị</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Số HĐ</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Tên dự án</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Chủ đầu tư</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Ngày ký</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Gói thầu</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Trước VAT</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Sau VAT</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">USD</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">PM chính</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Trạng thái</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-900 uppercase tracking-wider sticky top-0">Hoàn thành</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Quản trị</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Số HĐ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Tên dự án</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Chủ đầu tư</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Ngày ký</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Gói thầu</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Trước VAT</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Sau VAT</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">USD</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">PM chính</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Trạng thái</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky top-0">Hoàn thành</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -167,11 +165,11 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                 filteredContracts.map((c) => (
                   <tr 
                     key={c.id} 
-                    className="hover:bg-indigo-50 cursor-pointer transition-colors"
+                    className="table-row"
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <button 
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-100 transition-colors"
+                        className="btn-manage"
                         onClick={(e) => {
                           e.stopPropagation()
                           console.log('Contract ID:', c.id)
