@@ -313,13 +313,17 @@ function App() {
           </div>
         </main>
       ) : activeMenu === 'Hợp đồng bán' ? (
-        <main className="page page--home">
-          <ContractListPage 
-            contracts={contracts}
-            searchTerm={contractSearchTerm}
-            onManage={(contract) => console.log('Managing contract:', contract.id)}
-            onLoadContracts={loadContracts}
-          />
+        <main className="page admin-page">
+          <div className="admin-layout">
+            <section className="content-area">
+              <ContractListPage 
+                contracts={contracts}
+                searchTerm={contractSearchTerm}
+                onManage={(contract) => console.log('Managing contract:', contract.id)}
+                onLoadContracts={loadContracts}
+              />
+            </section>
+          </div>
         </main>
       ) : (
         <main className="page admin-page">
