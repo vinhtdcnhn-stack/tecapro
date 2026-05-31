@@ -1,14 +1,10 @@
 ```
-# Build artifacts
-dist/
-build/
-*.js
-
 # Dependencies
 node_modules/
 
 # Logs and temp files
 *.log
+*.tmp
 
 # Environment
 .env
@@ -19,6 +15,6 @@ node_modules/
 .vscode/
 .idea/
 
-# Database migrations (if not meant to be tracked)
-server/migrations/*.sql
+# Package lock
+package-lock.json
 ```
