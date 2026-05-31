@@ -6,5 +6,6 @@ const router = Router()
 router.get('/', contractController.getAllContracts)
 router.post('/check-contract-no', contractController.checkContractNoDuplicate)
 router.post('/', contractController.createContract)
+router.put('/:id', contractController.updateContract)
 
 export default router

@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react'
 import ContractHeader from '../components/contracts/ContractHeader'
 import ContractSidebar from '../components/contracts/ContractSidebar'
+import ContractModal from '../components/contracts/ContractModal'
 
 export default function ContractManagementPage() {
   const [contractId, setContractId] = useState(null)
   const [contract, setContract] = useState(null)
   const [activeMenu, setActiveMenu] = useState('contract-info')
   const [loading, setLoading] = useState(true)
+  
+  // Edit modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [users, setUsers] = useState([])
+  const [customers, setCustomers] = useState([])
+  const [currentUser, setCurrentUser] = useState(null)
 
   const getBaseUrl = () => {
     return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
@@ -29,6 +36,21 @@ export default function ContractManagementPage() {
         if (found) {
           setContract(found)
         }
+        
+        // Load users for edit modal
+        const usersRes = await fetch(`${getBaseUrl()}/api/users`)
+        const usersData = await usersRes.json()
+        setUsers(usersData)
+        
+        // Load customers for edit modal
+        const customersRes = await fetch(`${getBaseUrl()}/api/customers`)
+        const customersData = await customersRes.json()
+        setCustomers(customersData)
+        
+        // Get current user (first user as placeholder - should be from auth)
+        if (usersData && usersData.length > 0) {
+          setCurrentUser(usersData[0])
+        }
       } catch (err) {
         console.error('Failed to load contract:', err)
       } finally {
@@ -42,7 +64,7 @@ export default function ContractManagementPage() {
   const renderContent = () => {
     switch (activeMenu) {
       case 'contract-info':
-        return <ContractInfoTab contract={contract} />
+        return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} />
       case 'contract-documents':
         return <PlaceholderTab title="Tài liệu hợp đồng" />
       case 'contract-pricing':
@@ -66,7 +88,35 @@ export default function ContractManagementPage() {
       case 'supplier-payment':
         return <PlaceholderTab title="Thanh toán NCC" />
       default:
-        return <ContractInfoTab contract={contract} />
+        return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} />
+    }
+  }
+
+  async function handleUpdateContract(formData) {
+    try {
+      const response = await fetch(`${getBaseUrl()}/api/contracts/${contractId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      
+      if (response.ok) {
+        // Reload contract data
+        const res = await fetch(`${getBaseUrl()}/api/contracts`)
+        const data = await res.json()
+        const found = data.find(c => String(c.id) === String(contractId))
+        if (found) {
+          setContract(found)
+        }
+        setIsEditModalOpen(false)
+        alert('Cập nhật hợp đồng thành công!')
+      } else {
+        const error = await response.json()
+        alert('Lỗi: ' + (error.error || 'Không thể cập nhật hợp đồng'))
+      }
+    } catch (err) {
+      console.error('Error updating contract:', err)
+      alert('Có lỗi xảy ra khi cập nhật hợp đồng')
     }
   }
 
@@ -87,11 +137,24 @@ export default function ContractManagementPage() {
           {renderContent()}
         </div>
       </div>
+      
+      {/* Edit Contract Modal */}
+      <ContractModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleUpdateContract}
+        currentUser={currentUser}
+        contracts={contract ? [contract] : []}
+        users={users}
+        customers={customers}
+        editMode={true}
+        editData={contract}
+      />
     </div>
   )
 }
 
-function ContractInfoTab({ contract }) {
+function ContractInfoTab({ contract, onEdit }) {
   if (!contract) {
     return <div className="contract-info-tab">Không tìm thấy thông tin hợp đồng</div>
   }
@@ -116,19 +179,29 @@ function ContractInfoTab({ contract }) {
     return <span className={`status-badge ${config.className}`}>{config.label}</span>
   }
 
+  // Build staff groups from contract member data
   const staffGroups = [
-    { label: 'Nhân viên kinh doanh', members: [] },
-    { label: 'PM chính', members: contract.pm_name ? [contract.pm_name] : [] },
-    { label: 'Presale', members: [] },
-    { label: 'Người theo dõi', members: [] },
-    { label: 'Kế toán', members: [] },
-    { label: 'Kỹ thuật triển khai', members: [] }
+    { label: 'Nhân viên kinh doanh', members: contract.sale_members || [] },
+    { label: 'PM chính', members: contract.pm_members || [] },
+    { label: 'Presale', members: contract.presale_members || [] },
+    { label: 'Kỹ thuật triển khai', members: contract.technical_members || [] },
+    { label: 'Kế toán', members: contract.accounting_members || [] },
+    { label: 'Người theo dõi', members: contract.follower_members || [] }
   ]
 
   return (
     <div className="contract-info-tab">
       <div className="contract-info-left">
-        <h3 className="contract-info-section-title">Thông tin hợp đồng</h3>
+        <div className="contract-info-section-header">
+          <h3 className="contract-info-section-title">Thông tin hợp đồng</h3>
+          <button className="btn-edit-contract" onClick={onEdit}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Cập nhật thông tin hợp đồng
+          </button>
+        </div>
         <div className="contract-info-form">
           <div className="form-row">
             <div className="form-group">
@@ -159,10 +232,6 @@ function ContractInfoTab({ contract }) {
             </div>
           </div>
           <div className="form-row">
-            <div className="form-group">
-              <label>VAT</label>
-              <input type="text" value={formatCurrency((parseFloat(contract.amount_after_vat) || 0) - (parseFloat(contract.amount_before_vat) || 0))} readOnly />
-            </div>
             <div className="form-group">
               <label>Trước VAT</label>
               <input type="text" value={formatCurrency(contract.amount_before_vat)} readOnly />
