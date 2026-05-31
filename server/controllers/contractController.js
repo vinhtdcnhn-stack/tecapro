@@ -39,6 +39,100 @@ export async function getAllContracts(req, res) {
   }
 }
 
+export async function getContractById(req, res) {
+  try {
+    const contractId = parseInt(req.params.id)
+    
+    // Get contract basic info
+    const contractSql = `
+      SELECT
+        co.id,
+        co.contract_no,
+        co.project_name,
+        c.name AS customer_name,
+        c.id AS customer_id,
+        co.contract_date,
+        co.tender_name,
+        co.amount_before_vat,
+        co.amount_after_vat,
+        co.currency_code,
+        co.payment_term AS terms,
+        co.status
+      FROM contract_out co
+      LEFT JOIN customer c ON c.id = co.customer_id
+      WHERE co.id = $1 AND COALESCE(co.is_deleted, false) = false
+    `
+    
+    const contractResult = await pool.query(contractSql, [contractId])
+    
+    if (contractResult.rows.length === 0) {
+      res.status(404).json({ error: 'Không tìm thấy hợp đồng' })
+      return
+    }
+    
+    const contract = contractResult.rows[0]
+    
+    // Get all members grouped by role
+    const membersSql = `
+      SELECT
+        com.member_role,
+        au.full_name,
+        au.id as user_id
+      FROM contract_out_member com
+      LEFT JOIN app_user au ON au.id = com.user_id
+      WHERE com.contract_out_id = $1
+      ORDER BY com.role_rank, au.full_name
+    `
+    
+    const membersResult = await pool.query(membersSql, [contractId])
+    
+    // Group members by role
+    const saleMembers = []
+    const pmMembers = []
+    const presaleMembers = []
+    const technicalMembers = []
+    const accountingMembers = []
+    const followerMembers = []
+    
+    membersResult.rows.forEach(member => {
+      const fullName = member.full_name || '-'
+      switch (member.member_role) {
+        case 'Sale':
+          saleMembers.push(fullName)
+          break
+        case 'PM':
+          pmMembers.push(fullName)
+          break
+        case 'Presale':
+          presaleMembers.push(fullName)
+          break
+        case 'Technical':
+          technicalMembers.push(fullName)
+          break
+        case 'Accounting':
+          accountingMembers.push(fullName)
+          break
+        case 'Follower':
+          followerMembers.push(fullName)
+          break
+      }
+    })
+    
+    res.json({
+      ...contract,
+      sale_members: saleMembers,
+      pm_members: pmMembers,
+      presale_members: presaleMembers,
+      technical_members: technicalMembers,
+      accounting_members: accountingMembers,
+      follower_members: followerMembers
+    })
+  } catch (err) {
+    console.error('Failed to load contract details:', err)
+    res.status(500).json({ error: 'Không thể tải thông tin hợp đồng' })
+  }
+}
+
 // Kiểm tra trùng số hợp đồng
 export async function checkContractNoDuplicate(req, res) {
   const contractNo = String(req.body?.contract_no ?? '').trim().toUpperCase()

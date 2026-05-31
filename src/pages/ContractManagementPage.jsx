@@ -26,14 +26,11 @@ export default function ContractManagementPage() {
 
     async function loadContract() {
       try {
-        const res = await fetch(`${getBaseUrl()}/api/contracts`)
-        const data = await res.json()
+        // Load contract details by ID
+        const res = await fetch(`${getBaseUrl()}/api/contracts/${id}`)
+        const found = await res.json()
 
-        const found = data.find(
-          c => String(c.id) === String(id)
-        )
-
-        if (found) {
+        if (found && found.id) {
           setContract(found)
         }
         
