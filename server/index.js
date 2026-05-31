@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import cors from 'cors'
 import express from 'express'
+import path from 'path'
 import { pool } from './db.js'
 import apiRoutes from './routes/index.js'
 import customerRoutes from './routes/customerRoutes.js'
@@ -9,6 +10,9 @@ const app = express()
 
 app.use(cors({ origin: true }))
 app.use(express.json())
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 // Health check
 app.get('/api/health', async (_req, res) => {

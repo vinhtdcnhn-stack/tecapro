@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import './ContractDocumentsTab.css'
 
+const API_BASE_URL = '/api'
+
 export default function ContractDocumentsTab({ contractId }) {
   const [folders, setFolders] = useState([])
   const [selectedFolderId, setSelectedFolderId] = useState(null)
@@ -11,89 +13,10 @@ export default function ContractDocumentsTab({ contractId }) {
   const [newFolderName, setNewFolderName] = useState('')
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
   const [loading, setLoading] = useState(true)
-
-  // Mock data for demonstration
-  const mockFolders = [
-    {
-      id: 1,
-      folder_name: 'Hồ sơ thầu',
-      parent_id: null,
-      children: [
-        { id: 2, folder_name: 'HSMT', parent_id: 1, children: [] },
-        { id: 3, folder_name: 'HSDT', parent_id: 1, children: [] },
-        { id: 4, folder_name: 'Làm rõ HSDT', parent_id: 1, children: [] }
-      ]
-    },
-    {
-      id: 5,
-      folder_name: 'Hợp đồng bán',
-      parent_id: null,
-      children: [
-        { id: 6, folder_name: 'Hợp đồng chính', parent_id: 5, children: [] },
-        { id: 7, folder_name: 'Phụ lục', parent_id: 5, children: [] },
-        { id: 8, folder_name: 'Bảo lãnh', parent_id: 5, children: [] }
-      ]
-    },
-    {
-      id: 9,
-      folder_name: 'Hợp đồng nhập',
-      parent_id: null,
-      children: [
-        { id: 10, folder_name: 'PO', parent_id: 9, children: [] },
-        { id: 11, folder_name: 'Hợp đồng NCC', parent_id: 9, children: [] }
-      ]
-    },
-    {
-      id: 12,
-      folder_name: 'Triển khai',
-      parent_id: null,
-      children: [
-        { id: 13, folder_name: 'Shop Drawing', parent_id: 12, children: [] },
-        { id: 14, folder_name: 'FAT', parent_id: 12, children: [] },
-        { id: 15, folder_name: 'SAT', parent_id: 12, children: [] }
-      ]
-    },
-    {
-      id: 16,
-      folder_name: 'Nghiệm thu',
-      parent_id: null,
-      children: [
-        { id: 17, folder_name: 'Biên bản', parent_id: 16, children: [] },
-        { id: 18, folder_name: 'Thanh lý', parent_id: 16, children: [] }
-      ]
-    },
-    {
-      id: 19,
-      folder_name: 'Khác',
-      parent_id: null,
-      children: []
-    }
-  ]
-
-  const mockFiles = {
-    2: [
-      { id: 1, file_name: 'HSMT_Quyet_dinh.pdf', file_size: 2548000, mime_type: 'application/pdf', uploaded_at: '2024-01-15 10:30:00', uploaded_by_name: 'Nguyễn Văn A' },
-      { id: 2, file_name: 'HSMT_Yeu_cau_ky_thuat.docx', file_size: 1250000, mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', uploaded_at: '2024-01-16 14:20:00', uploaded_by_name: 'Trần Thị B' }
-    ],
-    3: [
-      { id: 3, file_name: 'HSDT_De_xuat_ky_thuat.pdf', file_size: 5680000, mime_type: 'application/pdf', uploaded_at: '2024-01-20 09:15:00', uploaded_by_name: 'Nguyễn Văn A' },
-      { id: 4, file_name: 'HSDT_Bao_gia.xlsx', file_size: 890000, mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', uploaded_at: '2024-01-20 11:45:00', uploaded_by_name: 'Lê Văn C' }
-    ],
-    6: [
-      { id: 5, file_name: 'Hop_dong_chinh.pdf', file_size: 3200000, mime_type: 'application/pdf', uploaded_at: '2024-02-01 08:00:00', uploaded_by_name: 'Nguyễn Văn A' },
-      { id: 6, file_name: 'Hop_dong_scan.jpg', file_size: 4500000, mime_type: 'image/jpeg', uploaded_at: '2024-02-01 08:05:00', uploaded_by_name: 'Nguyễn Văn A' }
-    ],
-    13: [
-      { id: 7, file_name: 'Shop_Drawing_A1.pdf', file_size: 8900000, mime_type: 'application/pdf', uploaded_at: '2024-02-15 16:30:00', uploaded_by_name: 'Phạm Văn D' },
-      { id: 8, file_name: 'Ban_ve_chi_tiet.png', file_size: 2100000, mime_type: 'image/png', uploaded_at: '2024-02-16 10:00:00', uploaded_by_name: 'Phạm Văn D' }
-    ],
-    17: [
-      { id: 9, file_name: 'BB_Nghiem_thu_giai_doan_1.pdf', file_size: 1800000, mime_type: 'application/pdf', uploaded_at: '2024-03-01 14:00:00', uploaded_by_name: 'Nguyễn Văn A' }
-    ]
-  }
+  const [uploading, setUploading] = useState(false)
+  const [fileInputKey, setFileInputKey] = useState(0)
 
   useEffect(() => {
-    // Load folders (using mock data for now)
     loadFolders()
     setLoading(false)
   }, [contractId])
@@ -108,10 +31,13 @@ export default function ContractDocumentsTab({ contractId }) {
 
   const loadFolders = async () => {
     try {
-      // TODO: Replace with API call
-      // const res = await fetch(`/api/contracts/${contractId}/folders`)
-      // const data = await res.json()
-      setFolders(mockFolders)
+      const res = await fetch(`${API_BASE_URL}/contracts/${contractId}/folders`)
+      const data = await res.json()
+      setFolders(data)
+      
+      // Auto-expand first level folders
+      const firstLevelIds = data.map(f => f.id)
+      setExpandedFolders(new Set(firstLevelIds))
     } catch (error) {
       console.error('Failed to load folders:', error)
     }
@@ -119,10 +45,9 @@ export default function ContractDocumentsTab({ contractId }) {
 
   const loadFiles = async (folderId) => {
     try {
-      // TODO: Replace with API call
-      // const res = await fetch(`/api/folders/${folderId}/files`)
-      // const data = await res.json()
-      setFiles(mockFiles[folderId] || [])
+      const res = await fetch(`${API_BASE_URL}/contracts/${contractId}/files?folderId=${folderId}`)
+      const data = await res.json()
+      setFiles(data)
     } catch (error) {
       console.error('Failed to load files:', error)
     }
@@ -199,68 +124,111 @@ export default function ContractDocumentsTab({ contractId }) {
 
   const confirmCreateFolder = async () => {
     if (!newFolderName.trim()) return
-    
+
     try {
-      // TODO: Replace with API call
-      // await fetch(`/api/contracts/${contractId}/folders`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ folderName: newFolderName, parentId: selectedFolderId })
-      // })
-      
-      // For mock, just add to local state
-      const newFolder = {
-        id: Date.now(),
-        folder_name: newFolderName,
-        parent_id: selectedFolderId,
-        children: []
-      }
-      
-      if (selectedFolderId) {
-        // Add to subfolder
-        const addToParent = (folders) => {
-          return folders.map(f => {
-            if (f.id === selectedFolderId) {
-              return { ...f, children: [...f.children, newFolder] }
-            }
-            if (f.children && f.children.length > 0) {
-              return { ...f, children: addToParent(f.children) }
-            }
-            return f
-          })
-        }
-        setFolders(addToParent(folders))
-      } else {
-        // Add to root
-        setFolders([...folders, newFolder])
-      }
-      
+      await fetch(`${API_BASE_URL}/contracts/${contractId}/folders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderName: newFolderName, parentId: selectedFolderId })
+      })
+
+      // Reload folders to get the new one
+      await loadFolders()
+
       setNewFolderName('')
       setShowNewFolderModal(false)
     } catch (error) {
       console.error('Failed to create folder:', error)
+      alert('Không thể tạo thư mục. Vui lòng thử lại.')
     }
   }
 
   const handleUploadFile = () => {
-    alert('Chức năng upload sẽ được triển khai sau')
+    document.getElementById('file-upload-input').click()
   }
 
-  const handleDownload = () => {
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    if (!selectedFolderId) {
+      alert('Vui lòng chọn thư mục để upload file')
+      return
+    }
+
+    setUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folderId', selectedFolderId)
+
+      const res = await fetch(`${API_BASE_URL}/contracts/${contractId}/files/upload`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Upload failed')
+      }
+
+      // Reload files after upload
+      await loadFiles(selectedFolderId)
+
+      // Reset file input
+      setFileInputKey(prev => prev + 1)
+    } catch (error) {
+      console.error('Failed to upload file:', error)
+      alert(`Không thể upload file: ${error.message}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDownload = async () => {
     if (selectedFiles.size === 0) {
       alert('Vui lòng chọn file cần download')
       return
     }
-    alert('Chức năng download sẽ được triển khai sau')
+
+    // Download first selected file (for multiple files, would need zip)
+    const fileId = Array.from(selectedFiles)[0]
+    const file = files.find(f => f.id === fileId)
+
+    if (file) {
+      // Open download in new tab/window
+      window.open(`${API_BASE_URL}/files/${file.id}/download`, '_blank')
+    }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedFiles.size === 0) {
       alert('Vui lòng chọn file cần xóa')
       return
     }
-    if (confirm(`Bạn có chắc chắn muốn xóa ${selectedFiles.size} file đã chọn?`)) {
-      alert('Chức năng xóa sẽ được triển khai sau')
+
+    if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedFiles.size} file đã chọn?`)) {
+      return
+    }
+
+    try {
+      // Delete each selected file
+      for (const fileId of selectedFiles) {
+        await fetch(`${API_BASE_URL}/files/${fileId}`, {
+          method: 'DELETE'
+        })
+      }
+
+      // Reload files after deletion
+      if (selectedFolderId) {
+        await loadFiles(selectedFolderId)
+      }
+
+      setSelectedFiles(new Set())
+    } catch (error) {
+      console.error('Failed to delete files:', error)
+      alert('Không thể xóa file. Vui lòng thử lại.')
     }
   }
 
@@ -326,12 +294,19 @@ export default function ContractDocumentsTab({ contractId }) {
           {/* Toolbar */}
           <div className="documents-toolbar">
             <div className="toolbar-left">
-              <button className="btn-toolbar" onClick={handleUploadFile}>
+              <button className="btn-toolbar" onClick={handleUploadFile} disabled={!selectedFolderId || uploading}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
                 </svg>
-                Upload
+                {uploading ? 'Đang upload...' : 'Upload'}
               </button>
+              <input
+                id="file-upload-input"
+                type="file"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+                key={fileInputKey}
+              />
               <button className="btn-toolbar" onClick={handleCreateFolder}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
@@ -438,13 +413,13 @@ export default function ContractDocumentsTab({ contractId }) {
               {canPreview(previewFile.mime_type) ? (
                 previewFile.mime_type.includes('pdf') ? (
                   <iframe
-                    src={`/mock/files/${previewFile.file_name}`}
+                    src={`${API_BASE_URL}/files/${previewFile.id}/view`}
                     className="pdf-preview"
                     title="PDF Preview"
                   />
                 ) : (
                   <img
-                    src={`/mock/files/${previewFile.file_name}`}
+                    src={`${API_BASE_URL}/files/${previewFile.id}/view`}
                     alt={previewFile.file_name}
                     className="image-preview"
                   />
