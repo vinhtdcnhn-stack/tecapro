@@ -25,6 +25,13 @@ export default function ContractManagementPage() {
         if (found) {
           setContract(found)
         }
+
+        console.log('====================')
+        console.log('URL ID:', id)
+        console.log('DATA LENGTH:', data.length)
+        console.log('ALL IDS:', data.map(x => x.id))
+        console.log('FOUND CONTRACT:', found)
+        console.log('====================')
       } catch (err) {
         console.error('Failed to load contract:', err)
       } finally {

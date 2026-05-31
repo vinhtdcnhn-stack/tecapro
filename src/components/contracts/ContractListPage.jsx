@@ -15,17 +15,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   // Check if user is PM
   const isPM = currentUser?.position_code === 'PM'
   
-  // Debug logs
-  console.log('=== DEBUG ContractListPage ===')
-  console.log('Current User:', currentUser)
-  console.log('Position ID:', currentUser?.position_id)
-  console.log('Position Code:', currentUser?.position_code)
-  console.log('Position:', currentUser?.position)
-  console.log('Is PM:', isPM)
-  console.log('=============================')
-
-  useEffect(() => { console.log('ContractListPage mounted'); if (onLoadContracts) onLoadContracts() }, [])
-  useEffect(() => { console.log('Contract API response:', contracts); setLocalContracts(contracts || []) }, [contracts])
+  useEffect(() => { if (onLoadContracts) onLoadContracts() }, [])
+  useEffect(() => { setLocalContracts(contracts || []) }, [contracts])
   useEffect(() => { setLocalSearchTerm(parentSearchTerm || '') }, [parentSearchTerm])
   useEffect(() => { function handleClickOutside(event) { if (currentDropdownRef.current && !currentDropdownRef.current.contains(event.target)) setOpenDropdown(null) } document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside) }, [])
 
@@ -67,8 +58,6 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const stats = { total: localContracts.length, active: localContracts.filter(c => c.status === 'Active').length, completed: localContracts.filter(c => c.status === 'Completed').length, totalValue: localContracts.reduce((sum, c) => sum + (parseFloat(c.amount_after_vat) || 0), 0) }
 
   async function handleSaveContract(formData) {
-    console.log('CREATE PAYLOAD', formData)
-
     try {
       const res = await fetch(`${getBaseUrl()}/api/contracts`, {
         method: 'POST',
@@ -228,7 +217,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                 filteredAndSortedContracts.map((c) => (
                   <tr key={c.id} className="table-row">
                     <td className="sticky-col-1 px-4 py-3 whitespace-nowrap">
-                      <button className="btn-manage" onClick={(e) => { e.stopPropagation(); console.log('Contract ID:', c.id); if (onManage) onManage(c) }} title="Quản trị">
+                      <button className="btn-manage" onClick={(e) => { e.stopPropagation(); if (onManage) onManage(c) }} title="Quản trị">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                       </button>
                     </td>
