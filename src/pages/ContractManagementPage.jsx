@@ -21,17 +21,14 @@ export default function ContractManagementPage() {
       try {
         const res = await fetch(`${getBaseUrl()}/api/contracts`)
         const data = await res.json()
-        const found = data.find(c => c.id === parseInt(id))
+
+        const found = data.find(
+          c => String(c.id) === String(id)
+        )
+
         if (found) {
           setContract(found)
         }
-
-        console.log('====================')
-        console.log('URL ID:', id)
-        console.log('DATA LENGTH:', data.length)
-        console.log('ALL IDS:', data.map(x => x.id))
-        console.log('FOUND CONTRACT:', found)
-        console.log('====================')
       } catch (err) {
         console.error('Failed to load contract:', err)
       } finally {
