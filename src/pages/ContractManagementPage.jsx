@@ -98,13 +98,14 @@ export default function ContractManagementPage() {
       })
       
       if (response.ok) {
-        // Reload contract data
-        const res = await fetch(`${getBaseUrl()}/api/contracts`)
-        const data = await res.json()
-        const found = data.find(c => String(c.id) === String(contractId))
-        if (found) {
-          setContract(found)
-        }
+        // Reload contract data from detail endpoint
+        const detailRes = await fetch(
+          `${getBaseUrl()}/api/contracts/${contractId}`
+        )
+
+        const detailData = await detailRes.json()
+
+        setContract(detailData)
         setIsEditModalOpen(false)
         alert('Cập nhật hợp đồng thành công!')
       } else {
