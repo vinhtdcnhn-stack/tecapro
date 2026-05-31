@@ -7,7 +7,9 @@ export default function ContractModal({
   currentUser,
   contracts = [],
   users = [],
-  customers = []
+  customers = [],
+  editMode = false,
+  editData = null
 }) {
   const [formData, setFormData] = useState({
     contract_no: '',
@@ -25,7 +27,8 @@ export default function ContractModal({
     presale_team: [],
     technical_team: [],
     accounting_team: [],
-    followers: []
+    followers: [],
+    pm_primary: null
   })
 
   const [errors, setErrors] = useState({
@@ -36,17 +39,39 @@ export default function ContractModal({
   const [isDuplicate, setIsDuplicate] = useState(false)
 
   useEffect(() => {
-    if (isOpen && currentUser) {
-      // Tự động gán PM chính là người tạo
-      setFormData(prev => ({
-        ...prev,
-        pm_primary: currentUser.id
-      }))
+    if (isOpen) {
+      if (editMode && editData) {
+        // Load existing contract data for editing
+        setFormData({
+          contract_no: editData.contract_no || '',
+          contract_date: editData.contract_date ? editData.contract_date.split('T')[0] : new Date().toISOString().split('T')[0],
+          project_name: editData.project_name || '',
+          customer_id: editData.customer_id || '',
+          tender_name: editData.tender_name || '',
+          amount_before_vat: editData.amount_before_vat || '',
+          amount_after_vat: editData.amount_after_vat || '',
+          currency_code: editData.currency_code || 'VND',
+          terms: editData.terms || '',
+          status: editData.status || 'Pending',
+          sale_team: editData.sale_member_ids || [],
+          presale_team: editData.presale_member_ids || [],
+          technical_team: editData.technical_member_ids || [],
+          accounting_team: editData.accounting_member_ids || [],
+          followers: editData.follower_member_ids || [],
+          pm_primary: editData.pm_primary_id || currentUser?.id
+        })
+      } else if (currentUser) {
+        // Tự động gán PM chính là người tạo (create mode)
+        setFormData(prev => ({
+          ...prev,
+          pm_primary: currentUser.id
+        }))
+      }
     }
     if (!isOpen) {
       resetForm()
     }
-  }, [isOpen, currentUser])
+  }, [isOpen, currentUser, editMode, editData])
 
   function resetForm() {
     setFormData({
@@ -155,7 +180,7 @@ export default function ContractModal({
     // Chuẩn bị dữ liệu gửi đi
     const submitData = {
       ...formData,
-      pm_primary_id: currentUser?.id,
+      pm_primary_id: formData.pm_primary || currentUser?.id,
       amount_before_vat: parseFloat(formData.amount_before_vat) || 0,
       amount_after_vat: parseFloat(formData.amount_after_vat) || 0
     }
@@ -174,7 +199,7 @@ export default function ContractModal({
     <div className="modal-overlay" style={{ zIndex: 1000 }}>
       <div className="modal contract-modal" style={{ width: '1000px', maxWidth: '95vw' }}>
         <div className="modal-header">
-          <h2>THÊM HỢP ĐỒNG MỚI</h2>
+          <h2>{editMode ? 'CẬP NHẬT THÔNG TIN HỢP ĐỒNG' : 'THÊM HỢP ĐỒNG MỚI'}</h2>
           <button className="close-btn" onClick={() => { onClose(); resetForm() }}>✕</button>
         </div>
 
@@ -315,11 +340,11 @@ export default function ContractModal({
             <div className="form-row">
               <div className="form-group full-width">
                 <label>PM chính</label>
-                <input
-                  type="text"
-                  value={currentUser?.full_name || ''}
-                  readOnly
-                  className="readonly-field"
+                <MultiSelect
+                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  selectedValues={formData.pm_primary ? [formData.pm_primary] : []}
+                  onChange={(selected) => setFormData(prev => ({ ...prev, pm_primary: selected[0] || null }))}
+                  placeholder="Chọn PM chính..."
                 />
               </div>
             </div>

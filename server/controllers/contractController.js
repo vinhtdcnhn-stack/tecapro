@@ -253,3 +253,188 @@ export async function createContract(req, res) {
     })
   }
 }
+
+// Cập nhật hợp đồng
+export async function updateContract(req, res) {
+  const contractId = req.params.id
+  const {
+    contract_no,
+    contract_date,
+    project_name,
+    customer_id,
+    tender_name,
+    amount_before_vat,
+    amount_after_vat,
+    currency_code,
+    terms,
+    status,
+    pm_primary_id,
+    sale_team,
+    presale_team,
+    technical_team,
+    accounting_team,
+    followers
+  } = req.body
+
+  // Validation các trường bắt buộc
+  if (!contract_no || !contract_date || !project_name || !customer_id) {
+    res.status(400).json({
+      error: 'Các trường Số hợp đồng, Ngày ký, Tên dự án và Chủ đầu tư là bắt buộc.'
+    })
+    return
+  }
+
+  try {
+    // Kiểm tra trùng số hợp đồng (trừ chính nó)
+    const checkResult = await pool.query(
+      'SELECT id FROM contract_out WHERE UPPER(TRIM(contract_no)) = $1 AND id != $2',
+      [String(contract_no).trim().toUpperCase(), parseInt(contractId)]
+    )
+
+    if (checkResult.rows.length > 0) {
+      res.status(400).json({
+        error: 'Số hợp đồng đã tồn tại trong hệ thống.'
+      })
+      return
+    }
+
+    // Bắt đầu transaction
+    const client = await pool.connect()
+
+    try {
+      await client.query('BEGIN')
+
+      // Update hợp đồng
+      const updateContractSql = `
+        UPDATE contract_out SET
+          contract_no = $1,
+          contract_date = $2,
+          project_name = $3,
+          customer_id = $4,
+          tender_name = $5,
+          amount_before_vat = $6,
+          amount_after_vat = $7,
+          currency_code = $8,
+          payment_term = $9,
+          status = $10,
+          updated_at = NOW()
+        WHERE id = $11
+        RETURNING id
+      `
+
+      await client.query(updateContractSql, [
+        String(contract_no).trim().toUpperCase(),
+        contract_date,
+        project_name.trim(),
+        parseInt(customer_id),
+        tender_name?.trim() || null,
+        parseFloat(amount_before_vat) || 0,
+        parseFloat(amount_after_vat) || 0,
+        currency_code || 'VND',
+        terms?.trim() || null,
+        status || 'Pending',
+        parseInt(contractId)
+      ])
+
+      // Xóa tất cả member cũ
+      await client.query('DELETE FROM contract_out_member WHERE contract_out_id = $1', [parseInt(contractId)])
+
+      // Thêm PM chính (primary)
+      if (pm_primary_id) {
+        const insertPMSql = `
+          INSERT INTO contract_out_member (
+            contract_out_id,
+            user_id,
+            member_role,
+            is_primary,
+            role_rank,
+            created_at
+          )
+          VALUES ($1, $2, 'PM', true, 1, NOW())
+        `
+        await client.query(insertPMSql, [parseInt(contractId), pm_primary_id])
+      }
+
+      // Thêm Sale team
+      if (sale_team && Array.isArray(sale_team) && sale_team.length > 0) {
+        for (const userId of sale_team) {
+          await client.query(
+            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
+             VALUES ($1, $2, 'Sale', false, 2, NOW())`,
+            [parseInt(contractId), userId]
+          )
+        }
+      }
+
+      // Thêm Presale team
+      if (presale_team && Array.isArray(presale_team) && presale_team.length > 0) {
+        for (const userId of presale_team) {
+          await client.query(
+            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
+             VALUES ($1, $2, 'Presale', false, 3, NOW())`,
+            [parseInt(contractId), userId]
+          )
+        }
+      }
+
+      // Thêm Technical team
+      if (technical_team && Array.isArray(technical_team) && technical_team.length > 0) {
+        for (const userId of technical_team) {
+          await client.query(
+            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
+             VALUES ($1, $2, 'Technical', false, 4, NOW())`,
+            [parseInt(contractId), userId]
+          )
+        }
+      }
+
+      // Thêm Accounting team
+      if (accounting_team && Array.isArray(accounting_team) && accounting_team.length > 0) {
+        for (const userId of accounting_team) {
+          await client.query(
+            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
+             VALUES ($1, $2, 'Accounting', false, 5, NOW())`,
+            [parseInt(contractId), userId]
+          )
+        }
+      }
+
+      // Thêm Followers
+      if (followers && Array.isArray(followers) && followers.length > 0) {
+        for (const userId of followers) {
+          await client.query(
+            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
+             VALUES ($1, $2, 'Follower', false, 6, NOW())`,
+            [parseInt(contractId), userId]
+          )
+        }
+      }
+
+      await client.query('COMMIT')
+
+      res.json({
+        success: true,
+        id: parseInt(contractId),
+        contract_no: String(contract_no).trim().toUpperCase()
+      })
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+  } catch (err) {
+    console.error('Error updating contract:', err)
+
+    if (err.code === '23505') {
+      res.status(400).json({
+        error: 'Số hợp đồng đã tồn tại trong hệ thống.'
+      })
+      return
+    }
+
+    res.status(500).json({
+      error: 'Có lỗi xảy ra khi cập nhật hợp đồng.'
+    })
+  }
+}
