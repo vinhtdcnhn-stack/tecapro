@@ -13,7 +13,7 @@ import ContractManagementPage from './pages/ContractManagementPage'
 import './App.css'
 
 function App() {
-  const [view, setView] = useState('home')
+  const [currentPage, setCurrentPage] = useState('home')
   const [activeMenu, setActiveMenu] = useState('Trang chủ')
   const [user, setUser] = useState(null)
   const [error, setError] = useState('')
@@ -43,8 +43,8 @@ function App() {
   const [contracts, setContracts] = useState([])
   const [contractSearchTerm, setContractSearchTerm] = useState('')
 
-  // Contract management route
-  const [isContractManagementRoute, setIsContractManagementRoute] = useState(false)
+  // Selected contract ID for detail view
+  const [selectedContractId, setSelectedContractId] = useState(null)
 
   const getBaseUrl = () => {
     return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
@@ -198,40 +198,20 @@ function App() {
   }
 
   function handleNavigate(menu, viewName) {
-    // If currently on contract management route, always navigate by URL
-    if (isContractManagementRoute) {
-      if (menu === 'Trang chủ') {
-        window.history.pushState({}, '', '/')
-        setIsContractManagementRoute(false)
-        setActiveMenu('Trang chủ')
-        setView('home')
-      } else if (menu === 'Hợp đồng bán') {
-        window.history.pushState({}, '', '/contracts')
-        setIsContractManagementRoute(false)
-        setActiveMenu('Hợp đồng bán')
-        setView('contracts')
-      } else if (menu === 'Tài liệu') {
-        window.history.pushState({}, '', '/documents')
-        setIsContractManagementRoute(false)
-        setActiveMenu('Tài liệu')
-        setView('documents')
-      } else if (menu === 'Các tác vụ') {
-        window.history.pushState({}, '', '/tasks')
-        setIsContractManagementRoute(false)
-        setActiveMenu('Các tác vụ')
-        setView('tasks')
-      } else if (menu === 'Quản trị hệ thống') {
-        window.history.pushState({}, '', '/system')
-        setIsContractManagementRoute(false)
-        setActiveMenu(user ? 'Quản lý người dùng' : 'Quản trị hệ thống')
-        setView(user ? 'home' : 'login')
-      }
-      return
-    }
-
-    // Normal navigation for other routes
     setActiveMenu(menu)
-    setView(viewName)
+    
+    if (menu === 'Trang chủ') {
+      setCurrentPage('home')
+    } else if (menu === 'Hợp đồng bán') {
+      setCurrentPage('contracts')
+    } else if (menu === 'Tài liệu') {
+      setCurrentPage('documents')
+    } else if (menu === 'Các tác vụ') {
+      setCurrentPage('tasks')
+    } else if (menu === 'Quản trị hệ thống') {
+      setCurrentPage(user ? 'admin' : 'login')
+      setActiveMenu(user ? 'Quản lý người dùng' : 'Quản trị hệ thống')
+    }
   }
 
   async function handleSaveUser(formData, isEdit) {
@@ -312,30 +292,7 @@ function App() {
     loadCustomers()
     loadContracts()
 
-    // Check for contract management route
-    checkContractManagementRoute()
-
-    // Listen for popstate (browser back/forward)
-    window.addEventListener('popstate', handlePopState)
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
   }, [])
-
-  function handlePopState() {
-    checkContractManagementRoute()
-  }
-
-  function checkContractManagementRoute() {
-    const path = window.location.pathname
-    const match = path.match(/^\/contracts\/(\d+)$/)
-    if (match) {
-      setIsContractManagementRoute(true)
-    } else {
-      setIsContractManagementRoute(false)
-    }
-  }
 
   useEffect(() => {
     const userId = localStorage.getItem('userId')
@@ -365,13 +322,13 @@ function App() {
         onLogout={handleLogout}
       />
 
-      {isContractManagementRoute ? (
+      {currentPage === 'contractDetail' ? (
         <main className="page admin-page">
           <div className="contract-management-layout">
-            <ContractManagementPage />
+            <ContractManagementPage selectedContractId={selectedContractId} />
           </div>
         </main>
-      ) : view === 'login' ? (
+      ) : currentPage === 'login' ? (
         <main className="page">
           <LoginForm onLogin={handleLogin} error={error} />
         </main>
@@ -389,8 +346,8 @@ function App() {
                 contracts={contracts}
                 searchTerm={contractSearchTerm}
                 onManage={(c) => {
-                  window.history.pushState({}, '', `/contracts/${c.id}`)
-                  setIsContractManagementRoute(true)
+                  setSelectedContractId(c.id)
+                  setCurrentPage('contractDetail')
                 }}
                 onLoadContracts={loadContracts}
                 currentUser={user}
