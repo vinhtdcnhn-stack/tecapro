@@ -1,7 +1,11 @@
-const db = require('../db');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import db from '../db.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -417,7 +421,7 @@ async function getContractFiles(req, res) {
   }
 }
 
-module.exports = {
+export {
   getFolderTree,
   createFolder,
   updateFolder,
