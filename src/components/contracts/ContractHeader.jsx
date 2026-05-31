@@ -51,7 +51,11 @@ export default function ContractHeader({ contract }) {
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined || isNaN(value)) return '-'
-    return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value)
+    const numValue = Number(value)
+    if (numValue >= 1000000000) {
+      return (numValue / 1000000000).toFixed(2).replace('.', ',') + ' tỷ VNĐ'
+    }
+    return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(numValue) + ' VNĐ'
   }
 
   const getStatusBadge = (status) => {
@@ -66,38 +70,42 @@ export default function ContractHeader({ contract }) {
 
   return (
     <div className="contract-header">
-      <div className="contract-header-grid">
-        <div className="contract-header-item">
-          <span className="contract-header-label">Số hợp đồng</span>
-          <span className="contract-header-value">{contractData.contract_no || '-'}</span>
+      {/* Dòng đầu: Tên dự án và Số hợp đồng */}
+      <div className="contract-header-title">
+        <h1>{contractData.project_name || '-'}</h1>
+        <p className="contract-no">{contractData.contract_no || '-'}</p>
+      </div>
+
+      {/* Dòng thứ hai: 5 thẻ KPI */}
+      <div className="contract-header-kpi-grid">
+        {/* A. Chủ đầu tư */}
+        <div className="contract-header-kpi-card">
+          <span className="contract-header-kpi-label">Chủ đầu tư</span>
+          <span className="contract-header-kpi-value">{contractData.customer_name || '-'}</span>
         </div>
-        <div className="contract-header-item">
-          <span className="contract-header-label">Tên dự án</span>
-          <span className="contract-header-value">{contractData.project_name || '-'}</span>
+
+        {/* B. PM chính */}
+        <div className="contract-header-kpi-card">
+          <span className="contract-header-kpi-label">PM chính</span>
+          <span className="contract-header-kpi-value">{contractData.pm_name || '-'}</span>
         </div>
-        <div className="contract-header-item">
-          <span className="contract-header-label">Chủ đầu tư</span>
-          <span className="contract-header-value">{contractData.customer_name || '-'}</span>
+
+        {/* C. Trạng thái */}
+        <div className="contract-header-kpi-card">
+          <span className="contract-header-kpi-label">Trạng thái</span>
+          <span className="contract-header-kpi-value">{getStatusBadge(contractData.status)}</span>
         </div>
-        <div className="contract-header-item">
-          <span className="contract-header-label">Gói thầu</span>
-          <span className="contract-header-value">{contractData.tender_name || '-'}</span>
+
+        {/* D. Giá trị hợp đồng */}
+        <div className="contract-header-kpi-card">
+          <span className="contract-header-kpi-label">Giá trị HĐ</span>
+          <span className="contract-header-kpi-value money">{formatCurrency(contractData.amount_after_vat)}</span>
         </div>
-        <div className="contract-header-item">
-          <span className="contract-header-label">PM chính</span>
-          <span className="contract-header-value">{contractData.pm_name || '-'}</span>
-        </div>
-        <div className="contract-header-item">
-          <span className="contract-header-label">Ngày ký</span>
-          <span className="contract-header-value">{formatDate(contractData.contract_date)}</span>
-        </div>
-        <div className="contract-header-item">
-          <span className="contract-header-label">Giá trị hợp đồng</span>
-          <span className="contract-header-value money">{formatCurrency(contractData.amount_after_vat)} ₫</span>
-        </div>
-        <div className="contract-header-item">
-          <span className="contract-header-label">Trạng thái</span>
-          <span className="contract-header-value">{getStatusBadge(contractData.status)}</span>
+
+        {/* E. Ngày ký */}
+        <div className="contract-header-kpi-card">
+          <span className="contract-header-kpi-label">Ngày ký</span>
+          <span className="contract-header-kpi-value">{formatDate(contractData.contract_date)}</span>
         </div>
       </div>
     </div>
