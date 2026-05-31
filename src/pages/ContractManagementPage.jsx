@@ -4,7 +4,7 @@ import ContractSidebar from '../components/contracts/ContractSidebar'
 import ContractModal from '../components/contracts/ContractModal'
 import ContractDocumentsTab from '../components/contracts/ContractDocumentsTab'
 
-export default function ContractManagementPage() {
+export default function ContractManagementPage({ selectedContractId }) {
   const [contractId, setContractId] = useState(null)
   const [contract, setContract] = useState(null)
   const [activeMenu, setActiveMenu] = useState('contract-info')
@@ -21,8 +21,8 @@ export default function ContractManagementPage() {
   }
 
   useEffect(() => {
-    const pathParts = window.location.pathname.split('/')
-    const id = pathParts[pathParts.length - 1]
+    // Use selectedContractId from props instead of URL
+    const id = selectedContractId
     setContractId(id)
 
     async function loadContract() {
@@ -57,7 +57,7 @@ export default function ContractManagementPage() {
     }
 
     loadContract()
-  }, [])
+  }, [selectedContractId])
 
   const renderContent = () => {
     switch (activeMenu) {
