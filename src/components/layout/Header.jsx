@@ -27,7 +27,11 @@ export default function Header({ user, activeMenu, onNavigate, onLogout }) {
               className={`menu-item ${activeMenu === m ? 'is-active' : ''}`}
               onClick={() => {
                 if (m === 'Quản trị hệ thống') {
-                  onNavigate(user ? 'Quản lý người dùng' : 'Quản trị hệ thống', user ? 'home' : 'login')
+                  if (user) {
+                    onNavigate('Quản lý người dùng', 'admin')
+                  } else {
+                    onNavigate('Quản trị hệ thống', 'login')
+                  }
                 } else {
                   onNavigate(m, 'home')
                 }
