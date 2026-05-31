@@ -17,9 +17,9 @@ export async function login(req, res) {
       u.id, 
       u.email, 
       u.full_name, 
-      u.password_hash,
       u.role, 
       u.position_id,
+      u.password_hash,
       p.code as position_code,
       p.name as position_name
      from app_user u
