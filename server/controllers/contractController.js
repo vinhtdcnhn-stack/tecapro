@@ -77,7 +77,8 @@ export async function getContractById(req, res) {
       SELECT
         com.member_role,
         au.full_name,
-        au.id as user_id
+        au.id as user_id,
+        com.is_primary
       FROM contract_out_member com
       LEFT JOIN app_user au ON au.id = com.user_id
       WHERE com.contract_out_id = $1
@@ -94,34 +95,54 @@ export async function getContractById(req, res) {
     const accountingMembers = []
     const followerMembers = []
     
+    const saleMemberIds = []
+    const pmMemberIds = []
+    const presaleMemberIds = []
+    const technicalMemberIds = []
+    const accountingMemberIds = []
+    const followerMemberIds = []
+    
+    let pmPrimaryId = null
+    
     membersResult.rows.forEach(member => {
       const fullName = member.full_name || '-'
+      const userId = member.user_id
       const role = String(member.member_role || '').toUpperCase()
+      const isPrimary = member.is_primary
 
       switch (role) {
         case 'SALE':
           saleMembers.push(fullName)
+          if (userId) saleMemberIds.push(userId)
           break
 
         case 'PM':
           pmMembers.push(fullName)
+          if (userId) pmMemberIds.push(userId)
+          if (isPrimary && userId) {
+            pmPrimaryId = userId
+          }
           break
 
         case 'PRESALE':
           presaleMembers.push(fullName)
+          if (userId) presaleMemberIds.push(userId)
           break
 
         case 'TECHNICAL':
           technicalMembers.push(fullName)
+          if (userId) technicalMemberIds.push(userId)
           break
 
         case 'ACCOUNTANT':
         case 'ACCOUNTING':
           accountingMembers.push(fullName)
+          if (userId) accountingMemberIds.push(userId)
           break
 
         case 'FOLLOWER':
           followerMembers.push(fullName)
+          if (userId) followerMemberIds.push(userId)
           break
       }
     })
@@ -129,11 +150,18 @@ export async function getContractById(req, res) {
     res.json({
       ...contract,
       sale_members: saleMembers,
+      sale_member_ids: saleMemberIds,
       pm_members: pmMembers,
+      pm_member_ids: pmMemberIds,
+      pm_primary_id: pmPrimaryId,
       presale_members: presaleMembers,
+      presale_member_ids: presaleMemberIds,
       technical_members: technicalMembers,
+      technical_member_ids: technicalMemberIds,
       accounting_members: accountingMembers,
-      follower_members: followerMembers
+      accounting_member_ids: accountingMemberIds,
+      follower_members: followerMembers,
+      follower_member_ids: followerMemberIds
     })
   } catch (err) {
     console.error('Failed to load contract details:', err)
