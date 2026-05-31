@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import './ContractDocumentsTab.css'
 
-const API_BASE_URL = '/api'
+function getBaseUrl() {
+  return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
+}
+
+const API_BASE_URL = getBaseUrl() + '/api'
 
 export default function ContractDocumentsTab({ contractId }) {
   const [folders, setFolders] = useState([])
