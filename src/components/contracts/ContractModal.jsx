@@ -86,8 +86,6 @@ export default function ContractModal({
       return
     }
 
-    console.log('CHECK CONTRACT NO:', value)
-
     setIsChecking(true)
     setIsDuplicate(false)
 
@@ -99,16 +97,10 @@ export default function ContractModal({
         body: JSON.stringify({ contract_no: value })
       })
 
-      console.log('API response status:', res.status)
-
       const data = await res.json()
-
-      console.log('CHECK RESULT:', data)
 
       const duplicate = data.exists === true
       setIsDuplicate(duplicate)
-
-      console.log('DUPLICATE:', duplicate)
 
       if (duplicate) {
         setErrors(prev => ({
@@ -130,7 +122,6 @@ export default function ContractModal({
       setIsDuplicate(false)
     } finally {
       setIsChecking(false)
-      console.log('CHECKING:', false)
     }
   }
 

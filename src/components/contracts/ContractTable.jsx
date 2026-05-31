@@ -55,7 +55,6 @@ export default function ContractTable({ contracts, searchTerm, onManage }) {
                   <button 
                     className="edit-btn" 
                     onClick={() => {
-                      console.log(c.id)
                       if (onManage) onManage(c)
                     }}
                   >
