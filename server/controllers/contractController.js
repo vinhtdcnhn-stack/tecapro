@@ -96,23 +96,31 @@ export async function getContractById(req, res) {
     
     membersResult.rows.forEach(member => {
       const fullName = member.full_name || '-'
-      switch (member.member_role) {
-        case 'Sale':
+      const role = String(member.member_role || '').toUpperCase()
+
+      switch (role) {
+        case 'SALE':
           saleMembers.push(fullName)
           break
+
         case 'PM':
           pmMembers.push(fullName)
           break
-        case 'Presale':
+
+        case 'PRESALE':
           presaleMembers.push(fullName)
           break
-        case 'Technical':
+
+        case 'TECHNICAL':
           technicalMembers.push(fullName)
           break
-        case 'Accounting':
+
+        case 'ACCOUNTANT':
+        case 'ACCOUNTING':
           accountingMembers.push(fullName)
           break
-        case 'Follower':
+
+        case 'FOLLOWER':
           followerMembers.push(fullName)
           break
       }
