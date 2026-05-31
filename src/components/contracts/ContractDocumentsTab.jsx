@@ -12,6 +12,7 @@ export default function ContractDocumentsTab({ contractId }) {
   const [selectedFiles, setSelectedFiles] = useState(new Set())
   const [newFolderName, setNewFolderName] = useState('')
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
+  const [newFolderParentId, setNewFolderParentId] = useState('')
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [fileInputKey, setFileInputKey] = useState(0)
@@ -119,6 +120,7 @@ export default function ContractDocumentsTab({ contractId }) {
   }
 
   const handleCreateFolder = () => {
+    setNewFolderParentId(selectedFolderId || '')
     setShowNewFolderModal(true)
   }
 
@@ -129,13 +131,17 @@ export default function ContractDocumentsTab({ contractId }) {
       await fetch(`${API_BASE_URL}/contracts/${contractId}/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderName: newFolderName, parentId: selectedFolderId })
+        body: JSON.stringify({ 
+          folderName: newFolderName, 
+          parentId: newFolderParentId || null 
+        })
       })
 
       // Reload folders to get the new one
       await loadFolders()
 
       setNewFolderName('')
+      setNewFolderParentId('')
       setShowNewFolderModal(false)
     } catch (error) {
       console.error('Failed to create folder:', error)
@@ -460,6 +466,20 @@ export default function ContractDocumentsTab({ contractId }) {
                 autoFocus
                 onKeyPress={(e) => e.key === 'Enter' && confirmCreateFolder()}
               />
+            </div>
+            <div className="form-group">
+              <label>Thư mục cha (tùy chọn)</label>
+              <select
+                value={newFolderParentId}
+                onChange={(e) => setNewFolderParentId(e.target.value)}
+              >
+                <option value="">-- Thư mục gốc --</option>
+                {folders.map(folder => (
+                  <option key={folder.id} value={folder.id}>
+                    {folder.folder_name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setShowNewFolderModal(false)}>Hủy</button>

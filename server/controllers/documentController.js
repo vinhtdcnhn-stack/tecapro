@@ -53,10 +53,11 @@ async function getFolderTree(req, res) {
           folder_name,
           created_by,
           created_at,
+          is_deleted,
           0 as level,
           ARRAY[id] as path
         FROM public.document_folder
-        WHERE contract_id = $1 AND parent_id IS NULL
+        WHERE contract_id = $1 AND parent_id IS NULL AND (is_deleted = false OR is_deleted IS NULL)
         
         UNION ALL
         
@@ -67,11 +68,12 @@ async function getFolderTree(req, res) {
           f.folder_name,
           f.created_by,
           f.created_at,
+          f.is_deleted,
           ft.level + 1,
           ft.path || f.id
         FROM public.document_folder f
         INNER JOIN folder_tree ft ON f.parent_id = ft.id
-        WHERE f.contract_id = $1
+        WHERE f.contract_id = $1 AND (f.is_deleted = false OR f.is_deleted IS NULL)
       )
       SELECT * FROM folder_tree
       ORDER BY path
@@ -152,13 +154,15 @@ async function updateFolder(req, res) {
   }
 }
 
-// Delete folder
+// Delete folder (soft delete - set is_deleted = true)
 async function deleteFolder(req, res) {
   try {
     const { folderId } = req.params;
     
+    // Soft delete: set is_deleted = true instead of deleting
     const query = `
-      DELETE FROM public.document_folder
+      UPDATE public.document_folder
+      SET is_deleted = true
       WHERE id = $1
       RETURNING *
     `;
