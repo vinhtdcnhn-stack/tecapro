@@ -147,29 +147,46 @@
   }
   
   /* Sticky columns for horizontal scroll */
-  .sticky-col-1 {
+  thead .sticky-col-1 {
     position: sticky;
     left: 0;
-    z-index: 30;
-    background: white;
+    top: 0;
+    z-index: 50;
+    background: #f1f5f9;
     width: 70px;
     min-width: 70px;
   }
   
-  .sticky-col-2 {
+  thead .sticky-col-2 {
     position: sticky;
     left: 70px;
-    z-index: 29;
-    background: white;
+    top: 0;
+    z-index: 49;
+    background: #f1f5f9;
     width: 160px;
     min-width: 160px;
     border-right: 1px solid #e5e7eb;
     box-shadow: 3px 0 6px rgba(0,0,0,0.05);
   }
   
-  thead .sticky-col-1,
-  thead .sticky-col-2 {
-    background: #f1f5f9;
+  tbody .sticky-col-1 {
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    background: white;
+    width: 70px;
+    min-width: 70px;
+  }
+  
+  tbody .sticky-col-2 {
+    position: sticky;
+    left: 70px;
+    z-index: 19;
+    background: white;
+    width: 160px;
+    min-width: 160px;
+    border-right: 1px solid #e5e7eb;
+    box-shadow: 3px 0 6px rgba(0,0,0,0.05);
   }
 }
 
