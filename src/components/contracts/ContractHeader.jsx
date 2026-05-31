@@ -2,41 +2,14 @@ import { useState, useEffect } from 'react'
 
 export default function ContractHeader({ contract }) {
   const [loading, setLoading] = useState(true)
-  const [contractData, setContractData] = useState(null)
 
   useEffect(() => {
     if (contract) {
-      setContractData(contract)
       setLoading(false)
     }
   }, [contract])
 
-  const getBaseUrl = () => {
-    return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
-  }
-
-  useEffect(() => {
-    async function loadContract() {
-      try {
-        const res = await fetch(`${getBaseUrl()}/api/contracts`)
-        const data = await res.json()
-        const found = data.find(c => c.id === parseInt(contract))
-        if (found) {
-          setContractData(found)
-        }
-      } catch (err) {
-        console.error('Failed to load contract:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (!contract && !contractData) {
-      loadContract()
-    }
-  }, [])
-
-  if (loading || !contractData) {
+  if (loading || !contract) {
     return (
       <div className="contract-header">
         <div className="contract-header-loading">Đang tải thông tin hợp đồng...</div>
@@ -72,8 +45,8 @@ export default function ContractHeader({ contract }) {
     <div className="contract-header">
       {/* Dòng đầu: Tên dự án và Số hợp đồng */}
       <div className="contract-header-title">
-        <h1>{contractData.project_name || '-'}</h1>
-        <p className="contract-no">{contractData.contract_no || '-'}</p>
+        <h1>{contract.project_name || '-'}</h1>
+        <p className="contract-no">{contract.contract_no || '-'}</p>
       </div>
 
       {/* Dòng thứ hai: 5 thẻ KPI */}
@@ -81,31 +54,31 @@ export default function ContractHeader({ contract }) {
         {/* A. Chủ đầu tư */}
         <div className="contract-header-kpi-card">
           <span className="contract-header-kpi-label">Chủ đầu tư</span>
-          <span className="contract-header-kpi-value">{contractData.customer_name || '-'}</span>
+          <span className="contract-header-kpi-value">{contract.customer_name || '-'}</span>
         </div>
 
         {/* B. PM chính */}
         <div className="contract-header-kpi-card">
           <span className="contract-header-kpi-label">PM chính</span>
-          <span className="contract-header-kpi-value">{contractData.pm_name || '-'}</span>
+          <span className="contract-header-kpi-value">{contract.pm_name || '-'}</span>
         </div>
 
         {/* C. Trạng thái */}
         <div className="contract-header-kpi-card">
           <span className="contract-header-kpi-label">Trạng thái</span>
-          <span className="contract-header-kpi-value">{getStatusBadge(contractData.status)}</span>
+          <span className="contract-header-kpi-value">{getStatusBadge(contract.status)}</span>
         </div>
 
         {/* D. Giá trị hợp đồng */}
         <div className="contract-header-kpi-card">
           <span className="contract-header-kpi-label">Giá trị HĐ</span>
-          <span className="contract-header-kpi-value money">{formatCurrency(contractData.amount_after_vat)}</span>
+          <span className="contract-header-kpi-value money">{formatCurrency(contract.amount_after_vat)}</span>
         </div>
 
         {/* E. Ngày ký */}
         <div className="contract-header-kpi-card">
           <span className="contract-header-kpi-label">Ngày ký</span>
-          <span className="contract-header-kpi-value">{formatDate(contractData.contract_date)}</span>
+          <span className="contract-header-kpi-value">{formatDate(contract.contract_date)}</span>
         </div>
       </div>
     </div>
