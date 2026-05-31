@@ -19,6 +19,7 @@ export async function login(req, res) {
       u.full_name, 
       u.role, 
       u.position_id,
+      u.password_hash,
       p.code as position_code,
       p.name as position_name
      from app_user u
@@ -29,6 +30,16 @@ export async function login(req, res) {
   const user = rows[0]
   if (!user) {
     res.status(401).json({ error: 'Sai email hoặc mật khẩu.' })
+    return
+  }
+
+  // Debug log
+  console.log('USER:', user)
+  console.log('PASSWORD HASH:', user?.password_hash)
+
+  if (!user.password_hash) {
+    console.error('Lỗi: User không có password_hash')
+    res.status(500).json({ error: 'Lỗi hệ thống: User không có mật khẩu.' })
     return
   }
 
