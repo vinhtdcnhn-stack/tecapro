@@ -211,6 +211,8 @@ function App() {
     } else if (menu === 'Quản trị hệ thống') {
       setCurrentPage(user ? 'admin' : 'login')
       setActiveMenu(user ? 'Quản lý người dùng' : 'Quản trị hệ thống')
+    } else if (menu === 'Quản lý người dùng' || menu === 'departments' || menu === 'positions' || menu === 'customers') {
+      setCurrentPage('admin')
     }
   }
 
