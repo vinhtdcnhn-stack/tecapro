@@ -128,7 +128,7 @@ export default function ContractDocumentsTab({ contractId }) {
     if (!newFolderName.trim()) return
 
     try {
-      await fetch(`${API_BASE_URL}/contracts/${contractId}/folders`, {
+      const res = await fetch(`${API_BASE_URL}/contracts/${contractId}/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -136,6 +136,16 @@ export default function ContractDocumentsTab({ contractId }) {
           parentId: newFolderParentId || null 
         })
       })
+
+      console.log('status=', res.status)
+
+      const data = await res.json()
+
+      console.log('response=', data)
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Create folder failed')
+      }
 
       // Reload folders to get the new one
       await loadFolders()

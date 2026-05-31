@@ -101,6 +101,9 @@ async function getFolderTree(req, res) {
 
 // Create folder
 async function createFolder(req, res) {
+  console.log('===== CREATE FOLDER START =====')
+  console.log('params=', req.params)
+  console.log('body=', req.body)
   try {
     const { contractId } = req.params;
     const { folderName, parentId } = req.body;
@@ -109,6 +112,13 @@ async function createFolder(req, res) {
     if (!folderName) {
       return res.status(400).json({ error: 'Folder name is required' });
     }
+    
+    console.log('SQL params=', [
+      contractId,
+      parentId || null,
+      folderName,
+      userId
+    ])
     
     const query = `
       INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
@@ -119,7 +129,7 @@ async function createFolder(req, res) {
     const result = await db.query(query, [contractId, parentId || null, folderName, userId]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating folder:', error);
+    console.error('CREATE FOLDER ERROR=', error)
     res.status(500).json({ error: 'Failed to create folder' });
   }
 }
