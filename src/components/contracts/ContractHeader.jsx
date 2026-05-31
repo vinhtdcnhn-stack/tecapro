@@ -43,43 +43,10 @@ export default function ContractHeader({ contract }) {
 
   return (
     <div className="contract-header">
-      {/* Dòng đầu: Tên dự án và Số hợp đồng */}
+      {/* Dòng đầu: Tên dự án và Số hợp đồng - Căn giữa */}
       <div className="contract-header-title">
         <h1>{contract.project_name || '-'}</h1>
         <p className="contract-no">{contract.contract_no || '-'}</p>
-      </div>
-
-      {/* Dòng thứ hai: 5 thẻ KPI */}
-      <div className="contract-header-kpi-grid">
-        {/* A. Chủ đầu tư */}
-        <div className="contract-header-kpi-card">
-          <span className="contract-header-kpi-label">Chủ đầu tư</span>
-          <span className="contract-header-kpi-value">{contract.customer_name || '-'}</span>
-        </div>
-
-        {/* B. PM chính */}
-        <div className="contract-header-kpi-card">
-          <span className="contract-header-kpi-label">PM chính</span>
-          <span className="contract-header-kpi-value">{contract.pm_name || '-'}</span>
-        </div>
-
-        {/* C. Trạng thái */}
-        <div className="contract-header-kpi-card">
-          <span className="contract-header-kpi-label">Trạng thái</span>
-          <span className="contract-header-kpi-value">{getStatusBadge(contract.status)}</span>
-        </div>
-
-        {/* D. Giá trị hợp đồng */}
-        <div className="contract-header-kpi-card">
-          <span className="contract-header-kpi-label">Giá trị HĐ</span>
-          <span className="contract-header-kpi-value money">{formatCurrency(contract.amount_after_vat)}</span>
-        </div>
-
-        {/* E. Ngày ký */}
-        <div className="contract-header-kpi-card">
-          <span className="contract-header-kpi-label">Ngày ký</span>
-          <span className="contract-header-kpi-value">{formatDate(contract.contract_date)}</span>
-        </div>
       </div>
     </div>
   )
