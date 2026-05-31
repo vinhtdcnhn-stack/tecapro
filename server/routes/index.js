@@ -2,7 +2,7 @@ import { Router } from 'express'
 import * as authController from '../controllers/authController.js'
 import customerRoutes from './customerRoutes.js'
 import contractRoutes from './contractRoutes.js'
-// import documentRoutes from './documentRoutes.js'
+import documentRoutes from './documentRoutes.js'
 
 const router = Router()
 
@@ -36,6 +36,6 @@ router.use('/customers', customerRoutes)
 router.use('/contracts', contractRoutes)
 
 // Document routes
-// router.use('/', documentRoutes)
+router.use('/', documentRoutes)
 
 export default router
