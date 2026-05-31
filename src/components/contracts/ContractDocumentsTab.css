@@ -448,6 +448,24 @@
   box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.1);
 }
 
+.form-group select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: #15803d;
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.1);
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
