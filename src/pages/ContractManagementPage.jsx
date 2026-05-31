@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import ContractHeader from '../components/contracts/ContractHeader'
 import ContractSidebar from '../components/contracts/ContractSidebar'
 import ContractModal from '../components/contracts/ContractModal'
+import ContractDocumentsTab from '../components/contracts/ContractDocumentsTab'
 
 export default function ContractManagementPage() {
   const [contractId, setContractId] = useState(null)
@@ -63,7 +64,7 @@ export default function ContractManagementPage() {
       case 'contract-info':
         return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} />
       case 'contract-documents':
-        return <PlaceholderTab title="Tài liệu hợp đồng" />
+        return <ContractDocumentsTab contractId={contractId} />
       case 'contract-pricing':
         return <PlaceholderTab title="Bảng giá" />
       case 'contract-progress':
