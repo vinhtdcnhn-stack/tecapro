@@ -1,7 +1,1 @@
-```
-# Dependencies
-node_modules/
-
-# Vite cache
-node_modules/.vite/
-```
+(src/App.jsx)
