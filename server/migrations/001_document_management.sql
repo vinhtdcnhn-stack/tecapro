@@ -46,7 +46,8 @@ BEGIN
     VALUES 
         (p_contract_id, v_root_folder_id, 'HSMT', p_created_by),
         (p_contract_id, v_root_folder_id, 'HSDT', p_created_by),
-        (p_contract_id, v_root_folder_id, 'Làm rõ HSDT', p_created_by);
+        (p_contract_id, v_root_folder_id, 'Làm rõ HSDT', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Kết quả lựa chọn nhà thầu', p_created_by);
     
     -- Hợp đồng bán
     INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
@@ -57,17 +58,21 @@ BEGIN
     VALUES 
         (p_contract_id, v_root_folder_id, 'Hợp đồng chính', p_created_by),
         (p_contract_id, v_root_folder_id, 'Phụ lục', p_created_by),
-        (p_contract_id, v_root_folder_id, 'Bảo lãnh', p_created_by);
+        (p_contract_id, v_root_folder_id, 'Bảo lãnh thực hiện', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Bảo lãnh tạm ứng', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Thanh toán', p_created_by);
     
-    -- Hợp đồng nhập
+    -- Kỹ thuật
     INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
-    VALUES (p_contract_id, NULL, 'Hợp đồng nhập', p_created_by)
+    VALUES (p_contract_id, NULL, 'Kỹ thuật', p_created_by)
     RETURNING id INTO v_root_folder_id;
     
     INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
     VALUES 
-        (p_contract_id, v_root_folder_id, 'PO', p_created_by),
-        (p_contract_id, v_root_folder_id, 'Hợp đồng NCC', p_created_by);
+        (p_contract_id, v_root_folder_id, 'Bản vẽ', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Datasheet', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Phê duyệt vật tư', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Cấu hình thiết bị', p_created_by);
     
     -- Triển khai
     INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
@@ -78,7 +83,9 @@ BEGIN
     VALUES 
         (p_contract_id, v_root_folder_id, 'Shop Drawing', p_created_by),
         (p_contract_id, v_root_folder_id, 'FAT', p_created_by),
-        (p_contract_id, v_root_folder_id, 'SAT', p_created_by);
+        (p_contract_id, v_root_folder_id, 'SAT', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Biên bản họp', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Nhật ký triển khai', p_created_by);
     
     -- Nghiệm thu
     INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
@@ -87,8 +94,19 @@ BEGIN
     
     INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
     VALUES 
-        (p_contract_id, v_root_folder_id, 'Biên bản', p_created_by),
-        (p_contract_id, v_root_folder_id, 'Thanh lý', p_created_by);
+        (p_contract_id, v_root_folder_id, 'Biên bản nghiệm thu', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Hồ sơ hoàn công', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Thanh lý hợp đồng', p_created_by);
+    
+    -- Bảo hành
+    INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
+    VALUES (p_contract_id, NULL, 'Bảo hành', p_created_by)
+    RETURNING id INTO v_root_folder_id;
+    
+    INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
+    VALUES 
+        (p_contract_id, v_root_folder_id, 'Hồ sơ bảo hành', p_created_by),
+        (p_contract_id, v_root_folder_id, 'Biên bản xử lý lỗi', p_created_by);
     
     -- Khác
     INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
