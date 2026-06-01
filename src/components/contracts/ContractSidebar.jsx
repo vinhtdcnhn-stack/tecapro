@@ -7,8 +7,7 @@ export default function ContractSidebar({ activeMenu, onMenuChange }) {
         { id: 'contract-documents', label: 'Tài liệu hợp đồng' },
         { id: 'contract-pricing', label: 'Bảng giá' },
         { id: 'contract-progress', label: 'Tiến độ theo biên bản' },
-        { id: 'contract-revenue', label: 'Doanh thu' },
-        { id: 'contract-debt', label: 'Công nợ' },
+{ id: 'contract-debt', label: 'Công nợ' },
         { id: 'contract-warranty', label: 'Bảo hành' },
         { id: 'contract-guarantee', label: 'Bảo lãnh' },
         { id: 'contract-tasks', label: 'Công việc triển khai' }

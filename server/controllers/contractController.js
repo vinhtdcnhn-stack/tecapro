@@ -56,6 +56,7 @@ export async function getContractById(req, res) {
         co.amount_before_vat,
         co.amount_after_vat,
         co.currency_code,
+        co.exchange_rate,
         co.payment_term AS terms,
         co.status
       FROM contract_out co
@@ -210,6 +211,7 @@ export async function createContract(req, res) {
     amount_before_vat,
     amount_after_vat,
     currency_code,
+    exchange_rate,
     terms,
     status,
     pm_primary_id,
@@ -259,12 +261,13 @@ export async function createContract(req, res) {
           amount_before_vat,
           amount_after_vat,
           currency_code,
+          exchange_rate,
           payment_term,
           status,
           created_at,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
         RETURNING id
       `
 
@@ -277,6 +280,7 @@ export async function createContract(req, res) {
         parseFloat(amount_before_vat) || 0,
         parseFloat(amount_after_vat) || 0,
         currency_code || 'VND',
+        exchange_rate ? parseFloat(exchange_rate) : null,
         terms?.trim() || null,
         status || 'Pending'
       ])
@@ -396,6 +400,7 @@ export async function updateContract(req, res) {
     amount_before_vat,
     amount_after_vat,
     currency_code,
+    exchange_rate,
     terms,
     status,
     pm_primary_id,
@@ -445,10 +450,11 @@ export async function updateContract(req, res) {
           amount_before_vat = $6,
           amount_after_vat = $7,
           currency_code = $8,
-          payment_term = $9,
-          status = $10,
+          exchange_rate = $9,
+          payment_term = $10,
+          status = $11,
           updated_at = NOW()
-        WHERE id = $11
+        WHERE id = $12
         RETURNING id
       `
 
@@ -461,6 +467,7 @@ export async function updateContract(req, res) {
         parseFloat(amount_before_vat) || 0,
         parseFloat(amount_after_vat) || 0,
         currency_code || 'VND',
+        exchange_rate ? parseFloat(exchange_rate) : null,
         terms?.trim() || null,
         status || 'Pending',
         parseInt(contractId)

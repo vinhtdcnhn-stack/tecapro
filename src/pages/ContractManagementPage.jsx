@@ -3,6 +3,11 @@ import ContractHeader from '../components/contracts/ContractHeader'
 import ContractSidebar from '../components/contracts/ContractSidebar'
 import ContractModal from '../components/contracts/ContractModal'
 import ContractDocumentsTab from '../components/contracts/ContractDocumentsTab'
+import ContractBOQTab from '../components/contracts/ContractBOQTab'
+import ContractProgressTab from '../components/contracts/ContractProgressTab'
+import ContractReceivableTab from '../components/contracts/ContractReceivableTab'
+import ContractGuaranteeTab from '../components/contracts/ContractGuaranteeTab'
+import ContractTaskTab from '../components/contracts/ContractTaskTab'
 
 export default function ContractManagementPage({ selectedContractId }) {
   const [contractId, setContractId] = useState(null)
@@ -45,9 +50,14 @@ export default function ContractManagementPage({ selectedContractId }) {
         const customersData = await customersRes.json()
         setCustomers(customersData)
         
-        // Get current user (first user as placeholder - should be from auth)
-        if (usersData && usersData.length > 0) {
-          setCurrentUser(usersData[0])
+        // Get current user from localStorage
+        const storedUserId = localStorage.getItem('userId')
+        if (storedUserId) {
+          const meRes = await fetch(`${getBaseUrl()}/api/me/${storedUserId}`)
+          if (meRes.ok) {
+            const meData = await meRes.json()
+            setCurrentUser(meData)
+          }
         }
       } catch (err) {
         console.error('Failed to load contract:', err)
@@ -66,19 +76,17 @@ export default function ContractManagementPage({ selectedContractId }) {
       case 'contract-documents':
         return <ContractDocumentsTab contractId={contractId} />
       case 'contract-pricing':
-        return <PlaceholderTab title="Bảng giá" />
+        return <ContractBOQTab contractId={contractId} />
       case 'contract-progress':
-        return <PlaceholderTab title="Tiến độ theo biên bản" />
-      case 'contract-revenue':
-        return <PlaceholderTab title="Doanh thu" />
-      case 'contract-debt':
-        return <PlaceholderTab title="Công nợ" />
+        return <ContractProgressTab contractId={contractId} />
+case 'contract-debt':
+        return <ContractReceivableTab contractId={contractId} />
       case 'contract-warranty':
         return <PlaceholderTab title="Bảo hành" />
       case 'contract-guarantee':
-        return <PlaceholderTab title="Bảo lãnh" />
+        return <ContractGuaranteeTab contractId={contractId} />
       case 'contract-tasks':
-        return <PlaceholderTab title="Công việc triển khai" />
+        return <ContractTaskTab contractId={contractId} currentUser={currentUser} />
       case 'purchase-contract-info':
         return <PlaceholderTab title="Thông tin hợp đồng nhập" />
       case 'supplier':
@@ -244,6 +252,10 @@ function ContractInfoTab({ contract, onEdit }) {
             <div className="form-group">
               <label>Đơn vị tiền tệ</label>
               <input type="text" value={contract.currency_code || 'VND'} readOnly />
+            </div>
+            <div className="form-group">
+              <label>Tỷ giá</label>
+              <input type="text" value={contract.exchange_rate != null ? new Intl.NumberFormat('vi-VN').format(contract.exchange_rate) : '-'} readOnly />
             </div>
             <div className="form-group">
               <label>Phân loại</label>

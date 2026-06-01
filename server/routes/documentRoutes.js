@@ -1,20 +1,32 @@
 import { Router } from 'express'
-import * as documentController from '../controllers/documentController.js'
+import {
+  getFolderTree,
+  createFolder,
+  updateFolder,
+  deleteFolder,
+  getContractFiles,
+  getFolderFiles,
+  upload,
+  uploadFile,
+  downloadFile,
+  viewFile,
+  deleteFile,
+} from '../controllers/documentController.js'
 
 const router = Router()
 
 // Folder routes
-router.get('/contracts/:contractId/folders', documentController.getFolderTree)
-router.post('/contracts/:contractId/folders', documentController.createFolder)
-router.put('/folders/:folderId', documentController.updateFolder)
-router.delete('/folders/:folderId', documentController.deleteFolder)
+router.get('/contracts/:contractId/folders', getFolderTree)
+router.post('/contracts/:contractId/folders', createFolder)
+router.put('/folders/:folderId', updateFolder)
+router.delete('/folders/:folderId', deleteFolder)
 
 // File routes
-router.get('/contracts/:contractId/files', documentController.getContractFiles)
-router.get('/folders/:folderId/files', documentController.getFolderFiles)
-router.post('/contracts/:contractId/files/upload', documentController.upload.single('file'), documentController.uploadFile)
-router.get('/files/:id/download', documentController.downloadFile)
-router.get('/files/:id/view', documentController.viewFile)
-router.delete('/files/:id', documentController.deleteFile)
+router.get('/contracts/:contractId/files', getContractFiles)
+router.get('/folders/:folderId/files', getFolderFiles)
+router.post('/contracts/:contractId/files/upload', upload.single('file'), uploadFile)
+router.get('/files/:fileId/download', downloadFile)
+router.get('/files/:fileId/view', viewFile)
+router.delete('/files/:fileId', deleteFile)
 
 export default router

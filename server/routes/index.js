@@ -3,6 +3,11 @@ import * as authController from '../controllers/authController.js'
 import customerRoutes from './customerRoutes.js'
 import contractRoutes from './contractRoutes.js'
 import documentRoutes from './documentRoutes.js'
+import boqRoutes from './boqRoutes.js'
+import progressRoutes from './progressRoutes.js'
+import receivableRoutes from './receivableRoutes.js'
+import guaranteeRoutes from './guaranteeRoutes.js'
+import taskRoutes from './taskRoutes.js'
 
 const router = Router()
 
@@ -37,5 +42,20 @@ router.use('/contracts', contractRoutes)
 
 // Document routes
 router.use('/', documentRoutes)
+
+// BOQ routes
+router.use('/', boqRoutes)
+
+// Progress routes
+router.use('/', progressRoutes)
+
+// Receivable routes
+router.use('/', receivableRoutes)
+
+// Guarantee routes
+router.use('/', guaranteeRoutes)
+
+// Task routes
+router.use('/', taskRoutes)
 
 export default router

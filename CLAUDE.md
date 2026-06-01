@@ -1,0 +1,57 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+# Start both frontend (Vite) and backend (Express) concurrently
+npm run dev
+
+# Start only frontend
+npm run dev:web
+
+# Start only backend (with hot reload via --watch)
+npm run dev:api
+
+# Build frontend for production
+npm run build
+
+# Lint
+npm run lint
+
+# Start PostgreSQL via Docker
+docker compose up -d
+```
+
+## Environment Setup
+
+Copy `.env.example` to `.env` and fill in values:
+- `DATABASE_URL` — PostgreSQL connection string (default DB: `hello_world`, user: `hello`, password: `hello` via docker-compose)
+- `PORT` — Express API port (default: `5174`)
+- `VITE_API_BASE_URL` — Frontend base URL for API calls (default: `http://localhost:5174`)
+
+Run the SQL files to initialize the database schema before first use:
+1. `server/schema.sql` — core tables (app_user, customer, contract_out, contract_out_member)
+2. `server/migrations/001_document_management.sql` — document_folder and document_file tables + triggers
+3. `server/migrations/002_add_is_deleted_to_document_file.sql`
+4. `server/migrations/003_add_is_deleted_to_document_folder.sql`
+
+## Architecture
+
+This is a full-stack app with a React/Vite frontend and an Express/Node.js backend sharing a single `package.json`. The frontend is served by Vite dev server; the backend is a separate Express process.
+
+**Frontend (`src/`)** — single-page app with no router library. Navigation is managed by `currentPage` and `activeMenu` state in `App.jsx`, which acts as the root controller for all page rendering. Pages: Home, Contracts (list + detail), Admin (users, customers, departments, positions). Auth state (logged-in user) is persisted via `localStorage` (userId only; user data is re-fetched on load).
+
+**Backend (`server/`)** — Express 5 REST API:
+- `server/index.js` — entry point; mounts `/api` routes, serves `/uploads` for file attachments
+- `server/routes/index.js` — aggregates all sub-routers (auth, customers, contracts, documents)
+- `server/db.js` — single shared `pg.Pool` instance using `DATABASE_URL`
+- `server/controllers/` — business logic per domain (auth, customer, contract, document)
+- Uploaded files are stored at `server/uploads/` and served statically
+
+**Database** — PostgreSQL. Key tables: `app_user`, `customer`, `contract_out`, `contract_out_member`, `document_folder`, `document_file`. A trigger on `contract_out` auto-creates a default folder tree (Hồ sơ thầu, Hợp đồng bán, Hợp đồng nhập, Triển khai, Nghiệm thu, Khác) whenever a new contract is inserted.
+
+**Auth** — simple email+password login using `bcryptjs`. No JWT; the frontend stores only `userId` in localStorage and re-fetches user data from `/api/me/:id` on page load. Role is an integer (`role == 1` = admin).
+
+**Styling** — Tailwind CSS + custom CSS (`App.css`, `src/index.css`). No component library.

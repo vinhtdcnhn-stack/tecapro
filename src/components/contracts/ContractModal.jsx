@@ -20,6 +20,7 @@ export default function ContractModal({
     amount_before_vat: '',
     amount_after_vat: '',
     currency_code: 'VND',
+    exchange_rate: '',
     terms: '',
     status: 'Pending',
     // Nhân sự
@@ -51,6 +52,7 @@ export default function ContractModal({
           amount_before_vat: editData.amount_before_vat || '',
           amount_after_vat: editData.amount_after_vat || '',
           currency_code: editData.currency_code || 'VND',
+          exchange_rate: editData.exchange_rate || '',
           terms: editData.terms || '',
           status: editData.status || 'Pending',
           sale_team: editData.sale_member_ids || [],
@@ -83,6 +85,7 @@ export default function ContractModal({
       amount_before_vat: '',
       amount_after_vat: '',
       currency_code: 'VND',
+      exchange_rate: '',
       terms: '',
       status: 'Pending',
       sale_team: [],
@@ -182,7 +185,8 @@ export default function ContractModal({
       ...formData,
       pm_primary_id: formData.pm_primary || currentUser?.id,
       amount_before_vat: parseFloat(formData.amount_before_vat) || 0,
-      amount_after_vat: parseFloat(formData.amount_after_vat) || 0
+      amount_after_vat: parseFloat(formData.amount_after_vat) || 0,
+      exchange_rate: parseFloat(formData.exchange_rate) || null
     }
 
     await onSave(submitData)
@@ -304,7 +308,20 @@ export default function ContractModal({
                 >
                   <option value="VND">VND</option>
                   <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="JPY">JPY</option>
                 </select>
+              </div>
+              <div className="form-group">
+                <label>Tỷ giá</label>
+                <input
+                  type="number"
+                  value={formData.exchange_rate}
+                  onChange={(e) => updateField('exchange_rate', e.target.value)}
+                  placeholder={formData.currency_code === 'VND' ? '1' : 'Nhập tỷ giá'}
+                  min="0"
+                  step="0.0001"
+                />
               </div>
               <div className="form-group">
                 <label>Trạng thái</label>
