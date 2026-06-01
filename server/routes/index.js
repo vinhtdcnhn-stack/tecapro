@@ -8,6 +8,9 @@ import progressRoutes from './progressRoutes.js'
 import receivableRoutes from './receivableRoutes.js'
 import guaranteeRoutes from './guaranteeRoutes.js'
 import taskRoutes from './taskRoutes.js'
+import supplierRoutes from './supplierRoutes.js'
+import warrantyRoutes from './warrantyRoutes.js'
+import contractInRoutes from './contractInRoutes.js'
 
 const router = Router()
 
@@ -57,5 +60,14 @@ router.use('/', guaranteeRoutes)
 
 // Task routes
 router.use('/', taskRoutes)
+
+// Supplier routes
+router.use('/', supplierRoutes)
+
+// Warranty routes
+router.use('/', warrantyRoutes)
+
+// Contract In routes
+router.use('/', contractInRoutes)
 
 export default router

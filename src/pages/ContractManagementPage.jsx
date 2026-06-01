@@ -8,6 +8,8 @@ import ContractProgressTab from '../components/contracts/ContractProgressTab'
 import ContractReceivableTab from '../components/contracts/ContractReceivableTab'
 import ContractGuaranteeTab from '../components/contracts/ContractGuaranteeTab'
 import ContractTaskTab from '../components/contracts/ContractTaskTab'
+import ContractWarrantyTab from '../components/contracts/ContractWarrantyTab'
+import ContractInTab from '../components/contracts/ContractInTab'
 
 export default function ContractManagementPage({ selectedContractId }) {
   const [contractId, setContractId] = useState(null)
@@ -82,18 +84,14 @@ export default function ContractManagementPage({ selectedContractId }) {
 case 'contract-debt':
         return <ContractReceivableTab contractId={contractId} />
       case 'contract-warranty':
-        return <PlaceholderTab title="Bảo hành" />
+        return <ContractWarrantyTab contractId={contractId} />
       case 'contract-guarantee':
         return <ContractGuaranteeTab contractId={contractId} />
       case 'contract-tasks':
         return <ContractTaskTab contractId={contractId} currentUser={currentUser} />
       case 'purchase-contract-info':
-        return <PlaceholderTab title="Thông tin hợp đồng nhập" />
-      case 'supplier':
-        return <PlaceholderTab title="Nhà cung cấp" />
-      case 'supplier-payment':
-        return <PlaceholderTab title="Thanh toán NCC" />
-      default:
+        return <ContractInTab contractId={contractId} />
+default:
         return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} />
     }
   }

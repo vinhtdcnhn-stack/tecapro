@@ -8,6 +8,8 @@ import UserModal from './components/users/UserModal'
 import DataTable from './components/common/DataTable'
 import CustomerTable from './components/customers/CustomerTable'
 import CustomerModal from './components/customers/CustomerModal'
+import SupplierTable from './components/suppliers/SupplierTable'
+import SupplierModal from './components/suppliers/SupplierModal'
 import ContractListPage from './components/contracts/ContractListPage'
 import ContractManagementPage from './pages/ContractManagementPage'
 import './App.css'
@@ -38,6 +40,13 @@ function App() {
   // Customer data
   const [customers, setCustomers] = useState([])
   const [customerSearchTerm, setCustomerSearchTerm] = useState('')
+
+  // Supplier data
+  const [suppliers, setSuppliers] = useState([])
+  const [supplierSearchTerm, setSupplierSearchTerm] = useState('')
+  const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
+  const [showEditSupplierModal, setShowEditSupplierModal] = useState(false)
+  const [editingSupplierId, setEditingSupplierId] = useState(null)
 
   // Contract data
   const [contracts, setContracts] = useState([])
@@ -81,6 +90,39 @@ function App() {
     } catch (err) {
       console.error('Failed to load customers:', err)
     }
+  }
+
+  async function loadSuppliers() {
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/suppliers`)
+      const data = await res.json()
+      setSuppliers(data)
+    } catch (err) {
+      console.error('Failed to load suppliers:', err)
+    }
+  }
+
+  async function handleSaveSupplier(formData, isEdit) {
+    try {
+      const url    = isEdit ? `${getBaseUrl()}/api/suppliers/${editingSupplierId}` : `${getBaseUrl()}/api/suppliers`
+      const method = isEdit ? 'PUT' : 'POST'
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+      const data   = await res.json()
+      if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
+      alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
+      await loadSuppliers()
+      setShowAddSupplierModal(false)
+      setShowEditSupplierModal(false)
+      setEditingSupplierId(null)
+    } catch (err) {
+      console.error(err)
+      alert('Có lỗi xảy ra.')
+    }
+  }
+
+  function handleEditSupplier(supplier) {
+    setEditingSupplierId(supplier.id)
+    setShowEditSupplierModal(true)
   }
 
   async function loadContracts() {
@@ -293,6 +335,7 @@ function App() {
     loadUsers()
     loadDropdowns()
     loadCustomers()
+    loadSuppliers()
     loadContracts()
 
   }, [])
@@ -500,6 +543,50 @@ function App() {
                     onClose={() => { setShowEditCustomerModal(false); setEditingCustomerId(null) }}
                     onSave={handleSaveCustomer}
                     customer={customers.find(c => c.id === editingCustomerId)}
+                  />
+                </>
+              )}
+
+              {activeMenu === "suppliers" && (
+                <>
+                  <h2 className="section-title">QUẢN LÝ NHÀ CUNG CẤP</h2>
+                  <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {user?.role == 1 && (
+                      <button className="add-btn" onClick={() => setShowAddSupplierModal(true)}>
+                        Thêm nhà cung cấp
+                      </button>
+                    )}
+                    <div style={{ maxWidth: '300px' }}>
+                      <input
+                        type="text"
+                        placeholder="🔍 Tìm kiếm (Tên, Mã, MST, SĐT...)"
+                        value={supplierSearchTerm}
+                        onChange={e => setSupplierSearchTerm(e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="content-scrollable">
+                    <SupplierTable
+                      suppliers={suppliers}
+                      searchTerm={supplierSearchTerm}
+                      userRole={user?.role}
+                      onEdit={handleEditSupplier}
+                    />
+                  </div>
+
+                  <SupplierModal
+                    isOpen={showAddSupplierModal}
+                    onClose={() => setShowAddSupplierModal(false)}
+                    onSave={handleSaveSupplier}
+                  />
+
+                  <SupplierModal
+                    isOpen={showEditSupplierModal}
+                    onClose={() => { setShowEditSupplierModal(false); setEditingSupplierId(null) }}
+                    onSave={handleSaveSupplier}
+                    supplier={suppliers.find(s => s.id === editingSupplierId)}
                   />
                 </>
               )}

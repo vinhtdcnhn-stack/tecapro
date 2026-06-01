@@ -16,9 +16,7 @@ export default function ContractSidebar({ activeMenu, onMenuChange }) {
     {
       category: 'II. Hợp đồng nhập',
       items: [
-        { id: 'purchase-contract-info', label: 'Thông tin hợp đồng nhập' },
-        { id: 'supplier', label: 'Nhà cung cấp' },
-        { id: 'supplier-payment', label: 'Thanh toán NCC' }
+        { id: 'purchase-contract-info', label: 'Thông tin hợp đồng nhập' }
       ]
     }
   ]

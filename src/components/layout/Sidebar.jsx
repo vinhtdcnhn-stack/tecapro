@@ -28,6 +28,13 @@ export default function Sidebar({ activeMenu, onNavigate }) {
       >
         QUẢN LÝ KHÁCH HÀNG
       </button>
+
+      <button
+        className={`sidebar-btn ${activeMenu === "suppliers" ? "active" : ""}`}
+        onClick={() => onNavigate("suppliers")}
+      >
+        QUẢN LÝ NHÀ CUNG CẤP
+      </button>
     </aside>
   )
 }
