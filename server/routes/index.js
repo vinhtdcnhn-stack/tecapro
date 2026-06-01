@@ -11,6 +11,13 @@ import taskRoutes from './taskRoutes.js'
 import supplierRoutes from './supplierRoutes.js'
 import warrantyRoutes from './warrantyRoutes.js'
 import contractInRoutes from './contractInRoutes.js'
+import contractInBOQRoutes from './contractInBOQRoutes.js'
+import contractInDeliveryRoutes from './contractInDeliveryRoutes.js'
+import contractInPayableRoutes from './contractInPayableRoutes.js'
+import supplierWarrantyRoutes from './supplierWarrantyRoutes.js'
+import contractInGuaranteeRoutes from './contractInGuaranteeRoutes.js'
+import contractInCustomsRoutes from './contractInCustomsRoutes.js'
+import contractInLogisticsRoutes from './contractInLogisticsRoutes.js'
 
 const router = Router()
 
@@ -69,5 +76,26 @@ router.use('/', warrantyRoutes)
 
 // Contract In routes
 router.use('/', contractInRoutes)
+
+// Contract In BOQ routes
+router.use('/', contractInBOQRoutes)
+
+// Contract In Delivery routes
+router.use('/', contractInDeliveryRoutes)
+
+// Contract In Payable routes
+router.use('/', contractInPayableRoutes)
+
+// Supplier Warranty routes
+router.use('/', supplierWarrantyRoutes)
+
+// Contract In Guarantee routes
+router.use('/', contractInGuaranteeRoutes)
+
+// Contract In Customs (Import/Export) routes
+router.use('/', contractInCustomsRoutes)
+
+// Contract In Logistics routes
+router.use('/', contractInLogisticsRoutes)
 
 export default router

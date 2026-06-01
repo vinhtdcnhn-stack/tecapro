@@ -164,3 +164,81 @@ export async function deleteProgress(req, res) {
     res.status(500).json({ error: 'Failed to delete progress entry' })
   }
 }
+
+// ── Contract_In Progress CRUD ─────────────────────────────────────────────────
+
+const IN_PROGRESS_SELECT = `
+  SELECT p.*, t.code AS bb_code, t.name AS bb_name
+  FROM contract_in_progress p
+  LEFT JOIN public.contract_bb_type t ON t.id = p.bb_type_id
+`
+
+export async function getProgressIn(req, res) {
+  try {
+    const { rows } = await pool.query(
+      IN_PROGRESS_SELECT + ' WHERE p.contract_in_id = $1 ORDER BY p.sort_order, p.id',
+      [req.params.contractInId]
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('getProgressIn:', err)
+    res.status(500).json({ error: 'Không thể tải tiến độ' })
+  }
+}
+
+export async function createProgressIn(req, res) {
+  try {
+    const { contractInId } = req.params
+    const { bb_type_id, planned_date, actual_date, reason, penalty_note } = req.body
+    const { rows: mx } = await pool.query(
+      'SELECT COALESCE(MAX(sort_order), 0) AS m FROM contract_in_progress WHERE contract_in_id = $1',
+      [contractInId]
+    )
+    const { rows } = await pool.query(`
+      INSERT INTO contract_in_progress
+        (contract_in_id, bb_type_id, sort_order, planned_date, actual_date, reason, penalty_note)
+      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [contractInId, bb_type_id||null, Number(mx[0].m)+1,
+       planned_date||null, actual_date||null, reason||'', penalty_note||'']
+    )
+    const { rows: full } = await pool.query(IN_PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id])
+    res.status(201).json(full[0])
+  } catch (err) {
+    console.error('createProgressIn:', err)
+    res.status(500).json({ error: 'Không thể thêm biên bản' })
+  }
+}
+
+export async function updateProgressIn(req, res) {
+  try {
+    const { bb_type_id, planned_date, actual_date, reason, penalty_note } = req.body
+    const { rows } = await pool.query(`
+      UPDATE contract_in_progress SET
+        bb_type_id=$1, planned_date=$2, actual_date=$3,
+        reason=$4, penalty_note=$5, updated_at=NOW()
+      WHERE id=$6 RETURNING *`,
+      [bb_type_id||null, planned_date||null, actual_date||null,
+       reason||'', penalty_note||'', req.params.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    const { rows: full } = await pool.query(IN_PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id])
+    res.json(full[0])
+  } catch (err) {
+    console.error('updateProgressIn:', err)
+    res.status(500).json({ error: 'Không thể cập nhật' })
+  }
+}
+
+export async function deleteProgressIn(req, res) {
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM contract_in_progress WHERE id = $1 RETURNING id',
+      [req.params.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    res.json({ message: 'Deleted' })
+  } catch (err) {
+    console.error('deleteProgressIn:', err)
+    res.status(500).json({ error: 'Không thể xóa' })
+  }
+}

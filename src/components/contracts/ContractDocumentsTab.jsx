@@ -10,7 +10,9 @@ function getCurrentUserId() {
   return localStorage.getItem('userId') || null
 }
 
-export default function ContractDocumentsTab({ contractId }) {
+export default function ContractDocumentsTab({ contractId, basePath }) {
+  // basePath overrides the default "contracts/{contractId}" prefix
+  const resourcePath = basePath || `contracts/${contractId}`
   const [folders, setFolders] = useState([])
   const [selectedFolderId, setSelectedFolderId] = useState(null)
   const [files, setFiles] = useState([])
@@ -56,7 +58,7 @@ export default function ContractDocumentsTab({ contractId }) {
 
   const loadFolders = async ({ expandParentId = null } = {}) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/contracts/${contractId}/folders`)
+      const res = await fetch(`${API_BASE_URL}/${resourcePath}/folders`)
       const data = await res.json()
       setFolders(data)
       setExpandedFolders(prev => {
@@ -72,7 +74,7 @@ export default function ContractDocumentsTab({ contractId }) {
 
   const loadFiles = async (folderId) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/contracts/${contractId}/files?folderId=${folderId}`)
+      const res = await fetch(`${API_BASE_URL}/${resourcePath}/files?folderId=${folderId}`)
       const data = await res.json()
       setFiles(data)
     } catch (err) {
@@ -123,7 +125,7 @@ export default function ContractDocumentsTab({ contractId }) {
   const confirmCreateFolder = async () => {
     if (!newFolderName.trim()) return
     try {
-      const res = await fetch(`${API_BASE_URL}/contracts/${contractId}/folders`, {
+      const res = await fetch(`${API_BASE_URL}/${resourcePath}/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderName: newFolderName, parentId: newFolderParentId || null, userId: getCurrentUserId() })
@@ -199,7 +201,7 @@ export default function ContractDocumentsTab({ contractId }) {
         formData.append('file', items[i].file)
         formData.append('folderId', selectedFolderId)
         formData.append('userId', getCurrentUserId() || '')
-        const res = await fetch(`${API_BASE_URL}/contracts/${contractId}/files/upload`, {
+        const res = await fetch(`${API_BASE_URL}/${resourcePath}/files/upload`, {
           method: 'POST',
           body: formData
         })

@@ -28,6 +28,23 @@ export const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }
 })
 
+// ── Multer storage for contract_in ───────────────────────────────────────────
+
+const storageIn = multer.diskStorage({
+  destination(req, file, cb) {
+    const uploadDir = path.join(__dirname, '..', 'uploads', 'contract-ins', String(req.params.contractInId))
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
+    cb(null, uploadDir)
+  },
+  filename(req, file, cb) {
+    const ext  = path.extname(file.originalname)
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9._-]/g, '_')
+    cb(null, `${Date.now()}_${base}${ext}`)
+  }
+})
+
+export const uploadIn = multer({ storage: storageIn, limits: { fileSize: 50 * 1024 * 1024 } })
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 // Build nested tree from flat array.
@@ -262,12 +279,13 @@ export async function uploadFile(req, res) {
 
     const uploadedBy = userId || req.user?.id || null
     const filePath = `/uploads/contracts/${contractId}/${req.file.filename}`
+    const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
 
     const { rows } = await pool.query(`
       INSERT INTO public.document_file (contract_id, folder_id, file_name, file_path, file_size, mime_type, uploaded_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [contractId, folderId, req.file.originalname, filePath, req.file.size, req.file.mimetype, uploadedBy])
+    `, [contractId, folderId, fileName, filePath, req.file.size, req.file.mimetype, uploadedBy])
 
     res.status(201).json(rows[0])
   } catch (err) {
@@ -330,6 +348,105 @@ export async function downloadFile(req, res) {
   } catch (err) {
     console.error('downloadFile error:', err)
     res.status(500).json({ error: 'Failed to download file' })
+  }
+}
+
+// ── Contract_In document functions ───────────────────────────────────────────
+
+export async function getFolderTreeIn(req, res) {
+  try {
+    const { contractInId } = req.params
+    const { rows } = await pool.query(`
+      WITH RECURSIVE folder_tree AS (
+        SELECT id, contract_in_id, parent_id, folder_name, created_by, created_at,
+               0 AS level, ARRAY[id] AS path
+        FROM public.document_folder
+        WHERE contract_in_id = $1 AND parent_id IS NULL
+
+        UNION ALL
+
+        SELECT f.id, f.contract_in_id, f.parent_id, f.folder_name, f.created_by, f.created_at,
+               ft.level + 1, ft.path || f.id
+        FROM public.document_folder f
+        INNER JOIN folder_tree ft ON f.parent_id = ft.id
+        WHERE f.contract_in_id = $1
+      )
+      SELECT * FROM folder_tree ORDER BY path
+    `, [contractInId])
+    res.json(buildTree(rows))
+  } catch (err) {
+    console.error('getFolderTreeIn error:', err)
+    res.status(500).json({ error: 'Failed to get folder tree' })
+  }
+}
+
+export async function createFolderIn(req, res) {
+  try {
+    const { contractInId } = req.params
+    const { folderName, parentId, userId } = req.body
+    if (!folderName?.trim()) return res.status(400).json({ error: 'Folder name is required' })
+    const { rows } = await pool.query(`
+      INSERT INTO public.document_folder (contract_in_id, parent_id, folder_name, created_by)
+      VALUES ($1, $2, $3, $4) RETURNING *
+    `, [contractInId, parentId || null, folderName.trim(), userId || null])
+    res.status(201).json(rows[0])
+  } catch (err) {
+    console.error('createFolderIn error:', err)
+    res.status(500).json({ error: 'Failed to create folder' })
+  }
+}
+
+export async function getContractInFiles(req, res) {
+  try {
+    const { contractInId } = req.params
+    const { folderId } = req.query
+    let query = `
+      SELECT df.id, df.contract_in_id, df.folder_id, df.file_name, df.file_path,
+             df.file_size, df.mime_type, df.uploaded_by, df.uploaded_at,
+             u.full_name AS uploaded_by_name
+      FROM public.document_file df
+      LEFT JOIN public.app_user u ON df.uploaded_by = u.id
+      WHERE df.contract_in_id = $1
+    `
+    const params = [contractInId]
+    if (folderId) { query += ' AND df.folder_id = $2'; params.push(folderId) }
+    query += ' ORDER BY df.uploaded_at DESC'
+    const { rows } = await pool.query(query, params)
+    res.json(rows)
+  } catch (err) {
+    console.error('getContractInFiles error:', err)
+    res.status(500).json({ error: 'Failed to get files' })
+  }
+}
+
+export async function uploadFileIn(req, res) {
+  try {
+    const { contractInId } = req.params
+    const { folderId, userId } = req.body
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+    if (!folderId) {
+      fs.unlinkSync(req.file.path)
+      return res.status(400).json({ error: 'Folder ID is required' })
+    }
+    const { rows: folderCheck } = await pool.query(
+      'SELECT id FROM public.document_folder WHERE id = $1 AND contract_in_id = $2',
+      [folderId, contractInId]
+    )
+    if (folderCheck.length === 0) {
+      fs.unlinkSync(req.file.path)
+      return res.status(404).json({ error: 'Folder not found' })
+    }
+    const filePath = `/uploads/contract-ins/${contractInId}/${req.file.filename}`
+    const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
+    const { rows } = await pool.query(`
+      INSERT INTO public.document_file (contract_in_id, folder_id, file_name, file_path, file_size, mime_type, uploaded_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+    `, [contractInId, folderId, fileName, filePath, req.file.size, req.file.mimetype, userId || null])
+    res.status(201).json(rows[0])
+  } catch (err) {
+    console.error('uploadFileIn error:', err)
+    if (req.file?.path) { try { fs.unlinkSync(req.file.path) } catch {} }
+    res.status(500).json({ error: 'Failed to upload file' })
   }
 }
 
