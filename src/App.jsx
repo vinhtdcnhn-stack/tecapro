@@ -183,7 +183,8 @@ function App() {
           position_name: data.position_name
         })
         localStorage.setItem('userId', data.id)
-        setView('home')
+        //setView('home')
+        setCurrentPage('home')
         setActiveMenu('Trang chủ')
       } catch {
         setError('Không kết nối được server.')

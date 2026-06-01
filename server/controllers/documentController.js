@@ -1,4 +1,4 @@
-import db from '../db.js';
+import { pool } from '../db.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -41,7 +41,7 @@ const upload = multer({
   }
 });
 
-module.exports.upload = upload;
+// module.exports.upload = upload;
 
 // Get folder tree for a contract
 async function getFolderTree(req, res) {
@@ -83,7 +83,7 @@ async function getFolderTree(req, res) {
       ORDER BY path
     `;
     
-    const result = await db.query(query, [contractId]);
+    const result = await pool.query(query, [contractId]);
     
     // Build tree structure
     const buildTree = (folders, parentId = null) => {
@@ -130,7 +130,7 @@ async function createFolder(req, res) {
       RETURNING *
     `;
     
-    const result = await db.query(query, [contractId, parentId || null, folderName, userId]);
+    const result = await pool.query(query, [contractId, parentId || null, folderName, userId]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('CREATE FOLDER ERROR=', error)
@@ -155,7 +155,7 @@ async function updateFolder(req, res) {
       RETURNING *
     `;
     
-    const result = await db.query(query, [folderName, folderId]);
+    const result = await pool.query(query, [folderName, folderId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Folder not found' });
@@ -181,7 +181,7 @@ async function deleteFolder(req, res) {
       RETURNING *
     `;
     
-    const result = await db.query(query, [folderId]);
+    const result = await pool.query(query, [folderId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Folder not found' });
@@ -217,7 +217,7 @@ async function getFolderFiles(req, res) {
       ORDER BY df.uploaded_at DESC
     `;
     
-    const result = await db.query(query, [folderId]);
+    const result = await pool.query(query, [folderId]);
     res.json(result.rows);
   } catch (error) {
     console.error('Error getting folder files:', error);
@@ -244,7 +244,7 @@ async function uploadFile(req, res) {
     
     // Verify folder exists and belongs to the contract
     const folderQuery = 'SELECT id FROM public.document_folder WHERE id = $1 AND contract_id = $2';
-    const folderResult = await db.query(folderQuery, [folderId, contractId]);
+    const folderResult = await pool.query(folderQuery, [folderId, contractId]);
     
     if (folderResult.rows.length === 0) {
       // Clean up the uploaded file
@@ -262,7 +262,7 @@ async function uploadFile(req, res) {
       RETURNING *
     `;
     
-    const result = await db.query(query, [
+    const result = await pool.query(query, [
       contractId,
       folderId,
       req.file.originalname,
@@ -300,7 +300,7 @@ async function deleteFile(req, res) {
       RETURNING *
     `;
     
-    const result = await db.query(query, [fileId]);
+    const result = await pool.query(query, [fileId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
@@ -323,7 +323,7 @@ async function downloadFile(req, res) {
       WHERE id = $1 AND is_deleted = false
     `;
     
-    const result = await db.query(query, [fileId]);
+    const result = await pool.query(query, [fileId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
@@ -357,7 +357,7 @@ async function viewFile(req, res) {
       WHERE id = $1 AND is_deleted = false
     `;
     
-    const result = await db.query(query, [fileId]);
+    const result = await pool.query(query, [fileId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'File not found' });
@@ -413,7 +413,7 @@ async function getContractFiles(req, res) {
     
     query += ' ORDER BY df.uploaded_at DESC';
     
-    const result = await db.query(query, params);
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error getting contract files:', error);
