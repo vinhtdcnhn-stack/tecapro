@@ -220,9 +220,9 @@ function App() {
           email: data.email,
           full_name: data.full_name,
           role: data.role,
-          position_id: data.position_id,
-          position_code: data.position_code,
-          position_name: data.position_name
+          positions:     data.positions     || [],
+          position_code: data.position_code  || null,
+          position_name: data.position_name  || null
         })
         localStorage.setItem('userId', data.id)
         //setView('home')
@@ -352,7 +352,11 @@ function App() {
           return
         }
         const data = await res.json()
-        setUser(data)
+        setUser({
+          ...data,
+          position_code: data.positions?.[0]?.code  || null,
+          position_name: data.positions?.map(p => p.name).join(', ') || null,
+        })
       } catch {
         localStorage.removeItem('userId')
       }

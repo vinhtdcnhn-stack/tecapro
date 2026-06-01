@@ -12,8 +12,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   // Modal state for adding contract
   const [showAddContractModal, setShowAddContractModal] = useState(false)
   
-  // Check if user is PM
-  const isPM = currentUser?.position_code === 'PM'
+  const isPM = currentUser?.positions?.some(p => p.code === 'PM')
+           || currentUser?.position_code === 'PM'
   
   useEffect(() => { if (onLoadContracts) onLoadContracts() }, [])
   useEffect(() => { setLocalContracts(contracts || []) }, [contracts])

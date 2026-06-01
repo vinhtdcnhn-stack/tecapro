@@ -18,6 +18,7 @@ export default function UserTable({ users, searchTerm, userRole, onEdit }) {
           <tr>
             <th>Họ tên</th>
             <th>Phòng ban</th>
+            <th>Vị trí</th>
             <th>Số điện thoại</th>
             <th>Quản lý trực tiếp</th>
             <th>Hành động</th>
@@ -35,6 +36,7 @@ export default function UserTable({ users, searchTerm, userRole, onEdit }) {
               <tr key={u.id}>
                 <td>{u.full_name}</td>
                 <td>{u.department_name || '-'}</td>
+                <td>{Array.isArray(u.positions) && u.positions.length > 0 ? u.positions.map(p => p.name).join(', ') : '-'}</td>
                 <td>{u.phone || '-'}</td>
                 <td>{u.manager_name || '-'}</td>
                 <td>

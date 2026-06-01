@@ -13,18 +13,13 @@ export async function login(req, res) {
   }
 
   const { rows } = await pool.query(
-    `select 
-      u.id, 
-      u.email, 
-      u.full_name, 
-      u.role, 
-      u.position_id,
-      u.password_hash,
-      p.code as position_code,
-      p.name as position_name
-     from app_user u
-     left join position p on p.id = u.position_id
-     where u.email = $1`,
+    `SELECT u.id, u.email, u.full_name, u.role, u.password_hash,
+       COALESCE((
+         SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
+         FROM app_user_position up JOIN position p ON p.id = up.position_id
+         WHERE up.user_id = u.id
+       ), '[]') AS positions
+     FROM app_user u WHERE u.email = $1`,
     [email],
   )
   const user = rows[0]
@@ -32,10 +27,6 @@ export async function login(req, res) {
     res.status(401).json({ error: 'Sai email hoặc mật khẩu.' })
     return
   }
-
-  // Debug log
-  console.log('USER:', user)
-  console.log('PASSWORD HASH:', user?.password_hash)
 
   if (!user.password_hash) {
     console.error('Lỗi: User không có password_hash')
@@ -49,14 +40,15 @@ export async function login(req, res) {
     return
   }
 
+  const positions = user.positions || []
   res.json({
-    id: user.id,
-    email: user.email,
-    full_name: user.full_name,
-    role: user.role,
-    position_id: user.position_id,
-    position_code: user.position_code,
-    position_name: user.position_name
+    id:             user.id,
+    email:          user.email,
+    full_name:      user.full_name,
+    role:           user.role,
+    positions,
+    position_code:  positions[0]?.code  || null,
+    position_name:  positions.map(p => p.name).join(', ') || null,
   })
 }
 
@@ -88,7 +80,7 @@ export async function createUser(req, res) {
     phone,
     employee_code,
     department_id,
-    position_id,
+    position_ids,
     manager_id,
     role
   } = req.body
@@ -101,25 +93,14 @@ export async function createUser(req, res) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10)
+  const posIds = Array.isArray(position_ids) ? position_ids.map(Number).filter(Boolean) : []
 
   try {
     const { rows } = await pool.query(
-      `
-      INSERT INTO app_user (
-        username,
-        email,
-        password_hash,
-        full_name,
-        phone,
-        employee_code,
-        department_id,
-        position_id,
-        manager_id,
-        role
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id
-      `,
+      `INSERT INTO app_user
+        (username, email, password_hash, full_name, phone, employee_code, department_id, position_id, manager_id, role)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id`,
       [
         username,
         email,
@@ -128,15 +109,21 @@ export async function createUser(req, res) {
         phone,
         employee_code,
         department_id || null,
-        position_id || null,
+        posIds[0] || null,
         manager_id || null,
-        role
+        role,
       ]
     )
-
+    const userId = rows[0].id
+    for (const pid of posIds) {
+      await pool.query(
+        'INSERT INTO app_user_position (user_id, position_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+        [userId, pid]
+      )
+    }
     res.json({
       success: true,
-      id: rows[0].id
+      id: userId,
     })
   } catch (err) {
     if (err.code === '23505') {
@@ -231,35 +218,21 @@ export async function checkEmployeeCodeExists(req, res) {
 
 export async function getAllUsers(req, res) {
   const { rows } = await pool.query(`
-  select
-    u.id,
-    u.full_name,
-    u.email,
-    u.phone,
-    u.role,
-    u.username,
-    u.employee_code,
-    u.department_id,
-    u.position_id,
-    u.manager_id,
-
-    d.name as department_name,
-    p.name as position_name,
-    m.full_name as manager_name
-
-  from app_user u
-
-  left join department d
-    on d.id = u.department_id
-
-  left join position p
-    on p.id = u.position_id
-
-  left join app_user m
-    on m.id = u.manager_id
-
-  order by u.id
-`)
+    SELECT
+      u.id, u.full_name, u.email, u.phone, u.role, u.username, u.employee_code,
+      u.department_id, u.manager_id,
+      d.name AS department_name,
+      m.full_name AS manager_name,
+      COALESCE((
+        SELECT json_agg(json_build_object('id', p.id, 'name', p.name) ORDER BY p.id)
+        FROM app_user_position up JOIN position p ON p.id = up.position_id
+        WHERE up.user_id = u.id
+      ), '[]') AS positions
+    FROM app_user u
+    LEFT JOIN department d ON d.id = u.department_id
+    LEFT JOIN app_user m   ON m.id = u.manager_id
+    ORDER BY u.id
+  `)
 
   res.json(rows)
 }
@@ -268,24 +241,14 @@ export async function getUserById(req, res) {
   const id = req.params.id
 
   const { rows } = await pool.query(
-    `
-    SELECT
-      u.id,
-      u.email,
-      u.full_name,
-      u.role,
-      u.username,
-      u.phone,
-      u.employee_code,
-      u.department_id,
-      u.position_id,
-      u.manager_id,
-      p.code as position_code,
-      p.name as position_name
-    FROM app_user u
-    LEFT JOIN position p ON p.id = u.position_id
-    WHERE u.id = $1
-    `,
+    `SELECT u.id, u.email, u.full_name, u.role, u.username, u.phone, u.employee_code,
+       u.department_id, u.manager_id,
+       COALESCE((
+         SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
+         FROM app_user_position up JOIN position p ON p.id = up.position_id
+         WHERE up.user_id = u.id
+       ), '[]') AS positions
+     FROM app_user u WHERE u.id = $1`,
     [id]
   )
 
@@ -303,125 +266,72 @@ export async function getUserById(req, res) {
 
 export async function updateUser(req, res) {
   const id = req.params.id
-  const {
-    username,
-    email,
-    password,
-    full_name,
-    phone,
-    employee_code,
-    department_id,
-    position_id,
-    manager_id,
-    role
-  } = req.body
+  const { username, email, password, full_name, phone, employee_code, department_id, position_ids, manager_id, role } = req.body
 
   if (!username || !email) {
-    res.status(400).json({
-      error: 'Tên đăng nhập và email là bắt buộc.'
-    })
+    res.status(400).json({ error: 'Tên đăng nhập và email là bắt buộc.' })
     return
   }
 
-  let query = `
-    UPDATE app_user
-    SET
-      username = $1,
-      email = $2,
-      full_name = $3,
-      phone = $4,
-      employee_code = $5,
-      department_id = $6,
-      position_id = $7,
-      manager_id = $8,
-      role = $9,
-      updated_at = NOW()
-  `
-
-  const params = [
-    username,
-    email.trim().toLowerCase(),
-    full_name?.trim() || null,
-    phone?.trim() || null,
-    employee_code?.trim() || null,
-    department_id || null,
-    position_id || null,
-    manager_id || null,
-    role,
-    id
-  ]
-
-  // Nếu có mật khẩu mới thì cập nhật
-  if (password && password.trim() !== '') {
-    const passwordHash = await bcrypt.hash(password, 10)
-    query = `
-      UPDATE app_user
-      SET
-        username = $1,
-        email = $2,
-        full_name = $3,
-        phone = $4,
-        employee_code = $5,
-        department_id = $6,
-        position_id = $7,
-        manager_id = $8,
-        role = $9,
-        password_hash = $10,
-        updated_at = NOW()
-      WHERE id = $11
-      RETURNING id
-    `
-    params.splice(9, 0, passwordHash)
-    params.push(id)
-  } else {
-    query += `
-      WHERE id = $10
-      RETURNING id
-    `
-  }
+  const posIds = Array.isArray(position_ids) ? position_ids.map(Number).filter(Boolean) : []
 
   try {
-    const { rows } = await pool.query(query, params)
+    let rows
+    if (password && password.trim() !== '') {
+      const passwordHash = await bcrypt.hash(password, 10)
+      ;({ rows } = await pool.query(
+        `UPDATE app_user SET
+           username=$1, email=$2, full_name=$3, phone=$4, employee_code=$5,
+           department_id=$6, position_id=$7, manager_id=$8, role=$9,
+           password_hash=$10, updated_at=NOW()
+         WHERE id=$11 RETURNING id`,
+        [username, email.trim().toLowerCase(), full_name?.trim()||null, phone?.trim()||null,
+         employee_code?.trim()||null, department_id||null, posIds[0]||null,
+         manager_id||null, role, passwordHash, id]
+      ))
+    } else {
+      ;({ rows } = await pool.query(
+        `UPDATE app_user SET
+           username=$1, email=$2, full_name=$3, phone=$4, employee_code=$5,
+           department_id=$6, position_id=$7, manager_id=$8, role=$9, updated_at=NOW()
+         WHERE id=$10 RETURNING id`,
+        [username, email.trim().toLowerCase(), full_name?.trim()||null, phone?.trim()||null,
+         employee_code?.trim()||null, department_id||null, posIds[0]||null,
+         manager_id||null, role, id]
+      ))
+    }
 
     if (rows.length === 0) {
-      res.status(404).json({
-        error: 'Không tìm thấy người dùng.'
-      })
+      res.status(404).json({ error: 'Không tìm thấy người dùng.' })
       return
     }
 
-    res.json({
-      success: true,
-      id: rows[0].id
-    })
+    // Cập nhật junction table: xóa cũ, insert mới
+    await pool.query('DELETE FROM app_user_position WHERE user_id=$1', [id])
+    for (const pid of posIds) {
+      await pool.query(
+        'INSERT INTO app_user_position (user_id, position_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+        [id, pid]
+      )
+    }
+
+    res.json({ success: true, id: rows[0].id })
   } catch (err) {
     if (err.code === '23505') {
       const constraint = err.constraint || err.detail || ''
-      
       if (constraint.includes('email')) {
-        res.status(400).json({
-          error: 'Email này đã tồn tại trong hệ thống.'
-        })
+        res.status(400).json({ error: 'Email này đã tồn tại trong hệ thống.' })
       } else if (constraint.includes('username')) {
-        res.status(400).json({
-          error: 'Tên đăng nhập này đã tồn tại.'
-        })
+        res.status(400).json({ error: 'Tên đăng nhập này đã tồn tại.' })
       } else if (constraint.includes('employee_code')) {
-        res.status(400).json({
-          error: 'Mã nhân viên này đã tồn tại.'
-        })
+        res.status(400).json({ error: 'Mã nhân viên này đã tồn tại.' })
       } else {
-        res.status(400).json({
-          error: 'Dữ liệu bị trùng lặp trong hệ thống.'
-        })
+        res.status(400).json({ error: 'Dữ liệu bị trùng lặp trong hệ thống.' })
       }
       return
     }
-    
     console.error('Lỗi khi cập nhật user:', err)
-    res.status(500).json({
-      error: 'Có lỗi xảy ra khi cập nhật người dùng.'
-    })
+    res.status(500).json({ error: 'Có lỗi xảy ra khi cập nhật người dùng.' })
   }
 }
 

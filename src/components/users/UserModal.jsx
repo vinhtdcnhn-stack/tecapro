@@ -22,7 +22,7 @@ export default function UserModal({
     phone: '',
     employee_code: '',
     department_id: '',
-    position_id: '',
+    position_ids: [],
     manager_id: '',
     role: '2'
   })
@@ -43,7 +43,7 @@ export default function UserModal({
         phone: user.phone || '',
         employee_code: user.employee_code || '',
         department_id: user.department_id || '',
-        position_id: user.position_id || '',
+        position_ids: Array.isArray(user.positions) ? user.positions.map(p => p.id) : [],
         manager_id: user.manager_id || '',
         role: String(user.role)
       })
@@ -62,7 +62,7 @@ export default function UserModal({
       phone: '',
       employee_code: '',
       department_id: '',
-      position_id: '',
+      position_ids: [],
       manager_id: '',
       role: '2'
     })
@@ -179,16 +179,32 @@ export default function UserModal({
           </div>
 
           <div className="field">
-            <label>Vị trí</label>
-            <select
-              value={formData.position_id}
-              onChange={(e) => updateField('position_id', e.target.value)}
-            >
-              <option value="">Chọn vị trí</option>
-              {positions.map(pos => (
-                <option key={pos.id} value={pos.id}>{pos.name}</option>
+            <label>Vị trí <span style={{ fontWeight: 'normal', color: '#888', fontSize: 12 }}>(có thể chọn nhiều)</span></label>
+            <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '6px 10px', maxHeight: 160, overflowY: 'auto', background: '#fff' }}>
+              {positions.length === 0 ? (
+                <span style={{ color: '#9ca3af', fontSize: 13 }}>Không có vị trí nào</span>
+              ) : positions.map(pos => (
+                <label key={pos.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.position_ids.includes(pos.id)}
+                    onChange={e => {
+                      const next = e.target.checked
+                        ? [...formData.position_ids, pos.id]
+                        : formData.position_ids.filter(id => id !== pos.id)
+                      updateField('position_ids', next)
+                    }}
+                    style={{ width: 14, height: 14, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 13, color: '#374151' }}>{pos.name}</span>
+                </label>
               ))}
-            </select>
+            </div>
+            {formData.position_ids.length > 0 && (
+              <div style={{ marginTop: 4, fontSize: 12, color: '#6b7280' }}>
+                Đã chọn: {positions.filter(p => formData.position_ids.includes(p.id)).map(p => p.name).join(', ')}
+              </div>
+            )}
           </div>
 
           <div className="field">
