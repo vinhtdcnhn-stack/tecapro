@@ -346,6 +346,38 @@ export async function updateUser(req, res) {
   }
 }
 
+export async function changePassword(req, res) {
+  const id = req.params.id
+  const { current_password, new_password } = req.body
+
+  if (!current_password || !new_password) {
+    res.status(400).json({ error: 'Vui lòng nhập đầy đủ thông tin.' })
+    return
+  }
+  if (new_password.length < 6) {
+    res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 6 ký tự.' })
+    return
+  }
+
+  const { rows } = await pool.query('SELECT password_hash FROM app_user WHERE id = $1', [id])
+  const user = rows[0]
+  if (!user) {
+    res.status(404).json({ error: 'Người dùng không tồn tại.' })
+    return
+  }
+
+  const ok = await bcrypt.compare(current_password, user.password_hash)
+  if (!ok) {
+    res.status(401).json({ error: 'Mật khẩu hiện tại không đúng.' })
+    return
+  }
+
+  const passwordHash = await bcrypt.hash(new_password, 10)
+  await pool.query('UPDATE app_user SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, id])
+
+  res.json({ success: true })
+}
+
 // ==================== DEPARTMENT CONTROLLER ====================
 
 export async function getAllDepartments(req, res) {

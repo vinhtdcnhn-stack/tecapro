@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import tecaproLogo from '../../assets/tecapro-logo.png'
 
-export default function Header({ user, activeMenu, onNavigate, onLogout }) {
+export default function Header({ user, activeMenu, onNavigate, onLogout, onChangePassword }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const menus = [
@@ -53,9 +53,14 @@ export default function Header({ user, activeMenu, onNavigate, onLogout }) {
         <div className="topbar-actions">
           {user ? (
             <>
-              <span className="user-pill" title={user.email}>
+              <button
+                type="button"
+                className="user-pill"
+                title={`${user.email} — Nhấn để đổi mật khẩu`}
+                onClick={() => { setMobileMenuOpen(false); onChangePassword() }}
+              >
                 {user.full_name}
-              </span>
+              </button>
               <button type="button" className="topbar-btn" onClick={() => { setMobileMenuOpen(false); onLogout() }}>
                 Đăng xuất
               </button>

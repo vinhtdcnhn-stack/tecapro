@@ -30,6 +30,7 @@ router.get('/users', authController.getAllUsers)
 router.get('/users/:id', authController.getUserById)
 router.get('/me/:id', authController.getUserById) // Alias for user info
 router.post('/users', authController.createUser)
+router.put('/users/:id/change-password', authController.changePassword)
 router.put('/users/:id', authController.updateUser)
 router.post('/users/check-email', authController.checkEmailExists)
 router.post('/users/check-username', authController.checkUsernameExists)

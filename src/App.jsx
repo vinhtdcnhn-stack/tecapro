@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import homeHero from './assets/home-hero.png'
 import Header from './components/layout/Header'
 import LoginForm from './components/auth/LoginForm'
+import ChangePasswordModal from './components/auth/ChangePasswordModal'
 import Sidebar from './components/layout/Sidebar'
 import UserTable from './components/users/UserTable'
 import UserModal from './components/users/UserModal'
@@ -22,6 +23,9 @@ function App() {
   const [users, setUsers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   
+  // Modal state for change password
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+
   // Modal state for users
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -240,6 +244,26 @@ function App() {
     setError('')
   }
 
+  async function handleChangePassword(currentPassword, newPassword) {
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/users/${user.id}/change-password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Đổi mật khẩu thất bại!')
+        return
+      }
+      alert('Đổi mật khẩu thành công!')
+      setShowChangePasswordModal(false)
+    } catch (err) {
+      console.error(err)
+      alert('Có lỗi xảy ra.')
+    }
+  }
+
   function handleNavigate(menu, viewName) {
     setActiveMenu(menu)
     
@@ -365,11 +389,18 @@ function App() {
 
   return (
     <div className="shell">
-      <Header 
+      <Header
         user={user}
         activeMenu={activeMenu}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
+        onChangePassword={() => setShowChangePasswordModal(true)}
+      />
+
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        onSave={handleChangePassword}
       />
 
       {currentPage === 'contractDetail' ? (
