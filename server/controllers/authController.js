@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { pool } from '../db.js'
+import { sendTelegramMessage } from '../services/telegram.js'
 
 // ==================== AUTH CONTROLLER ====================
 
@@ -13,7 +14,7 @@ export async function login(req, res) {
   }
 
   const { rows } = await pool.query(
-    `SELECT u.id, u.email, u.full_name, u.role, u.password_hash,
+    `SELECT u.id, u.email, u.full_name, u.role, u.password_hash, u.telegram_chat_id,
        COALESCE((
          SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
          FROM app_user_position up JOIN position p ON p.id = up.position_id
@@ -38,6 +39,14 @@ export async function login(req, res) {
   if (!ok) {
     res.status(401).json({ error: 'Sai email hoặc mật khẩu.' })
     return
+  }
+
+  if (user.telegram_chat_id) {
+    const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+    sendTelegramMessage(
+      user.telegram_chat_id,
+      `🔐 Tài khoản của bạn vừa đăng nhập vào hệ thống TECAPRO lúc ${now}.`,
+    )
   }
 
   const positions = user.positions || []
@@ -220,7 +229,7 @@ export async function getAllUsers(req, res) {
   const { rows } = await pool.query(`
     SELECT
       u.id, u.full_name, u.email, u.phone, u.role, u.username, u.employee_code,
-      u.department_id, u.manager_id,
+      u.department_id, u.manager_id, u.telegram_chat_id,
       d.name AS department_name,
       m.full_name AS manager_name,
       COALESCE((
@@ -242,7 +251,7 @@ export async function getUserById(req, res) {
 
   const { rows } = await pool.query(
     `SELECT u.id, u.email, u.full_name, u.role, u.username, u.phone, u.employee_code,
-       u.department_id, u.manager_id,
+       u.department_id, u.manager_id, u.telegram_chat_id,
        COALESCE((
          SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
          FROM app_user_position up JOIN position p ON p.id = up.position_id
@@ -266,7 +275,7 @@ export async function getUserById(req, res) {
 
 export async function updateUser(req, res) {
   const id = req.params.id
-  const { username, email, password, full_name, phone, employee_code, department_id, position_ids, manager_id, role } = req.body
+  const { username, email, password, full_name, phone, employee_code, department_id, position_ids, manager_id, role, telegram_chat_id } = req.body
 
   if (!username || !email) {
     res.status(400).json({ error: 'Tên đăng nhập và email là bắt buộc.' })
@@ -274,6 +283,7 @@ export async function updateUser(req, res) {
   }
 
   const posIds = Array.isArray(position_ids) ? position_ids.map(Number).filter(Boolean) : []
+  const tgChatId = telegram_chat_id?.trim() || null
 
   try {
     let rows
@@ -283,21 +293,22 @@ export async function updateUser(req, res) {
         `UPDATE app_user SET
            username=$1, email=$2, full_name=$3, phone=$4, employee_code=$5,
            department_id=$6, position_id=$7, manager_id=$8, role=$9,
-           password_hash=$10, updated_at=NOW()
-         WHERE id=$11 RETURNING id`,
+           password_hash=$10, telegram_chat_id=$11, updated_at=NOW()
+         WHERE id=$12 RETURNING id`,
         [username, email.trim().toLowerCase(), full_name?.trim()||null, phone?.trim()||null,
          employee_code?.trim()||null, department_id||null, posIds[0]||null,
-         manager_id||null, role, passwordHash, id]
+         manager_id||null, role, passwordHash, tgChatId, id]
       ))
     } else {
       ;({ rows } = await pool.query(
         `UPDATE app_user SET
            username=$1, email=$2, full_name=$3, phone=$4, employee_code=$5,
-           department_id=$6, position_id=$7, manager_id=$8, role=$9, updated_at=NOW()
-         WHERE id=$10 RETURNING id`,
+           department_id=$6, position_id=$7, manager_id=$8, role=$9,
+           telegram_chat_id=$10, updated_at=NOW()
+         WHERE id=$11 RETURNING id`,
         [username, email.trim().toLowerCase(), full_name?.trim()||null, phone?.trim()||null,
          employee_code?.trim()||null, department_id||null, posIds[0]||null,
-         manager_id||null, role, id]
+         manager_id||null, role, tgChatId, id]
       ))
     }
 

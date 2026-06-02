@@ -24,7 +24,8 @@ export default function UserModal({
     department_id: '',
     position_ids: [],
     manager_id: '',
-    role: '2'
+    role: '2',
+    telegram_chat_id: ''
   })
 
   const [errors, setErrors] = useState({
@@ -45,7 +46,8 @@ export default function UserModal({
         department_id: user.department_id || '',
         position_ids: Array.isArray(user.positions) ? user.positions.map(p => p.id) : [],
         manager_id: user.manager_id || '',
-        role: String(user.role)
+        role: String(user.role),
+        telegram_chat_id: user.telegram_chat_id || ''
       })
       setErrors({ email: '', username: '', employee_code: '' })
     } else {
@@ -64,7 +66,8 @@ export default function UserModal({
       department_id: '',
       position_ids: [],
       manager_id: '',
-      role: '2'
+      role: '2',
+      telegram_chat_id: ''
     })
     setErrors({ email: '', username: '', employee_code: '' })
   }
@@ -237,6 +240,16 @@ export default function UserModal({
               type="text"
               value={formData.phone}
               onChange={(e) => updateField('phone', e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label>Telegram Chat ID <span style={{ fontWeight: 'normal', color: '#888', fontSize: 12 }}>(để nhận thông báo)</span></label>
+            <input
+              type="text"
+              value={formData.telegram_chat_id}
+              onChange={(e) => updateField('telegram_chat_id', e.target.value)}
+              placeholder="VD: 123456789"
             />
           </div>
 
