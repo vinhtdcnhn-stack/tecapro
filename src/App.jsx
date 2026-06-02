@@ -247,9 +247,9 @@ function App() {
       setCurrentPage('home')
     } else if (menu === 'Hợp đồng bán') {
       setCurrentPage('contracts')
-    } else if (menu === 'Tài liệu') {
+    } else if (menu === 'Tra cứu bảo hành') {
       setCurrentPage('documents')
-    } else if (menu === 'Các tác vụ') {
+    } else if (menu === 'Giao ban tuần') {
       setCurrentPage('tasks')
     } else if (menu === 'Quản trị hệ thống') {
       setCurrentPage(user ? 'admin' : 'login')
@@ -382,7 +382,7 @@ function App() {
         <main className="page">
           <LoginForm onLogin={handleLogin} error={error} />
         </main>
-      ) : activeMenu === 'Trang chủ' || activeMenu === 'Tài liệu' || activeMenu === 'Các tác vụ' ? (
+      ) : activeMenu === 'Trang chủ' || activeMenu === 'Tra cứu bảo hành' || activeMenu === 'Giao ban tuần' ? (
         <main className="page page--home">
           <div className="home-hero">
             <img className="home-hero-img" src={homeHero} alt="" />

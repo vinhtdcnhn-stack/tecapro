@@ -7,8 +7,8 @@ export default function Header({ user, activeMenu, onNavigate, onLogout }) {
   const menus = [
     'Trang chủ',
     'Hợp đồng bán',
-    'Tài liệu',
-    'Các tác vụ',
+    'Tra cứu bảo hành',
+    'Giao ban tuần',
     'Quản trị hệ thống',
   ]
 
