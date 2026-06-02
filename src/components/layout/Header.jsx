@@ -1,3 +1,5 @@
+import tecaproLogo from '../../assets/tecapro-logo.png'
+
 export default function Header({ user, activeMenu, onNavigate, onLogout }) {
   const menus = [
     'Trang chủ',
@@ -16,7 +18,7 @@ export default function Header({ user, activeMenu, onNavigate, onLogout }) {
           onClick={() => onNavigate('Trang chủ', 'home')}
           aria-label="Trang chủ"
         >
-          <img className="brand-logo" src="/src/assets/tecapro-logo.png" alt="TECAPRO" />
+          <img className="brand-logo" src={tecaproLogo} alt="TECAPRO" />
         </button>
 
         <nav className="menu" aria-label="Chính">
