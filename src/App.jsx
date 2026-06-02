@@ -13,6 +13,7 @@ import SupplierTable from './components/suppliers/SupplierTable'
 import SupplierModal from './components/suppliers/SupplierModal'
 import ContractListPage from './components/contracts/ContractListPage'
 import ContractManagementPage from './pages/ContractManagementPage'
+import Dashboard from './pages/Dashboard'
 import './App.css'
 
 function App() {
@@ -220,13 +221,16 @@ function App() {
         }
 
         setUser({
-          id: data.id,
-          email: data.email,
-          full_name: data.full_name,
-          role: data.role,
-          positions:     data.positions     || [],
-          position_code: data.position_code  || null,
-          position_name: data.position_name  || null
+          id:              data.id,
+          email:           data.email,
+          full_name:       data.full_name,
+          role:            data.role,
+          department_id:   data.department_id   || null,
+          department_code: data.department_code || null,
+          department_name: data.department_name || null,
+          positions:       data.positions       || [],
+          position_code:   data.position_code   || null,
+          position_name:   data.position_name   || null,
         })
         localStorage.setItem('userId', data.id)
         //setView('home')
@@ -414,11 +418,22 @@ function App() {
           <LoginForm onLogin={handleLogin} error={error} />
         </main>
       ) : activeMenu === 'Trang chủ' || activeMenu === 'Tra cứu bảo hành' || activeMenu === 'Giao ban tuần' ? (
-        <main className="page page--home">
-          <div className="home-hero">
-            <img className="home-hero-img" src={homeHero} alt="" />
-          </div>
-        </main>
+        user && user.department_code === '1' ? (
+          <main className="page admin-page">
+            <Dashboard
+              user={user}
+              contracts={contracts}
+              customers={customers}
+              users={users}
+            />
+          </main>
+        ) : (
+          <main className="page page--home">
+            <div className="home-hero">
+              <img className="home-hero-img" src={homeHero} alt="" />
+            </div>
+          </main>
+        )
       ) : activeMenu === 'Hợp đồng bán' ? (
         <main className="page admin-page">
           <div className="admin-layout">

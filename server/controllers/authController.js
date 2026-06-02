@@ -15,12 +15,15 @@ export async function login(req, res) {
 
   const { rows } = await pool.query(
     `SELECT u.id, u.email, u.full_name, u.role, u.password_hash, u.telegram_chat_id,
+       u.department_id, d.code AS department_code, d.name AS department_name,
        COALESCE((
          SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
          FROM app_user_position up JOIN position p ON p.id = up.position_id
          WHERE up.user_id = u.id
        ), '[]') AS positions
-     FROM app_user u WHERE u.email = $1`,
+     FROM app_user u
+     LEFT JOIN department d ON d.id = u.department_id
+     WHERE u.email = $1`,
     [email],
   )
   const user = rows[0]
@@ -51,13 +54,16 @@ export async function login(req, res) {
 
   const positions = user.positions || []
   res.json({
-    id:             user.id,
-    email:          user.email,
-    full_name:      user.full_name,
-    role:           user.role,
+    id:              user.id,
+    email:           user.email,
+    full_name:       user.full_name,
+    role:            user.role,
+    department_id:   user.department_id   || null,
+    department_code: user.department_code || null,
+    department_name: user.department_name || null,
     positions,
-    position_code:  positions[0]?.code  || null,
-    position_name:  positions.map(p => p.name).join(', ') || null,
+    position_code:   positions[0]?.code  || null,
+    position_name:   positions.map(p => p.name).join(', ') || null,
   })
 }
 
@@ -252,12 +258,15 @@ export async function getUserById(req, res) {
   const { rows } = await pool.query(
     `SELECT u.id, u.email, u.full_name, u.role, u.username, u.phone, u.employee_code,
        u.department_id, u.manager_id, u.telegram_chat_id,
+       d.code AS department_code, d.name AS department_name,
        COALESCE((
          SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
          FROM app_user_position up JOIN position p ON p.id = up.position_id
          WHERE up.user_id = u.id
        ), '[]') AS positions
-     FROM app_user u WHERE u.id = $1`,
+     FROM app_user u
+     LEFT JOIN department d ON d.id = u.department_id
+     WHERE u.id = $1`,
     [id]
   )
 

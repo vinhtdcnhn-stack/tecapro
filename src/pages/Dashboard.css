@@ -1,0 +1,123 @@
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.dash-welcome {
+  margin-bottom: 2rem;
+}
+
+.dash-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a2e1a;
+  margin: 0 0 0.25rem;
+}
+
+.dash-subtitle {
+  font-size: 0.95rem;
+  color: #4b5563;
+  margin: 0;
+}
+
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.dash-stat-card {
+  background: #fff;
+  border-radius: 10px;
+  border-top: 4px solid #ccc;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.09);
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+
+.dash-stat-icon {
+  font-size: 1.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.dash-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+  margin-bottom: 0.4rem;
+}
+
+.dash-stat-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-section {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.09);
+  padding: 1.5rem;
+}
+
+.dash-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a2e1a;
+  margin: 0 0 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dash-empty {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.dash-table-wrap {
+  overflow-x: auto;
+}
+
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.dash-table th {
+  background: #f3f4f6;
+  padding: 0.65rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-table td {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  color: #374151;
+}
+
+.dash-table tr:last-child td {
+  border-bottom: none;
+}
+
+.dash-table tr:hover td {
+  background: #f9fafb;
+}
+
+.dash-td-mono {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #1d4ed8 !important;
+  font-weight: 600;
+}
