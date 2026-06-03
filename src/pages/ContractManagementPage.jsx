@@ -271,7 +271,7 @@ function ContractInfoTab({ contract, onEdit }) {
           <div className="form-row">
             <div className="form-group full-width">
               <label>Điều khoản</label>
-              <textarea rows="4" readOnly placeholder="Chưa có điều khoản"></textarea>
+              <textarea rows="4" readOnly value={contract.terms || ''} placeholder="Chưa có điều khoản" />
             </div>
           </div>
         </div>
