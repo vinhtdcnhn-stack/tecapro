@@ -6,6 +6,7 @@ const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174'
 const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'SGD', 'CNY', 'GBP', 'AUD', 'KRW']
 
 const fmtVND  = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
+const fmtAmt  = (n, cur) => { const num = parseFloat(n) || 0; return cur === 'VND' ? fmtVND(num) : new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(num) }
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 const fmtNum  = (n, dec = 2) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: dec })
 
@@ -91,10 +92,21 @@ export default function ContractReceivableTab({ contractId }) {
 
   // ── Totals ─────────────────────────────────────────────────────────────────
 
-  const totalExpected = sched.rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
-  const totalReceived = pay.rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
-  const balance       = totalExpected - totalReceived
-  const pct           = totalExpected > 0 ? Math.min(100, (totalReceived / totalExpected) * 100) : 0
+  const refCur = contractRef?.currency || 'VND'
+
+  // VND equivalents — dùng cho tính tỷ lệ % và truyền vào PaymentSection
+  const totalExpectedVND = sched.rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
+  const totalReceivedVND = pay.rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
+  const pct              = totalExpectedVND > 0 ? Math.min(100, (totalReceivedVND / totalExpectedVND) * 100) : 0
+
+  // Hiển thị theo đồng tiền hợp đồng
+  const totalExpected = refCur === 'VND'
+    ? totalExpectedVND
+    : sched.rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+  const totalReceived = refCur === 'VND'
+    ? totalReceivedVND
+    : pay.rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+  const balance = totalExpected - totalReceived
 
   if (sched.loading && pay.loading) return <div className="recv-loading">Đang tải...</div>
 
@@ -105,22 +117,25 @@ export default function ContractReceivableTab({ contractId }) {
       <div className="recv-summary">
         <SummaryCard
           label="Phải thu theo HĐ"
-          value={fmtVND(totalExpected)}
+          value={fmtAmt(totalExpected, refCur)}
           sub={`${sched.rows.filter(r => !r._isNew).length} khoản`}
           color="blue"
+          unit={refCur === 'VND' ? 'đ' : refCur}
         />
         <SummaryCard
           label="Đã thu thực tế"
-          value={fmtVND(totalReceived)}
+          value={fmtAmt(totalReceived, refCur)}
           sub={`${pay.rows.filter(r => !r._isNew).length} đợt`}
           color="green"
+          unit={refCur === 'VND' ? 'đ' : refCur}
         />
         <SummaryCard
           label="Còn phải thu"
-          value={fmtVND(balance)}
-          sub={balance > 0 ? `Còn thiếu ${fmtVND(balance)} đ` : 'Đã thu đủ'}
+          value={fmtAmt(balance, refCur)}
+          sub={balance > 0 ? `Còn thiếu ${fmtAmt(balance, refCur)} ${refCur === 'VND' ? 'đ' : refCur}` : 'Đã thu đủ'}
           color={balance > 0 ? 'orange' : 'green'}
           highlight={balance > 0}
+          unit={refCur === 'VND' ? 'đ' : refCur}
         />
         <div className="recv-progress-card">
           <div className="recv-progress-label">
@@ -172,7 +187,9 @@ export default function ContractReceivableTab({ contractId }) {
         setRows={pay.setRows}
         contractId={contractId}
         reload={pay.reload}
-        totalExpected={totalExpected}
+        totalExpected={totalExpectedVND}
+        refCurrency={contractRef?.currency || 'VND'}
+        refExRate={contractRef?.exchangeRate || 1}
       />
     </div>
   )
@@ -180,11 +197,11 @@ export default function ContractReceivableTab({ contractId }) {
 
 // ── Summary card ──────────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, sub, color, highlight }) {
+function SummaryCard({ label, value, sub, color, highlight, unit = 'đ' }) {
   return (
     <div className={`recv-card recv-card--${color} ${highlight ? 'recv-card--highlight' : ''}`}>
       <div className="recv-card-label">{label}</div>
-      <div className="recv-card-value">{value} <span className="recv-card-unit">đ</span></div>
+      <div className="recv-card-value">{value} <span className="recv-card-unit">{unit}</span></div>
       <div className="recv-card-sub">{sub}</div>
     </div>
   )
@@ -228,7 +245,7 @@ function ScheduleSection({ rows, setRows, contractId, reload, totalExpected, ref
 
   const addRow = () => setRows(prev => [...prev, {
     id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-    description: '', currency_code: 'VND', amount: '', exchange_rate: 1,
+    description: '', currency_code: refCurrency || 'VND', amount: '', exchange_rate: refCurrency !== 'VND' ? (refExRate || '') : 1,
     amount_vnd: 0, due_date: '', delay_reason: '',
   }])
 
@@ -323,17 +340,15 @@ function ScheduleSection({ rows, setRows, contractId, reload, totalExpected, ref
                     </div>
                   </td>
                   <td className="td-cur">
-                    <select value={row.currency_code || 'VND'} onChange={e => set(row._key, 'currency_code', e.target.value)}>
-                      {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                    </select>
+                    <span className="currency-badge">{row.currency_code || refCurrency || 'VND'}</span>
                   </td>
                   <td className="td-num">
                     <input type="number" value={row.amount === '' ? '' : (typeof row.amount === 'number' ? row.amount.toFixed(2) : row.amount)}
                       min="0" placeholder="0" onChange={e => set(row._key, 'amount', e.target.value)} />
                   </td>
                   <td className="td-rate">
-                    <input type="number" value={row.currency_code === 'VND' ? 1 : (row.exchange_rate || '')}
-                      disabled={row.currency_code === 'VND'} min="0" placeholder="1"
+                    <input type="number" value={(row.currency_code || refCurrency) === 'VND' ? 1 : (row.exchange_rate || '')}
+                      disabled={(row.currency_code || refCurrency) === 'VND'} min="0" placeholder="1"
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
                   </td>
                   <td className="td-vnd computed">{fmtVND(vnd)}</td>
@@ -372,7 +387,7 @@ function ScheduleSection({ rows, setRows, contractId, reload, totalExpected, ref
 
 // ── Payment section ───────────────────────────────────────────────────────────
 
-function PaymentSection({ rows, setRows, contractId, totalExpected }) {
+function PaymentSection({ rows, setRows, contractId, totalExpected, refCurrency, refExRate }) {
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r
@@ -394,7 +409,7 @@ function PaymentSection({ rows, setRows, contractId, totalExpected }) {
   const addRow = () => setRows(prev => [...prev, {
     id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
     payment_date: new Date().toISOString().slice(0, 10),
-    currency_code: 'VND', amount: '', exchange_rate: 1,
+    currency_code: refCurrency || 'VND', amount: '', exchange_rate: refCurrency !== 'VND' ? (refExRate || '') : 1,
     amount_vnd: 0, payment_ratio: '', note: '',
   }])
 
@@ -474,17 +489,15 @@ function PaymentSection({ rows, setRows, contractId, totalExpected }) {
                       onChange={e => set(row._key, 'payment_date', e.target.value)} />
                   </td>
                   <td className="td-cur">
-                    <select value={row.currency_code || 'VND'} onChange={e => set(row._key, 'currency_code', e.target.value)}>
-                      {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                    </select>
+                    <span className="currency-badge">{row.currency_code || refCurrency || 'VND'}</span>
                   </td>
                   <td className="td-num">
                     <input type="number" value={row.amount === '' ? '' : row.amount} min="0"
                       placeholder="0" onChange={e => set(row._key, 'amount', e.target.value)} />
                   </td>
                   <td className="td-rate">
-                    <input type="number" value={row.currency_code === 'VND' ? 1 : (row.exchange_rate || '')}
-                      disabled={row.currency_code === 'VND'} min="0" placeholder="1"
+                    <input type="number" value={(row.currency_code || refCurrency) === 'VND' ? 1 : (row.exchange_rate || '')}
+                      disabled={(row.currency_code || refCurrency) === 'VND'} min="0" placeholder="1"
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
                   </td>
                   <td className="td-vnd computed">{fmtVND(vnd)}</td>

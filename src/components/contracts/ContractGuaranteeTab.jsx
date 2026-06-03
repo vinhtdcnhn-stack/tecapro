@@ -45,8 +45,16 @@ function StatusPill({ status }) {
 }
 
 export default function ContractGuaranteeTab({ contractId }) {
-  const [rows, setRows]       = useState([])
-  const [loading, setLoading] = useState(true)
+  const [rows, setRows]         = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [contractCurrency, setContractCurrency] = useState('VND')
+
+  useEffect(() => {
+    fetch(`${API}/contracts/${contractId}`)
+      .then(r => r.json())
+      .then(d => { if (d.currency_code) setContractCurrency(d.currency_code) })
+      .catch(() => {})
+  }, [contractId])
 
   const load = useCallback(async () => {
     try {
@@ -123,7 +131,7 @@ export default function ContractGuaranteeTab({ contractId }) {
       <div className="guar-summary">
         <div className="guar-card guar-card--blue">
           <div className="guar-card-label">Tổng giá trị bảo lãnh</div>
-          <div className="guar-card-value">{fmtVND(totalAmt)}</div>
+          <div className="guar-card-value">{fmtVND(totalAmt)} <span style={{fontSize:13,fontWeight:400}}>{contractCurrency}</span></div>
           <div className="guar-card-sub">{rows.filter(r => !r._isNew).length} bảo lãnh</div>
         </div>
         <div className="guar-card guar-card--green">
@@ -159,7 +167,7 @@ export default function ContractGuaranteeTab({ contractId }) {
               <tr>
                 <th className="th-stt">#</th>
                 <th className="th-type">Loại bảo lãnh</th>
-                <th className="th-amount">Giá trị (VNĐ)</th>
+                <th className="th-amount">Giá trị ({contractCurrency})</th>
                 <th className="th-date">Ngày phát hành</th>
                 <th className="th-date">Ngày hết hạn</th>
                 <th className="th-status">Trạng thái</th>
