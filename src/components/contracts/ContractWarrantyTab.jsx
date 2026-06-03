@@ -10,6 +10,18 @@ const ACTIVITY_TYPES= ['Tiếp nhận', 'Kiểm tra hiện trường', 'Khắc p
 const SERIAL_STATUSES = ['Đang hoạt động', 'Lỗi', 'Đã thay thế', 'Ngừng sử dụng']
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
+
+function toISODate(val) {
+  if (!val && val !== 0) return null
+  if (val instanceof Date) return val.toISOString().slice(0, 10)
+  const s = String(val).trim()
+  if (!s) return null
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    const d = XLSX.SSF.parse_date_code(parseFloat(s))
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`
+  }
+  return s
+}
 const fmtDT   = (d) => d ? new Date(d).toLocaleString('vi-VN') : '—'
 
 function warrantyStatus(to) {
@@ -214,7 +226,7 @@ function EquipmentSubTab({ contractId, equipment, setEquipment, reload }) {
     if (!file) return
     const reader = new FileReader()
     reader.onload = ev => {
-      const wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' })
+      const wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true })
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' })
       // Group by (name, brand, model, location, warranty_from, warranty_to)
       const grouped = new Map()
@@ -223,13 +235,13 @@ function EquipmentSubTab({ contractId, equipment, setEquipment, reload }) {
         const brand = String(row['Hãng'] || '').trim()
         const model = String(row['Model'] || '').trim()
         const loc   = String(row['Vị trí lắp đặt'] || '').trim()
-        const wFrom = String(row['BH từ (YYYY-MM-DD)'] || '').trim()
-        const wTo   = String(row['BH đến (YYYY-MM-DD)'] || '').trim()
+        const wFrom = toISODate(row['BH từ (YYYY-MM-DD)'])
+        const wTo   = toISODate(row['BH đến (YYYY-MM-DD)'])
         if (!name) continue
         const key   = `${name}||${model}||${loc}`
         if (!grouped.has(key)) {
           grouped.set(key, { name, brand, model, quantity: parseFloat(row['Số lượng'])||1,
-            location: loc, warranty_from: wFrom||null, warranty_to: wTo||null, serials: [] })
+            location: loc, warranty_from: wFrom, warranty_to: wTo, serials: [] })
         }
         const sn = String(row['Serial'] || '').trim()
         if (sn) grouped.get(key).serials.push(sn)
