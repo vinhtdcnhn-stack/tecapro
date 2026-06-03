@@ -13,14 +13,16 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 
 function toISODate(val) {
   if (!val && val !== 0) return null
-  if (val instanceof Date) return val.toISOString().slice(0, 10)
-  const s = String(val).trim()
-  if (!s) return null
-  if (/^\d+(\.\d+)?$/.test(s)) {
-    const d = XLSX.SSF.parse_date_code(parseFloat(s))
-    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`
+  if (val instanceof Date) {
+    return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`
   }
-  return s
+  const n = typeof val === 'number' ? val : parseFloat(String(val))
+  if (!isNaN(n) && n > 1) {
+    // Excel serial → UTC date (Excel epoch = Dec 30, 1899; Unix epoch offset = 25569 days)
+    const d = new Date(Math.round((n - 25569) * 864e5))
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
+  }
+  return String(val).trim() || null
 }
 const fmtDT   = (d) => d ? new Date(d).toLocaleString('vi-VN') : '—'
 
@@ -244,7 +246,7 @@ function EquipmentSubTab({ contractId, equipment, setEquipment, reload }) {
             location: loc, warranty_from: wFrom, warranty_to: wTo, serials: [] })
         }
         const sn = String(row['Serial'] || '').trim()
-        if (sn) grouped.get(key).serials.push(sn)
+        if (sn) sn.split(';').map(s => s.trim()).filter(Boolean).forEach(s => grouped.get(key).serials.push(s))
       }
       setImportPreview([...grouped.values()])
     }
