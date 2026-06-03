@@ -24,6 +24,13 @@ function isOverdue(dueDate) {
 let _ctr = 0
 const tmpId = () => `tmp_${++_ctr}`
 
+const needsRate = (row) => {
+  const cur = row.currency_code
+  if (!cur || cur === 'VND') return false
+  const rate = parseFloat(row.exchange_rate)
+  return !(rate > 1)
+}
+
 // ── Generic inline-editable table row ────────────────────────────────────────
 
 function useRows(url, toLocal) {
@@ -92,7 +99,10 @@ export default function ContractReceivableTab({ contractId }) {
 
   // ── Totals ─────────────────────────────────────────────────────────────────
 
-  const refCur = contractRef?.currency || 'VND'
+  // Nếu contract không set currency (VND mặc định) nhưng rows dùng ngoại tệ → detect từ rows
+  const rowCurrencies = [...sched.rows, ...pay.rows].map(r => r.currency_code).filter(c => c && c !== 'VND')
+  const detectedCur = rowCurrencies.length > 0 ? rowCurrencies[0] : 'VND'
+  const refCur = (contractRef?.currency && contractRef.currency !== 'VND') ? contractRef.currency : detectedCur
 
   // VND equivalents — dùng cho tính tỷ lệ % và truyền vào PaymentSection
   const totalExpectedVND = sched.rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
@@ -250,6 +260,10 @@ function ScheduleSection({ rows, setRows, contractId, reload, totalExpected, ref
   }])
 
   const saveRow = async (row) => {
+    if (needsRate(row)) {
+      alert(`Vui lòng nhập tỷ giá quy đổi VNĐ cho đồng tiền ${row.currency_code}.`)
+      return
+    }
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
     const body = {
       description: row.description, currency_code: row.currency_code,
@@ -348,7 +362,10 @@ function ScheduleSection({ rows, setRows, contractId, reload, totalExpected, ref
                   </td>
                   <td className="td-rate">
                     <input type="number" value={(row.currency_code || refCurrency) === 'VND' ? 1 : (row.exchange_rate || '')}
-                      disabled={(row.currency_code || refCurrency) === 'VND'} min="0" placeholder="1"
+                      disabled={(row.currency_code || refCurrency) === 'VND'} min="0"
+                      placeholder={needsRate(row) ? 'Bắt buộc!' : '1'}
+                      className={needsRate(row) ? 'input-warn' : ''}
+                      title={needsRate(row) ? `Nhập tỷ giá VNĐ/${row.currency_code}` : ''}
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
                   </td>
                   <td className="td-vnd computed">{fmtVND(vnd)}</td>
@@ -414,6 +431,10 @@ function PaymentSection({ rows, setRows, contractId, totalExpected, refCurrency,
   }])
 
   const saveRow = async (row) => {
+    if (needsRate(row)) {
+      alert(`Vui lòng nhập tỷ giá quy đổi VNĐ cho đồng tiền ${row.currency_code}.`)
+      return
+    }
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
     const body = {
       payment_date: row.payment_date, currency_code: row.currency_code,
@@ -497,7 +518,10 @@ function PaymentSection({ rows, setRows, contractId, totalExpected, refCurrency,
                   </td>
                   <td className="td-rate">
                     <input type="number" value={(row.currency_code || refCurrency) === 'VND' ? 1 : (row.exchange_rate || '')}
-                      disabled={(row.currency_code || refCurrency) === 'VND'} min="0" placeholder="1"
+                      disabled={(row.currency_code || refCurrency) === 'VND'} min="0"
+                      placeholder={needsRate(row) ? 'Bắt buộc!' : '1'}
+                      className={needsRate(row) ? 'input-warn' : ''}
+                      title={needsRate(row) ? `Nhập tỷ giá VNĐ/${row.currency_code}` : ''}
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
                   </td>
                   <td className="td-vnd computed">{fmtVND(vnd)}</td>

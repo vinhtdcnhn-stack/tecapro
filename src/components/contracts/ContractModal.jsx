@@ -173,13 +173,18 @@ export default function ContractModal({
     
     for (const field of requiredFields) {
       if (!formData[field]) {
-        const fieldName = field === 'contract_no' ? 'số hợp đồng' 
+        const fieldName = field === 'contract_no' ? 'số hợp đồng'
           : field === 'contract_date' ? 'ngày ký'
           : field === 'project_name' ? 'tên dự án'
           : 'chủ đầu tư'
         alert(`Vui lòng nhập ${fieldName}!`)
         return
       }
+    }
+
+    if (formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1)) {
+      alert(`Vui lòng nhập tỷ giá quy đổi VNĐ khi chọn đồng tiền ${formData.currency_code}!`)
+      return
     }
 
     // Chuẩn bị dữ liệu gửi đi
@@ -318,15 +323,27 @@ export default function ContractModal({
                 </select>
               </div>
               <div className="form-group">
-                <label>Tỷ giá</label>
+                <label>
+                  Tỷ giá
+                  {formData.currency_code !== 'VND' && <span style={{ color: '#dc2626' }}> *</span>}
+                </label>
                 <input
                   type="number"
                   value={formData.exchange_rate}
                   onChange={(e) => updateField('exchange_rate', e.target.value)}
-                  placeholder={formData.currency_code === 'VND' ? '1' : 'Nhập tỷ giá'}
+                  placeholder={formData.currency_code === 'VND' ? '1' : 'Bắt buộc!'}
                   min="0"
                   step="0.0001"
+                  disabled={formData.currency_code === 'VND'}
+                  style={formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1)
+                    ? { borderColor: '#f97316', background: '#fff7ed' }
+                    : {}}
                 />
+                {formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1) && (
+                  <p style={{ color: '#ea580c', fontSize: '12px', margin: '2px 0 0' }}>
+                    Nhập tỷ giá VNĐ/{formData.currency_code}
+                  </p>
+                )}
               </div>
               <div className="form-group">
                 <label>Trạng thái</label>
@@ -444,7 +461,11 @@ export default function ContractModal({
           </button>
           <button
             className="save-btn"
-            disabled={isDuplicate || !!errors.contract_no || !formData.contract_no || !formData.contract_date || !formData.project_name || !formData.customer_id}
+            disabled={
+              isDuplicate || !!errors.contract_no ||
+              !formData.contract_no || !formData.contract_date || !formData.project_name || !formData.customer_id ||
+              (formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1))
+            }
             onClick={handleSubmit}
           >
             Lưu
