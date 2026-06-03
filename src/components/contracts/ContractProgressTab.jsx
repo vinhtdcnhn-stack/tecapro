@@ -26,7 +26,9 @@ function getStatusInfo(planned, actual) {
 
 function fmtDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('vi-VN')
+  const s = String(d).slice(0, 10)
+  const [y, m, day] = s.split('-')
+  return y && m && day ? `${day}/${m}/${y}` : ''
 }
 
 let _tmpCtr = 0
