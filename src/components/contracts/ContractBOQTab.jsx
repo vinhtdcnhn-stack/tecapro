@@ -3,8 +3,7 @@ import './ContractBOQTab.css'
 
 const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, ''))() + '/api'
 
-const fmtNum = (n) =>
-  new Intl.NumberFormat('vi-VN').format(Math.round(parseFloat(n) || 0))
+const fmtNum = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
 
 function calcAmounts(qty, price, vat) {
   const q = parseFloat(qty) || 0

@@ -285,6 +285,7 @@ export default function ContractModal({
                   onChange={(e) => updateField('amount_before_vat', e.target.value)}
                   placeholder="0"
                   min="0"
+                  step="any"
                 />
               </div>
               <div className="form-group" style={{ flex: 1 }}>
@@ -295,6 +296,7 @@ export default function ContractModal({
                   onChange={(e) => updateField('amount_after_vat', e.target.value)}
                   placeholder="0"
                   min="0"
+                  step="any"
                 />
               </div>
             </div>

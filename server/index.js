@@ -28,6 +28,13 @@ app.get('/api/health', async (_req, res) => {
 app.use('/api', apiRoutes)
 app.use('/api', customerRoutes)
 
+// Serve React frontend in production
+const distPath = path.join(__dirname, '..', 'dist')
+app.use(express.static(distPath))
+app.get('*splat', (_req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'))
+})
+
 const port = Number(process.env.PORT ?? 5174)
 
 app.listen(port, () => {

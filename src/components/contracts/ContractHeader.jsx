@@ -28,7 +28,10 @@ export default function ContractHeader({ contract }) {
     if (numValue >= 1000000000) {
       return (numValue / 1000000000).toFixed(2).replace('.', ',') + ' tỷ VNĐ'
     }
-    return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(numValue) + ' VNĐ'
+    return new Intl.NumberFormat('vi-VN', {
+      minimumFractionDigits: numValue % 1 !== 0 ? 2 : 0,
+      maximumFractionDigits: 2
+    }).format(numValue) + ' VNĐ'
   }
 
   const getStatusBadge = (status) => {

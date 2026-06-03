@@ -5,7 +5,7 @@ const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174'
 const SHIPMENT_TYPES   = ['Nhập khẩu', 'Xuất khẩu']
 const CUSTOMS_STATUSES = ['Chưa khai báo', 'Đang làm thủ tục', 'Đã thông quan', 'Bị tạm giữ']
 
-const fmtVND  = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(parseFloat(n) || 0))
+const fmtVND  = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 const sliceDate = (d) => d ? d.slice(0, 10) : ''
 
@@ -334,7 +334,7 @@ function CustomsModal({ row, onSave, onClose }) {
             {total > 0 && (
               <div style={{ marginTop: 10, padding: '10px 14px', background: '#f0fdf4', borderRadius: 7, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>Tổng chi phí logistics</span>
-                <span style={{ fontSize: 16, fontWeight: 700, color: '#15803d' }}>{new Intl.NumberFormat('vi-VN').format(total)} VNĐ</span>
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#15803d' }}>{fmtVND(total)} VNĐ</span>
               </div>
             )}
           </Section>

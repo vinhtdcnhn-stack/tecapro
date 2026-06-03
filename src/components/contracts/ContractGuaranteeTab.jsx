@@ -14,7 +14,7 @@ const GUARANTEE_TYPES = [
 
 const STATUSES = ['Còn hiệu lực', 'Sắp hết hạn', 'Đã hết hạn', 'Đã hoàn trả']
 
-const fmtVND  = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(parseFloat(n) || 0))
+const fmtVND  = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 
 let _ctr = 0

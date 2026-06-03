@@ -171,7 +171,11 @@ function ContractInfoTab({ contract, onEdit }) {
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined || isNaN(value)) return '-'
-    return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value)
+    const num = Number(value)
+    return new Intl.NumberFormat('vi-VN', {
+      minimumFractionDigits: num % 1 !== 0 ? 2 : 0,
+      maximumFractionDigits: 2
+    }).format(num)
   }
 
   const getStatusBadge = (status) => {

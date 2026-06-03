@@ -5,7 +5,7 @@ const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174'
 
 const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'SGD', 'CNY', 'GBP', 'AUD', 'KRW']
 
-const fmtVND  = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(parseFloat(n) || 0))
+const fmtVND  = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 const fmtNum  = (n, dec = 2) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: dec })
 

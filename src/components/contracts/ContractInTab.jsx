@@ -38,7 +38,7 @@ const tdStyle = (align = 'left', extra = {}) => ({
   fontSize: 13, verticalAlign: 'middle', whiteSpace: 'nowrap', ...extra,
 })
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '-'
-const fmtNum  = (n) => (n === null || n === undefined) ? '-' : new Intl.NumberFormat('vi-VN').format(Math.round(parseFloat(n) || 0))
+const fmtNum  = (n) => { if (n === null || n === undefined) return '-'; const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
 const statusCfg = {
   Active:    { label: 'Đang thực hiện', cls: 'status-active' },
   Completed: { label: 'Hoàn thành',     cls: 'status-completed' },

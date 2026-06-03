@@ -10,10 +10,11 @@ export default function ContractTable({ contracts, searchTerm, onManage }) {
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined) return '-'
-    return new Intl.NumberFormat('vi-VN', { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 0 
-    }).format(value)
+    const num = Number(value)
+    return new Intl.NumberFormat('vi-VN', {
+      minimumFractionDigits: num % 1 !== 0 ? 2 : 0,
+      maximumFractionDigits: 2
+    }).format(num)
   }
 
   const formatDate = (dateStr) => {
