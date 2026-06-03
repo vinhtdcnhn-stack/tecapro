@@ -18,7 +18,10 @@ const BASE_SELECT = `
     t.note,
     t.completed_at,
     t.created_at,
-    t.updated_at
+    t.updated_at,
+    (SELECT COUNT(*) FROM contract_task_attachment WHERE task_id = t.id)::int AS attachment_count,
+    (SELECT json_agg(json_build_object('id', a.id, 'file_name', a.file_name, 'file_path', a.file_path) ORDER BY a.created_at)
+     FROM contract_task_attachment a WHERE a.task_id = t.id) AS attachments
   FROM contract_task t
   LEFT JOIN department d  ON d.id  = t.department_id
   LEFT JOIN app_user   u  ON u.id  = t.assigned_to

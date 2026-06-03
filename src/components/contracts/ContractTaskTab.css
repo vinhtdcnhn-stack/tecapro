@@ -236,3 +236,56 @@
 
 /* Assign highlight */
 .assign-hint { font-size: 11px; color: #9ca3af; margin-top: 3px; }
+
+/* ── Task attachments ───────────────────────────────────────────────────── */
+.task-attach-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; color: #6b7280; background: #f3f4f6;
+  border: 1px solid #e5e7eb; border-radius: 4px;
+  padding: 1px 5px; margin-left: 6px; vertical-align: middle;
+  max-width: 200px; overflow: hidden;
+}
+.task-attach-badge-name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.task-attach-badge--link {
+  color: #2563eb; background: #eff6ff; border-color: #bfdbfe;
+  text-decoration: none; cursor: pointer;
+}
+.task-attach-badge--link:hover {
+  background: #dbeafe; text-decoration: underline;
+}
+.task-attach-section {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px; background: #f9fafb; border: 1px solid #e5e7eb;
+  border-radius: 8px; min-height: 48px;
+}
+.task-attach-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; border-radius: 6px; font-size: 12px;
+}
+.task-attach-item--saved  { background: #fff; border: 1px solid #e5e7eb; }
+.task-attach-item--pending { background: #eff6ff; border: 1px solid #bfdbfe; }
+.attach-icon { color: #6b7280; flex-shrink: 0; }
+.attach-name {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #1d4ed8; text-decoration: none; font-weight: 500;
+}
+.attach-name:hover { text-decoration: underline; }
+span.attach-name { color: #374151; cursor: default; }
+span.attach-name:hover { text-decoration: none; }
+.attach-size { color: #9ca3af; white-space: nowrap; }
+.attach-del-btn {
+  background: none; border: none; cursor: pointer; color: #9ca3af;
+  font-size: 14px; padding: 0 2px; line-height: 1;
+  flex-shrink: 0;
+}
+.attach-del-btn:hover { color: #dc2626; }
+.task-attach-add-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: #2563eb;
+  background: #eff6ff; border: 1px dashed #93c5fd;
+  transition: background .15s; align-self: flex-start;
+}
+.task-attach-add-btn:hover { background: #dbeafe; }

@@ -108,8 +108,16 @@ export default function ContractTaskTab({ contractId, currentUser }) {
         ? prev.map(t => t.id === editTask.id ? data : t)
         : [...prev, data]
       )
-      setModalOpen(false)
-    } catch (e) { alert('Lỗi: ' + e.message) }
+      return data  // modal tự đóng sau khi upload xong
+    } catch (e) {
+      alert('Lỗi: ' + e.message)
+      return null
+    }
+  }
+
+  function handleModalClose() {
+    setModalOpen(false)
+    load()  // reload để cập nhật attachment_count
   }
 
   async function handleDelete(task) {
@@ -232,7 +240,7 @@ export default function ContractTaskTab({ contractId, currentUser }) {
           users={users}
           currentUser={currentUser}
           onSave={handleSave}
-          onClose={() => setModalOpen(false)}
+          onClose={handleModalClose}
         />
       )}
     </div>
@@ -345,6 +353,19 @@ function TaskRow({ idx, task, users, onEdit, onDelete, onStatusChange }) {
         <div className="task-title-cell">
           <span className="task-title">{task.title}</span>
           {task.description && <span className="task-desc-preview">{task.description}</span>}
+          {Array.isArray(task.attachments) && task.attachments.map(att => (
+            <a
+              key={att.id}
+              href={`${API.replace('/api', '')}${att.file_path}`}
+              download={att.file_name}
+              className="task-attach-badge task-attach-badge--link"
+              title={`Tải về: ${att.file_name}`}
+              onClick={e => e.stopPropagation()}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0}}><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+              <span className="task-attach-badge-name">{att.file_name}</span>
+            </a>
+          ))}
         </div>
       </td>
 
@@ -412,6 +433,13 @@ function TaskRow({ idx, task, users, onEdit, onDelete, onStatusChange }) {
 
 // ── Task modal (create / edit) ────────────────────────────────────────────────
 
+const fmtSize = (bytes) => {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 function TaskModal({ task, departments, users, currentUser, onSave, onClose }) {
   const isEdit = !!task
 
@@ -425,8 +453,19 @@ function TaskModal({ task, departments, users, currentUser, onSave, onClose }) {
     status:        task?.status        ?? 'Chờ xử lý',
     note:          task?.note          ?? '',
   })
-  const [errors, setErrors] = useState({})
-  const [saving, setSaving] = useState(false)
+  const [errors, setErrors]         = useState({})
+  const [saving, setSaving]         = useState(false)
+  const [attachments, setAttachments] = useState([])   // existing (edit mode)
+  const [pendingFiles, setPending]  = useState([])     // queued for upload
+
+  useEffect(() => {
+    if (isEdit && task.id) {
+      fetch(`${API}/tasks/${task.id}/attachments`)
+        .then(r => r.json())
+        .then(data => setAttachments(Array.isArray(data) ? data : []))
+        .catch(() => {})
+    }
+  }, [isEdit, task?.id])
 
   // Filter users by selected department
   const deptUsers = form.department_id
@@ -455,8 +494,37 @@ function TaskModal({ task, departments, users, currentUser, onSave, onClose }) {
   async function handleSubmit() {
     if (!validate()) return
     setSaving(true)
-    await onSave(form)
+    const savedTask = await onSave(form)
+    if (!savedTask) { setSaving(false); return }
+
+    if (pendingFiles.length > 0) {
+      for (const file of pendingFiles) {
+        const fd = new FormData()
+        fd.append('file', file)
+        if (currentUser?.id) fd.append('uploaded_by', String(currentUser.id))
+        try {
+          await fetch(`${API}/tasks/${savedTask.id}/attachments`, { method: 'POST', body: fd })
+        } catch { /* tiếp tục upload file khác nếu 1 file lỗi */ }
+      }
+    }
+
     setSaving(false)
+    onClose()
+  }
+
+  function handleFileSelect(e) {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    setPending(prev => [...prev, ...files])
+    e.target.value = ''
+  }
+
+  async function handleDeleteAttachment(att) {
+    if (!confirm(`Xóa file "${att.file_name}"?`)) return
+    try {
+      await fetch(`${API}/task-attachments/${att.id}`, { method: 'DELETE' })
+      setAttachments(prev => prev.filter(a => a.id !== att.id))
+    } catch { alert('Không thể xóa file.') }
   }
 
   return (
@@ -579,6 +647,43 @@ function TaskModal({ task, departments, users, currentUser, onSave, onClose }) {
                 onChange={e => set('note', e.target.value)}
                 placeholder="Ghi chú thêm..."
               />
+            </div>
+          </div>
+
+          {/* Attachments */}
+          <div className="task-form-row">
+            <div className="task-form-group full">
+              <label>Tài liệu đính kèm</label>
+              <div className="task-attach-section">
+                {/* Existing files (edit mode) */}
+                {attachments.map(att => (
+                  <div key={att.id} className="task-attach-item task-attach-item--saved">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="attach-icon"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+                    <a href={att.file_path} target="_blank" rel="noreferrer" className="attach-name" title={att.file_name}>
+                      {att.file_name}
+                    </a>
+                    <span className="attach-size">{fmtSize(att.file_size)}</span>
+                    <button className="attach-del-btn" onClick={() => handleDeleteAttachment(att)} title="Xóa">✕</button>
+                  </div>
+                ))}
+
+                {/* Pending files */}
+                {pendingFiles.map((file, i) => (
+                  <div key={i} className="task-attach-item task-attach-item--pending">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="attach-icon"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+                    <span className="attach-name">{file.name}</span>
+                    <span className="attach-size">{fmtSize(file.size)}</span>
+                    <button className="attach-del-btn" onClick={() => setPending(prev => prev.filter((_, j) => j !== i))} title="Bỏ">✕</button>
+                  </div>
+                ))}
+
+                {/* Upload button */}
+                <label className="task-attach-add-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                  Chọn file
+                  <input type="file" multiple style={{ display: 'none' }} onChange={handleFileSelect} />
+                </label>
+              </div>
             </div>
           </div>
         </div>
