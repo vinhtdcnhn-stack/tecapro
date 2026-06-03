@@ -29,7 +29,7 @@ export default function ContractModal({
     technical_team: [],
     accounting_team: [],
     followers: [],
-    pm_primary: null
+    pm_team: []
   })
 
   const [errors, setErrors] = useState({
@@ -60,13 +60,14 @@ export default function ContractModal({
           technical_team: editData.technical_member_ids || [],
           accounting_team: editData.accounting_member_ids || [],
           followers: editData.follower_member_ids || [],
-          pm_primary: editData.pm_primary_id || currentUser?.id
+          pm_team: editData.pm_primary_id
+            ? [editData.pm_primary_id, ...(editData.pm_member_ids || []).filter(id => String(id) !== String(editData.pm_primary_id))]
+            : (editData.pm_member_ids || [])
         })
       } else if (currentUser) {
-        // Tự động gán PM chính là người tạo (create mode)
         setFormData(prev => ({
           ...prev,
-          pm_primary: currentUser.id
+          pm_team: [currentUser.id]
         }))
       }
     }
@@ -92,7 +93,8 @@ export default function ContractModal({
       presale_team: [],
       technical_team: [],
       accounting_team: [],
-      followers: []
+      followers: [],
+      pm_team: []
     })
     setErrors({ contract_no: '' })
     setIsChecking(false)
@@ -183,7 +185,8 @@ export default function ContractModal({
     // Chuẩn bị dữ liệu gửi đi
     const submitData = {
       ...formData,
-      pm_primary_id: formData.pm_primary || currentUser?.id,
+      pm_primary_id: formData.pm_team[0] || currentUser?.id,
+      pm_team: formData.pm_team,
       amount_before_vat: parseFloat(formData.amount_before_vat) || 0,
       amount_after_vat: parseFloat(formData.amount_after_vat) || 0,
       exchange_rate: parseFloat(formData.exchange_rate) || null
@@ -361,9 +364,9 @@ export default function ContractModal({
                 <label>PM chính</label>
                 <MultiSelect
                   options={users.map(u => ({ value: u.id, label: u.full_name }))}
-                  selectedValues={formData.pm_primary ? [formData.pm_primary] : []}
-                  onChange={(selected) => setFormData(prev => ({ ...prev, pm_primary: selected[0] || null }))}
-                  placeholder="Chọn PM chính..."
+                  selectedValues={formData.pm_team}
+                  onChange={(selected) => setFormData(prev => ({ ...prev, pm_team: selected }))}
+                  placeholder="Chọn PM (người đầu tiên là PM chính)..."
                 />
               </div>
             </div>

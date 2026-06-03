@@ -215,6 +215,7 @@ export async function createContract(req, res) {
     terms,
     status,
     pm_primary_id,
+    pm_team,
     sale_team,
     presale_team,
     technical_team,
@@ -287,20 +288,14 @@ export async function createContract(req, res) {
 
       const contractId = contractResult.rows[0].id
 
-      // Thêm PM chính (primary)
-      if (pm_primary_id) {
-        const insertPMSql = `
-          INSERT INTO contract_out_member (
-            contract_out_id,
-            user_id,
-            member_role,
-            is_primary,
-            role_rank,
-            created_at
-          )
-          VALUES ($1, $2, 'PM', true, 1, NOW())
-        `
-        await client.query(insertPMSql, [contractId, pm_primary_id])
+      // Thêm PM team (người đầu tiên là PM chính)
+      const pmList = Array.isArray(pm_team) && pm_team.length > 0 ? pm_team : (pm_primary_id ? [pm_primary_id] : [])
+      for (let i = 0; i < pmList.length; i++) {
+        await client.query(
+          `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
+           VALUES ($1, $2, 'PM', $3, 1, NOW())`,
+          [contractId, pmList[i], i === 0]
+        )
       }
 
       // Thêm Sale team
@@ -404,6 +399,7 @@ export async function updateContract(req, res) {
     terms,
     status,
     pm_primary_id,
+    pm_team,
     sale_team,
     presale_team,
     technical_team,
@@ -476,20 +472,14 @@ export async function updateContract(req, res) {
       // Xóa tất cả member cũ
       await client.query('DELETE FROM contract_out_member WHERE contract_out_id = $1', [parseInt(contractId)])
 
-      // Thêm PM chính (primary)
-      if (pm_primary_id) {
-        const insertPMSql = `
-          INSERT INTO contract_out_member (
-            contract_out_id,
-            user_id,
-            member_role,
-            is_primary,
-            role_rank,
-            created_at
-          )
-          VALUES ($1, $2, 'PM', true, 1, NOW())
-        `
-        await client.query(insertPMSql, [parseInt(contractId), pm_primary_id])
+      // Thêm PM team (người đầu tiên là PM chính)
+      const pmListUpdate = Array.isArray(pm_team) && pm_team.length > 0 ? pm_team : (pm_primary_id ? [pm_primary_id] : [])
+      for (let i = 0; i < pmListUpdate.length; i++) {
+        await client.query(
+          `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
+           VALUES ($1, $2, 'PM', $3, 1, NOW())`,
+          [parseInt(contractId), pmListUpdate[i], i === 0]
+        )
       }
 
       // Thêm Sale team
