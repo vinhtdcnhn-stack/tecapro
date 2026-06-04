@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import './Dashboard.css'
 
 const STATUS_MAP = {
@@ -18,6 +19,7 @@ function StatCard({ label, value, color, icon }) {
 }
 
 export default function Dashboard({ user, contracts = [], customers = [], users = [] }) {
+  const navigate = useNavigate()
   const active    = contracts.filter(c => c.status === 'Active').length
   const completed = contracts.filter(c => c.status === 'Completed').length
   const pending   = contracts.filter(c => c.status === 'Pending').length
@@ -65,7 +67,15 @@ export default function Dashboard({ user, contracts = [], customers = [], users 
                   const s = STATUS_MAP[c.status] || { label: c.status, cls: '' }
                   return (
                     <tr key={c.id}>
-                      <td className="dash-td-mono">{c.contract_no || '—'}</td>
+                      <td className="dash-td-mono">
+                        <button
+                          type="button"
+                          className="dash-link"
+                          onClick={() => navigate(`/qlda/${c.id}`)}
+                        >
+                          {c.contract_no || '—'}
+                        </button>
+                      </td>
                       <td>{c.project_name || '—'}</td>
                       <td>{c.customer_name || '—'}</td>
                       <td>{c.pm_name || '—'}</td>
