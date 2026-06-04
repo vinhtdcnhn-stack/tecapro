@@ -1,40 +1,25 @@
-export default function Sidebar({ activeMenu, onNavigate }) {
+import { NavLink } from 'react-router-dom'
+
+const ITEMS = [
+  { label: 'QUẢN LÝ NGƯỜI DÙNG',   section: 'users'       },
+  { label: 'QUẢN LÝ PHÒNG BAN',    section: 'departments' },
+  { label: 'QUẢN LÝ VỊ TRÍ',       section: 'positions'   },
+  { label: 'QUẢN LÝ KHÁCH HÀNG',   section: 'customers'   },
+  { label: 'QUẢN LÝ NHÀ CUNG CẤP', section: 'suppliers'   },
+]
+
+export default function Sidebar() {
   return (
     <aside className="sidebar">
-      <button
-        className={`sidebar-btn ${activeMenu === 'Quản lý người dùng' ? 'active' : ''}`}
-        onClick={() => onNavigate('Quản lý người dùng')}
-      >
-        QUẢN LÝ NGƯỜI DÙNG
-      </button>
-
-      <button
-        className={`sidebar-btn ${activeMenu === "departments" ? "active" : ""}`}
-        onClick={() => onNavigate("departments")}
-      >
-        QUẢN LÝ PHÒNG BAN
-      </button>
-
-      <button
-        className={`sidebar-btn ${activeMenu === "positions" ? "active" : ""}`}
-        onClick={() => onNavigate("positions")}
-      >
-        QUẢN LÝ VỊ TRÍ
-      </button>
-
-      <button
-        className={`sidebar-btn ${activeMenu === "customers" ? "active" : ""}`}
-        onClick={() => onNavigate("customers")}
-      >
-        QUẢN LÝ KHÁCH HÀNG
-      </button>
-
-      <button
-        className={`sidebar-btn ${activeMenu === "suppliers" ? "active" : ""}`}
-        onClick={() => onNavigate("suppliers")}
-      >
-        QUẢN LÝ NHÀ CUNG CẤP
-      </button>
+      {ITEMS.map(item => (
+        <NavLink
+          key={item.section}
+          to={`/quantri/${item.section}`}
+          className={({ isActive }) => `sidebar-btn${isActive ? ' active' : ''}`}
+        >
+          {item.label}
+        </NavLink>
+      ))}
     </aside>
   )
 }

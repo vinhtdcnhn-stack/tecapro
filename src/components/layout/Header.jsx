@@ -1,28 +1,40 @@
 import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import tecaproLogo from '../../assets/tecapro-logo.png'
 
-export default function Header({ user, activeMenu, onNavigate, onLogout, onChangePassword }) {
+const MENUS = [
+  { label: 'Trang chủ',        path: '/'        },
+  { label: 'Hợp đồng bán',    path: '/qlda'    },
+  { label: 'Tra cứu bảo hành', path: '/tracuu'  },
+  { label: 'Giao ban tuần',    path: '/giaoban' },
+  { label: 'Quản trị hệ thống', path: '/quantri' },
+]
+
+export default function Header({ onChangePassword }) {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const menus = [
-    'Trang chủ',
-    'Hợp đồng bán',
-    'Tra cứu bảo hành',
-    'Giao ban tuần',
-    'Quản trị hệ thống',
-  ]
+  function isActive(menu) {
+    if (menu.path === '/') return location.pathname === '/' || location.pathname === '/tracuu' || location.pathname === '/giaoban'
+    return location.pathname.startsWith(menu.path)
+  }
 
-  function handleMenuClick(m) {
+  function handleMenuClick(menu) {
     setMobileMenuOpen(false)
-    if (m === 'Quản trị hệ thống') {
-      if (user) {
-        onNavigate('Quản lý người dùng', 'admin')
-      } else {
-        onNavigate('Quản trị hệ thống', 'login')
-      }
+    if (menu.label === 'Quản trị hệ thống' && !user) {
+      navigate('/login')
     } else {
-      onNavigate(m, 'home')
+      navigate(menu.path)
     }
+  }
+
+  function handleLogout() {
+    setMobileMenuOpen(false)
+    logout()
+    navigate('/')
   }
 
   return (
@@ -31,21 +43,21 @@ export default function Header({ user, activeMenu, onNavigate, onLogout, onChang
         <button
           type="button"
           className="brand"
-          onClick={() => { setMobileMenuOpen(false); onNavigate('Trang chủ', 'home') }}
+          onClick={() => { setMobileMenuOpen(false); navigate('/') }}
           aria-label="Trang chủ"
         >
           <img className="brand-logo" src={tecaproLogo} alt="TECAPRO" />
         </button>
 
         <nav className={`menu${mobileMenuOpen ? ' menu--open' : ''}`} aria-label="Chính">
-          {menus.map((m) => (
+          {MENUS.map((m) => (
             <button
-              key={m}
+              key={m.label}
               type="button"
-              className={`menu-item ${activeMenu === m ? 'is-active' : ''}`}
+              className={`menu-item ${isActive(m) ? 'is-active' : ''}`}
               onClick={() => handleMenuClick(m)}
             >
-              {m}
+              {m.label}
             </button>
           ))}
         </nav>
@@ -61,7 +73,7 @@ export default function Header({ user, activeMenu, onNavigate, onLogout, onChang
               >
                 {user.full_name}
               </button>
-              <button type="button" className="topbar-btn" onClick={() => { setMobileMenuOpen(false); onLogout() }}>
+              <button type="button" className="topbar-btn" onClick={handleLogout}>
                 Đăng xuất
               </button>
             </>
@@ -69,7 +81,7 @@ export default function Header({ user, activeMenu, onNavigate, onLogout, onChang
             <button
               type="button"
               className="topbar-btn"
-              onClick={() => { setMobileMenuOpen(false); onNavigate('Quản trị hệ thống', 'login') }}
+              onClick={() => { setMobileMenuOpen(false); navigate('/login') }}
             >
               Đăng nhập
             </button>
