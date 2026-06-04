@@ -99,10 +99,7 @@ export default function ContractReceivableTab({ contractId }) {
 
   // ── Totals ─────────────────────────────────────────────────────────────────
 
-  // Nếu contract không set currency (VND mặc định) nhưng rows dùng ngoại tệ → detect từ rows
-  const rowCurrencies = [...sched.rows, ...pay.rows].map(r => r.currency_code).filter(c => c && c !== 'VND')
-  const detectedCur = rowCurrencies.length > 0 ? rowCurrencies[0] : 'VND'
-  const refCur = (contractRef?.currency && contractRef.currency !== 'VND') ? contractRef.currency : detectedCur
+  const refCur = contractRef?.currency || 'VND'
 
   // VND equivalents — dùng cho tính tỷ lệ % và truyền vào PaymentSection
   const totalExpectedVND = sched.rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)

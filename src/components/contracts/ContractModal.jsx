@@ -315,6 +315,7 @@ export default function ContractModal({
                 <select
                   value={formData.currency_code}
                   onChange={(e) => updateField('currency_code', e.target.value)}
+                  disabled={editMode}
                 >
                   <option value="VND">VND</option>
                   <option value="USD">USD</option>
@@ -325,7 +326,7 @@ export default function ContractModal({
               <div className="form-group">
                 <label>
                   Tỷ giá
-                  {formData.currency_code !== 'VND' && <span style={{ color: '#dc2626' }}> *</span>}
+                  {formData.currency_code !== 'VND' && !editMode && <span style={{ color: '#dc2626' }}> *</span>}
                 </label>
                 <input
                   type="number"
@@ -334,12 +335,12 @@ export default function ContractModal({
                   placeholder={formData.currency_code === 'VND' ? '1' : 'Bắt buộc!'}
                   min="0"
                   step="0.0001"
-                  disabled={formData.currency_code === 'VND'}
-                  style={formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1)
+                  disabled={editMode || formData.currency_code === 'VND'}
+                  style={!editMode && formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1)
                     ? { borderColor: '#f97316', background: '#fff7ed' }
                     : {}}
                 />
-                {formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1) && (
+                {!editMode && formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1) && (
                   <p style={{ color: '#ea580c', fontSize: '12px', margin: '2px 0 0' }}>
                     Nhập tỷ giá VNĐ/{formData.currency_code}
                   </p>
