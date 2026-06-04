@@ -353,20 +353,24 @@ function TaskRow({ idx, task, users, onEdit, onDelete, onStatusChange }) {
         <div className="task-title-cell">
           <span className="task-title">{task.title}</span>
           {task.description && <span className="task-desc-preview">{task.description}</span>}
-          {Array.isArray(task.attachments) && task.attachments.map(att => (
-            <a
-              key={att.id}
-              href={`${API.replace('/api', '')}${att.file_path}`}
-              target="_blank"
-              rel="noreferrer"
-              className="task-attach-badge task-attach-badge--link"
-              title={att.file_name}
-              onClick={e => e.stopPropagation()}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0}}><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
-              <span className="task-attach-badge-name">{att.file_name}</span>
-            </a>
-          ))}
+          {Array.isArray(task.attachments) && task.attachments.map(att => {
+            const isPdf = att.file_name.toLowerCase().endsWith('.pdf');
+            return (
+              <a
+                key={att.id}
+                href={`${API.replace('/api', '')}${att.file_path}`}
+                target={isPdf ? '_blank' : undefined}
+                rel="noreferrer"
+                download={isPdf ? undefined : att.file_name}
+                className="task-attach-badge task-attach-badge--link"
+                title={att.file_name}
+                onClick={e => e.stopPropagation()}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0}}><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+                <span className="task-attach-badge-name">{att.file_name}</span>
+              </a>
+            );
+          })}
         </div>
       </td>
 
@@ -660,7 +664,14 @@ function TaskModal({ task, departments, users, currentUser, onSave, onClose }) {
                 {attachments.map(att => (
                   <div key={att.id} className="task-attach-item task-attach-item--saved">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="attach-icon"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
-                    <a href={att.file_path} target="_blank" rel="noreferrer" className="attach-name" title={att.file_name}>
+                    <a
+                      href={att.file_path}
+                      target={att.file_name.toLowerCase().endsWith('.pdf') ? '_blank' : undefined}
+                      rel="noreferrer"
+                      download={att.file_name.toLowerCase().endsWith('.pdf') ? undefined : att.file_name}
+                      className="attach-name"
+                      title={att.file_name}
+                    >
                       {att.file_name}
                     </a>
                     <span className="attach-size">{fmtSize(att.file_size)}</span>
