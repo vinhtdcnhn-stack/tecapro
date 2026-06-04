@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
+import { API_BASE as API } from '../config/api'
 import { useAuth } from '../context/AuthContext'
 import homeHero from '../assets/home-hero.png'
 import Dashboard from './Dashboard'
 
-const API = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
 
 export default function HomePage() {
   const { user } = useAuth()

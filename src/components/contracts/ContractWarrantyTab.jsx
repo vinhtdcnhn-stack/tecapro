@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import * as XLSX from 'xlsx'
 import './ContractWarrantyTab.css'
 
-const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, ''))() + '/api'
+import { API } from '../../config/api'
 
 const CASE_STATUSES = ['Tiếp nhận', 'Đang xử lý', 'Chờ phụ kiện', 'Hoàn thành', 'Đóng']
 const PRIORITIES    = ['Thấp', 'Bình thường', 'Cao', 'Khẩn']

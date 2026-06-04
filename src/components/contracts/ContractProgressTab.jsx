@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractProgressTab.css'
 
-const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, ''))() + '/api'
+import { API } from '../../config/api'
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 

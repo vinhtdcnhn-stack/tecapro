@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_BASE as API } from '../config/api'
 import { useParams, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Sidebar from '../components/layout/Sidebar'
@@ -10,7 +11,6 @@ import CustomerModal from '../components/customers/CustomerModal'
 import SupplierTable from '../components/suppliers/SupplierTable'
 import SupplierModal from '../components/suppliers/SupplierModal'
 
-const API = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
 const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers']
 
 export default function QuantriPage() {

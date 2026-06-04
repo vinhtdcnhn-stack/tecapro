@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
+import { API_BASE as API } from '../config/api'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import ContractListPage from '../components/contracts/ContractListPage'
 
-const API = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
 
 export default function QldaPage() {
   const { user } = useAuth()

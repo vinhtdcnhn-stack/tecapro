@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as XLSX from 'xlsx'
 
-const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, ''))() + '/api'
+import { API } from '../../config/api'
 
 const DELIVERY_STATUSES = ['Chờ nhận', 'Đang nhận', 'Đã nhận đủ', 'Nhận một phần']
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'

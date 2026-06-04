@@ -55,3 +55,10 @@ This is a full-stack app with a React/Vite frontend and an Express/Node.js backe
 **Auth** — simple email+password login using `bcryptjs`. No JWT; the frontend stores only `userId` in localStorage and re-fetches user data from `/api/me/:id` on page load. Role is an integer (`role == 1` = admin).
 
 **Styling** — Tailwind CSS + custom CSS (`App.css`, `src/index.css`). No component library.
+
+## File Size Rule
+
+**Any file that exceeds 500 lines must be split.** When writing or editing code causes a file to cross this threshold, proactively break it up before finishing the task. Splitting strategies:
+- React components: extract sub-components, custom hooks (`useXxx`), or utility functions to separate files
+- Backend controllers: extract helper functions or sub-controllers by concern
+- Shared utilities: move formatting/calculation functions to a `utils.js` or `constants.js` sibling file

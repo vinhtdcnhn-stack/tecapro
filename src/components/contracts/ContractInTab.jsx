@@ -9,7 +9,7 @@ import ContractInGuaranteeTab from './ContractInGuaranteeTab'
 import ContractInCustomsTab from './ContractInCustomsTab'
 import ContractInLogisticsTab from './ContractInLogisticsTab'
 
-const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, ''))() + '/api'
+import { API } from '../../config/api'
 
 const CURRENCIES     = ['VND', 'USD', 'EUR', 'JPY', 'CNY']
 const PURCHASE_TYPES = ['Trong nước', 'Nhập khẩu']

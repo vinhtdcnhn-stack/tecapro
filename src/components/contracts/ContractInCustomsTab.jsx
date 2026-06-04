@@ -1,34 +1,27 @@
 import { useState, useEffect, useCallback } from 'react'
-
-const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, ''))() + '/api'
+import { API } from '../../config/api'
 
 const SHIPMENT_TYPES   = ['Nhập khẩu', 'Xuất khẩu']
 const CUSTOMS_STATUSES = ['Chưa khai báo', 'Đang làm thủ tục', 'Đã thông quan', 'Bị tạm giữ']
-
 const fmtVND  = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 const sliceDate = (d) => d ? d.slice(0, 10) : ''
-
 function customsStatusStyle(s) {
   if (s === 'Đã thông quan')     return { bg: '#dcfce7', color: '#15803d' }
   if (s === 'Đang làm thủ tục')  return { bg: '#dbeafe', color: '#1d4ed8' }
   if (s === 'Bị tạm giữ')        return { bg: '#fee2e2', color: '#b91c1c' }
   return { bg: '#f3f4f6', color: '#6b7280' }
 }
-
 function totalCost(row) {
   return (parseFloat(row.shipping_cost) || 0)
        + (parseFloat(row.tax_amount)    || 0)
        + (parseFloat(row.other_fees)    || 0)
 }
-
 // ── Main component ────────────────────────────────────────────────────────────
-
 export default function ContractInCustomsTab({ contractInId }) {
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState(null) // null | 'add' | row-object
-
   const load = useCallback(async () => {
     try {
       const res  = await fetch(`${API}/contract-ins/${contractInId}/customs`)
@@ -37,9 +30,7 @@ export default function ContractInCustomsTab({ contractInId }) {
     } catch (e) { console.error('load customs:', e) }
     finally { setLoading(false) }
   }, [contractInId])
-
   useEffect(() => { load() }, [load])
-
   async function handleSave(form) {
     const isEdit = modal && modal !== 'add'
     const url    = isEdit ? `${API}/contract-in-customs/${modal.id}` : `${API}/contract-ins/${contractInId}/customs`
@@ -50,24 +41,19 @@ export default function ContractInCustomsTab({ contractInId }) {
     setRows(prev => isEdit ? prev.map(r => r.id === modal.id ? data : r) : [...prev, data])
     setModal(null)
   }
-
   async function handleDelete(row) {
     if (!confirm(`Xóa lô hàng "${row.bl_awb_no || row.declaration_no || '#' + row.id}"?`)) return
     await fetch(`${API}/contract-in-customs/${row.id}`, { method: 'DELETE' })
     setRows(prev => prev.filter(r => r.id !== row.id))
   }
-
   // Stats
   const cleared   = rows.filter(r => r.customs_status === 'Đã thông quan').length
   const inProcess = rows.filter(r => r.customs_status === 'Đang làm thủ tục').length
   const held      = rows.filter(r => r.customs_status === 'Bị tạm giữ').length
   const grandTotal = rows.reduce((s, r) => s + totalCost(r), 0)
-
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
       {/* Summary */}
       {rows.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
@@ -90,7 +76,6 @@ export default function ContractInCustomsTab({ contractInId }) {
           ))}
         </div>
       )}
-
       {/* Table section */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 10, background: '#f9fafb' }}>
@@ -106,7 +91,6 @@ export default function ContractInCustomsTab({ contractInId }) {
             Thêm lô hàng
           </button>
         </div>
-
         {rows.length === 0 ? (
           <div style={{ padding: 56, textAlign: 'center', color: '#9ca3af' }}>
             <div style={{ marginBottom: 8 }}>
@@ -197,7 +181,6 @@ export default function ContractInCustomsTab({ contractInId }) {
           </div>
         )}
       </div>
-
       {/* Modal */}
       {modal !== null && (
         <CustomsModal
@@ -209,13 +192,10 @@ export default function ContractInCustomsTab({ contractInId }) {
     </div>
   )
 }
-
 function td(align = 'left', extra = {}) {
   return { padding: '10px 12px', textAlign: align, borderBottom: '1px solid #f3f4f6', fontSize: 13, verticalAlign: 'middle', ...extra }
 }
-
 // ── Add / Edit modal ──────────────────────────────────────────────────────────
-
 function CustomsModal({ row, onSave, onClose }) {
   const isEdit = !!row
   const [form, setForm] = useState({
@@ -235,24 +215,20 @@ function CustomsModal({ row, onSave, onClose }) {
   })
   const [saving, setSaving] = useState(false)
   const s = f => setForm(p => ({ ...p, ...f }))
-
   const total = (parseFloat(form.shipping_cost) || 0)
               + (parseFloat(form.tax_amount)    || 0)
               + (parseFloat(form.other_fees)    || 0)
-
   async function handleSubmit() {
     setSaving(true)
     await onSave(form)
     setSaving(false)
   }
-
   return (
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div style={{ background: '#fff', borderRadius: 12, width: 680, maxWidth: '100%', boxShadow: '0 20px 60px rgba(0,0,0,.2)', display: 'flex', flexDirection: 'column', maxHeight: '92vh' }}>
-
         {/* Header */}
         <div style={{ padding: '16px 24px 12px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#111827' }}>
@@ -260,10 +236,8 @@ function CustomsModal({ row, onSave, onClose }) {
           </h3>
           <button onClick={onClose} style={{ width: 28, height: 28, border: 'none', background: '#f3f4f6', borderRadius: 6, cursor: 'pointer', fontSize: 14, color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
-
         {/* Body */}
         <div style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
-
           {/* Section 1: Thông tin lô hàng */}
           <Section title="Thông tin lô hàng">
             <div style={grid2}>
@@ -276,16 +250,12 @@ function CustomsModal({ row, onSave, onClose }) {
                 <input type="text" value={form.bl_awb_no} onChange={e => s({ bl_awb_no: e.target.value })}
                   placeholder="VD: COSCO123456789" style={inp} />
               </Field>
-            </div>
-            <div style={grid2}>
               <Field label="Ngày ETD (Khởi hành)">
                 <input type="date" value={form.etd} onChange={e => s({ etd: e.target.value })} style={inp} />
               </Field>
               <Field label="Ngày ETA (Dự kiến đến)">
                 <input type="date" value={form.eta} onChange={e => s({ eta: e.target.value })} style={inp} />
               </Field>
-            </div>
-            <div style={grid2}>
               <Field label="Cảng đi (POL)">
                 <input type="text" value={form.port_of_loading} onChange={e => s({ port_of_loading: e.target.value })}
                   placeholder="VD: Cảng Thượng Hải, Shanghai" style={inp} />
@@ -296,7 +266,6 @@ function CustomsModal({ row, onSave, onClose }) {
               </Field>
             </div>
           </Section>
-
           {/* Section 2: Tờ khai hải quan */}
           <Section title="Tờ khai hải quan">
             <div style={grid3}>
@@ -314,7 +283,6 @@ function CustomsModal({ row, onSave, onClose }) {
               </Field>
             </div>
           </Section>
-
           {/* Section 3: Chi phí logistics */}
           <Section title="Chi phí logistics">
             <div style={grid3}>
@@ -338,14 +306,12 @@ function CustomsModal({ row, onSave, onClose }) {
               </div>
             )}
           </Section>
-
           {/* Ghi chú */}
           <Field label="Ghi chú">
             <textarea rows="2" value={form.note} onChange={e => s({ note: e.target.value })}
               placeholder="Ghi chú thêm về lô hàng..." style={{ ...inp, resize: 'vertical' }} />
           </Field>
         </div>
-
         {/* Footer */}
         <div style={{ padding: '12px 24px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
           <button onClick={onClose} style={{ padding: '7px 18px', borderRadius: 7, border: 'none', background: '#f3f4f6', color: '#374151', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Hủy</button>
@@ -358,9 +324,7 @@ function CustomsModal({ row, onSave, onClose }) {
     </div>
   )
 }
-
 // ── Small helpers ─────────────────────────────────────────────────────────────
-
 function Section({ title, children }) {
   return (
     <div>
@@ -369,7 +333,6 @@ function Section({ title, children }) {
     </div>
   )
 }
-
 function Field({ label, children }) {
   return (
     <div>
@@ -378,7 +341,6 @@ function Field({ label, children }) {
     </div>
   )
 }
-
 const inp   = { width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }
 const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }
 const grid3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }

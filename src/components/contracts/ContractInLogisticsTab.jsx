@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 
-const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, ''))() + '/api'
+import { API } from '../../config/api'
 
 const STATUSES = ['Chờ vận chuyển', 'Đang vận chuyển', 'Đã về kho', 'Giao hàng thành công']
 

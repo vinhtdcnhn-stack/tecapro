@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractReceivableTab.css'
 
-const API = (() => (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, ''))() + '/api'
+import { API } from '../../config/api'
 
 const CURRENCIES       = ['VND', 'USD', 'EUR', 'JPY', 'SGD', 'CNY', 'GBP']
 const PAYMENT_METHODS  = ['TT', 'L/C', 'D/P', 'D/A', 'TTR', 'Khác']

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { API_BASE } from '../../config/api'
 import ContractModal from './ContractModal'
 
 export default function ContractListPage({ contracts, searchTerm: parentSearchTerm, onManage, onLoadContracts, currentUser, users, customers }) {
@@ -59,7 +60,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
   async function handleSaveContract(formData) {
     try {
-      const res = await fetch(`${getBaseUrl()}/api/contracts`, {
+      const res = await fetch(`${API_BASE}/api/contracts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -94,9 +95,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     }
   }
 
-  function getBaseUrl() {
-    return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
-  }
+  
 
   return (
     <div className="p-6">

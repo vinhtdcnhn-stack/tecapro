@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react'
+import { API } from '../../config/api'
 import './ContractDocumentsTab.css'
-
-function getBaseUrl() {
-  return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
-}
-const API_BASE_URL = getBaseUrl() + '/api'
 
 function getCurrentUserId() {
   return localStorage.getItem('userId') || null
@@ -58,7 +54,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
 
   const loadFolders = async ({ expandParentId = null } = {}) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/${resourcePath}/folders`)
+      const res = await fetch(`${API}/${resourcePath}/folders`)
       const data = await res.json()
       setFolders(data)
       setExpandedFolders(prev => {
@@ -74,7 +70,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
 
   const loadFiles = async (folderId) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/${resourcePath}/files?folderId=${folderId}`)
+      const res = await fetch(`${API}/${resourcePath}/files?folderId=${folderId}`)
       const data = await res.json()
       setFiles(data)
     } catch (err) {
@@ -125,7 +121,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const confirmCreateFolder = async () => {
     if (!newFolderName.trim()) return
     try {
-      const res = await fetch(`${API_BASE_URL}/${resourcePath}/folders`, {
+      const res = await fetch(`${API}/${resourcePath}/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderName: newFolderName, parentId: newFolderParentId || null, userId: getCurrentUserId() })
@@ -153,7 +149,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const confirmRenameFolder = async () => {
     if (!renameFolderInput.trim() || !renamingFolder) return
     try {
-      const res = await fetch(`${API_BASE_URL}/folders/${renamingFolder.id}`, {
+      const res = await fetch(`${API}/folders/${renamingFolder.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderName: renameFolderInput })
@@ -178,7 +174,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const confirmDeleteFolder = async () => {
     if (!deletingFolder) return
     try {
-      const res = await fetch(`${API_BASE_URL}/folders/${deletingFolder.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API}/folders/${deletingFolder.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed')
       if (String(selectedFolderId) === String(deletingFolder.id)) setSelectedFolderId(null)
       await loadFolders()
@@ -201,7 +197,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
         formData.append('file', items[i].file)
         formData.append('folderId', selectedFolderId)
         formData.append('userId', getCurrentUserId() || '')
-        const res = await fetch(`${API_BASE_URL}/${resourcePath}/files/upload`, {
+        const res = await fetch(`${API}/${resourcePath}/files/upload`, {
           method: 'POST',
           body: formData
         })
@@ -266,7 +262,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const handleDownload = () => {
     if (selectedFiles.size === 0) { alert('Vui lòng chọn file cần download'); return }
     for (const fileId of selectedFiles) {
-      window.open(`${API_BASE_URL}/files/${fileId}/download`, '_blank')
+      window.open(`${API}/files/${fileId}/download`, '_blank')
     }
   }
 
@@ -275,7 +271,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
     if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedFiles.size} file đã chọn?`)) return
     try {
       for (const fileId of selectedFiles) {
-        await fetch(`${API_BASE_URL}/files/${fileId}`, { method: 'DELETE' })
+        await fetch(`${API}/files/${fileId}`, { method: 'DELETE' })
       }
       if (previewFile && selectedFiles.has(previewFile.id)) setPreviewFile(null)
       setSelectedFiles(new Set())
@@ -545,7 +541,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
                 <button
                   className="btn-toolbar"
                   style={{ padding: '5px 11px', fontSize: 12 }}
-                  onClick={() => window.open(`${API_BASE_URL}/files/${previewFile.id}/download`, '_blank')}
+                  onClick={() => window.open(`${API}/files/${previewFile.id}/download`, '_blank')}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                   Download
@@ -559,9 +555,9 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
             </div>
             <div className="preview-content">
               {previewFile.mime_type?.includes('pdf') ? (
-                <iframe src={`${API_BASE_URL}/files/${previewFile.id}/view`} className="pdf-preview" title={previewFile.file_name} />
+                <iframe src={`${API}/files/${previewFile.id}/view`} className="pdf-preview" title={previewFile.file_name} />
               ) : (
-                <img src={`${API_BASE_URL}/files/${previewFile.id}/view`} alt={previewFile.file_name} className="image-preview" />
+                <img src={`${API}/files/${previewFile.id}/view`} alt={previewFile.file_name} className="image-preview" />
               )}
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_BASE } from '../config/api'
 import ContractHeader from '../components/contracts/ContractHeader'
 import ContractSidebar from '../components/contracts/ContractSidebar'
 import ContractModal from '../components/contracts/ContractModal'
@@ -23,10 +24,6 @@ export default function ContractManagementPage({ selectedContractId }) {
   const [customers, setCustomers] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
 
-  const getBaseUrl = () => {
-    return (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5174').replace(/\/$/, '')
-  }
-
   useEffect(() => {
     // Use selectedContractId from props instead of URL
     const id = selectedContractId
@@ -35,7 +32,7 @@ export default function ContractManagementPage({ selectedContractId }) {
     async function loadContract() {
       try {
         // Load contract details by ID
-        const res = await fetch(`${getBaseUrl()}/api/contracts/${id}`)
+        const res = await fetch(`${API_BASE}/api/contracts/${id}`)
         const found = await res.json()
 
         if (found && found.id) {
@@ -43,19 +40,19 @@ export default function ContractManagementPage({ selectedContractId }) {
         }
         
         // Load users for edit modal
-        const usersRes = await fetch(`${getBaseUrl()}/api/users`)
+        const usersRes = await fetch(`${API_BASE}/api/users`)
         const usersData = await usersRes.json()
         setUsers(usersData)
         
         // Load customers for edit modal
-        const customersRes = await fetch(`${getBaseUrl()}/api/customers`)
+        const customersRes = await fetch(`${API_BASE}/api/customers`)
         const customersData = await customersRes.json()
         setCustomers(customersData)
         
         // Get current user from localStorage
         const storedUserId = localStorage.getItem('userId')
         if (storedUserId) {
-          const meRes = await fetch(`${getBaseUrl()}/api/me/${storedUserId}`)
+          const meRes = await fetch(`${API_BASE}/api/me/${storedUserId}`)
           if (meRes.ok) {
             const meData = await meRes.json()
             setCurrentUser(meData)
@@ -98,7 +95,7 @@ default:
 
   async function handleUpdateContract(formData) {
     try {
-      const response = await fetch(`${getBaseUrl()}/api/contracts/${contractId}`, {
+      const response = await fetch(`${API_BASE}/api/contracts/${contractId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -107,7 +104,7 @@ default:
       if (response.ok) {
         // Reload contract data from detail endpoint
         const detailRes = await fetch(
-          `${getBaseUrl()}/api/contracts/${contractId}`
+          `${API_BASE}/api/contracts/${contractId}`
         )
 
         const detailData = await detailRes.json()

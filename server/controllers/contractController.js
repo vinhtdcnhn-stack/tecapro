@@ -1,4 +1,5 @@
 import { pool } from '../db.js'
+import { insertContractMembers } from './contractMemberController.js'
 
 export async function getAllContracts(req, res) {
   try {
@@ -288,70 +289,7 @@ export async function createContract(req, res) {
 
       const contractId = contractResult.rows[0].id
 
-      // Thêm PM team (người đầu tiên là PM chính)
-      const pmList = Array.isArray(pm_team) && pm_team.length > 0 ? pm_team : (pm_primary_id ? [pm_primary_id] : [])
-      for (let i = 0; i < pmList.length; i++) {
-        await client.query(
-          `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-           VALUES ($1, $2, 'PM', $3, 1, NOW())`,
-          [contractId, pmList[i], i === 0]
-        )
-      }
-
-      // Thêm Sale team
-      if (sale_team && Array.isArray(sale_team) && sale_team.length > 0) {
-        for (const userId of sale_team) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Sale', false, 2, NOW())`,
-            [contractId, userId]
-          )
-        }
-      }
-
-      // Thêm Presale team
-      if (presale_team && Array.isArray(presale_team) && presale_team.length > 0) {
-        for (const userId of presale_team) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Presale', false, 3, NOW())`,
-            [contractId, userId]
-          )
-        }
-      }
-
-      // Thêm Technical team
-      if (technical_team && Array.isArray(technical_team) && technical_team.length > 0) {
-        for (const userId of technical_team) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Technical', false, 4, NOW())`,
-            [contractId, userId]
-          )
-        }
-      }
-
-      // Thêm Accounting team
-      if (accounting_team && Array.isArray(accounting_team) && accounting_team.length > 0) {
-        for (const userId of accounting_team) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Accounting', false, 5, NOW())`,
-            [contractId, userId]
-          )
-        }
-      }
-
-      // Thêm Followers
-      if (followers && Array.isArray(followers) && followers.length > 0) {
-        for (const userId of followers) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Follower', false, 6, NOW())`,
-            [contractId, userId]
-          )
-        }
-      }
+      await insertContractMembers(client, contractId, { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers })
 
       await client.query('COMMIT')
 
@@ -469,73 +407,8 @@ export async function updateContract(req, res) {
         parseInt(contractId)
       ])
 
-      // Xóa tất cả member cũ
       await client.query('DELETE FROM contract_out_member WHERE contract_out_id = $1', [parseInt(contractId)])
-
-      // Thêm PM team (người đầu tiên là PM chính)
-      const pmListUpdate = Array.isArray(pm_team) && pm_team.length > 0 ? pm_team : (pm_primary_id ? [pm_primary_id] : [])
-      for (let i = 0; i < pmListUpdate.length; i++) {
-        await client.query(
-          `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-           VALUES ($1, $2, 'PM', $3, 1, NOW())`,
-          [parseInt(contractId), pmListUpdate[i], i === 0]
-        )
-      }
-
-      // Thêm Sale team
-      if (sale_team && Array.isArray(sale_team) && sale_team.length > 0) {
-        for (const userId of sale_team) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Sale', false, 2, NOW())`,
-            [parseInt(contractId), userId]
-          )
-        }
-      }
-
-      // Thêm Presale team
-      if (presale_team && Array.isArray(presale_team) && presale_team.length > 0) {
-        for (const userId of presale_team) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Presale', false, 3, NOW())`,
-            [parseInt(contractId), userId]
-          )
-        }
-      }
-
-      // Thêm Technical team
-      if (technical_team && Array.isArray(technical_team) && technical_team.length > 0) {
-        for (const userId of technical_team) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Technical', false, 4, NOW())`,
-            [parseInt(contractId), userId]
-          )
-        }
-      }
-
-      // Thêm Accounting team
-      if (accounting_team && Array.isArray(accounting_team) && accounting_team.length > 0) {
-        for (const userId of accounting_team) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Accounting', false, 5, NOW())`,
-            [parseInt(contractId), userId]
-          )
-        }
-      }
-
-      // Thêm Followers
-      if (followers && Array.isArray(followers) && followers.length > 0) {
-        for (const userId of followers) {
-          await client.query(
-            `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at)
-             VALUES ($1, $2, 'Follower', false, 6, NOW())`,
-            [parseInt(contractId), userId]
-          )
-        }
-      }
+      await insertContractMembers(client, parseInt(contractId), { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers })
 
       await client.query('COMMIT')
 
