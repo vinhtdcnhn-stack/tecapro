@@ -9,6 +9,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
   const [openDropdown, setOpenDropdown] = useState(null)
   const currentDropdownRef = useRef(null)
+  const tableWrapperRef = useRef(null)
+  const dragScroll = useRef({ active: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 })
   
   // Modal state for adding contract
   const [showAddContractModal, setShowAddContractModal] = useState(false)
@@ -171,7 +173,36 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
       {/* TABLE CARD - SCROLL CONTAINER */}
       <div className="table-container">
-        <div className="table-wrapper">
+        <div
+          className="table-wrapper"
+          ref={tableWrapperRef}
+          onMouseDown={e => {
+            if (e.button !== 0) return
+            const el = tableWrapperRef.current
+            dragScroll.current = { active: true, startX: e.pageX, startY: e.pageY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop }
+            el.style.cursor = 'grabbing'
+            el.style.userSelect = 'none'
+          }}
+          onMouseMove={e => {
+            const ds = dragScroll.current
+            if (!ds.active) return
+            const el = tableWrapperRef.current
+            el.scrollLeft = ds.scrollLeft - (e.pageX - ds.startX)
+            el.scrollTop  = ds.scrollTop  - (e.pageY - ds.startY)
+          }}
+          onMouseUp={() => {
+            dragScroll.current.active = false
+            const el = tableWrapperRef.current
+            el.style.cursor = ''
+            el.style.userSelect = ''
+          }}
+          onMouseLeave={() => {
+            dragScroll.current.active = false
+            const el = tableWrapperRef.current
+            el.style.cursor = ''
+            el.style.userSelect = ''
+          }}
+        >
           <table className="contract-table divide-y divide-gray-200">
             <thead className="table-header">
               <tr>
