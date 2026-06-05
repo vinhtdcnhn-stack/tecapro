@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 export default function CustomerTable({ customers, searchTerm, userRole, onEdit }) {
   const filteredCustomers = customers.filter(c => {
     const term = (searchTerm || '').toLowerCase();

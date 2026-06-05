@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect } from 'react'
 import { API_BASE as API } from '../config/api'
 
 const AuthContext = createContext(null)
+// Hook co-located with its provider; only affects dev hot-reload, not the build.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext)
 
 

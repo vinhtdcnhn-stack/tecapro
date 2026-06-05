@@ -8,7 +8,6 @@ export default function ContractModal({
   onClose, 
   onSave, 
   currentUser,
-  contracts = [],
   users = [],
   customers = [],
   editMode = false,
@@ -202,11 +201,6 @@ export default function ContractModal({
   }
 
   if (!isOpen) return null
-
-  const getUserName = (userId) => {
-    const user = users.find(u => u.id === parseInt(userId))
-    return user ? user.full_name : `ID: ${userId}`
-  }
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1000 }}>

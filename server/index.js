@@ -38,6 +38,5 @@ app.get('*splat', (_req, res) => {
 const port = Number(process.env.PORT ?? 5174)
 
 app.listen(port, () => {
-  // eslint-disable-next-line no-console
   console.log(`[server] listening on http://localhost:${port}`)
 })

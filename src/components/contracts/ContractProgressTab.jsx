@@ -24,12 +24,6 @@ function getStatusInfo(planned, actual) {
   return              { type: 'late', label: `Trễ ${diff} ngày` }
 }
 
-function fmtDate(d) {
-  if (!d) return ''
-  const s = String(d).slice(0, 10)
-  const [y, m, day] = s.split('-')
-  return y && m && day ? `${day}/${m}/${y}` : ''
-}
 
 let _tmpCtr = 0
 const tmpId = () => `tmp_${++_tmpCtr}`

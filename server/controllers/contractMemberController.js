@@ -1,5 +1,3 @@
-import { pool } from '../db.js'
-
 const TEAM_ROLES = [
   { key: 'sale_team',       role: 'Sale',       rank: 2 },
   { key: 'presale_team',    role: 'Presale',    rank: 3 },

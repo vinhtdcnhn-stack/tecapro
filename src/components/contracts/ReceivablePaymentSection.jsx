@@ -1,5 +1,8 @@
-import { fmtVND, calcVND, needsRate, tmpId, RowActions } from './receivableUtils'
 import { API } from '../../config/api'
+import { fmtVND, calcVND, tmpId, needsRate } from './receivableUtils'
+import RowActions from './ReceivableRowActions'
+
+// ── Payment section ───────────────────────────────────────────────────────────
 
 export default function PaymentSection({ rows, setRows, contractId, totalExpected, refCurrency, refExRate }) {
   const set = (key, field, val) =>
@@ -12,18 +15,21 @@ export default function PaymentSection({ rows, setRows, contractId, totalExpecte
         const rt  = field === 'exchange_rate' ? val : updated.exchange_rate
         updated.amount_vnd = calcVND(amt, rt, cur)
         if (cur === 'VND') updated.exchange_rate = 1
+        // Auto-compute ratio
         if (totalExpected > 0) {
           updated.payment_ratio = parseFloat(((updated.amount_vnd / totalExpected) * 100).toFixed(2))
         }
       }
       return updated
     }))
+
   const addRow = () => setRows(prev => [...prev, {
     id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
     payment_date: new Date().toISOString().slice(0, 10),
     currency_code: refCurrency || 'VND', amount: '', exchange_rate: refCurrency !== 'VND' ? (refExRate || '') : 1,
     amount_vnd: 0, payment_ratio: '', note: '',
   }])
+
   const saveRow = async (row) => {
     if (needsRate(row)) {
       alert(`Vui lòng nhập tỷ giá quy đổi VNĐ cho đồng tiền ${row.currency_code}.`)
@@ -45,14 +51,20 @@ export default function PaymentSection({ rows, setRows, contractId, totalExpecte
     } catch (e) {
       alert('Lỗi: ' + e.message)
       setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: false } : r))
+    }
   }
+
   const deleteRow = async (row) => {
     if (row._isNew) { setRows(prev => prev.filter(r => r._key !== row._key)); return }
     if (!confirm('Xóa đợt thanh toán này?')) return
+    try {
       await fetch(`${API}/receivable-payments/${row.id}`, { method: 'DELETE' })
       setRows(prev => prev.filter(r => r._key !== row._key))
     } catch { alert('Không thể xóa.') }
+  }
+
   const totalPaidVND = rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
+
   return (
     <div className="recv-section">
       <div className="recv-section-header">
@@ -62,6 +74,7 @@ export default function PaymentSection({ rows, setRows, contractId, totalExpecte
           Thêm đợt
         </button>
       </div>
+
       <div className="recv-table-wrapper">
         <table className="recv-table">
           <thead>
@@ -95,11 +108,14 @@ export default function PaymentSection({ rows, setRows, contractId, totalExpecte
                   <td className="td-date">
                     <input type="date" value={row.payment_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'payment_date', e.target.value)} />
+                  </td>
                   <td className="td-cur">
                     <span className="currency-badge">{row.currency_code || refCurrency || 'VND'}</span>
+                  </td>
                   <td className="td-num">
                     <input type="number" value={row.amount === '' ? '' : row.amount} min="0"
                       placeholder="0" onChange={e => set(row._key, 'amount', e.target.value)} />
+                  </td>
                   <td className="td-rate">
                     <input type="number" value={(row.currency_code || refCurrency) === 'VND' ? 1 : (row.exchange_rate || '')}
                       disabled={(row.currency_code || refCurrency) === 'VND'} min="0"
@@ -107,6 +123,7 @@ export default function PaymentSection({ rows, setRows, contractId, totalExpecte
                       className={needsRate(row) ? 'input-warn' : ''}
                       title={needsRate(row) ? `Nhập tỷ giá VNĐ/${row.currency_code}` : ''}
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
+                  </td>
                   <td className="td-vnd computed">{fmtVND(vnd)}</td>
                   <td className="td-ratio">
                     <div className="ratio-cell">
@@ -115,11 +132,14 @@ export default function PaymentSection({ rows, setRows, contractId, totalExpecte
                         onChange={e => set(row._key, 'payment_ratio', e.target.value)} />
                       {row.payment_ratio > 0 && <span className="ratio-pct">%</span>}
                     </div>
+                  </td>
                   <td className="td-note">
                     <input type="text" value={row.note || ''} placeholder="Ghi chú..."
                       onChange={e => set(row._key, 'note', e.target.value)} />
+                  </td>
                   <td className="td-act">
                     <RowActions row={row} onSave={saveRow} onDelete={deleteRow} />
+                  </td>
                 </tr>
               )
             })}
@@ -134,6 +154,7 @@ export default function PaymentSection({ rows, setRows, contractId, totalExpecte
             </tfoot>
           )}
         </table>
+      </div>
     </div>
   )
 }

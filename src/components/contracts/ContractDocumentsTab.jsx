@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { API } from '../../config/api'
 import './ContractDocumentsTab.css'
 
-function getCurrentUserId() {
-  return localStorage.getItem('userId') || null
-}
+import { getCurrentUserId, getFolderPath } from './documentsUtils'
+import DocumentFolderTree from './DocumentFolderTree'
+import DocumentFileTable from './DocumentFileTable'
+import DocumentPreviewPanel from './DocumentPreviewPanel'
+import { NewFolderModal, RenameFolderModal, DeleteFolderModal } from './DocumentModals'
 
 export default function ContractDocumentsTab({ contractId, basePath }) {
   // basePath overrides the default "contracts/{contractId}" prefix
@@ -87,27 +89,6 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
       next.has(folderId) ? next.delete(folderId) : next.add(folderId)
       return next
     })
-  }
-
-  const getFolderPath = (folderList, targetId, path = []) => {
-    for (const folder of folderList) {
-      const current = [...path, { id: folder.id, name: folder.folder_name }]
-      if (String(folder.id) === String(targetId)) return current
-      if (folder.children?.length > 0) {
-        const found = getFolderPath(folder.children, targetId, current)
-        if (found) return found
-      }
-    }
-    return null
-  }
-
-  const flattenFolders = (folderList, level = 0) => {
-    const result = []
-    for (const folder of folderList) {
-      result.push({ ...folder, level })
-      if (folder.children?.length > 0) result.push(...flattenFolders(folder.children, level + 1))
-    }
-    return result
   }
 
   // ── Create folder ────────────────────────────────────────────────────────
@@ -255,6 +236,14 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
     }
   }
 
+  const handleToggleFileSelect = (file, isSelected) => {
+    setSelectedFiles(prev => {
+      const next = new Set(prev)
+      isSelected ? next.delete(file.id) : next.add(file.id)
+      return next
+    })
+  }
+
   const handleSelectAll = (e) => {
     setSelectedFiles(e.target.checked ? new Set(files.map(f => f.id)) : new Set())
   }
@@ -281,69 +270,6 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
     }
   }
 
-  // ── Formatters ───────────────────────────────────────────────────────────
-
-  const formatFileSize = (bytes) => {
-    if (!bytes || bytes === 0) return '0 B'
-    const k = 1024, sizes = ['B', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-  }
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-'
-    return new Date(dateStr).toLocaleString('vi-VN')
-  }
-
-  const getFileIcon = (mimeType = '') => {
-    if (mimeType.includes('pdf')) return { emoji: '📄', color: '#dc2626' }
-    if (mimeType.includes('word')) return { emoji: '📝', color: '#2563eb' }
-    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return { emoji: '📊', color: '#16a34a' }
-    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return { emoji: '📋', color: '#ea580c' }
-    if (mimeType.includes('image')) return { emoji: '🖼️', color: '#7c3aed' }
-    if (mimeType.includes('zip') || mimeType.includes('rar')) return { emoji: '📦', color: '#d97706' }
-    return { emoji: '📁', color: '#6b7280' }
-  }
-
-  // ── Folder tree renderer ─────────────────────────────────────────────────
-
-  const renderFolderTree = (folderList, level = 0) => folderList.map(folder => (
-    <div key={folder.id} className="folder-tree-item">
-      <div
-        className={`folder-node ${String(selectedFolderId) === String(folder.id) ? 'selected' : ''}`}
-        style={{ paddingLeft: `${level * 16 + 6}px` }}
-        onClick={() => setSelectedFolderId(folder.id)}
-      >
-        <button
-          className={`expand-btn ${folder.children?.length > 0 ? 'visible' : ''} ${expandedFolders.has(folder.id) ? 'expanded' : ''}`}
-          onClick={(e) => toggleFolderExpand(folder.id, e)}
-          disabled={!folder.children?.length}
-        >
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4l6 4-6 4V4z"/></svg>
-        </button>
-        <svg className="folder-icon" width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-        </svg>
-        <span className="folder-name">{folder.folder_name}</span>
-        <div className="folder-actions">
-          <button className="folder-action-btn" title="Đổi tên" onClick={(e) => handleRenameFolder(folder, e)}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-            </svg>
-          </button>
-          <button className="folder-action-btn folder-action-delete" title="Xóa" onClick={(e) => handleDeleteFolder(folder, e)}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-      {folder.children?.length > 0 && expandedFolders.has(folder.id) && (
-        <div className="folder-children">{renderFolderTree(folder.children, level + 1)}</div>
-      )}
-    </div>
-  ))
-
   const folderPath = selectedFolderId ? getFolderPath(folders, selectedFolderId) : null
 
   if (loading) return <div className="documents-loading">Đang tải...</div>
@@ -364,7 +290,15 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
         <div className="folder-tree">
           {folders.length === 0
             ? <div className="folder-tree-empty">Chưa có thư mục nào</div>
-            : renderFolderTree(folders)
+            : <DocumentFolderTree
+                folders={folders}
+                selectedFolderId={selectedFolderId}
+                expandedFolders={expandedFolders}
+                onSelect={setSelectedFolderId}
+                onToggleExpand={toggleFolderExpand}
+                onRename={handleRenameFolder}
+                onDelete={handleDeleteFolder}
+              />
           }
         </div>
       </div>
@@ -460,169 +394,53 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
                 <p>Chọn một thư mục để xem và quản lý file</p>
               </div>
             ) : (
-              <table className="documents-table">
-                <thead>
-                  <tr>
-                    <th className="col-select">
-                      <input
-                        type="checkbox"
-                        checked={files.length > 0 && selectedFiles.size === files.length}
-                        onChange={handleSelectAll}
-                        title="Chọn tất cả"
-                      />
-                    </th>
-                    <th className="col-name">Tên file</th>
-                    <th className="col-size">Kích thước</th>
-                    <th className="col-date">Ngày tải</th>
-                    <th className="col-uploader">Người tải</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {files.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="empty-message">
-                        Thư mục này chưa có file nào. Kéo thả hoặc nhấn Upload để thêm.
-                      </td>
-                    </tr>
-                  ) : files.map(file => {
-                    const icon = getFileIcon(file.mime_type)
-                    const isSelected = selectedFiles.has(file.id)
-                    const isPreviewing = previewFile?.id === file.id
-                    return (
-                      <tr
-                        key={file.id}
-                        className={`${isSelected ? 'selected' : ''} ${isPreviewing ? 'previewing' : ''}`}
-                        onClick={(e) => handleFileClick(file, e)}
-                      >
-                        <td className="col-select">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              e.stopPropagation()
-                              setSelectedFiles(prev => {
-                                const next = new Set(prev)
-                                isSelected ? next.delete(file.id) : next.add(file.id)
-                                return next
-                              })
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </td>
-                        <td className="col-name">
-                          <div className="file-info">
-                            <span className="file-icon" style={{ color: icon.color }}>{icon.emoji}</span>
-                            <span className="file-name-text" title={file.file_name}>{file.file_name}</span>
-                          </div>
-                        </td>
-                        <td className="col-size">{formatFileSize(file.file_size)}</td>
-                        <td className="col-date">{formatDate(file.uploaded_at)}</td>
-                        <td className="col-uploader">{file.uploaded_by_name || '-'}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <DocumentFileTable
+                files={files}
+                selectedFiles={selectedFiles}
+                previewFileId={previewFile?.id}
+                onSelectAll={handleSelectAll}
+                onFileClick={handleFileClick}
+                onToggleSelect={handleToggleFileSelect}
+              />
             )}
           </div>
         </div>
 
         {/* Preview panel (PDF / image) */}
         {previewFile && (
-          <div className="documents-preview-panel">
-            <div className="preview-header">
-              <div className="preview-title-area">
-                <span style={{ color: getFileIcon(previewFile.mime_type).color, fontSize: 16 }}>
-                  {getFileIcon(previewFile.mime_type).emoji}
-                </span>
-                <span className="preview-title">{previewFile.file_name}</span>
-              </div>
-              <div className="preview-header-actions">
-                <button
-                  className="btn-toolbar"
-                  style={{ padding: '5px 11px', fontSize: 12 }}
-                  onClick={() => window.open(`${API}/files/${previewFile.id}/download`, '_blank')}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                  Download
-                </button>
-                <button className="btn-close-preview" onClick={() => setPreviewFile(null)}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div className="preview-content">
-              {previewFile.mime_type?.includes('pdf') ? (
-                <iframe src={`${API}/files/${previewFile.id}/view`} className="pdf-preview" title={previewFile.file_name} />
-              ) : (
-                <img src={`${API}/files/${previewFile.id}/view`} alt={previewFile.file_name} className="image-preview" />
-              )}
-            </div>
-          </div>
+          <DocumentPreviewPanel file={previewFile} onClose={() => setPreviewFile(null)} />
         )}
       </div>
 
       {/* ── Modals ─────────────────────────────────────────────────────── */}
 
       {showNewFolderModal && (
-        <div className="modal-overlay" onClick={() => setShowNewFolderModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Tạo thư mục mới</h3>
-            <div className="form-group">
-              <label>Tên thư mục</label>
-              <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Nhập tên thư mục..." autoFocus onKeyDown={(e) => e.key === 'Enter' && confirmCreateFolder()} />
-            </div>
-            <div className="form-group">
-              <label>Thư mục cha</label>
-              <select value={newFolderParentId} onChange={(e) => setNewFolderParentId(e.target.value)}>
-                <option value="">-- Thư mục gốc --</option>
-                {flattenFolders(folders).map(f => (
-                  <option key={f.id} value={f.id}>{'　'.repeat(f.level)}{f.folder_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowNewFolderModal(false)}>Hủy</button>
-              <button className="btn-confirm" onClick={confirmCreateFolder}>Tạo</button>
-            </div>
-          </div>
-        </div>
+        <NewFolderModal
+          name={newFolderName}
+          setName={setNewFolderName}
+          parentId={newFolderParentId}
+          setParentId={setNewFolderParentId}
+          folders={folders}
+          onConfirm={confirmCreateFolder}
+          onClose={() => setShowNewFolderModal(false)}
+        />
       )}
 
       {showRenameModal && (
-        <div className="modal-overlay" onClick={() => setShowRenameModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Đổi tên thư mục</h3>
-            <div className="form-group">
-              <label>Tên mới</label>
-              <input type="text" value={renameFolderInput} onChange={(e) => setRenameFolderInput(e.target.value)}
-                autoFocus onKeyDown={(e) => e.key === 'Enter' && confirmRenameFolder()} />
-            </div>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowRenameModal(false)}>Hủy</button>
-              <button className="btn-confirm" onClick={confirmRenameFolder}>Lưu</button>
-            </div>
-          </div>
-        </div>
+        <RenameFolderModal
+          value={renameFolderInput}
+          setValue={setRenameFolderInput}
+          onConfirm={confirmRenameFolder}
+          onClose={() => setShowRenameModal(false)}
+        />
       )}
 
       {showDeleteFolderConfirm && (
-        <div className="modal-overlay" onClick={() => setShowDeleteFolderConfirm(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Xóa thư mục</h3>
-            <p className="confirm-message">
-              Bạn có chắc muốn xóa thư mục <strong>"{deletingFolder?.folder_name}"</strong>?<br />
-              Tất cả thư mục con và file bên trong cũng sẽ bị xóa.
-            </p>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowDeleteFolderConfirm(false)}>Hủy</button>
-              <button className="btn-confirm btn-danger" onClick={confirmDeleteFolder}>Xóa</button>
-            </div>
-          </div>
-        </div>
+        <DeleteFolderModal
+          folder={deletingFolder}
+          onConfirm={confirmDeleteFolder}
+          onClose={() => setShowDeleteFolderConfirm(false)}
+        />
       )}
     </div>
   )

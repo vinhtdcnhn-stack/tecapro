@@ -17,5 +17,16 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // Intentional `catch (err) {}` blocks that deliberately ignore the error
+      'no-unused-vars': ['error', { caughtErrors: 'none' }],
+    },
+  },
+  {
+    // Backend runs on Node.js — expose Node globals (process, Buffer, …)
+    files: ['server/**/*.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
   },
 ])

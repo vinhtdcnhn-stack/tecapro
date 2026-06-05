@@ -291,7 +291,7 @@ export async function uploadFile(req, res) {
   } catch (err) {
     console.error('uploadFile error:', err)
     if (req.file?.path) {
-      try { fs.unlinkSync(req.file.path) } catch {}
+      try { fs.unlinkSync(req.file.path) } catch { /* best-effort cleanup */ }
     }
     res.status(500).json({ error: 'Failed to upload file' })
   }
@@ -445,7 +445,7 @@ export async function uploadFileIn(req, res) {
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('uploadFileIn error:', err)
-    if (req.file?.path) { try { fs.unlinkSync(req.file.path) } catch {} }
+    if (req.file?.path) { try { fs.unlinkSync(req.file.path) } catch { /* best-effort cleanup */ } }
     res.status(500).json({ error: 'Failed to upload file' })
   }
 }

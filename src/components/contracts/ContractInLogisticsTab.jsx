@@ -4,7 +4,6 @@ import { API } from '../../config/api'
 
 const STATUSES = ['Chờ vận chuyển', 'Đang vận chuyển', 'Đã về kho', 'Giao hàng thành công']
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 const fmtDateTime = (d) => {
   if (!d) return '—'
   const dt = new Date(d)

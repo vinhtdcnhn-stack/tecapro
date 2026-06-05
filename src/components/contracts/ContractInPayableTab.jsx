@@ -7,7 +7,6 @@ const CURRENCIES       = ['VND', 'USD', 'EUR', 'JPY', 'SGD', 'CNY', 'GBP']
 const PAYMENT_METHODS  = ['TT', 'L/C', 'D/P', 'D/A', 'TTR', 'Khác']
 
 const fmtVND  = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 
 function calcVND(amount, rate, currency) {
   const a = parseFloat(amount) || 0
@@ -55,7 +54,7 @@ export default function ContractInPayableTab({ contractInId }) {
   useEffect(() => {
     async function loadRef() {
       try {
-        const [boqRes, cRes] = await Promise.all([
+        const [boqRes] = await Promise.all([
           fetch(`${API}/contract-ins/${contractInId}/boq`),
           fetch(`${API}/contract-ins/${contractInId}`),   // không có route riêng, dùng contract-ins list
         ])
@@ -136,7 +135,7 @@ function SummaryCard({ label, value, sub, color, highlight }) {
 
 // ── Payable schedule section ──────────────────────────────────────────────────
 
-function PayableSection({ rows, setRows, contractInId, reload, refTotal }) {
+function PayableSection({ rows, setRows, contractInId }) {
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r

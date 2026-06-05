@@ -1,15 +1,21 @@
-import { fmtVND, calcVND, needsRate, tmpId, isOverdue, RowActions } from './receivableUtils'
 import { API } from '../../config/api'
+import { fmtVND, calcVND, isOverdue, tmpId, needsRate } from './receivableUtils'
+import RowActions from './ReceivableRowActions'
 
-export default function ScheduleSection({ rows, setRows, contractId, reload, totalExpected, refTotal, refCurrency, refExRate }) {
+// ── Schedule section ──────────────────────────────────────────────────────────
+
+export default function ScheduleSection({ rows, setRows, contractId, refTotal, refCurrency, refExRate }) {
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r
       const updated = { ...r, [field]: val, _dirty: true }
+
+      // Nếu nhập % theo HĐ → tự tính amount và amount_vnd
       if (field === 'hd_ratio' && refTotal > 0) {
         const ratio = parseFloat(val) || 0
         const vndAmt = refTotal * ratio / 100
         updated.amount_vnd = vndAmt
+        // Tính ngược amount theo đồng tiền HĐ
         if (updated.currency_code === 'VND') {
           updated.amount = vndAmt
         } else {
@@ -17,21 +23,27 @@ export default function ScheduleSection({ rows, setRows, contractId, reload, tot
           updated.amount = vndAmt / rate
         }
       }
+
       if (field === 'amount' || field === 'exchange_rate' || field === 'currency_code') {
         const cur = field === 'currency_code' ? val : updated.currency_code
         const amt = field === 'amount'        ? val : updated.amount
         const rt  = field === 'exchange_rate' ? val : updated.exchange_rate
         updated.amount_vnd = calcVND(amt, rt, cur)
         if (cur === 'VND') updated.exchange_rate = 1
+        // Tính ngược % theo HĐ
         if (refTotal > 0) {
           updated.hd_ratio = parseFloat(((updated.amount_vnd / refTotal) * 100).toFixed(2))
+        }
+      }
       return updated
     }))
+
   const addRow = () => setRows(prev => [...prev, {
     id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
     description: '', currency_code: refCurrency || 'VND', amount: '', exchange_rate: refCurrency !== 'VND' ? (refExRate || '') : 1,
     amount_vnd: 0, due_date: '', delay_reason: '',
   }])
+
   const saveRow = async (row) => {
     if (needsRate(row)) {
       alert(`Vui lòng nhập tỷ giá quy đổi VNĐ cho đồng tiền ${row.currency_code}.`)
@@ -42,6 +54,7 @@ export default function ScheduleSection({ rows, setRows, contractId, reload, tot
       description: row.description, currency_code: row.currency_code,
       amount: row.amount, exchange_rate: row.exchange_rate,
       due_date: row.due_date, delay_reason: row.delay_reason,
+    }
     try {
       const url    = row._isNew ? `${API}/contracts/${contractId}/receivable` : `${API}/receivable/${row.id}`
       const method = row._isNew ? 'POST' : 'PUT'
@@ -52,14 +65,20 @@ export default function ScheduleSection({ rows, setRows, contractId, reload, tot
     } catch (e) {
       alert('Lỗi: ' + e.message)
       setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: false } : r))
+    }
   }
+
   const deleteRow = async (row) => {
     if (row._isNew) { setRows(prev => prev.filter(r => r._key !== row._key)); return }
     if (!confirm(`Xóa khoản phải thu "${row.description || '(trống)'}"?`)) return
+    try {
       await fetch(`${API}/receivable/${row.id}`, { method: 'DELETE' })
       setRows(prev => prev.filter(r => r._key !== row._key))
     } catch { alert('Không thể xóa.') }
+  }
+
   const totalVND = rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
+
   return (
     <div className="recv-section">
       <div className="recv-section-header">
@@ -69,6 +88,7 @@ export default function ScheduleSection({ rows, setRows, contractId, reload, tot
           Thêm khoản
         </button>
       </div>
+
       <div className="recv-table-wrapper">
         <table className="recv-table">
           <thead>
@@ -106,6 +126,7 @@ export default function ScheduleSection({ rows, setRows, contractId, reload, tot
                   <td className="td-desc">
                     <input type="text" value={row.description || ''} placeholder="VD: 30% đặt cọc khi ký HĐ..."
                       onChange={e => set(row._key, 'description', e.target.value)} />
+                  </td>
                   <td className="td-ratio2">
                     <div className="ratio-cell">
                       <input type="number" value={hdRatio === '' ? '' : hdRatio}
@@ -116,11 +137,14 @@ export default function ScheduleSection({ rows, setRows, contractId, reload, tot
                         onChange={e => set(row._key, 'hd_ratio', e.target.value)} />
                       <span className="ratio-pct">%</span>
                     </div>
+                  </td>
                   <td className="td-cur">
                     <span className="currency-badge">{row.currency_code || refCurrency || 'VND'}</span>
+                  </td>
                   <td className="td-num">
                     <input type="number" value={row.amount === '' ? '' : (typeof row.amount === 'number' ? row.amount.toFixed(2) : row.amount)}
                       min="0" placeholder="0" onChange={e => set(row._key, 'amount', e.target.value)} />
+                  </td>
                   <td className="td-rate">
                     <input type="number" value={(row.currency_code || refCurrency) === 'VND' ? 1 : (row.exchange_rate || '')}
                       disabled={(row.currency_code || refCurrency) === 'VND'} min="0"
@@ -128,18 +152,22 @@ export default function ScheduleSection({ rows, setRows, contractId, reload, tot
                       className={needsRate(row) ? 'input-warn' : ''}
                       title={needsRate(row) ? `Nhập tỷ giá VNĐ/${row.currency_code}` : ''}
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
+                  </td>
                   <td className="td-vnd computed">{fmtVND(vnd)}</td>
                   <td className="td-date">
                     <input type="date" value={row.due_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'due_date', e.target.value)} />
                     {overdue && !row._isNew && <span className="overdue-tag">Quá hạn</span>}
+                  </td>
                   <td className="td-reason">
                     <input type="text" value={row.delay_reason || ''}
                       placeholder={overdue ? 'Nhập nguyên nhân...' : ''}
                       className={overdue && !row.delay_reason && !row._isNew ? 'input-warn' : ''}
                       onChange={e => set(row._key, 'delay_reason', e.target.value)} />
+                  </td>
                   <td className="td-act">
                     <RowActions row={row} onSave={saveRow} onDelete={deleteRow} />
+                  </td>
                 </tr>
               )
             })}
@@ -154,6 +182,7 @@ export default function ScheduleSection({ rows, setRows, contractId, reload, tot
             </tfoot>
           )}
         </table>
+      </div>
     </div>
   )
 }

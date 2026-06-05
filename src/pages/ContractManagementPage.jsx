@@ -295,12 +295,3 @@ function ContractInfoTab({ contract, onEdit }) {
     </div>
   )
 }
-
-function PlaceholderTab({ title }) {
-  return (
-    <div className="placeholder-tab">
-      <h3>{title}</h3>
-      <p>Chức năng này sẽ được phát triển sau</p>
-    </div>
-  )
-}
