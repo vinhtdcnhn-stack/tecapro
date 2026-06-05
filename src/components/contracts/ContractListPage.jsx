@@ -100,7 +100,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   
 
   return (
-    <div className="p-6">
+    <div className="contract-list-root">
       {/* Header Page */}
       <div className="page-header">
         <h1 className="page-title">HỢP ĐỒNG BÁN</h1>
