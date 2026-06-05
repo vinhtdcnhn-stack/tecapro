@@ -110,9 +110,10 @@ export async function getBOQ(req, res) {
 export async function createBOQItem(req, res) {
   try {
     const { contractId } = req.params
-    const { item_name, hs_code, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
+    const { item_name, hs_code, unit, quantity, unit_price, vat_rate, warranty_period, item_type } = req.body
 
     const { before, after } = calc(quantity, unit_price, vat_rate)
+    const type = item_type === 'di_thang' ? 'di_thang' : 'trong_nuoc'
 
     // Next sort_order
     const { rows: mx } = await pool.query(
@@ -124,13 +125,13 @@ export async function createBOQItem(req, res) {
     const { rows } = await pool.query(`
       INSERT INTO public.contract_out_boq
         (contract_out_id, sort_order, item_name, hs_code, unit, quantity,
-         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *
     `, [contractId, sortOrder,
         item_name || '', hs_code || '', unit || '',
         parseFloat(quantity) || 0, parseFloat(unit_price) || 0,
-        before, parseFloat(vat_rate) || 0, after, warranty_period || ''])
+        before, parseFloat(vat_rate) || 0, after, warranty_period || '', type])
 
     res.status(201).json(rows[0])
   } catch (err) {
@@ -144,7 +145,8 @@ export async function createBOQItem(req, res) {
 export async function insertBOQAfter(req, res) {
   try {
     const { contractId, refId } = req.params
-    const { item_name, hs_code, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
+    const { item_name, hs_code, unit, quantity, unit_price, vat_rate, warranty_period, item_type } = req.body
+    const type = item_type === 'di_thang' ? 'di_thang' : 'trong_nuoc'
 
     // Get sort_order of reference row
     const { rows: ref } = await pool.query(
@@ -166,13 +168,13 @@ export async function insertBOQAfter(req, res) {
     const { rows } = await pool.query(`
       INSERT INTO public.contract_out_boq
         (contract_out_id, sort_order, item_name, hs_code, unit, quantity,
-         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *
     `, [contractId, refSort + 1,
         item_name || '', hs_code || '', unit || '',
         parseFloat(quantity) || 0, parseFloat(unit_price) || 0,
-        before, parseFloat(vat_rate) || 0, after, warranty_period || ''])
+        before, parseFloat(vat_rate) || 0, after, warranty_period || '', type])
 
     res.status(201).json(rows[0])
   } catch (err) {
@@ -185,21 +187,22 @@ export async function insertBOQAfter(req, res) {
 
 export async function updateBOQItem(req, res) {
   try {
-    const { item_name, hs_code, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
+    const { item_name, hs_code, unit, quantity, unit_price, vat_rate, warranty_period, item_type } = req.body
     const { before, after } = calc(quantity, unit_price, vat_rate)
+    const type = item_type === 'di_thang' ? 'di_thang' : 'trong_nuoc'
 
     const { rows } = await pool.query(`
       UPDATE public.contract_out_boq SET
         item_name = $1, hs_code = $2, unit = $3,
         quantity = $4, unit_price = $5,
         amount_before_vat = $6, vat_rate = $7, amount_after_vat = $8,
-        warranty_period = $9, updated_at = now()
-      WHERE id = $10
+        warranty_period = $9, item_type = $10, updated_at = now()
+      WHERE id = $11
       RETURNING *
     `, [item_name || '', hs_code || '', unit || '',
         parseFloat(quantity) || 0, parseFloat(unit_price) || 0,
         before, parseFloat(vat_rate) || 0, after,
-        warranty_period || '', req.params.id])
+        warranty_period || '', type, req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     res.json(rows[0])

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import './ContractBOQTab.css'
-
+import BOQImportModal from './BOQImportModal'
 import { API } from '../../config/api'
 
 const fmtNum = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
@@ -54,6 +54,7 @@ export default function ContractBOQTab({ contractId }) {
       _insertAfterRefId: insertAfterRefId,
       item_name: '', hs_code: '', unit: '',
       quantity: '', unit_price: '', vat_rate: '', warranty_period: '',
+      item_type: 'trong_nuoc',
     }
   }
 
@@ -78,6 +79,7 @@ export default function ContractBOQTab({ contractId }) {
       vat_rate:         row.vat_rate,
       amount_after_vat: after,
       warranty_period:  row.warranty_period,
+      item_type:        row.item_type || 'trong_nuoc',
     }
 
     try {
@@ -255,19 +257,21 @@ export default function ContractBOQTab({ contractId }) {
               <th className="th-vat">VAT<br/>(%)</th>
               <th className="th-amt">Thành tiền<br/>sau VAT</th>
               <th className="th-warranty">Thời hạn<br/>bảo hành</th>
+              <th className="th-item-type">Loại hàng</th>
               <th className="th-action"></th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="11" className="boq-empty">
+                <td colSpan="12" className="boq-empty">
                   Chưa có dữ liệu bảng giá.
                   Nhấn <strong>Thêm dòng</strong> hoặc <strong>Import Excel</strong> để bắt đầu.
                 </td>
               </tr>
             ) : rows.map((row, idx) => {
               const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate)
+              const isDiThang = row.item_type === 'di_thang'
               return (
                 <tr
                   key={row._key}
@@ -275,6 +279,7 @@ export default function ContractBOQTab({ contractId }) {
                     row._isNew  ? 'row-new'   : '',
                     row._dirty  ? 'row-dirty' : '',
                     row._saving ? 'row-saving': '',
+                    isDiThang   ? 'row-di-thang' : '',
                   ].filter(Boolean).join(' ')}
                 >
                   <td className="td-stt">
@@ -353,6 +358,17 @@ export default function ContractBOQTab({ contractId }) {
                     />
                   </td>
 
+                  <td className="td-item-type">
+                    <select
+                      value={row.item_type || 'trong_nuoc'}
+                      onChange={e => set(row._key, 'item_type', e.target.value)}
+                      className={`item-type-select ${row.item_type === 'di_thang' ? 'type-di-thang' : 'type-trong-nuoc'}`}
+                    >
+                      <option value="trong_nuoc">Trong nước</option>
+                      <option value="di_thang">Đi thẳng</option>
+                    </select>
+                  </td>
+
                   <td className="td-action">
                     <div className="action-group">
                       {row._dirty && (
@@ -397,7 +413,7 @@ export default function ContractBOQTab({ contractId }) {
                 <td className="td-amt">{fmtNum(totals.before)}</td>
                 <td />
                 <td className="td-amt">{fmtNum(totals.after)}</td>
-                <td colSpan="2" />
+                <td colSpan="3" />
               </tr>
             </tfoot>
           )}
@@ -406,83 +422,14 @@ export default function ContractBOQTab({ contractId }) {
 
       {/* ── Excel Import Modal ── */}
       {importData && (
-        <div className="modal-overlay" onClick={() => setImportData(null)}>
-          <div className="boq-import-modal" onClick={e => e.stopPropagation()}>
-
-            <div className="boq-import-header">
-              <div>
-                <h3>Preview dữ liệu Excel</h3>
-                <p className="boq-import-count">{importData.total} dòng dữ liệu</p>
-              </div>
-              <button className="btn-close-preview" onClick={() => setImportData(null)}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                </svg>
-              </button>
-            </div>
-
-            <div className="boq-import-mode">
-              <label>
-                <input type="radio" value="append" checked={importMode === 'append'} onChange={() => setImportMode('append')} />
-                Thêm vào cuối danh sách hiện có
-              </label>
-              <label>
-                <input type="radio" value="replace" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} />
-                <span className="replace-warn">Xóa toàn bộ và nhập mới</span>
-              </label>
-            </div>
-
-            <div className="boq-import-hint">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-              Định dạng cột Excel: A=Danh mục · B=HScode · C=ĐVT · D=Số lượng · E=Đơn giá · F=VAT(%) · G=Thời hạn bảo hành
-            </div>
-
-            <div className="boq-import-preview">
-              <table className="boq-table">
-                <thead>
-                  <tr>
-                    <th className="th-stt">#</th>
-                    <th className="th-name">Danh mục hàng hóa</th>
-                    <th className="th-hs">HScode</th>
-                    <th className="th-unit">ĐVT</th>
-                    <th className="th-num">Số lượng</th>
-                    <th className="th-num">Đơn giá</th>
-                    <th className="th-amt">Trước VAT</th>
-                    <th className="th-vat">VAT%</th>
-                    <th className="th-amt">Sau VAT</th>
-                    <th className="th-warranty">Bảo hành</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {importData.items.map((item, idx) => {
-                    const { before, after } = calcAmounts(item.quantity, item.unit_price, item.vat_rate)
-                    return (
-                      <tr key={idx}>
-                        <td className="td-stt"><span className="stt-num">{idx + 1}</span></td>
-                        <td className="td-name"><span className="preview-text">{item.item_name}</span></td>
-                        <td className="td-hs"><span className="preview-text">{item.hs_code}</span></td>
-                        <td className="td-unit"><span className="preview-text">{item.unit}</span></td>
-                        <td className="td-num"><span className="preview-text">{fmtNum(item.quantity)}</span></td>
-                        <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price)}</span></td>
-                        <td className="td-amt computed">{fmtNum(before)}</td>
-                        <td className="td-vat"><span className="preview-text">{item.vat_rate}%</span></td>
-                        <td className="td-amt computed">{fmtNum(after)}</td>
-                        <td className="td-warranty"><span className="preview-text">{item.warranty_period}</span></td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="boq-import-footer">
-              <button className="btn-cancel" onClick={() => setImportData(null)}>Hủy</button>
-              <button className="btn-confirm" onClick={confirmImport} disabled={importSaving}>
-                {importSaving ? 'Đang lưu...' : `Xác nhận nhập ${importData.total} dòng`}
-              </button>
-            </div>
-          </div>
-        </div>
+        <BOQImportModal
+          importData={importData}
+          importMode={importMode}
+          importSaving={importSaving}
+          onModeChange={setImportMode}
+          onConfirm={confirmImport}
+          onClose={() => setImportData(null)}
+        />
       )}
     </div>
   )
