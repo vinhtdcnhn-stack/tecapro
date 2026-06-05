@@ -94,7 +94,12 @@ export default function ContractInDetail({ item, suppliers, onBack, onUpdate, on
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+      <div style={{
+        flex: 1, minHeight: 0, padding: '24px',
+        ...(activeTab === 'documents'
+          ? { overflow: 'hidden', display: 'flex', flexDirection: 'column' }
+          : { overflowY: 'auto' }),
+      }}>
         {activeTab === 'info' ? (
           <ContractInInfoTab
             item={item}

@@ -317,21 +317,13 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
                 {isUploading ? 'Đang upload...' : 'Upload'}
               </button>
               <input id="file-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} key={fileInputKey} />
-              <button className="btn-toolbar" onClick={handleCreateFolder}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/>
-                </svg>
-                Tạo thư mục
-              </button>
             </div>
             <div className="toolbar-right">
-              <button className="btn-toolbar" onClick={handleDownload} disabled={selectedFiles.size === 0}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                Download{selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}
+              <button className="btn-toolbar btn-icon-only" onClick={handleDownload} disabled={selectedFiles.size === 0} title={`Download${selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
               </button>
-              <button className="btn-toolbar btn-delete" onClick={handleDelete} disabled={selectedFiles.size === 0}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                Xóa{selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}
+              <button className="btn-toolbar btn-icon-only btn-delete" onClick={handleDelete} disabled={selectedFiles.size === 0} title={`Xóa${selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
               </button>
             </div>
           </div>
@@ -406,10 +398,8 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
           </div>
         </div>
 
-        {/* Preview panel (PDF / image) */}
-        {previewFile && (
-          <DocumentPreviewPanel file={previewFile} onClose={() => setPreviewFile(null)} />
-        )}
+        {/* Preview panel — always visible */}
+        <DocumentPreviewPanel file={previewFile} />
       </div>
 
       {/* ── Modals ─────────────────────────────────────────────────────── */}

@@ -3,8 +3,9 @@
 .contract-documents-tab {
   display: flex;
   gap: 12px;
-  height: calc(100vh - 280px);
-  min-height: 500px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── Left panel ─────────────────────────────────────────────────────── */
@@ -152,14 +153,15 @@
 .documents-right-panel {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 10px;
   min-width: 0;
   overflow: hidden;
 }
 
 .documents-main-content {
-  flex: 1;
+  width: 260px;
+  flex-shrink: 0;
   background: white;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
@@ -168,6 +170,11 @@
   overflow: hidden;
   min-height: 0;
 }
+
+/* Ẩn cột phụ trong panel danh sách file hẹp */
+.documents-main-content .col-size,
+.documents-main-content .col-date,
+.documents-main-content .col-uploader { display: none; }
 
 /* ── Toolbar ─────────────────────────────────────────────────────────── */
 
@@ -211,6 +218,11 @@
   background: #fef2f2;
   border-color: #ef4444;
   color: #dc2626;
+}
+
+.btn-toolbar.btn-icon-only {
+  padding: 7px 9px;
+  gap: 0;
 }
 
 /* ── Breadcrumb ──────────────────────────────────────────────────────── */
@@ -397,7 +409,8 @@
 /* ── Preview panel ───────────────────────────────────────────────────── */
 
 .documents-preview-panel {
-  flex: 0 0 300px;
+  flex: 1;
+  min-width: 0;
   background: white;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
@@ -464,6 +477,16 @@
   justify-content: center;
   background: #f8f9fa;
 }
+
+.preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #9ca3af;
+}
+.preview-empty svg { opacity: 0.35; }
+.preview-empty p { margin: 0; font-size: 13px; }
 
 .pdf-preview { width: 100%; height: 100%; border: none; }
 
