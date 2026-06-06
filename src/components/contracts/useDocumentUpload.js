@@ -85,7 +85,7 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
     }
 
     await loadFolders()
-    await loadFiles(selectedFolderId)
+    if (selectedFolderId) await loadFiles(selectedFolderId)
     setTimeout(() => setUploadQueue([]), 3000)
   }
 
@@ -103,7 +103,7 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
   const handleFolderChange = async (event) => {
     const files = event.target.files
     if (!files || files.length === 0) return
-    if (!selectedFolderId) { alert('Vui lòng chọn thư mục để upload vào'); return }
+    // Cho phép ở gốc: parentId sẽ là null → tạo thư mục ở cấp cao nhất
     await uploadFolder(files)
     setFolderInputKey(prev => prev + 1)
   }
@@ -111,6 +111,7 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
   return {
     uploadQueue, isUploading,
     fileInputKey, folderInputKey,
+    uploadFiles,
     handleUploadFile, handleUploadFolder,
     handleFileChange, handleFolderChange,
   }

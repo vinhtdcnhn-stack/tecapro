@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { API } from '../../config/api'
 import './ContractDocumentsTab.css'
 
-import { getFolderPath } from './documentsUtils'
+import { getFolderPath, getCurrentUserId } from './documentsUtils'
 import { useDocumentUpload } from './useDocumentUpload'
 import DocumentFolderTree from './DocumentFolderTree'
 import DocumentFileTable from './DocumentFileTable'
@@ -80,6 +80,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const {
     uploadQueue, isUploading,
     fileInputKey, folderInputKey,
+    uploadFiles,
     handleUploadFile, handleUploadFolder,
     handleFileChange, handleFolderChange,
   } = useDocumentUpload({ resourcePath, selectedFolderId, loadFolders, loadFiles })
@@ -284,7 +285,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
                 {isUploading ? 'Đang upload...' : 'Upload'}
               </button>
-              <button className="btn-toolbar btn-icon-only" onClick={handleUploadFolder} disabled={!selectedFolderId || isUploading} title="Upload thư mục">
+              <button className="btn-toolbar btn-icon-only" onClick={handleUploadFolder} disabled={isUploading} title={selectedFolderId ? 'Upload thư mục vào đây' : 'Upload thư mục (tạo ở cấp gốc)'}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 7h-3v3h-2v-3h-3v-2h3V8h2v3h3v2z"/></svg>
               </button>
               <input id="file-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} key={fileInputKey} />
