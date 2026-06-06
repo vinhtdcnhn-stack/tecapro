@@ -7,12 +7,15 @@ const router = Router()
 router.get('/contracts/:id/equipment',        c.getEquipment)
 router.post('/contracts/:id/equipment',       c.createEquipment)
 router.post('/contracts/:id/equipment/import', c.importEquipment)
+router.put('/equipment/bulk-warranty',        c.bulkWarrantyEquipment)
 router.put('/equipment/:id',                  c.updateEquipment)
 router.delete('/equipment/:id',               c.deleteEquipment)
 
 // Serials
 router.get('/equipment/:id/serials',   c.getSerials)
 router.post('/equipment/:id/serials',  c.createSerial)
+router.post('/contracts/:id/serials/import', c.importComponentSerials)
+router.put('/serials/bulk-warranty',   c.bulkWarrantySerials)
 router.put('/serials/:id',             c.updateSerial)
 router.delete('/serials/:id',          c.deleteSerial)
 

@@ -4,7 +4,8 @@ import './ContractWarrantyTab.css'
 import { API } from '../../config/api'
 import EquipmentSubTab from './WarrantyEquipmentSubTab'
 import CasesSubTab from './WarrantyCasesSubTab'
-import { SerialSubTab, ActivitiesSubTab } from './WarrantyDisplaySubTabs'
+import WarrantySerialSubTab from './WarrantySerialSubTab'
+import { ActivitiesSubTab } from './WarrantyDisplaySubTabs'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -68,7 +69,12 @@ export default function ContractWarrantyTab({ contractId }) {
           />
         )}
         {subTab === 'serials' && (
-          <SerialSubTab equipment={equipment} />
+          <WarrantySerialSubTab
+            contractId={contractId}
+            equipment={equipment}
+            setEquipment={setEquipment}
+            reload={loadEquipment}
+          />
         )}
         {subTab === 'cases' && (
           <CasesSubTab

@@ -150,12 +150,14 @@ export async function getSerials(req, res) {
 
 export async function createSerial(req, res) {
   const equipmentId = parseInt(req.params.id)
-  const { serial_no, status, note } = req.body
+  const { serial_no, status, note, warranty_from, warranty_to, parent_serial_id } = req.body
   if (!serial_no?.trim()) return res.status(400).json({ error: 'Số serial không được để trống' })
   try {
     const { rows } = await pool.query(
-      'INSERT INTO equipment_serial (equipment_id, serial_no, status, note) VALUES ($1,$2,$3,$4) RETURNING *',
-      [equipmentId, serial_no.trim(), status||'Đang hoạt động', note?.trim()||null]
+      `INSERT INTO equipment_serial (equipment_id, serial_no, status, note, warranty_from, warranty_to, parent_serial_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [equipmentId, serial_no.trim(), status||'Đang hoạt động', note?.trim()||null,
+       warranty_from||null, warranty_to||null, parent_serial_id||null]
     )
     await pool.query('UPDATE contract_equipment SET has_serial=true, updated_at=NOW() WHERE id=$1', [equipmentId])
     res.json(rows[0])
@@ -167,15 +169,20 @@ export async function createSerial(req, res) {
 
 export async function updateSerial(req, res) {
   const id = parseInt(req.params.id)
-  const { serial_no, status, note } = req.body
+  const { serial_no, status, note, warranty_from, warranty_to, parent_serial_id } = req.body
   try {
     const { rows } = await pool.query(
-      'UPDATE equipment_serial SET serial_no=$1, status=$2, note=$3 WHERE id=$4 RETURNING *',
-      [serial_no?.trim()||null, status||'Đang hoạt động', note?.trim()||null, id]
+      `UPDATE equipment_serial SET
+         serial_no=$1, status=$2, note=$3, warranty_from=$4, warranty_to=$5, parent_serial_id=$6
+       WHERE id=$7 RETURNING *`,
+      [serial_no?.trim()||null, status||'Đang hoạt động', note?.trim()||null,
+       warranty_from||null, warranty_to||null,
+       parent_serial_id||null, id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy serial' })
     res.json(rows[0])
   } catch (err) {
+    console.error('updateSerial:', err)
     res.status(500).json({ error: 'Không thể cập nhật serial' })
   }
 }
@@ -189,6 +196,110 @@ export async function deleteSerial(req, res) {
     res.status(500).json({ error: 'Không thể xóa serial' })
   }
 }
+
+// Thêm/Import serial linh kiện: tự tìm-hoặc-tạo loại thiết bị theo (tên, hãng, model),
+// thêm serial kèm bảo hành riêng, gắn máy cha theo parent_serial_id hoặc parent_serial_no.
+// Body: [{ name, brand, model, serial_no, warranty_from, warranty_to, parent_serial_id?, parent_serial_no? }]
+export async function importComponentSerials(req, res) {
+  const contractId = parseInt(req.params.id)
+  const items = req.body
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Không có dữ liệu để thêm' })
+  }
+  const client = await pool.connect()
+  let imported = 0
+  try {
+    await client.query('BEGIN')
+
+    // Bản đồ serial_no → id (serial đã có trong hợp đồng) để dò máy cha
+    const snMap = new Map()
+    const existing = await client.query(
+      `SELECT s.id, s.serial_no FROM equipment_serial s
+       JOIN contract_equipment e ON e.id = s.equipment_id
+       WHERE e.contract_out_id = $1`, [contractId])
+    existing.rows.forEach(r => snMap.set(r.serial_no, r.id))
+
+    const eqCache = new Map()
+    async function findOrCreateEquipment(name, brand, model) {
+      const key = `${name}||${brand||''}||${model||''}`
+      if (eqCache.has(key)) return eqCache.get(key)
+      const found = await client.query(
+        `SELECT id FROM contract_equipment
+          WHERE contract_out_id=$1 AND name=$2
+            AND COALESCE(brand,'')=COALESCE($3,'') AND COALESCE(model,'')=COALESCE($4,'') LIMIT 1`,
+        [contractId, name, brand, model])
+      let id = found.rows[0]?.id
+      if (!id) {
+        const ins = await client.query(
+          `INSERT INTO contract_equipment (contract_out_id, name, brand, model, quantity, has_serial)
+           VALUES ($1,$2,$3,$4,1,true) RETURNING id`,
+          [contractId, name, brand, model])
+        id = ins.rows[0].id
+      }
+      eqCache.set(key, id)
+      return id
+    }
+
+    const pendingParents = []
+    for (const it of items) {
+      const name = (it.name || '').trim()
+      const sn   = (it.serial_no || '').trim()
+      if (!name || !sn) continue
+      const eqId = await findOrCreateEquipment(name, (it.brand||'').trim()||null, (it.model||'').trim()||null)
+      const directParent = it.parent_serial_id || null
+      const ins = await client.query(
+        `INSERT INTO equipment_serial (equipment_id, serial_no, warranty_from, warranty_to, parent_serial_id)
+         VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+        [eqId, sn, it.warranty_from||null, it.warranty_to||null, directParent])
+      const newId = ins.rows[0].id
+      snMap.set(sn, newId)
+      if (!directParent && it.parent_serial_no && String(it.parent_serial_no).trim())
+        pendingParents.push({ serialId: newId, parentSN: String(it.parent_serial_no).trim() })
+      imported++
+    }
+
+    for (const p of pendingParents) {
+      const pid = snMap.get(p.parentSN)
+      if (pid && pid !== p.serialId)
+        await client.query('UPDATE equipment_serial SET parent_serial_id=$1 WHERE id=$2', [pid, p.serialId])
+    }
+
+    await client.query('COMMIT')
+    res.json({ success: true, imported })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('importComponentSerials:', err)
+    res.status(500).json({ error: 'Lỗi khi thêm serial linh kiện' })
+  } finally {
+    client.release()
+  }
+}
+
+// Sửa bảo hành HÀNG LOẠT (1 truy vấn). Để trống trường nào thì giữ nguyên trường đó.
+// Body: { ids:[...], warranty_from?, warranty_to? }
+async function bulkWarranty(table, req, res) {
+  const { ids, warranty_from, warranty_to } = req.body
+  if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Chưa chọn dòng nào' })
+  const sets = [], params = []
+  let i = 1
+  if (warranty_from) { sets.push(`warranty_from=$${i++}`); params.push(warranty_from) }
+  if (warranty_to)   { sets.push(`warranty_to=$${i++}`);   params.push(warranty_to) }
+  if (sets.length === 0) return res.status(400).json({ error: 'Chưa nhập ngày để cập nhật' })
+  if (table === 'contract_equipment') sets.push('updated_at=NOW()')
+  params.push(ids.map(Number))
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE ${table} SET ${sets.join(', ')} WHERE id = ANY($${i})`, params
+    )
+    res.json({ success: true, updated: rowCount })
+  } catch (err) {
+    console.error('bulkWarranty:', err)
+    res.status(500).json({ error: 'Không thể cập nhật bảo hành hàng loạt' })
+  }
+}
+
+export const bulkWarrantySerials   = (req, res) => bulkWarranty('equipment_serial', req, res)
+export const bulkWarrantyEquipment = (req, res) => bulkWarranty('contract_equipment', req, res)
 
 // ═══════════════════════════════════════════════════════════════
 // WARRANTY CASES

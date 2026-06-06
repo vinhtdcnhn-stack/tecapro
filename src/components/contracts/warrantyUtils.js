@@ -30,6 +30,45 @@ export function warrantyStatus(to) {
   return { label: 'Còn bảo hành', cls: 'wty-badge--active' }
 }
 
+// Hạn bảo hành hiệu lực của 1 serial: ưu tiên hạn riêng của serial, không có thì kế thừa thiết bị.
+export const effWarranty = (serial, eq) => ({
+  from: serial?.warranty_from || eq?.warranty_from || null,
+  to:   serial?.warranty_to   || eq?.warranty_to   || null,
+})
+
+// Gộp toàn bộ serial của các thiết bị thành 1 danh sách phẳng để quản lý/thống kê.
+export function flattenSerials(equipment) {
+  const out = []
+  for (const eq of equipment) {
+    for (const s of (eq.serials || [])) {
+      const eff = effWarranty(s, eq)
+      out.push({ ...s, equipment_id: eq.id, eqName: eq.name, brand: eq.brand, model: eq.model,
+                 effFrom: eff.from, effTo: eff.to })
+    }
+  }
+  return out
+}
+
+// Thống kê theo TỪNG serial; thiết bị không có serial tính là 1 đơn vị theo hạn của thiết bị.
+export function warrantyCounts(equipment) {
+  const today = new Date(new Date().toDateString())
+  const tos = []
+  for (const eq of equipment) {
+    const serials = eq.serials || []
+    if (serials.length > 0) serials.forEach(s => tos.push(effWarranty(s, eq).to))
+    else tos.push(eq.warranty_to || null)
+  }
+  let expiring = 0, expired = 0
+  for (const to of tos) {
+    if (!to) continue
+    const days = Math.ceil((new Date(to) - today) / 86400000)
+    if (days < 0) expired++
+    else if (days <= 30) expiring++
+  }
+  const totalSerials = equipment.reduce((s, e) => s + (e.serials?.length || 0), 0)
+  return { totalSerials, expiring, expired }
+}
+
 export function caseStatusCls(s) {
   return s === 'Tiếp nhận' ? 'cs--receive' : s === 'Đang xử lý' ? 'cs--progress' :
     s === 'Chờ phụ kiện' ? 'cs--waiting' : s === 'Hoàn thành' ? 'cs--done' : 'cs--closed'

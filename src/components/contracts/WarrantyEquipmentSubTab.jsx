@@ -2,8 +2,9 @@ import { useState } from 'react'
 import * as XLSX from 'xlsx'
 
 import { API } from '../../config/api'
-import { fmtDate, toISODate, warrantyStatus } from './warrantyUtils'
+import { fmtDate, toISODate, warrantyStatus, warrantyCounts } from './warrantyUtils'
 import EquipmentModal from './WarrantyEquipmentModal'
+import WarrantyBulkDateModal from './WarrantyBulkDateModal'
 
 // ── Equipment Sub-tab ─────────────────────────────────────────────────────────
 
@@ -14,6 +15,8 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
   const [editItem, setEditItem] = useState(null)
   const [importPreview, setImportPreview] = useState(null)
   const [importing, setImporting] = useState(false)
+  const [selected, setSelected] = useState(new Set())
+  const [showBulk, setShowBulk] = useState(false)
 
   const filtered = equipment.filter(e => {
     const t = search.toLowerCase()
@@ -21,14 +24,29 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
       e.model?.toLowerCase().includes(t) || e.location?.toLowerCase().includes(t)
   })
 
-  // Summary
-  const expired  = equipment.filter(e => e.warranty_to && new Date(e.warranty_to) < new Date()).length
-  const expiring = equipment.filter(e => {
-    if (!e.warranty_to) return false
-    const d = Math.ceil((new Date(e.warranty_to) - new Date()) / 86400000)
-    return d >= 0 && d <= 30
-  }).length
-  const totalSerials = equipment.reduce((s, e) => s + (e.serials?.length || 0), 0)
+  // Summary — tính theo TỪNG serial (serial có hạn riêng; thiết bị không serial tính theo hạn thiết bị)
+  const { totalSerials, expiring, expired } = warrantyCounts(equipment)
+
+  // ── Chọn & sửa bảo hành hàng loạt ──
+  const filteredIds = filtered.map(e => e.id)
+  const allChecked  = filteredIds.length > 0 && filteredIds.every(id => selected.has(id))
+  const toggleOne = (id) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleAll = () => setSelected(prev => {
+    const n = new Set(prev)
+    if (allChecked) filteredIds.forEach(id => n.delete(id))
+    else filteredIds.forEach(id => n.add(id))
+    return n
+  })
+  async function applyBulk({ warranty_from, warranty_to }) {
+    const res = await fetch(`${API}/equipment/bulk-warranty`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selected], warranty_from, warranty_to }),
+    })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error); return }
+    setShowBulk(false); setSelected(new Set())
+    await reload()
+  }
 
   function toggleExpand(id) {
     setExpanded(prev => {
@@ -227,12 +245,24 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
         </div>
       </div>
 
+      {/* Thanh chọn hàng loạt */}
+      {selected.size > 0 && (
+        <div className="wty-bulk-bar">
+          <span>Đã chọn <strong>{selected.size}</strong> thiết bị</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="wty-btn wty-btn-primary" onClick={() => setShowBulk(true)}>Sửa bảo hành hàng loạt</button>
+            <button className="wty-btn wty-btn-secondary" onClick={() => setSelected(new Set())}>Bỏ chọn</button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="wty-section">
         <div className="wty-table-wrap">
           <table className="wty-table">
             <thead>
               <tr>
+                <th style={{ width:32 }}><input type="checkbox" checked={allChecked} onChange={toggleAll} title="Chọn tất cả (theo bộ lọc)" /></th>
                 <th style={{ width:36 }}>#</th>
                 <th>Tên thiết bị</th>
                 <th>Hãng / Model</th>
@@ -247,7 +277,7 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan="10" className="wty-empty">
+                <tr><td colSpan="11" className="wty-empty">
                   Chưa có thiết bị nào. Nhấn <strong>Thêm thiết bị</strong> hoặc <strong>Import Excel</strong>.
                 </td></tr>
               ) : filtered.map((eq, idx) => {
@@ -255,6 +285,9 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
                 const isEx = expanded.has(eq.id)
                 return [
                   <tr key={eq.id} className={isEx ? 'row-expanded' : ''}>
+                    <td style={{ textAlign:'center' }}>
+                      <input type="checkbox" checked={selected.has(eq.id)} onChange={() => toggleOne(eq.id)} />
+                    </td>
                     <td style={{ textAlign:'center', color:'#9ca3af', fontSize:12 }}>{idx+1}</td>
                     <td><strong>{eq.name}</strong>{eq.note && <div style={{ fontSize:11, color:'#9ca3af' }}>{eq.note}</div>}</td>
                     <td><div style={{ fontSize:13 }}>{eq.brand||'—'}</div><div style={{ fontSize:11, color:'#6b7280' }}>{eq.model||'—'}</div></td>
@@ -290,7 +323,7 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
                   </tr>,
                   isEx && (
                     <tr key={`${eq.id}_expand`} className="wty-expand-row">
-                      <td colSpan="10">
+                      <td colSpan="11">
                         <SerialInlineManager
                           equipment={eq}
                           onAddSerial={sn => handleAddSerial(eq.id, sn)}
@@ -312,6 +345,9 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
           onSave={handleSave}
           onClose={() => setModal(false)}
         />
+      )}
+      {showBulk && (
+        <WarrantyBulkDateModal count={selected.size} onClose={() => setShowBulk(false)} onApply={applyBulk} />
       )}
     </>
   )
