@@ -147,6 +147,8 @@
 .wty-act.delete:hover { background: #fee2e2; }
 .wty-act.expand { background: #f0fdf4; color: #16a34a; }
 .wty-act.expand:hover { background: #dcfce7; }
+.wty-act.replace { background: #fff7ed; color: #ea580c; }
+.wty-act.replace:hover { background: #ffedd5; }
 
 /* ── Empty / Loading ───────────────────────────────────────────────────── */
 .wty-empty   { text-align: center; padding: 36px; color: #9ca3af; font-size: 13px; }
@@ -279,6 +281,13 @@
 .wty-table td .wty-badge { display: inline-block; }
 .wty-table td input.ser-inp + .wty-badge { display: block; margin-top: 3px; width: fit-content; }
 .wty-table tr.row-dirty { box-shadow: inset 3px 0 0 #f59e0b; }
+/* Serial đã thay thế / ngừng hoạt động: xám mờ nhưng vẫn giữ trong danh sách */
+.wty-table tr.row-inactive { background: #f9fafb; opacity: .62; }
+.wty-table tr.row-inactive:hover { opacity: 1; }
+.ser-replaced-by { font-size: 11px; color: #ea580c; margin-top: 3px; }
+/* Modal thay thế */
+.wty-replace-old { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 13px; }
+.wty-replace-hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
 .ser-add-row { background: #f9fafb; }
 .ser-add-row td { padding-top: 8px; padding-bottom: 8px; }
 

@@ -18,7 +18,7 @@ export default function Header({ onChangePassword }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   function isActive(menu) {
-    if (menu.path === '/') return location.pathname === '/' || location.pathname === '/tracuu' || location.pathname === '/giaoban'
+    if (menu.path === '/') return location.pathname === '/' || location.pathname === '/giaoban'
     return location.pathname.startsWith(menu.path)
   }
 

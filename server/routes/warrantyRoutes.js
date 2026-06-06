@@ -1,7 +1,11 @@
 import { Router } from 'express'
 import * as c from '../controllers/warrantyController.js'
+import * as lookup from '../controllers/warrantyLookupController.js'
 
 const router = Router()
+
+// Tra cứu bảo hành theo serial
+router.get('/warranty-lookup', lookup.lookupSerial)
 
 // Equipment
 router.get('/contracts/:id/equipment',        c.getEquipment)
@@ -16,6 +20,8 @@ router.get('/equipment/:id/serials',   c.getSerials)
 router.post('/equipment/:id/serials',  c.createSerial)
 router.post('/contracts/:id/serials/import', c.importComponentSerials)
 router.put('/serials/bulk-warranty',   c.bulkWarrantySerials)
+router.post('/serials/:id/replace',    lookup.replaceSerial)
+router.post('/delivery-serials/:id/replace', lookup.replaceDeliverySerial)
 router.put('/serials/:id',             c.updateSerial)
 router.delete('/serials/:id',          c.deleteSerial)
 

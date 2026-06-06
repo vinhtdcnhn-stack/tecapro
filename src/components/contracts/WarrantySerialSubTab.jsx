@@ -3,6 +3,9 @@ import { useState } from 'react'
 import { API } from '../../config/api'
 import { SERIAL_STATUSES, warrantyStatus, flattenSerials, toISODate } from './warrantyUtils'
 import WarrantyBulkDateModal from './WarrantyBulkDateModal'
+import { ComponentModal, ReplaceSerialModal } from './SerialModals'
+
+const INACTIVE_STATUSES = ['Đã thay thế', 'Ngừng sử dụng']
 
 // ── Quản lý Serial: mỗi serial 1 dòng, có bảo hành riêng + gắn máy cha (tùy chọn) ──
 
@@ -16,8 +19,10 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
   const [importing, setImporting] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [showBulk, setShowBulk] = useState(false)
+  const [replaceFor, setReplaceFor] = useState(null)   // serial đang được thay thế
 
   const all = flattenSerials(equipment)
+  const snById = new Map(all.map(s => [String(s.id), s.serial_no]))
 
   const parentLabel = (id) => {
     const p = all.find(s => String(s.id) === String(id))
@@ -253,8 +258,9 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
                 </td></tr>
               ) : filtered.map((row, idx) => {
                 const ws = warrantyStatus(val(row, 'warranty_to') || row.effTo)
+                const inactive = INACTIVE_STATUSES.includes(row.status)
                 return (
-                  <tr key={row.id} className={dirty(row.id) ? 'row-dirty' : ''}>
+                  <tr key={row.id} className={`${dirty(row.id) ? 'row-dirty' : ''}${inactive ? ' row-inactive' : ''}`}>
                     <td style={{ textAlign: 'center' }}>
                       <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggleOne(row.id)} />
                     </td>
@@ -263,6 +269,11 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
                     <td>
                       <input className="ser-inp" value={val(row, 'serial_no')}
                         onChange={e => setF(row.id, 'serial_no', e.target.value)} />
+                      {row.replaced_by_serial_id && (
+                        <div className="ser-replaced-by" title="Đã thay bằng serial mới">
+                          ↳ thay bằng {snById.get(String(row.replaced_by_serial_id)) || `#${row.replaced_by_serial_id}`}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <div style={{ fontSize: 13 }}>{row.brand || '—'}</div>
@@ -302,6 +313,11 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
                             )}
                           </button>
                         )}
+                        {!row.replaced_by_serial_id && (
+                          <button className="wty-act replace" onClick={() => setReplaceFor(row)} title="Thay thế serial sau bảo hành">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l1.52 1.52A6.96 6.96 0 0 0 19 13c0-3.87-3.13-7-7-7zm0 12c-2.76 0-5-2.24-5-5 0-.65.13-1.26.36-1.83L5.84 9.65A6.96 6.96 0 0 0 5 13c0 3.87 3.13 7 7 7v3l4-4-4-4v3z"/></svg>
+                          </button>
+                        )}
                         <button className="wty-act delete" onClick={() => del(row)} title="Xóa">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                         </button>
@@ -321,73 +337,14 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
       {showBulk && (
         <WarrantyBulkDateModal count={selected.size} onClose={() => setShowBulk(false)} onApply={applyBulk} />
       )}
+      {replaceFor && (
+        <ReplaceSerialModal
+          serial={replaceFor}
+          endpoint={`${API}/serials/${replaceFor.id}/replace`}
+          onClose={() => setReplaceFor(null)}
+          onDone={async () => { setReplaceFor(null); await reload() }}
+        />
+      )}
     </>
-  )
-}
-
-// ── Modal thêm 1 linh kiện ────────────────────────────────────────────────────
-
-function ComponentModal({ equipment, serials, onClose, onSave }) {
-  const [f, setF] = useState({ name: '', brand: '', model: '', serial_no: '',
-    warranty_from: '', warranty_to: '', parent_serial_id: '' })
-  const [saving, setSaving] = useState(false)
-  const set = (k, v) => setF(prev => ({ ...prev, [k]: v }))
-
-  async function submit() {
-    if (!f.name.trim() || !f.serial_no.trim()) { alert('Nhập tên linh kiện và serial.'); return }
-    setSaving(true)
-    await onSave({ ...f, warranty_from: f.warranty_from || null, warranty_to: f.warranty_to || null,
-      parent_serial_id: f.parent_serial_id || null })
-    setSaving(false)
-  }
-
-  return (
-    <div className="wty-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="wty-modal">
-        <div className="wty-modal-header">
-          <h3>Thêm linh kiện</h3>
-          <button className="wty-modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="wty-modal-body">
-          <div className="wty-form-row">
-            <div className="wty-form-group full">
-              <label>Tên linh kiện *</label>
-              <input list="eq-names" value={f.name} onChange={e => set('name', e.target.value)} placeholder="VD: Ổ cứng SSD 960GB" />
-              <datalist id="eq-names">{equipment.map(eq => <option key={eq.id} value={eq.name} />)}</datalist>
-            </div>
-          </div>
-          <div className="wty-form-row">
-            <div className="wty-form-group"><label>Hãng</label>
-              <input value={f.brand} onChange={e => set('brand', e.target.value)} placeholder="VD: Samsung, Intel..." /></div>
-            <div className="wty-form-group"><label>Model</label>
-              <input value={f.model} onChange={e => set('model', e.target.value)} /></div>
-          </div>
-          <div className="wty-form-row">
-            <div className="wty-form-group full"><label>Serial *</label>
-              <input value={f.serial_no} onChange={e => set('serial_no', e.target.value)} /></div>
-          </div>
-          <div className="wty-form-row">
-            <div className="wty-form-group"><label>Bảo hành từ</label>
-              <input type="date" value={f.warranty_from} onChange={e => set('warranty_from', e.target.value)} /></div>
-            <div className="wty-form-group"><label>Bảo hành đến</label>
-              <input type="date" value={f.warranty_to} onChange={e => set('warranty_to', e.target.value)} /></div>
-          </div>
-          <div className="wty-form-row">
-            <div className="wty-form-group full"><label>Thuộc máy (tùy chọn)</label>
-              <select value={f.parent_serial_id} onChange={e => set('parent_serial_id', e.target.value)}>
-                <option value="">— Rời / chưa rõ —</option>
-                {serials.map(o => <option key={o.id} value={o.id}>{o.eqName} – {o.serial_no}</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
-        <div className="wty-modal-footer">
-          <button className="wty-modal-btn cancel" onClick={onClose}>Hủy</button>
-          <button className="wty-modal-btn save" onClick={submit} disabled={saving}>
-            {saving ? 'Đang lưu...' : 'Thêm'}
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }

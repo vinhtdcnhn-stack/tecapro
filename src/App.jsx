@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage'
 import QldaPage from './pages/QldaPage'
 import QldaDetailPage from './pages/QldaDetailPage'
 import QuantriPage from './pages/QuantriPage'
+import WarrantyLookupPage from './pages/WarrantyLookupPage'
 import LoginPage from './pages/LoginPage'
 import './App.css'
 
@@ -49,7 +50,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
-        <Route path="/tracuu" element={<HomePage />} />
+        <Route path="/tracuu" element={<RequireAuth><WarrantyLookupPage /></RequireAuth>} />
         <Route path="/giaoban" element={<HomePage />} />
         <Route path="/qlda" element={<QldaPage />} />
         <Route path="/qlda/:id" element={<QldaDetailPage />} />
