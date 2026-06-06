@@ -31,11 +31,14 @@ const addDays = (isoDate, n) => {
   return d.toISOString().slice(0, 10)
 }
 
-// "Ngày dự kiến (động)": mốc tự nhảy theo ngày thực tế đã ký.
+// "Ngày dự kiến (động)": tính từ NGÀY THỰC TẾ của mốc gốc.
 //  - offset_days tính từ "mốc gốc" (base_bb_type_id) do user chọn:
-//      dự kiến = (ngày thực tế của BB gốc nếu đã ký, nếu chưa thì ngày dự kiến của BB gốc) + offset_days.
+//      dự kiến = ngày thực tế của BB gốc + offset_days.
+//      → Mốc gốc CHƯA có ngày thực tế thì để TRỐNG (không dự đoán theo ngày dự kiến của mốc gốc).
+//      → Xóa ngày thực tế của mốc gốc thì các BB phụ thuộc cũng trống theo.
 //  - Không chọn mốc gốc → mặc định lấy biên bản liền trước (theo sort_order).
 //  - base_anchor='contract' → tính từ ngày ký hợp đồng (contractDate) + offset_days.
+//  - Biên bản đầu tiên (không có mốc gốc) → lấy mốc theo HĐ / ngày thực tế của chính nó.
 // rows phải theo đúng thứ tự sort_order. Trả về map _key → ngày (yyyy-mm-dd) hoặc null.
 export function computeForecasts(rows, contractDate = null) {
   const anchorDate = contractDate ? contractDate.slice(0, 10) : null
@@ -46,45 +49,32 @@ export function computeForecasts(rows, contractDate = null) {
     if (t != null && t !== '' && !byType.has(String(t))) byType.set(String(t), r)
   })
 
-  const memo = {}
-  const visiting = new Set()
+  const actualOf = (r) => (r && r.actual_date ? r.actual_date.slice(0, 10) : null)
 
-  // Ngày tham chiếu của một dòng = ngày thực tế nếu đã ký, ngược lại là ngày dự kiến.
-  const refOf = (r) => (r.actual_date ? r.actual_date.slice(0, 10) : forecastOf(r))
-
-  function forecastOf(r) {
-    if (r._key in memo) return memo[r._key]
-    if (visiting.has(r._key)) return null            // chống tham chiếu vòng
-    visiting.add(r._key)
-
-    const actual  = r.actual_date  ? r.actual_date.slice(0, 10)  : null
-    const planned = r.planned_date ? r.planned_date.slice(0, 10) : null
-    const offset  = parseInt(r.offset_days, 10)
-    const baseRow = (r.base_bb_type_id != null && r.base_bb_type_id !== '')
+  const out = {}
+  rows.forEach((r, idx) => {
+    const planned   = r.planned_date ? r.planned_date.slice(0, 10) : null
+    const offset    = parseInt(r.offset_days, 10)
+    const hasOffset = Number.isFinite(offset)
+    const baseRow   = (r.base_bb_type_id != null && r.base_bb_type_id !== '')
       ? byType.get(String(r.base_bb_type_id)) : null
 
     let result
-    if (r.base_anchor === 'contract' && anchorDate && Number.isFinite(offset)) {
+    if (r.base_anchor === 'contract' && anchorDate && hasOffset) {
       result = addDays(anchorDate, offset)
-    } else if (baseRow && baseRow._key !== r._key && Number.isFinite(offset)) {
-      const baseRef = refOf(baseRow)
-      result = baseRef ? addDays(baseRef, offset) : (actual || planned)
+    } else if (baseRow && baseRow._key !== r._key) {
+      const baseActual = actualOf(baseRow)
+      result = (baseActual && hasOffset) ? addDays(baseActual, offset) : null
+    } else if (idx > 0) {
+      // Mặc định: tính từ biên bản liền trước, theo ngày thực tế của nó.
+      const prevActual = actualOf(rows[idx - 1])
+      result = (prevActual && hasOffset) ? addDays(prevActual, offset) : null
     } else {
-      const idx = rows.indexOf(r)
-      if (idx <= 0)                       result = actual || planned
-      else if (Number.isFinite(offset)) {
-        const prevRef = refOf(rows[idx - 1])
-        result = prevRef ? addDays(prevRef, offset) : (actual || planned)
-      } else                              result = actual || planned
+      // Biên bản đầu tiên: không có mốc gốc → lấy Ngày theo HĐ (không phụ thuộc ngày thực tế của chính nó).
+      result = planned
     }
-
-    visiting.delete(r._key)
-    memo[r._key] = result
-    return result
-  }
-
-  const out = {}
-  rows.forEach(r => { out[r._key] = forecastOf(r) })
+    out[r._key] = result
+  })
   return out
 }
 
