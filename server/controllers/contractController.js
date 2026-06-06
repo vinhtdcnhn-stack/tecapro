@@ -330,8 +330,6 @@ export async function updateContract(req, res) {
     project_name,
     customer_id,
     tender_name,
-    amount_before_vat,
-    amount_after_vat,
     currency_code,
     exchange_rate,
     terms,
@@ -373,7 +371,7 @@ export async function updateContract(req, res) {
     try {
       await client.query('BEGIN')
 
-      // Update hợp đồng
+      // Update hợp đồng (amount_before_vat/after_vat lấy từ bảng giá BOQ, không sửa ở đây)
       const updateContractSql = `
         UPDATE contract_out SET
           contract_no = $1,
@@ -381,14 +379,12 @@ export async function updateContract(req, res) {
           project_name = $3,
           customer_id = $4,
           tender_name = $5,
-          amount_before_vat = $6,
-          amount_after_vat = $7,
-          currency_code = $8,
-          exchange_rate = $9,
-          payment_term = $10,
-          status = $11,
+          currency_code = $6,
+          exchange_rate = $7,
+          payment_term = $8,
+          status = $9,
           updated_at = NOW()
-        WHERE id = $12
+        WHERE id = $10
         RETURNING id
       `
 
@@ -398,8 +394,6 @@ export async function updateContract(req, res) {
         project_name.trim(),
         parseInt(customer_id),
         tender_name?.trim() || null,
-        parseFloat(amount_before_vat) || 0,
-        parseFloat(amount_after_vat) || 0,
         currency_code || 'VND',
         exchange_rate ? parseFloat(exchange_rate) : null,
         terms?.trim() || null,

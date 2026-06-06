@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './ContractReceivableTab.css'
 
 import { API } from '../../config/api'
-import { fmtVND, fmtAmt, calcVND, useRows } from './receivableUtils'
+import { fmtVND, fmtAmt, useRows } from './receivableUtils'
 import ScheduleSection from './ReceivableScheduleSection'
-import PaymentSection from './ReceivablePaymentSection'
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -21,31 +20,38 @@ export default function ContractReceivableTab({ contractId }) {
   // ── Giá trị hợp đồng (từ BOQ hoặc contract_out) ────────────────────────────
   const [contractRef, setContractRef] = useState(null) // { boqTotal, currency, amountAfterVat }
 
-  useEffect(() => {
-    async function loadContractRef() {
-      try {
-        // Lấy tổng BOQ (ưu tiên vì phản ánh bảng giá thực tế)
-        const [boqRes, contractRes] = await Promise.all([
-          fetch(`${API}/contracts/${contractId}/boq`),
-          fetch(`${API}/contracts/${contractId}`),
-        ])
-        const boqData      = await boqRes.json()
-        const contractData = await contractRes.json()
+  const loadContractRef = useCallback(async () => {
+    try {
+      // Lấy tổng BOQ (ưu tiên vì phản ánh bảng giá thực tế)
+      const [boqRes, contractRes] = await Promise.all([
+        fetch(`${API}/contracts/${contractId}/boq`),
+        fetch(`${API}/contracts/${contractId}`),
+      ])
+      const boqData      = await boqRes.json()
+      const contractData = await contractRes.json()
 
-        const boqTotal = Array.isArray(boqData)
-          ? boqData.reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
-          : 0
+      const boqTotal = Array.isArray(boqData)
+        ? boqData.reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
+        : 0
 
-        setContractRef({
-          boqTotal,
-          contractTotal: parseFloat(contractData.amount_after_vat) || 0,
-          currency: contractData.currency_code || 'VND',
-          exchangeRate: parseFloat(contractData.exchange_rate) || 1,
-        })
-      } catch (e) { console.error('loadContractRef:', e) }
-    }
-    loadContractRef()
+      setContractRef({
+        boqTotal,
+        contractTotal: parseFloat(contractData.amount_after_vat) || 0,
+        currency: contractData.currency_code || 'VND',
+        exchangeRate: parseFloat(contractData.exchange_rate) || 1,
+      })
+    } catch (e) { console.error('loadContractRef:', e) }
   }, [contractId])
+
+  useEffect(() => { loadContractRef() }, [loadContractRef])
+
+  // Tỷ giá dùng chung: sau khi 1 khoản đồng bộ tỷ giá HĐ, backend cập nhật mọi khoản
+  // → tải lại tham chiếu HĐ + bảng phải thu để các dòng khác hiển thị tỷ giá mới.
+  const reloadSched = sched.reload
+  const handleRateSynced = useCallback(() => {
+    loadContractRef()
+    reloadSched()
+  }, [loadContractRef, reloadSched])
 
   // Tổng tham chiếu: dùng BOQ nếu có, fallback về contract_out
   const refTotal = contractRef
@@ -56,19 +62,11 @@ export default function ContractReceivableTab({ contractId }) {
 
   const refCur = contractRef?.currency || 'VND'
 
-  // VND equivalents — dùng cho tính tỷ lệ % và truyền vào PaymentSection
-  const totalExpectedVND = sched.rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
-  const totalReceivedVND = pay.rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
-  const pct              = totalExpectedVND > 0 ? Math.min(100, (totalReceivedVND / totalExpectedVND) * 100) : 0
-
-  // Hiển thị theo đồng tiền hợp đồng
-  const totalExpected = refCur === 'VND'
-    ? totalExpectedVND
-    : sched.rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
-  const totalReceived = refCur === 'VND'
-    ? totalReceivedVND
-    : pay.rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
-  const balance = totalExpected - totalReceived
+  // Mọi tính toán dựa trên GIÁ TRỊ GỐC (đồng tiền HĐ), không dựa vào giá trị quy đổi VNĐ.
+  const totalExpected = sched.rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+  const totalReceived = pay.rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+  const balance       = totalExpected - totalReceived
+  const pct           = totalExpected > 0 ? Math.min(100, (totalReceived / totalExpected) * 100) : 0
 
   if (sched.loading && pay.loading) return <div className="recv-loading">Đang tải...</div>
 
@@ -116,10 +114,10 @@ export default function ContractReceivableTab({ contractId }) {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
           <span>
             Tổng giá trị HĐ (từ {contractRef.boqTotal > 0 ? 'bảng giá BOQ' : 'thông tin HĐ'}):&nbsp;
-            <strong>{fmtVND(refTotal)} đ</strong>
+            <strong>{fmtAmt(refTotal, refCur)} {refCur === 'VND' ? 'đ' : refCur}</strong>
             {contractRef.currency !== 'VND' && (
               <span className="recv-ref-sub">
-                &nbsp;≈ {fmtVND(refTotal / contractRef.exchangeRate)} {contractRef.currency}
+                &nbsp;≈ {fmtVND(refTotal * contractRef.exchangeRate)} đ
                 &nbsp;(tỷ giá {contractRef.exchangeRate})
               </span>
             )}
@@ -131,7 +129,7 @@ export default function ContractReceivableTab({ contractId }) {
         </div>
       )}
 
-      {/* ── Section 1: Phải thu theo ĐKTT HĐ ── */}
+      {/* ── Phải thu theo ĐKTT HĐ (kèm tiền về liên kết) ── */}
       <ScheduleSection
         rows={sched.rows}
         setRows={sched.setRows}
@@ -139,16 +137,9 @@ export default function ContractReceivableTab({ contractId }) {
         refTotal={refTotal}
         refCurrency={contractRef?.currency || 'VND'}
         refExRate={contractRef?.exchangeRate || 1}
-      />
-
-      {/* ── Section 2: Tiền về thực tế ── */}
-      <PaymentSection
-        rows={pay.rows}
-        setRows={pay.setRows}
-        contractId={contractId}
-        totalExpected={totalExpectedVND}
-        refCurrency={contractRef?.currency || 'VND'}
-        refExRate={contractRef?.exchangeRate || 1}
+        payRows={pay.rows}
+        setPayRows={pay.setRows}
+        onRateSynced={handleRateSynced}
       />
     </div>
   )

@@ -15,6 +15,7 @@ const GUARANTEE_TYPES = [
 const STATUSES = ['Còn hiệu lực', 'Sắp hết hạn', 'Đã hết hạn', 'Đã hoàn trả']
 
 const fmtVND  = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
+const fmtPct  = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
 
 let _ctr = 0
 const tmpId = () => `tmp_${++_ctr}`
@@ -47,13 +48,24 @@ export default function ContractGuaranteeTab({ contractId }) {
   const [rows, setRows]         = useState([])
   const [loading, setLoading]   = useState(true)
   const [contractCurrency, setContractCurrency] = useState('VND')
+  const [contractValue, setContractValue] = useState(0)
 
   useEffect(() => {
     fetch(`${API}/contracts/${contractId}`)
       .then(r => r.json())
-      .then(d => { if (d.currency_code) setContractCurrency(d.currency_code) })
+      .then(d => {
+        if (d.currency_code) setContractCurrency(d.currency_code)
+        setContractValue(parseFloat(d.amount_after_vat) || 0)
+      })
       .catch(() => {})
   }, [contractId])
+
+  // % giá trị bảo lãnh so với giá trị hợp đồng (sau VAT) — tự tính, chỉ để đối chiếu
+  const pctOf = (amount) => {
+    const a = parseFloat(amount) || 0
+    if (!(contractValue > 0) || a === 0) return null
+    return (a / contractValue) * 100
+  }
 
   const load = useCallback(async () => {
     try {
@@ -167,6 +179,7 @@ export default function ContractGuaranteeTab({ contractId }) {
                 <th className="th-stt">#</th>
                 <th className="th-type">Loại bảo lãnh</th>
                 <th className="th-amount">Giá trị ({contractCurrency})</th>
+                <th className="th-pct" title="Tự tính: giá trị bảo lãnh / giá trị hợp đồng sau VAT">% so với GTHĐ</th>
                 <th className="th-date">Ngày phát hành</th>
                 <th className="th-date">Ngày hết hạn</th>
                 <th className="th-status">Trạng thái</th>
@@ -177,7 +190,7 @@ export default function ContractGuaranteeTab({ contractId }) {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="guar-empty">
+                  <td colSpan="9" className="guar-empty">
                     Chưa có bảo lãnh nào. Nhấn <strong>Thêm bảo lãnh</strong> để bắt đầu.
                   </td>
                 </tr>
@@ -217,6 +230,13 @@ export default function ContractGuaranteeTab({ contractId }) {
                         placeholder="0"
                         onChange={e => set(row._key, 'amount', e.target.value)}
                       />
+                    </td>
+
+                    <td className="td-pct">
+                      {pctOf(row.amount) !== null
+                        ? <span className="pct-badge">{fmtPct(pctOf(row.amount))}</span>
+                        : <span className="pct-empty" title={contractValue > 0 ? 'Nhập giá trị bảo lãnh' : 'Chưa có giá trị hợp đồng (bảng giá)'}>—</span>
+                      }
                     </td>
 
                     <td>
@@ -272,6 +292,11 @@ export default function ContractGuaranteeTab({ contractId }) {
                 <tr>
                   <td colSpan="2" className="totals-label">TỔNG GIÁ TRỊ</td>
                   <td style={{ fontWeight: 600 }}>{fmtVND(totalAmt)}</td>
+                  <td className="td-pct">
+                    {pctOf(totalAmt) !== null
+                      ? <span className="pct-badge">{fmtPct(pctOf(totalAmt))}</span>
+                      : <span className="pct-empty">—</span>}
+                  </td>
                   <td colSpan="5" />
                 </tr>
               </tfoot>

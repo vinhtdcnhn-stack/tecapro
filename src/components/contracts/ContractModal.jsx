@@ -19,8 +19,6 @@ export default function ContractModal({
     project_name: '',
     customer_id: '',
     tender_name: '',
-    amount_before_vat: '',
-    amount_after_vat: '',
     currency_code: 'VND',
     exchange_rate: '',
     terms: '',
@@ -51,8 +49,6 @@ export default function ContractModal({
           project_name: editData.project_name || '',
           customer_id: editData.customer_id || '',
           tender_name: editData.tender_name || '',
-          amount_before_vat: editData.amount_before_vat || '',
-          amount_after_vat: editData.amount_after_vat || '',
           currency_code: editData.currency_code || 'VND',
           exchange_rate: editData.exchange_rate || '',
           terms: editData.terms || '',
@@ -85,8 +81,6 @@ export default function ContractModal({
       project_name: '',
       customer_id: '',
       tender_name: '',
-      amount_before_vat: '',
-      amount_after_vat: '',
       currency_code: 'VND',
       exchange_rate: '',
       terms: '',
@@ -192,8 +186,6 @@ export default function ContractModal({
       ...formData,
       pm_primary_id: formData.pm_team[0] || currentUser?.id,
       pm_team: formData.pm_team,
-      amount_before_vat: parseFloat(formData.amount_before_vat) || 0,
-      amount_after_vat: parseFloat(formData.amount_after_vat) || 0,
       exchange_rate: parseFloat(formData.exchange_rate) || null
     }
 
@@ -280,27 +272,14 @@ export default function ContractModal({
             </div>
 
             <div className="form-row">
-              <div className="form-group" style={{ flex: 1 }}>
-                <label>Giá trị hợp đồng trước VAT</label>
-                <input
-                  type="number"
-                  value={formData.amount_before_vat}
-                  onChange={(e) => updateField('amount_before_vat', e.target.value)}
-                  placeholder="0"
-                  min="0"
-                  step="any"
-                />
-              </div>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label>Giá trị hợp đồng sau VAT</label>
-                <input
-                  type="number"
-                  value={formData.amount_after_vat}
-                  onChange={(e) => updateField('amount_after_vat', e.target.value)}
-                  placeholder="0"
-                  min="0"
-                  step="any"
-                />
+              <div className="form-group full-width">
+                <p style={{
+                  margin: 0, padding: '8px 12px', fontSize: 13, lineHeight: 1.5,
+                  color: '#1d4ed8', background: '#eff6ff',
+                  border: '1px solid #bfdbfe', borderRadius: 7,
+                }}>
+                  ℹ Giá trị hợp đồng (trước/sau VAT) được tự động tính từ phần <strong>Bảng giá</strong>.
+                </p>
               </div>
             </div>
 

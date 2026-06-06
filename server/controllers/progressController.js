@@ -94,7 +94,7 @@ export async function getProgress(req, res) {
 export async function createProgress(req, res) {
   try {
     const { contractId } = req.params
-    const { bb_type_id, planned_date, actual_date, reason, penalty_note } = req.body
+    const { bb_type_id, planned_date, actual_date, reason, penalty_note, offset_days, base_bb_type_id, base_anchor } = req.body
 
     const { rows: mx } = await pool.query(
       'SELECT COALESCE(MAX(sort_order), 0) AS m FROM public.contract_out_progress WHERE contract_out_id = $1',
@@ -104,12 +104,14 @@ export async function createProgress(req, res) {
 
     const { rows } = await pool.query(`
       INSERT INTO public.contract_out_progress
-        (contract_out_id, bb_type_id, sort_order, planned_date, actual_date, reason, penalty_note)
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
+        (contract_out_id, bb_type_id, sort_order, planned_date, actual_date, reason, penalty_note, offset_days, base_bb_type_id, base_anchor)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *
     `, [contractId, bb_type_id || null, sortOrder,
         planned_date || null, actual_date || null,
-        reason || '', penalty_note || ''])
+        reason || '', penalty_note || '',
+        offset_days === '' || offset_days == null ? null : parseInt(offset_days, 10),
+        base_bb_type_id || null, base_anchor || null])
 
     // Re-fetch with type info
     const { rows: full } = await pool.query(
@@ -124,20 +126,26 @@ export async function createProgress(req, res) {
 
 export async function updateProgress(req, res) {
   try {
-    const { bb_type_id, planned_date, actual_date, reason, penalty_note } = req.body
+    const { bb_type_id, planned_date, actual_date, reason, penalty_note, offset_days, base_bb_type_id, base_anchor } = req.body
 
     const { rows } = await pool.query(`
       UPDATE public.contract_out_progress SET
-        bb_type_id   = $1,
-        planned_date = $2,
-        actual_date  = $3,
-        reason       = $4,
-        penalty_note = $5,
-        updated_at   = now()
-      WHERE id = $6
+        bb_type_id      = $1,
+        planned_date    = $2,
+        actual_date     = $3,
+        reason          = $4,
+        penalty_note    = $5,
+        offset_days     = $6,
+        base_bb_type_id = $7,
+        base_anchor     = $8,
+        updated_at      = now()
+      WHERE id = $9
       RETURNING *
     `, [bb_type_id || null, planned_date || null, actual_date || null,
-        reason || '', penalty_note || '', req.params.id])
+        reason || '', penalty_note || '',
+        offset_days === '' || offset_days == null ? null : parseInt(offset_days, 10),
+        base_bb_type_id || null, base_anchor || null,
+        req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
 

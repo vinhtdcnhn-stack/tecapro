@@ -20,6 +20,38 @@ export function isOverdue(dueDate) {
   return new Date(dueDate) < new Date(new Date().toDateString())
 }
 
+// Trạng thái + màu của một khoản phải thu, dựa vào tiến độ thu thực tế & thời hạn.
+//  - Còn thiếu <= 0 (đã thu đủ): so thời hạn thu với NGÀY NHẬN gần nhất.
+//  - Còn thiếu  > 0 (chưa đủ):   so thời hạn thu với NGÀY HIỆN TẠI.
+export function receivableStatus(row, linkedPayments = []) {
+  const schedAmt = parseFloat(row.amount) || 0
+  if (schedAmt <= 0) return null
+
+  const received = linkedPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+  const shortage = schedAmt - received
+  const due      = row.due_date ? new Date(row.due_date.slice(0, 10)) : null
+  const today    = new Date(new Date().toDateString())
+  const daysBetween = (a, b) => Math.round((a - b) / 86400000)
+
+  if (shortage <= 0) {
+    const dates  = linkedPayments.map(p => p.payment_date).filter(Boolean).sort()
+    const latest = dates.length ? new Date(dates[dates.length - 1].slice(0, 10)) : null
+    if (due && latest && latest > due)
+      return { key: 'paid-late', label: `Đã thu đủ · trễ ${daysBetween(latest, due)} ngày`, color: 'amber' }
+    return { key: 'paid', label: 'Đã thu đủ', color: 'green' }
+  }
+
+  if (due && due < today) {
+    const days = daysBetween(today, due)
+    return received > 0
+      ? { key: 'overdue-partial', label: `Quá hạn ${days} ngày · thu một phần`, color: 'red' }
+      : { key: 'overdue', label: `Quá hạn ${days} ngày`, color: 'red' }
+  }
+  if (received > 0)
+    return { key: 'partial', label: 'Đang thu', color: 'blue' }
+  return { key: 'pending', label: 'Chưa đến hạn', color: 'gray' }
+}
+
 let _ctr = 0
 export const tmpId = () => `tmp_${++_ctr}`
 

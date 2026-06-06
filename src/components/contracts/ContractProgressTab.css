@@ -107,11 +107,31 @@
 
 .th-stt    { width: 44px; text-align: center !important; }
 .th-type   { min-width: 200px; }
+.th-offset { width: 196px; text-align: center !important; }
 .th-date   { width: 140px; }
 .th-status { width: 140px; }
 .th-reason { min-width: 180px; }
 .th-penalty { width: 160px; }
 .th-action { width: 72px; }
+
+/* ── Số ngày + Ngày dự kiến (động) ────────────────────────────────────────── */
+
+.offset-cell { display: flex; align-items: center; gap: 4px; }
+.offset-cell .offset-days { width: 52px; text-align: center; flex: 0 0 auto; }
+.offset-cell .offset-from { font-size: 11px; color: #94a3b8; flex: 0 0 auto; }
+.offset-cell .offset-base { flex: 1 1 auto; min-width: 64px; padding-left: 4px !important; padding-right: 2px !important; }
+
+.td-forecast { white-space: nowrap; }
+.td-forecast .forecast-date { font-weight: 600; color: #334155; font-variant-numeric: tabular-nums; }
+.td-forecast .forecast-tag {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.forecast-tag.forecast-soon    { color: #b45309; }
+.forecast-tag.forecast-overdue { color: #dc2626; }
 
 /* ── Row status colors ────────────────────────────────────────────────────── */
 

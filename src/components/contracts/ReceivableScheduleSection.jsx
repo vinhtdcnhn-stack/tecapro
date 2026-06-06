@@ -1,39 +1,35 @@
+import { Fragment } from 'react'
 import { API } from '../../config/api'
-import { fmtVND, calcVND, isOverdue, tmpId, needsRate } from './receivableUtils'
+import { fmtVND, fmtAmt, calcVND, receivableStatus, tmpId, needsRate } from './receivableUtils'
 import RowActions from './ReceivableRowActions'
+import LinkedPaymentsRow from './LinkedPaymentsRow'
 
 // ── Schedule section ──────────────────────────────────────────────────────────
 
-export default function ScheduleSection({ rows, setRows, contractId, refTotal, refCurrency, refExRate }) {
+export default function ScheduleSection({ rows, setRows, contractId, refTotal, refCurrency, refExRate, payRows, setPayRows, onRateSynced }) {
+  // % theo HĐ tính trên GIÁ TRỊ GỐC; giữ tới 4 chữ số thập phân để khoản nhỏ trên tổng HĐ lớn vẫn hiện ra.
+  const ratioOf = (amt) => refTotal > 0 ? parseFloat((((parseFloat(amt) || 0) / refTotal) * 100).toFixed(4)) : ''
+
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r
       const updated = { ...r, [field]: val, _dirty: true }
 
-      // Nếu nhập % theo HĐ → tự tính amount và amount_vnd
+      // Nhập % theo HĐ → tự tính giá trị gốc (refTotal cùng đồng tiền HĐ)
       if (field === 'hd_ratio' && refTotal > 0) {
         const ratio = parseFloat(val) || 0
-        const vndAmt = refTotal * ratio / 100
-        updated.amount_vnd = vndAmt
-        // Tính ngược amount theo đồng tiền HĐ
-        if (updated.currency_code === 'VND') {
-          updated.amount = vndAmt
-        } else {
-          const rate = parseFloat(updated.exchange_rate) || refExRate || 1
-          updated.amount = vndAmt / rate
-        }
+        updated.amount = parseFloat((refTotal * ratio / 100).toFixed(2))
+        updated.amount_vnd = calcVND(updated.amount, updated.exchange_rate, updated.currency_code)
       }
 
+      // Nhập giá trị (hoặc đổi tỷ giá/đồng tiền) → tự tính ngược % theo HĐ
       if (field === 'amount' || field === 'exchange_rate' || field === 'currency_code') {
         const cur = field === 'currency_code' ? val : updated.currency_code
         const amt = field === 'amount'        ? val : updated.amount
         const rt  = field === 'exchange_rate' ? val : updated.exchange_rate
         updated.amount_vnd = calcVND(amt, rt, cur)
         if (cur === 'VND') updated.exchange_rate = 1
-        // Tính ngược % theo HĐ
-        if (refTotal > 0) {
-          updated.hd_ratio = parseFloat(((updated.amount_vnd / refTotal) * 100).toFixed(2))
-        }
+        if (field === 'amount') updated.hd_ratio = ratioOf(amt)
       }
       return updated
     }))
@@ -62,6 +58,8 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
       const saved  = await res.json()
       if (!res.ok) throw new Error(saved.error || 'Save failed')
       setRows(prev => prev.map(r => r._key === row._key ? { ...saved, _key: row._key, _dirty: false, _isNew: false, _saving: false } : r))
+      // Backend đã đồng bộ tỷ giá HĐ theo bản ghi này → tải lại tham chiếu để banner/UI cập nhật
+      if ((row.currency_code || refCurrency) !== 'VND' && parseFloat(row.exchange_rate) > 0) onRateSynced?.()
     } catch (e) {
       alert('Lỗi: ' + e.message)
       setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: false } : r))
@@ -77,7 +75,9 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
     } catch { alert('Không thể xóa.') }
   }
 
+  const totalAmt = rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
   const totalVND = rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
+  const unit     = refCurrency === 'VND' ? 'đ' : refCurrency
 
   return (
     <div className="recv-section">
@@ -109,12 +109,15 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
             {rows.length === 0 ? (
               <tr><td colSpan="10" className="recv-empty">Chưa có khoản phải thu nào. Nhấn <strong>Thêm khoản</strong>.</td></tr>
             ) : rows.map((row, idx) => {
-              const overdue = isOverdue(row.due_date)
+              const linked = payRows.filter(p => p._isNew ? p._schedKey === row._key : String(p.schedule_id) === String(row.id))
+              const status = row._isNew ? null : receivableStatus(row, linked)
+              const isLate = status?.color === 'red'
               const vnd = calcVND(row.amount, row.exchange_rate, row.currency_code)
-              const hdRatio = row.hd_ratio != null ? row.hd_ratio : (refTotal > 0 ? parseFloat(((vnd / refTotal) * 100).toFixed(2)) : '')
+              const hdRatio = row.hd_ratio != null ? row.hd_ratio : ratioOf(row.amount)
               return (
-                <tr key={row._key} className={[
-                  overdue && !row._isNew ? 'row-overdue' : '',
+                <Fragment key={row._key}>
+                <tr className={[
+                  status ? `recv-row--${status.color}` : '',
                   row._dirty  ? 'row-dirty'  : '',
                   row._isNew  ? 'row-new'    : '',
                   row._saving ? 'row-saving' : '',
@@ -130,9 +133,9 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
                   <td className="td-ratio2">
                     <div className="ratio-cell">
                       <input type="number" value={hdRatio === '' ? '' : hdRatio}
-                        min="0" max="100" step="0.01"
+                        min="0" max="100" step="0.0001"
                         placeholder={refTotal > 0 ? '30' : '—'}
-                        title={refTotal > 0 ? `Nhập % → tự tính giá trị từ tổng HĐ (${fmtVND(refTotal)} đ)` : 'Chưa có dữ liệu BOQ'}
+                        title={refTotal > 0 ? `Nhập % → tự tính giá trị từ tổng HĐ (${fmtAmt(refTotal, refCurrency)} ${unit})` : 'Chưa có dữ liệu BOQ'}
                         disabled={refTotal === 0}
                         onChange={e => set(row._key, 'hd_ratio', e.target.value)} />
                       <span className="ratio-pct">%</span>
@@ -157,25 +160,35 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
                   <td className="td-date">
                     <input type="date" value={row.due_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'due_date', e.target.value)} />
-                    {overdue && !row._isNew && <span className="overdue-tag">Quá hạn</span>}
+                    {status && <span className={`recv-status recv-status--${status.color}`}>{status.label}</span>}
                   </td>
                   <td className="td-reason">
                     <input type="text" value={row.delay_reason || ''}
-                      placeholder={overdue ? 'Nhập nguyên nhân...' : ''}
-                      className={overdue && !row.delay_reason && !row._isNew ? 'input-warn' : ''}
+                      placeholder={isLate ? 'Nhập nguyên nhân...' : ''}
+                      className={isLate && !row.delay_reason ? 'input-warn' : ''}
                       onChange={e => set(row._key, 'delay_reason', e.target.value)} />
                   </td>
                   <td className="td-act">
                     <RowActions row={row} onSave={saveRow} onDelete={deleteRow} />
                   </td>
                 </tr>
+                <LinkedPaymentsRow
+                  schedRow={row}
+                  payRows={payRows}
+                  setPayRows={setPayRows}
+                  contractId={contractId}
+                  colSpan={10}
+                />
+                </Fragment>
               )
             })}
           </tbody>
           {rows.filter(r => !r._isNew).length > 0 && (
             <tfoot>
               <tr className="totals-row">
-                <td colSpan="6" className="totals-label">TỔNG PHẢI THU</td>
+                <td colSpan="4" className="totals-label">TỔNG PHẢI THU</td>
+                <td className="td-num totals-amount">{fmtAmt(totalAmt, refCurrency)} {unit}</td>
+                <td />
                 <td className="td-vnd">{fmtVND(totalVND)}</td>
                 <td colSpan="3" />
               </tr>

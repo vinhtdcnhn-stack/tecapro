@@ -56,6 +56,12 @@ This is a full-stack app with a React/Vite frontend and an Express/Node.js backe
 
 **Styling** — Tailwind CSS + custom CSS (`App.css`, `src/index.css`). No component library.
 
+## Currency / Value Convention
+
+BOQ amounts (`contract_out_boq.unit_price`, `amount_before_vat`, `amount_after_vat`) and the synced contract total (`contract_out.amount_after_vat`) are stored in the **contract's own currency** (nguyên tệ, e.g. USD) — **not** VND. The contract's `currency_code` + `exchange_rate` describe how to convert that native value to VND for display only.
+
+Consequently, the Receivable tab (`ContractReceivableTab`, `ReceivableScheduleSection`, `LinkedPaymentsRow`) must do **all** calculations on the native `amount` values — totals, "% theo HĐ" (`amount / refTotal × 100`), tỷ lệ thu, and the Phải thu/Đã thu/Còn thiếu comparison. The "Quy đổi VNĐ" column (`amount_vnd = amount × exchange_rate`) is a display-only derived value; never drive aggregations or ratios off it.
+
 ## File Size Rule
 
 **Any file that exceeds 500 lines must be split.** When writing or editing code causes a file to cross this threshold, proactively break it up before finishing the task. Splitting strategies:

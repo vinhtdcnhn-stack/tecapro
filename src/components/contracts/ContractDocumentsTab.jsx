@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { API } from '../../config/api'
 import './ContractDocumentsTab.css'
 
-import { getCurrentUserId, getFolderPath } from './documentsUtils'
+import { getFolderPath } from './documentsUtils'
+import { useDocumentUpload } from './useDocumentUpload'
 import DocumentFolderTree from './DocumentFolderTree'
 import DocumentFileTable from './DocumentFileTable'
 import DocumentPreviewPanel from './DocumentPreviewPanel'
@@ -17,10 +18,8 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const [expandedFolders, setExpandedFolders] = useState(new Set())
   const [previewFile, setPreviewFile] = useState(null)
   const [selectedFiles, setSelectedFiles] = useState(new Set())
-  const [fileInputKey, setFileInputKey] = useState(0)
   const [loading, setLoading] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
-  const [uploadQueue, setUploadQueue] = useState([])
 
   // Create folder
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
@@ -35,8 +34,6 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   // Delete folder
   const [showDeleteFolderConfirm, setShowDeleteFolderConfirm] = useState(false)
   const [deletingFolder, setDeletingFolder] = useState(null)
-
-  const isUploading = uploadQueue.some(q => q.status === 'pending' || q.status === 'uploading')
 
   useEffect(() => {
     loadFolders().finally(() => setLoading(false))
@@ -79,6 +76,13 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
       console.error('Failed to load files:', err)
     }
   }
+
+  const {
+    uploadQueue, isUploading,
+    fileInputKey, folderInputKey,
+    handleUploadFile, handleUploadFolder,
+    handleFileChange, handleFolderChange,
+  } = useDocumentUpload({ resourcePath, selectedFolderId, loadFolders, loadFiles })
 
   // ── Folder tree helpers ──────────────────────────────────────────────────
 
@@ -164,42 +168,6 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
     } catch {
       alert('Không thể xóa thư mục.')
     }
-  }
-
-  // ── File upload ──────────────────────────────────────────────────────────
-
-  const uploadFiles = async (fileList) => {
-    const items = Array.from(fileList).map(f => ({ name: f.name, status: 'pending', file: f }))
-    setUploadQueue(items)
-    for (let i = 0; i < items.length; i++) {
-      setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'uploading' } : item))
-      try {
-        const formData = new FormData()
-        formData.append('file', items[i].file)
-        formData.append('folderId', selectedFolderId)
-        formData.append('userId', getCurrentUserId() || '')
-        const res = await fetch(`${API}/${resourcePath}/files/upload`, {
-          method: 'POST',
-          body: formData
-        })
-        if (!res.ok) throw new Error('Upload failed')
-        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'done' } : item))
-      } catch {
-        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error' } : item))
-      }
-    }
-    await loadFiles(selectedFolderId)
-    setTimeout(() => setUploadQueue([]), 3000)
-  }
-
-  const handleUploadFile = () => document.getElementById('file-upload-input').click()
-
-  const handleFileChange = async (event) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
-    if (!selectedFolderId) { alert('Vui lòng chọn thư mục để upload file'); return }
-    await uploadFiles(files)
-    setFileInputKey(prev => prev + 1)
   }
 
   // ── Drag-and-drop ────────────────────────────────────────────────────────
@@ -316,7 +284,11 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
                 {isUploading ? 'Đang upload...' : 'Upload'}
               </button>
+              <button className="btn-toolbar btn-icon-only" onClick={handleUploadFolder} disabled={!selectedFolderId || isUploading} title="Upload thư mục">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 7h-3v3h-2v-3h-3v-2h3V8h2v3h3v2z"/></svg>
+              </button>
               <input id="file-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} key={fileInputKey} />
+              <input id="folder-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFolderChange} key={folderInputKey} {...{ webkitdirectory: '' }} />
             </div>
             <div className="toolbar-right">
               <button className="btn-toolbar btn-icon-only" onClick={handleDownload} disabled={selectedFiles.size === 0} title={`Download${selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}`}>

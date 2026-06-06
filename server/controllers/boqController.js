@@ -23,6 +23,22 @@ function calc(qty, unitPrice, vatRate) {
   return { before, after: before * (1 + v / 100) }
 }
 
+// Đồng bộ tổng giá trị BOQ → contract_out (giá trị HĐ lấy từ bảng giá)
+async function syncContractTotal(contractId, db = pool) {
+  if (!contractId) return
+  await db.query(`
+    UPDATE public.contract_out c
+    SET amount_before_vat = COALESCE(t.bsum, 0),
+        amount_after_vat  = COALESCE(t.asum, 0),
+        updated_at = now()
+    FROM (
+      SELECT SUM(amount_before_vat) AS bsum, SUM(amount_after_vat) AS asum
+      FROM public.contract_out_boq WHERE contract_out_id = $1
+    ) t
+    WHERE c.id = $1
+  `, [contractId])
+}
+
 // Map Excel row (0-indexed array) → BOQ fields
 // Expected template columns:
 //   A(0): Danh mục hàng hóa | B(1): HScode | C(2): ĐVT
@@ -133,6 +149,7 @@ export async function createBOQItem(req, res) {
         parseFloat(quantity) || 0, parseFloat(unit_price) || 0,
         before, parseFloat(vat_rate) || 0, after, warranty_period || '', type])
 
+    await syncContractTotal(contractId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createBOQItem:', err)
@@ -176,6 +193,7 @@ export async function insertBOQAfter(req, res) {
         parseFloat(quantity) || 0, parseFloat(unit_price) || 0,
         before, parseFloat(vat_rate) || 0, after, warranty_period || '', type])
 
+    await syncContractTotal(contractId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('insertBOQAfter:', err)
@@ -205,6 +223,7 @@ export async function updateBOQItem(req, res) {
         warranty_period || '', type, req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    await syncContractTotal(rows[0].contract_out_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updateBOQItem:', err)
@@ -217,10 +236,11 @@ export async function updateBOQItem(req, res) {
 export async function deleteBOQItem(req, res) {
   try {
     const { rows } = await pool.query(
-      'DELETE FROM public.contract_out_boq WHERE id = $1 RETURNING id',
+      'DELETE FROM public.contract_out_boq WHERE id = $1 RETURNING contract_out_id',
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    await syncContractTotal(rows[0].contract_out_id)
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deleteBOQItem:', err)
@@ -302,6 +322,7 @@ export async function saveImportedBOQ(req, res) {
         saved.push(rows[0])
       }
 
+      await syncContractTotal(contractId, client)
       await client.query('COMMIT')
       res.json({ saved: saved.length, items: saved })
     } catch (err) {

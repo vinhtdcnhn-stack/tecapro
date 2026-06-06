@@ -53,6 +53,8 @@
 .guar-table td.td-stt  { width: 40px; text-align: center; color: #9ca3af; font-size: 12px; }
 .guar-table th.th-type  { min-width: 180px; }
 .guar-table th.th-amount{ min-width: 160px; }
+.guar-table th.th-pct   { width: 120px; text-align: right; }
+.guar-table td.td-pct   { text-align: right; white-space: nowrap; }
 .guar-table th.th-date  { min-width: 130px; }
 .guar-table th.th-status{ min-width: 140px; }
 .guar-table th.th-note  { min-width: 160px; }
@@ -112,6 +114,19 @@
 
 .expiry-warn { display: block; font-size: 11px; color: #f59e0b; margin-top: 2px; }
 .expiry-error{ display: block; font-size: 11px; color: #dc2626; margin-top: 2px; }
+
+/* % so với giá trị hợp đồng — ô tự tính, chỉ đọc */
+.pct-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pct-empty { color: #d1d5db; }
 
 /* Actions */
 .action-group { display: flex; gap: 4px; justify-content: center; }

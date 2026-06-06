@@ -2,49 +2,29 @@ import { useState, useEffect, useCallback } from 'react'
 import './ContractProgressTab.css'
 
 import { API } from '../../config/api'
-
-// ── Date helpers ──────────────────────────────────────────────────────────────
-
-function dateDiff(planned, actual) {
-  if (!planned || !actual) return null
-  const p = new Date(planned), a = new Date(actual)
-  return Math.round((a - p) / 86400000)
-}
-
-function getStatusInfo(planned, actual) {
-  if (!actual) {
-    if (!planned) return { type: 'unknown', label: '—' }
-    const daysLeft = dateDiff(new Date().toISOString().slice(0, 10), planned)
-    if (daysLeft < 0) return { type: 'overdue', label: `Quá hạn ${Math.abs(daysLeft)} ngày` }
-    return { type: 'pending', label: 'Chưa hoàn thành' }
-  }
-  const diff = dateDiff(planned, actual)
-  if (diff === null) return { type: 'done', label: 'Hoàn thành' }
-  if (diff <= 0)     return { type: 'ok',   label: 'Đúng hạn' }
-  return              { type: 'late', label: `Trễ ${diff} ngày` }
-}
-
-
-let _tmpCtr = 0
-const tmpId = () => `tmp_${++_tmpCtr}`
+import { getStatusInfo, computeForecasts, fmtDate, forecastHint, tmpId } from './progressUtils'
+import BBTypeManager from './BBTypeManager'
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ContractProgressTab({ contractId }) {
   const [rows, setRows]         = useState([])
   const [bbTypes, setBBTypes]   = useState([])
+  const [contractDate, setContractDate] = useState(null) // ngày ký HĐ (mốc gốc)
   const [loading, setLoading]   = useState(true)
   const [showBBMgr, setShowBBMgr] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      const [pRes, tRes] = await Promise.all([
+      const [pRes, tRes, cRes] = await Promise.all([
         fetch(`${API}/contracts/${contractId}/progress`),
         fetch(`${API}/bb-types`),
+        fetch(`${API}/contracts/${contractId}`),
       ])
-      const [pData, tData] = await Promise.all([pRes.json(), tRes.json()])
+      const [pData, tData, cData] = await Promise.all([pRes.json(), tRes.json(), cRes.json()])
       setRows((Array.isArray(pData) ? pData : []).map(r => toLocal(r)))
       setBBTypes(Array.isArray(tData) ? tData : [])
+      setContractDate(cData?.contract_date || null)
     } catch (e) {
       console.error('load progress:', e)
     } finally {
@@ -61,7 +41,7 @@ export default function ContractProgressTab({ contractId }) {
   function emptyRow() {
     return {
       id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-      bb_type_id: '', planned_date: '', actual_date: '', reason: '', penalty_note: '',
+      bb_type_id: '', offset_days: '', base_bb_type_id: '', base_anchor: '', planned_date: '', actual_date: '', reason: '', penalty_note: '',
       bb_code: '', bb_name: '',
     }
   }
@@ -71,12 +51,23 @@ export default function ContractProgressTab({ contractId }) {
   const set = (key, field, value) =>
     setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: value, _dirty: true } : r))
 
+  // Chọn mốc gốc: '' = BB trước, 'contract' = ngày ký HĐ, còn lại = id loại biên bản
+  const setBase = (key, val) =>
+    setRows(prev => prev.map(r => r._key === key ? {
+      ...r, _dirty: true,
+      base_anchor:     val === 'contract' ? 'contract' : '',
+      base_bb_type_id: (val === 'contract' || val === '') ? '' : val,
+    } : r))
+
   // ── Save ────────────────────────────────────────────────────────────────────
 
   const saveRow = async (row) => {
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
     const body = {
       bb_type_id:   row.bb_type_id || null,
+      offset_days:  row.offset_days,
+      base_bb_type_id: row.base_bb_type_id || null,
+      base_anchor:  row.base_anchor || null,
       planned_date: row.planned_date || null,
       actual_date:  row.actual_date  || null,
       reason:       row.reason,
@@ -108,14 +99,27 @@ export default function ContractProgressTab({ contractId }) {
     } catch { alert('Không thể xóa.') }
   }
 
-  // ── Stats ───────────────────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────────
+
+  // Ngày dự kiến (động) — tính theo thứ tự hiển thị (đã sort theo sort_order ở backend)
+  const forecasts = computeForecasts(rows, contractDate)
 
   const savedRows  = rows.filter(r => !r._isNew)
   const doneCount  = savedRows.filter(r => r.actual_date).length
   const lateCount  = savedRows.filter(r => {
-    const { type } = getStatusInfo(r.planned_date, r.actual_date)
+    const { type } = getStatusInfo(forecasts[r._key], r.actual_date)
     return type === 'late' || type === 'overdue'
   }).length
+
+  // Danh sách "mốc gốc" cho dropdown: các loại biên bản đang có trong hợp đồng (không trùng)
+  const baseOptions = []
+  const seenType = new Set()
+  rows.forEach(r => {
+    if (!r.bb_type_id || seenType.has(String(r.bb_type_id))) return
+    seenType.add(String(r.bb_type_id))
+    const t = bbTypes.find(x => String(x.id) === String(r.bb_type_id))
+    baseOptions.push({ bb_type_id: r.bb_type_id, code: t ? t.code : '—' })
+  })
 
   if (loading) return <div className="prog-loading">Đang tải...</div>
 
@@ -148,7 +152,9 @@ export default function ContractProgressTab({ contractId }) {
             <tr>
               <th className="th-stt">#</th>
               <th className="th-type">Loại biên bản</th>
+              <th className="th-offset">Số ngày (tính từ BB)</th>
               <th className="th-date">Ngày theo HĐ</th>
+              <th className="th-date">Ngày dự kiến</th>
               <th className="th-date">Ngày thực tế</th>
               <th className="th-status">Trạng thái</th>
               <th className="th-reason">Nguyên nhân chậm trễ</th>
@@ -159,13 +165,15 @@ export default function ContractProgressTab({ contractId }) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="8" className="prog-empty">
+                <td colSpan="10" className="prog-empty">
                   Chưa có biên bản nào. Nhấn <strong>Thêm biên bản</strong> để bắt đầu.
                 </td>
               </tr>
             ) : rows.map((row, idx) => {
-              const status = getStatusInfo(row.planned_date, row.actual_date)
+              const forecast = forecasts[row._key]
+              const status = getStatusInfo(forecast, row.actual_date)
               const isLate = status.type === 'late' || status.type === 'overdue'
+              const hint = !row.actual_date ? forecastHint(forecast) : null
               return (
                 <tr key={row._key}
                   className={[
@@ -194,12 +202,43 @@ export default function ContractProgressTab({ contractId }) {
                     </select>
                   </td>
 
+                  <td className="td-offset">
+                    <div className="offset-cell">
+                      <input
+                        className="offset-days"
+                        type="number" min="0"
+                        value={row.offset_days ?? ''}
+                        placeholder="20"
+                        title="Số ngày kể từ ngày thực tế của biên bản gốc — dùng để tính Ngày dự kiến"
+                        onChange={e => set(row._key, 'offset_days', e.target.value)}
+                      />
+                      <span className="offset-from">từ</span>
+                      <select
+                        className="offset-base"
+                        value={row.base_anchor === 'contract' ? 'contract' : (row.base_bb_type_id || '')}
+                        title="Mốc gốc để tính số ngày"
+                        onChange={e => setBase(row._key, e.target.value)}
+                      >
+                        <option value="">BB trước</option>
+                        <option value="contract">Ngày ký HĐ</option>
+                        {baseOptions
+                          .filter(o => String(o.bb_type_id) !== String(row.bb_type_id))
+                          .map(o => <option key={o.bb_type_id} value={o.bb_type_id}>{o.code}</option>)}
+                      </select>
+                    </div>
+                  </td>
+
                   <td className="td-date">
                     <input
                       type="date"
                       value={row.planned_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'planned_date', e.target.value)}
                     />
+                  </td>
+
+                  <td className="td-date td-forecast">
+                    <span className="forecast-date">{fmtDate(forecast)}</span>
+                    {hint && <span className={`forecast-tag forecast-${hint.type}`}>{hint.label}</span>}
                   </td>
 
                   <td className="td-date">
@@ -269,145 +308,6 @@ export default function ContractProgressTab({ contractId }) {
           onUpdated={(updated) => setBBTypes(updated)}
         />
       )}
-    </div>
-  )
-}
-
-// ── BB Type Manager ───────────────────────────────────────────────────────────
-
-function BBTypeManager({ types, onClose, onUpdated }) {
-  const [list, setList]       = useState(types)
-  const [newCode, setNewCode] = useState('')
-  const [newName, setNewName] = useState('')
-  const [adding, setAdding]   = useState(false)
-  const [editId, setEditId]   = useState(null)
-  const [editCode, setEditCode] = useState('')
-  const [editName, setEditName] = useState('')
-
-  const refresh = async () => {
-    const res  = await fetch(`${API}/bb-types`)
-    const data = await res.json()
-    if (Array.isArray(data)) { setList(data); onUpdated(data) }
-  }
-
-  const handleAdd = async () => {
-    if (!newCode.trim() || !newName.trim()) return
-    setAdding(true)
-    try {
-      const res = await fetch(`${API}/bb-types`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: newCode, name: newName }),
-      })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error); return }
-      setNewCode(''); setNewName('')
-      await refresh()
-    } catch { alert('Lỗi khi thêm loại BB') } finally { setAdding(false) }
-  }
-
-  const startEdit = (t) => { setEditId(t.id); setEditCode(t.code); setEditName(t.name) }
-
-  const handleEdit = async (id) => {
-    try {
-      const res = await fetch(`${API}/bb-types/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: editCode, name: editName }),
-      })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error); return }
-      setEditId(null)
-      await refresh()
-    } catch { alert('Lỗi khi cập nhật') }
-  }
-
-  const handleDelete = async (id) => {
-    if (!confirm('Xóa loại BB này?')) return
-    try {
-      const res = await fetch(`${API}/bb-types/${id}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error); return }
-      await refresh()
-    } catch { alert('Lỗi khi xóa') }
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="bbmgr-modal" onClick={e => e.stopPropagation()}>
-        <div className="bbmgr-header">
-          <h3>Quản lý loại Biên bản</h3>
-          <button className="btn-close-preview" onClick={onClose}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
-          </button>
-        </div>
-
-        <div className="bbmgr-body">
-          <table className="bbmgr-table">
-            <thead>
-              <tr>
-                <th style={{width:90}}>Mã</th>
-                <th>Tên đầy đủ</th>
-                <th style={{width:80}}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map(t => (
-                <tr key={t.id}>
-                  <td>
-                    {editId === t.id
-                      ? <input className="bbmgr-input" value={editCode} onChange={e => setEditCode(e.target.value)} />
-                      : <strong>{t.code}</strong>}
-                  </td>
-                  <td>
-                    {editId === t.id
-                      ? <input className="bbmgr-input bbmgr-input-wide" value={editName} onChange={e => setEditName(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleEdit(t.id)} />
-                      : t.name}
-                  </td>
-                  <td>
-                    {editId === t.id ? (
-                      <div className="bbmgr-actions">
-                        <button className="bbmgr-btn bbmgr-btn-save" onClick={() => handleEdit(t.id)}>✓</button>
-                        <button className="bbmgr-btn" onClick={() => setEditId(null)}>✕</button>
-                      </div>
-                    ) : (
-                      <div className="bbmgr-actions">
-                        <button className="bbmgr-btn" title="Sửa" onClick={() => startEdit(t)}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                        </button>
-                        <button className="bbmgr-btn bbmgr-btn-del" title="Xóa" onClick={() => handleDelete(t.id)}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-
-              {/* Add row */}
-              <tr className="bbmgr-add-row">
-                <td>
-                  <input className="bbmgr-input" value={newCode} onChange={e => setNewCode(e.target.value.toUpperCase())}
-                    placeholder="VD: FAT" maxLength={20} />
-                </td>
-                <td>
-                  <input className="bbmgr-input bbmgr-input-wide" value={newName} onChange={e => setNewName(e.target.value)}
-                    placeholder="Tên đầy đủ của loại biên bản..."
-                    onKeyDown={e => e.key === 'Enter' && handleAdd()} />
-                </td>
-                <td>
-                  <button className="bbmgr-btn bbmgr-btn-save" onClick={handleAdd} disabled={adding}>
-                    {adding ? '...' : '+ Thêm'}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   )
 }

@@ -8,6 +8,23 @@ function calcVND(amount, rate, currency) {
   return currency === 'VND' ? a : a * r
 }
 
+// Tỷ giá dùng chung cho cả hợp đồng: đồng bộ tỷ giá của một bản ghi → hợp đồng
+// và lan tỏa cho TẤT CẢ khoản phải thu ngoại tệ của hợp đồng (chỉ khi tỷ giá hợp lệ).
+async function syncContractRate(contractId, currency, rate, db = pool) {
+  const r = parseFloat(rate)
+  if (!contractId || currency === 'VND' || !(r > 0)) return
+  await db.query(
+    'UPDATE public.contract_out SET exchange_rate = $1, updated_at = now() WHERE id = $2',
+    [r, contractId]
+  )
+  await db.query(
+    `UPDATE public.contract_receivable
+        SET exchange_rate = $1, amount_vnd = amount * $1, updated_at = now()
+      WHERE contract_out_id = $2 AND currency_code <> 'VND'`,
+    [r, contractId]
+  )
+}
+
 // ── Receivable Schedule (Phải thu theo ĐKTT HĐ) ───────────────────────────────
 
 export async function getSchedule(req, res) {
@@ -44,6 +61,7 @@ export async function createSchedule(req, res) {
         parseFloat(amount) || 0, parseFloat(exchange_rate) || 1, amtVND,
         due_date || null, delay_reason || ''])
 
+    await syncContractRate(contractId, currency, exchange_rate)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createSchedule:', err)
@@ -66,6 +84,7 @@ export async function updateSchedule(req, res) {
         amtVND, due_date || null, delay_reason || '', req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    await syncContractRate(rows[0].contract_out_id, currency, exchange_rate)
     res.json(rows[0])
   } catch (err) {
     console.error('updateSchedule:', err)
@@ -105,7 +124,7 @@ export async function getPayments(req, res) {
 export async function createPayment(req, res) {
   try {
     const { contractId } = req.params
-    const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note } = req.body
+    const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note, schedule_id } = req.body
 
     const { rows: mx } = await pool.query(
       'SELECT COALESCE(MAX(sort_order),0) AS m FROM public.contract_receivable_payment WHERE contract_out_id=$1',
@@ -117,11 +136,12 @@ export async function createPayment(req, res) {
 
     const { rows } = await pool.query(`
       INSERT INTO public.contract_receivable_payment
-        (contract_out_id,sort_order,payment_date,currency_code,amount,exchange_rate,amount_vnd,payment_ratio,note)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+        (contract_out_id,sort_order,payment_date,currency_code,amount,exchange_rate,amount_vnd,payment_ratio,note,schedule_id)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *
     `, [contractId, sortOrder, payment_date || null, currency,
         parseFloat(amount) || 0, parseFloat(exchange_rate) || 1, amtVND,
-        parseFloat(payment_ratio) || 0, note || ''])
+        parseFloat(payment_ratio) || 0, note || '',
+        schedule_id ? parseInt(schedule_id) : null])
 
     res.status(201).json(rows[0])
   } catch (err) {
@@ -132,17 +152,18 @@ export async function createPayment(req, res) {
 
 export async function updatePayment(req, res) {
   try {
-    const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note } = req.body
+    const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note, schedule_id } = req.body
     const currency = currency_code || 'VND'
     const amtVND   = calcVND(amount, exchange_rate, currency)
 
     const { rows } = await pool.query(`
       UPDATE public.contract_receivable_payment SET
         payment_date=$1, currency_code=$2, amount=$3, exchange_rate=$4,
-        amount_vnd=$5, payment_ratio=$6, note=$7, updated_at=now()
-      WHERE id=$8 RETURNING *
+        amount_vnd=$5, payment_ratio=$6, note=$7, schedule_id=$8, updated_at=now()
+      WHERE id=$9 RETURNING *
     `, [payment_date || null, currency, parseFloat(amount) || 0, parseFloat(exchange_rate) || 1,
-        amtVND, parseFloat(payment_ratio) || 0, note || '', req.params.id])
+        amtVND, parseFloat(payment_ratio) || 0, note || '',
+        schedule_id ? parseInt(schedule_id) : null, req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     res.json(rows[0])
