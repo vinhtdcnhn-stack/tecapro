@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import * as XLSX from 'xlsx'
 
 import { API } from '../../config/api'
 import { fmtNum } from './deliveryUtils'
@@ -124,7 +123,8 @@ export default function DeliveryItemRow({ idx, item, onDelete, onUpdateItem, onS
               <div style={{ display:'flex', gap:8, marginBottom:10, alignItems:'center', flexWrap:'wrap' }}>
                 <strong style={{ fontSize:12, color:'#1d4ed8' }}>Serial của "{item.item_name}"</strong>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    const XLSX = await import('xlsx')
                     const ws = XLSX.utils.aoa_to_sheet([['Serial'], ['MM001'], ['MM002'], ['MM003']])
                     ws['!cols'] = [{ wch: 20 }]
                     const wb = XLSX.utils.book_new()

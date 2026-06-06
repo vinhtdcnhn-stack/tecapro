@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import * as XLSX from 'xlsx'
 
 import { API } from '../../config/api'
 import { fmtDate, toISODate, warrantyStatus, warrantyCounts } from './warrantyUtils'
@@ -98,7 +97,8 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
   }
 
   // Excel template download
-  function downloadTemplate() {
+  async function downloadTemplate() {
+    const XLSX = await import('xlsx')
     const ws = XLSX.utils.aoa_to_sheet([
       ['Tên thiết bị', 'Hãng', 'Model', 'Serial', 'Số lượng', 'Vị trí lắp đặt', 'BH từ (YYYY-MM-DD)', 'BH đến (YYYY-MM-DD)'],
       ['Rectifier', 'Megmeet', 'R483000G1', 'MM001', '1', 'BTS Hà Đông', '2025-01-01', '2026-12-31'],
@@ -117,7 +117,8 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
     const file = e.target.files[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => {
+    reader.onload = async ev => {
+      const XLSX  = await import('xlsx')
       const wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true })
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' })
       // Group by (name, brand, model, location, warranty_from, warranty_to)

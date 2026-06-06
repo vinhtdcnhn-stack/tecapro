@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import * as XLSX from 'xlsx'
 
 import { API } from '../../config/api'
 import { SERIAL_STATUSES, warrantyStatus, flattenSerials, toISODate } from './warrantyUtils'
@@ -84,7 +83,8 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
   }
 
   // ── Excel ──
-  function downloadTemplate() {
+  async function downloadTemplate() {
+    const XLSX = await import('xlsx')
     const ws = XLSX.utils.aoa_to_sheet([
       ['Tên linh kiện', 'Hãng', 'Model', 'Serial', 'BH từ (YYYY-MM-DD)', 'BH đến (YYYY-MM-DD)', 'Serial máy (nếu thuộc máy)'],
       ['Ổ cứng SSD 960GB', 'Samsung', 'PM893', 'S6X1NN0', '2025-01-01', '2030-12-31', 'SRV-001'],
@@ -101,7 +101,8 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
     const file = e.target.files[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => {
+    reader.onload = async ev => {
+      const XLSX  = await import('xlsx')
       const wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true })
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' })
       const items = []
