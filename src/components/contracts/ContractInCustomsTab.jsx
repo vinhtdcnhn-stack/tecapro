@@ -53,7 +53,7 @@ export default function ContractInCustomsTab({ contractInId }) {
   const grandTotal = rows.reduce((s, r) => s + totalCost(r), 0)
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
       {/* Summary */}
       {rows.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>

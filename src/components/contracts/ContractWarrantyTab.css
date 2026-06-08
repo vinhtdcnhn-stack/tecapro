@@ -1,11 +1,12 @@
 /* ── Layout ────────────────────────────────────────────────────────────── */
-.wty-tab       { display: flex; flex-direction: column; height: 100%; }
-.wty-body      { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; flex: 1; overflow-y: auto; }
+.wty-tab       { display: flex; flex-direction: column; min-width: 0; }
+.wty-body      { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 
 /* ── Sub-tab bar ───────────────────────────────────────────────────────── */
 .wty-subtab-bar {
   display: flex; gap: 0; border-bottom: 2px solid #e5e7eb;
   padding: 0 24px; background: #fff;
+  overflow-x: auto; overflow-y: hidden; flex-shrink: 0;
 }
 .wty-subtab-btn {
   padding: 12px 20px; border: none; background: transparent;

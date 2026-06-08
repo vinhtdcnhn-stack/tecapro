@@ -1,4 +1,4 @@
-.guar-tab { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.guar-tab { padding: 24px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 /* Summary cards */
 .guar-summary {

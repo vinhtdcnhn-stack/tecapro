@@ -720,13 +720,15 @@ background:
 .contract-management-layout {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .contract-management-page {
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -842,8 +844,8 @@ background:
 .contract-management-body {
   display: flex;
   gap: 20px;
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
+  min-width: 0;
 }
 
 .contract-sidebar {
@@ -854,6 +856,10 @@ background:
   padding: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  max-height: calc(100svh - 130px);
   overflow-y: auto;
 }
 
@@ -909,7 +915,8 @@ background:
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
   min-height: 0;
-  overflow: hidden;
+  min-width: 0;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
@@ -917,9 +924,6 @@ background:
 .contract-info-tab {
   display: flex;
   gap: 24px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 .contract-info-left {

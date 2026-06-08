@@ -71,7 +71,7 @@ export default function ContractInLogisticsTab({ contractInId }) {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
 
       {/* Summary */}
       {list.length > 0 && (

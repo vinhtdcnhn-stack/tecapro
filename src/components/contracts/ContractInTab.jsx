@@ -80,7 +80,7 @@ export default function ContractInTab({ contractId }) {
   const completed   = items.filter(c => c.status === 'Completed').length
 
   return (
-    <div style={{ padding: '20px 24px' }}>
+    <div style={{ padding: '20px 24px', minWidth: 0 }}>
       <div className="page-header">
         <h1 className="page-title">HỢP ĐỒNG NHẬP</h1>
         <p className="page-subtitle">Danh sách hợp đồng đầu vào thuộc hợp đồng bán này</p>

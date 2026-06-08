@@ -3,8 +3,7 @@
 .boq-tab {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .boq-loading {
@@ -66,8 +65,7 @@
 /* ── Table wrapper ────────────────────────────────────────────────────────── */
 
 .boq-table-wrapper {
-  flex: 1;
-  overflow: auto;
+  overflow-x: auto;
   background: white;
 }
 

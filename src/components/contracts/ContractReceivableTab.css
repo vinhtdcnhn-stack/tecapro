@@ -3,9 +3,8 @@
 .recv-tab {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
   gap: 0;
+  min-width: 0;
 }
 
 .recv-loading {
@@ -91,6 +90,7 @@
   flex-direction: column;
   border-bottom: 1px solid #e2e8f0;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .recv-section-header {

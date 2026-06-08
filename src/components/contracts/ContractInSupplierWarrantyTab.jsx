@@ -126,7 +126,7 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
   const activeCount  = warranties.filter(w => w.warranty_end && new Date(w.warranty_end) >= new Date()).length
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
 
       {/* Summary */}
       {warranties.length > 0 && (
