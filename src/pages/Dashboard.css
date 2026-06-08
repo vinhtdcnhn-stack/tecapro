@@ -1,4 +1,13 @@
+/* Trang chứa Dashboard: cho cuộn thay vì cắt, căn từ mép trái
+   để khi zoom/thu hẹp nội dung không bị trượt mất ra ngoài màn hình */
+.page.dash-page {
+  justify-content: flex-start;
+  align-items: flex-start;
+  overflow: auto;
+}
+
 .dashboard {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1.5rem;

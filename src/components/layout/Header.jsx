@@ -49,18 +49,22 @@ export default function Header({ onChangePassword }) {
           <img className="brand-logo" src={tecaproLogo} alt="TECAPRO" />
         </button>
 
-        <nav className={`menu${mobileMenuOpen ? ' menu--open' : ''}`} aria-label="Chính">
-          {MENUS.map((m) => (
-            <button
-              key={m.label}
-              type="button"
-              className={`menu-item ${isActive(m) ? 'is-active' : ''}`}
-              onClick={() => handleMenuClick(m)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </nav>
+        {user ? (
+          <nav className={`menu${mobileMenuOpen ? ' menu--open' : ''}`} aria-label="Chính">
+            {MENUS.map((m) => (
+              <button
+                key={m.label}
+                type="button"
+                className={`menu-item ${isActive(m) ? 'is-active' : ''}`}
+                onClick={() => handleMenuClick(m)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <span className="topbar-branch">Chi nhánh Hà nội - Công ty TECAPRO</span>
+        )}
 
         <div className="topbar-actions">
           {user ? (

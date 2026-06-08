@@ -24,7 +24,7 @@ export default function HomePage() {
 
   if (user && user.department_code === '1') {
     return (
-      <main className="page admin-page">
+      <main className="page admin-page dash-page">
         <Dashboard user={user} contracts={contracts} customers={customers} users={users} />
       </main>
     )

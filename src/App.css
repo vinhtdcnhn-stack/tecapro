@@ -50,6 +50,14 @@
   scrollbar-width: thin;
 }
 
+.topbar-branch {
+  flex: 1 1 auto;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
 .menu-item {
   border: 1px solid transparent;
   background: none;
