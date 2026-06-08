@@ -1,4 +1,5 @@
 import { pool } from '../db.js'
+import { TABLE_DELIVERY, TABLE_EQUIPMENT, serialExists, getReplacementChain } from './serialUtils.js'
 
 // Tra cứu bảo hành theo số serial — nối phía bán (HĐ bán → khách hàng) và
 // phía nhập (HĐ nhập → nhà cung cấp) qua CHÍNH chuỗi serial_no.
@@ -68,6 +69,13 @@ export async function lookupSerial(req, res) {
     )
 
     const [sale, imp] = await Promise.all([saleQ, importQ])
+
+    // Gắn chuỗi thay thế (đời thứ mấy + serial gốc) cho từng kết quả.
+    await Promise.all([
+      ...sale.rows.map(async r => { r.replacement = await getReplacementChain(pool, TABLE_EQUIPMENT, r.serial_id) }),
+      ...imp.rows.map(async r => { r.replacement = await getReplacementChain(pool, TABLE_DELIVERY, r.serial_id) }),
+    ])
+
     res.json({ serial, sale: sale.rows, import: imp.rows })
   } catch (err) {
     console.error('lookupSerial:', err)
@@ -98,6 +106,10 @@ export async function replaceSerial(req, res) {
     if (oldSerial.replaced_by_serial_id) {
       await client.query('ROLLBACK')
       return res.status(400).json({ error: 'Serial này đã được thay thế trước đó' })
+    }
+    if (await serialExists(client, TABLE_EQUIPMENT, new_serial_no)) {
+      await client.query('ROLLBACK')
+      return res.status(409).json({ error: `Serial "${new_serial_no.trim()}" đã tồn tại ở phía bán ra.` })
     }
 
     const { rows: newRows } = await client.query(
@@ -150,6 +162,10 @@ export async function replaceDeliverySerial(req, res) {
     if (oldSerial.replaced_by_serial_id) {
       await client.query('ROLLBACK')
       return res.status(400).json({ error: 'Serial này đã được thay thế trước đó' })
+    }
+    if (await serialExists(client, TABLE_DELIVERY, new_serial_no)) {
+      await client.query('ROLLBACK')
+      return res.status(409).json({ error: `Serial "${new_serial_no.trim()}" đã tồn tại ở phía nhập.` })
     }
 
     const { rows: newRows } = await client.query(

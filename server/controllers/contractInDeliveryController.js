@@ -1,6 +1,7 @@
 import { pool } from '../db.js'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
+import { TABLE_DELIVERY, serialExists, findDuplicatesInList, findExistingSerials } from './serialUtils.js'
 
 export const excelUploadDelivery = multer({
   storage: multer.memoryStorage(),
@@ -163,6 +164,8 @@ export async function createDeliverySerial(req, res) {
   const { serial_no, note } = req.body
   if (!serial_no?.trim()) return res.status(400).json({ error: 'Số serial không được để trống' })
   try {
+    if (await serialExists(pool, TABLE_DELIVERY, serial_no))
+      return res.status(409).json({ error: `Serial "${serial_no.trim()}" đã tồn tại ở phía nhập.` })
     const { rows } = await pool.query(
       'INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no, note) VALUES ($1,$2,$3) RETURNING *',
       [itemId, serial_no.trim(), note?.trim()||null]
@@ -197,6 +200,13 @@ export async function importDeliverySerials(req, res) {
       if (sn) serials.push(sn)
     }
     if (!serials.length) return res.status(400).json({ error: 'Không tìm thấy serial trong file' })
+
+    const dupInFile = findDuplicatesInList(serials)
+    if (dupInFile.length)
+      return res.status(400).json({ error: `File có serial bị lặp: ${dupInFile.join(', ')}`, duplicates: dupInFile })
+    const existing = await findExistingSerials(pool, TABLE_DELIVERY, serials)
+    if (existing.length)
+      return res.status(409).json({ error: `Các serial sau đã tồn tại ở phía nhập: ${existing.join(', ')}`, duplicates: existing })
 
     const client = await pool.connect()
     try {

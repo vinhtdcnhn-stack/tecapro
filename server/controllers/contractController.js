@@ -14,6 +14,7 @@ export async function getAllContracts(req, res) {
         co.amount_before_vat,
         co.amount_after_vat,
         co.currency_code,
+        co.exchange_rate,
         COALESCE(au.full_name, '-') AS pm_name,
         co.status
       FROM contract_out co

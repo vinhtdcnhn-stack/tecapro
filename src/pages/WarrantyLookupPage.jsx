@@ -87,6 +87,7 @@ export default function WarrantyLookupPage() {
                       {r.replaced_at ? ` (ngày ${fmtDate(r.replaced_at)})` : ''}.
                     </div>
                   )}
+                  {r.replacement && <ReplacementChain info={r.replacement} />}
                   <div className="wl-rows">
                     <Row label="Số hợp đồng">
                       <button className="wl-link" onClick={() => navigate(`/qlda/${r.contract_out_id}`)}>
@@ -132,6 +133,7 @@ export default function WarrantyLookupPage() {
                       {r.replaced_at ? ` (ngày ${fmtDate(r.replaced_at)})` : ''}.
                     </div>
                   )}
+                  {r.replacement && <ReplacementChain info={r.replacement} />}
                   <div className="wl-rows">
                     <Row label="Số HĐ nhập">{r.contract_no || `HĐ nhập #${r.contract_in_id}`}</Row>
                     <Row label="Nhà cung cấp">{r.supplier_name || '—'}</Row>
@@ -182,6 +184,32 @@ function Row({ label, children }) {
     <div className="wl-row">
       <span className="wl-row-label">{label}</span>
       <span className="wl-row-value">{children}</span>
+    </div>
+  )
+}
+
+// Lịch sử thay thế: cho biết serial đang xem là đời thứ mấy của thiết bị gốc nào.
+function ReplacementChain({ info }) {
+  const { current_index, total, root_serial_no } = info
+  const summary = current_index === 0
+    ? <>Đây là <strong>thiết bị gốc</strong>, đã qua <strong>{total - 1}</strong> lần thay thế.</>
+    : <>Đây là <strong>lần thay thế thứ {current_index}</strong> của thiết bị gốc <strong>{root_serial_no}</strong> (tổng cộng {total - 1} lần thay).</>
+  return (
+    <div className="wl-chain">
+      <div className="wl-chain-title">🔁 Lịch sử thay thế thiết bị</div>
+      <div className="wl-chain-summary">{summary}</div>
+      <ol className="wl-chain-steps">
+        {info.chain.map(s => (
+          <li key={s.serial_no} className={`wl-chain-step${s.is_current ? ' current' : ''}`}>
+            <span className="wl-chain-gen">{s.generation === 0 ? 'Gốc' : `Lần ${s.generation}`}</span>
+            <span className="wl-chain-sn">{s.serial_no}</span>
+            {s.replaced_at && s.generation !== info.chain.length - 1 && (
+              <span className="wl-chain-date">thay ngày {fmtDate(s.replaced_at)}</span>
+            )}
+            {s.is_current && <span className="wl-chain-here">← đang xem</span>}
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }

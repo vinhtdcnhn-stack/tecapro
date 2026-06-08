@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import * as c from '../controllers/warrantyController.js'
+import * as imp from '../controllers/warrantyImportController.js'
 import * as lookup from '../controllers/warrantyLookupController.js'
 
 const router = Router()
@@ -10,7 +11,7 @@ router.get('/warranty-lookup', lookup.lookupSerial)
 // Equipment
 router.get('/contracts/:id/equipment',        c.getEquipment)
 router.post('/contracts/:id/equipment',       c.createEquipment)
-router.post('/contracts/:id/equipment/import', c.importEquipment)
+router.post('/contracts/:id/equipment/import', imp.importEquipment)
 router.put('/equipment/bulk-warranty',        c.bulkWarrantyEquipment)
 router.put('/equipment/:id',                  c.updateEquipment)
 router.delete('/equipment/:id',               c.deleteEquipment)
@@ -18,7 +19,7 @@ router.delete('/equipment/:id',               c.deleteEquipment)
 // Serials
 router.get('/equipment/:id/serials',   c.getSerials)
 router.post('/equipment/:id/serials',  c.createSerial)
-router.post('/contracts/:id/serials/import', c.importComponentSerials)
+router.post('/contracts/:id/serials/import', imp.importComponentSerials)
 router.put('/serials/bulk-warranty',   c.bulkWarrantySerials)
 router.post('/serials/:id/replace',    lookup.replaceSerial)
 router.post('/delivery-serials/:id/replace', lookup.replaceDeliverySerial)

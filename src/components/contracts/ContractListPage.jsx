@@ -51,6 +51,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const getSortIcon = (key) => { if (sortConfig.key !== key) return ''; if (sortConfig.direction === 'asc') return ' ↑'; return ' ↓' }
   const hasActiveFilters = Object.values(filters).some(v => v !== '') || sortConfig.key !== null
   const formatCurrency = (value) => { if (value === null || value === undefined || isNaN(value)) return '-'; const num = Number(value); return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
+  // Convert a contract's native amount to VND for display: USD contracts are multiplied by exchange_rate, VND contracts shown as-is
+  const toVnd = (value, c) => { const num = parseFloat(value); if (isNaN(num)) return null; if (c.currency_code === 'USD') return num * (parseFloat(c.exchange_rate) || 0); return num }
   const formatDate = (dateStr) => { if (!dateStr) return '-'; return new Date(dateStr).toLocaleDateString('vi-VN') }
   const getStatusBadge = (status) => { const config = { 'Active': { className: 'status-active', label: 'Đang thực hiện' }, 'Completed': { className: 'status-completed', label: 'Hoàn thành' }, 'Pending': { className: 'status-pending', label: 'Chờ xử lý' }, 'Cancelled': { className: 'status-cancelled', label: 'Hủy bỏ' } }[status] || { className: 'bg-gray-100 text-gray-800', label: status }; return <span className={`status-badge ${config.className}`}>{config.label}</span> }
   const getAvatarBadge = (name) => { if (!name) return <span className="text-gray-400">-</span>; const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 3); return (<div className="pm-badge"><span className="pm-avatar">{initials}</span><span className="text-gray-700">{name}</span></div>) }
@@ -58,7 +60,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const renderFilterDropdown = (columnKey, placeholder) => { const isOpen = openDropdown === columnKey; return (<span ref={isOpen ? currentDropdownRef : null} className="relative inline-block"><button onClick={() => setOpenDropdown(isOpen ? null : columnKey)} className="ml-1 text-gray-400 hover:text-tecapro-600 transition-colors">▼</button>{isOpen && (<div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50 p-3"><input type="text" placeholder={placeholder} value={filters[columnKey]} onChange={(e) => setFilters(prev => ({ ...prev, [columnKey]: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-tecapro-500 focus:border-tecapro-500 outline-none" autoFocus /><button onClick={() => { setFilters(prev => ({ ...prev, [columnKey]: '' })); setOpenDropdown(null) }} className="mt-2 w-full text-xs text-tecapro-600 hover:text-tecapro-700 font-medium">Xóa lọc</button></div>)}</span>) }
   const renderSelectDropdown = (columnKey, options) => { const isOpen = openDropdown === columnKey; return (<span ref={isOpen ? currentDropdownRef : null} className="relative inline-block"><button onClick={() => setOpenDropdown(isOpen ? null : columnKey)} className="ml-1 text-gray-400 hover:text-tecapro-600 transition-colors">▼</button>{isOpen && (<div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 p-2"><button onClick={() => { setFilters(prev => ({ ...prev, [columnKey]: '' })); setOpenDropdown(null) }} className={`w-full text-left px-3 py-2 text-sm rounded-md ${!filters[columnKey] ? 'bg-tecapro-50 text-tecapro-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>Tất cả</button>{options.map(opt => (<button key={opt} onClick={() => { setFilters(prev => ({ ...prev, [columnKey]: opt })); setOpenDropdown(null) }} className={`w-full text-left px-3 py-2 text-sm rounded-md ${filters[columnKey] === opt ? 'bg-tecapro-50 text-tecapro-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>{opt}</button>))}</div>)}</span>) }
 
-  const stats = { total: localContracts.length, active: localContracts.filter(c => c.status === 'Active').length, completed: localContracts.filter(c => c.status === 'Completed').length, totalValue: localContracts.reduce((sum, c) => sum + (parseFloat(c.amount_after_vat) || 0), 0) }
+  const stats = { total: localContracts.length, active: localContracts.filter(c => c.status === 'Active').length, completed: localContracts.filter(c => c.status === 'Completed').length, totalValue: localContracts.reduce((sum, c) => sum + (toVnd(c.amount_after_vat, c) || 0), 0) }
 
   async function handleSaveContract(formData) {
     try {
@@ -210,9 +212,6 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                 <th className="sticky-col-2 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 col-contract-no" onClick={() => handleSort('contract_no')}>
                   Số HĐ{getSortIcon('contract_no')}{renderFilterDropdown('contract_no', 'Tìm số HĐ')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-project-name" onClick={() => handleSort('project_name')}>
-                  Tên dự án{getSortIcon('project_name')}{renderFilterDropdown('project_name', 'Tìm dự án')}
-                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-customer-name" onClick={() => handleSort('customer_name')}>
                   Chủ đầu tư{getSortIcon('customer_name')}{renderFilterDropdown('customer_name', 'Tìm CĐT')}
                 </th>
@@ -233,6 +232,9 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-status" onClick={() => handleSort('status')}>
                   Trạng thái{getSortIcon('status')}{renderSelectDropdown('status', uniqueStatuses)}
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-project-name" onClick={() => handleSort('project_name')}>
+                  Tên dự án{getSortIcon('project_name')}{renderFilterDropdown('project_name', 'Tìm dự án')}
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100 table-body">
@@ -252,15 +254,15 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                       </button>
                     </td>
                     <td className="sticky-col-2 px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.contract_no || '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.project_name || '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.customer_name || '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDate(c.contract_date)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.tender_name || '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(c.amount_before_vat)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(c.amount_after_vat)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(toVnd(c.amount_before_vat, c))}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(toVnd(c.amount_after_vat, c))}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right col-money">{c.currency_code === 'USD' ? formatCurrency(c.amount_after_vat) : '-'}</td>
                     <td className="px-6 py-3 whitespace-nowrap">{getAvatarBadge(c.pm_name)}</td>
                     <td className="px-6 py-3 whitespace-nowrap">{getStatusBadge(c.status)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.project_name || '-'}</td>
                   </tr>
                 ))
               )}
