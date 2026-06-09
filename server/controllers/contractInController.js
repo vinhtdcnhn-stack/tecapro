@@ -48,17 +48,18 @@ export async function createContractIn(req, res) {
 
 export async function updateContractIn(req, res) {
   const id = parseInt(req.params.id)
-  const { contract_no, goods_type, contract_date, supplier_id, amount, currency_code, exchange_rate, purchase_type, status, note } = req.body
+  // amount KHÔNG nhận từ body: giá trị HĐ nhập do bảng giá mua quyết định (syncContractInTotal).
+  const { contract_no, goods_type, contract_date, supplier_id, currency_code, exchange_rate, purchase_type, status, note } = req.body
   try {
     await pool.query(
       `UPDATE contract_in SET
          contract_no=$1, goods_type=$2, contract_date=$3, supplier_id=$4,
-         amount=$5, currency_code=$6, exchange_rate=$7, purchase_type=$8,
-         status=$9, note=$10, updated_at=NOW()
-       WHERE id=$11`,
+         currency_code=$5, exchange_rate=$6, purchase_type=$7,
+         status=$8, note=$9, updated_at=NOW()
+       WHERE id=$10`,
       [contract_no?.trim()||null, goods_type?.trim()||null,
        contract_date||null, supplier_id||null,
-       parseFloat(amount)||0, currency_code||'VND',
+       currency_code||'VND',
        exchange_rate ? parseFloat(exchange_rate) : null,
        purchase_type||'Trong nước', status||'Active', note?.trim()||null, id]
     )

@@ -98,9 +98,11 @@ export default function ContractInInfoTab({ item, suppliers, onUpdate, onDelete 
 
         <div className="form-row">
           <div className="form-group" style={{ flex: 2 }}>
-            <label>Giá trị hợp đồng</label>
-            <input type="number" value={form.amount} min="0"
-              onChange={e => s({ amount: e.target.value })} placeholder="0" />
+            <label>Giá trị hợp đồng <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 11 }}>(tự động từ bảng giá mua)</span></label>
+            <input type="text" readOnly disabled
+              value={Number(item.amount || 0).toLocaleString('vi-VN')}
+              title="Giá trị HĐ nhập được tính tự động từ tổng bảng giá mua"
+              style={{ fontWeight: 600, color: '#111827', background: '#f9fafb' }} />
           </div>
           <div className="form-group">
             <label>Đơn vị tiền tệ</label>

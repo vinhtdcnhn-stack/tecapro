@@ -19,6 +19,20 @@ function calc(qty, unitPrice, vatRate) {
   return { before, after: before * (1 + v / 100) }
 }
 
+// Đồng bộ tổng giá trị HĐ nhập = SUM(amount_after_vat) của bảng giá mua (nguyên tệ HĐ).
+// Giá trị HĐ nhập do bảng giá quyết định, không nhập tay.
+async function syncContractInTotal(contractInId, db = pool) {
+  if (!contractInId) return
+  await db.query(`
+    UPDATE contract_in c
+    SET amount = COALESCE(t.asum, 0), updated_at = NOW()
+    FROM (
+      SELECT SUM(amount_after_vat) AS asum FROM contract_in_boq WHERE contract_in_id = $1
+    ) t
+    WHERE c.id = $1
+  `, [contractInId])
+}
+
 // Excel columns: A=Danh mục | B=ĐVT | C=Số lượng | D=Đơn giá | E=VAT(%) | F=Thời hạn bảo hành
 function rowToItem(arr) {
   const qty     = parseFloat(arr[2]) || 0
@@ -86,6 +100,7 @@ export async function createPurchaseBOQItem(req, res) {
        parseFloat(quantity)||0, parseFloat(unit_price)||0,
        before, parseFloat(vat_rate)||0, after, warranty_period||'']
     )
+    await syncContractInTotal(contractInId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createPurchaseBOQItem:', err)
@@ -119,6 +134,7 @@ export async function insertPurchaseBOQAfter(req, res) {
        parseFloat(quantity)||0, parseFloat(unit_price)||0,
        before, parseFloat(vat_rate)||0, after, warranty_period||'']
     )
+    await syncContractInTotal(contractInId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('insertPurchaseBOQAfter:', err)
@@ -141,6 +157,7 @@ export async function updatePurchaseBOQItem(req, res) {
        before, parseFloat(vat_rate)||0, after, warranty_period||'', req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    await syncContractInTotal(rows[0].contract_in_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updatePurchaseBOQItem:', err)
@@ -152,10 +169,11 @@ export async function updatePurchaseBOQItem(req, res) {
 export async function deletePurchaseBOQItem(req, res) {
   try {
     const { rows } = await pool.query(
-      'DELETE FROM contract_in_boq WHERE id = $1 RETURNING id',
+      'DELETE FROM contract_in_boq WHERE id = $1 RETURNING contract_in_id',
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    await syncContractInTotal(rows[0].contract_in_id)
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deletePurchaseBOQItem:', err)
@@ -223,6 +241,7 @@ export async function saveImportedPurchaseBOQ(req, res) {
         )
         saved.push(rows[0])
       }
+      await syncContractInTotal(contractInId, client)
       await client.query('COMMIT')
       res.json({ saved: saved.length, items: saved })
     } catch (err) {

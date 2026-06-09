@@ -1,11 +1,15 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useClickOutside } from '../../hooks/useClickOutside'
 
-export default function CustomerSelect({ customers, selectedId, onChange }) {
+export default function CustomerSelect({ customers, selectedId, onChange, placeholder = 'Chọn chủ đầu tư...' }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const ref = useRef(null)
+  const searchRef = useRef(null)
   useClickOutside(ref, () => setIsOpen(false))
+
+  // Tự đưa con trỏ vào ô tìm kiếm khi mở dropdown để gõ lọc được ngay
+  useEffect(() => { if (isOpen) searchRef.current?.focus() }, [isOpen])
 
   const filteredCustomers = customers.filter(c => {
     const term = searchTerm.toLowerCase()
@@ -33,7 +37,7 @@ export default function CustomerSelect({ customers, selectedId, onChange }) {
         }}
       >
         <span style={{ color: displayValue ? '#374151' : '#9ca3af' }}>
-          {displayValue || 'Chọn chủ đầu tư...'}
+          {displayValue || placeholder}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           {selectedId && (
@@ -54,9 +58,11 @@ export default function CustomerSelect({ customers, selectedId, onChange }) {
           maxHeight: '200px', overflowY: 'auto',
         }}>
           <input
+            ref={searchRef}
             type="text" placeholder="Tìm theo mã hoặc tên..." value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
             style={{ width: '100%', padding: '8px 12px', border: 'none', borderBottom: '1px solid #e5e7eb', outline: 'none' }}
           />
           {filteredCustomers.map(c => {

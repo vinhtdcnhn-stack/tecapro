@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import DateInput from './DateInput'
+import DateInput, { isoToDisplay } from './DateInput'
 
 import { API } from '../../config/api'
 import { SERIAL_STATUSES, warrantyStatus, flattenSerials, toISODate } from './warrantyUtils'
@@ -282,11 +282,14 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
                     </td>
                     <td>
                       <DateInput className="ser-inp" value={(val(row, 'warranty_from') || '').slice(0, 10)}
+                        placeholder={!val(row, 'warranty_from') && row.effFrom ? isoToDisplay(row.effFrom) : 'dd/mm/yyyy'}
                         title={row.effFrom && !val(row, 'warranty_from') ? 'Đang kế thừa hạn của thiết bị' : ''}
                         onChange={e => setF(row.id, 'warranty_from', e.target.value)} />
                     </td>
                     <td>
                       <DateInput className="ser-inp" value={(val(row, 'warranty_to') || '').slice(0, 10)}
+                        placeholder={!val(row, 'warranty_to') && row.effTo ? isoToDisplay(row.effTo) : 'dd/mm/yyyy'}
+                        title={row.effTo && !val(row, 'warranty_to') ? 'Đang kế thừa hạn của thiết bị' : ''}
                         onChange={e => setF(row.id, 'warranty_to', e.target.value)} />
                       <span className={`wty-badge ${ws.cls}`} style={{ marginTop: 3 }}>{ws.label}</span>
                     </td>

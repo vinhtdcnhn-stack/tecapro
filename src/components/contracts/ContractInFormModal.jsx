@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import DateInput from './DateInput'
+import CustomerSelect from '../common/CustomerSelect'
 
 import { CURRENCIES, PURCHASE_TYPES, STATUSES, statusCfg } from './contractInUtils'
 
@@ -48,16 +49,20 @@ export default function ContractInFormModal({ suppliers, onSave, onClose }) {
             <div className="form-row">
               <div className="form-group full-width">
                 <label>Nhà cung cấp</label>
-                <select value={form.supplier_id} onChange={e => s({ supplier_id: e.target.value })}>
-                  <option value="">-- Chọn nhà cung cấp --</option>
-                  {suppliers.map(sp => <option key={sp.id} value={sp.id}>{sp.name}{sp.code ? ` (${sp.code})` : ''}</option>)}
-                </select>
+                <CustomerSelect
+                  customers={suppliers}
+                  selectedId={form.supplier_id}
+                  onChange={id => s({ supplier_id: id })}
+                  placeholder="-- Chọn nhà cung cấp --"
+                />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group" style={{ flex: 2 }}>
                 <label>Giá trị hợp đồng</label>
-                <input type="number" value={form.amount} min="0" onChange={e => s({ amount: e.target.value })} placeholder="0" />
+                <input type="text" value="Tự động từ bảng giá nhập" readOnly disabled
+                  title="Giá trị HĐ nhập được tính tự động từ tổng bảng giá mua sau khi nhập bảng giá"
+                  style={{ fontStyle: 'italic', color: '#6b7280' }} />
               </div>
               <div className="form-group">
                 <label>Tiền tệ</label>
