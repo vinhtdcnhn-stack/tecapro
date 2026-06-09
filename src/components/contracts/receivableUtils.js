@@ -20,16 +20,43 @@ export function isOverdue(dueDate) {
   return new Date(dueDate) < new Date(new Date().toDateString())
 }
 
+const addDays = (isoDate, n) => {
+  const d = new Date(isoDate)
+  d.setDate(d.getDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+// Thời hạn thu hiệu lực của một khoản: tính động theo biên bản nếu có chọn mốc gốc,
+// giống "Ngày dự kiến" ở tab Tiến độ theo biên bản. Ngược lại lấy ngày nhập tay (due_date).
+//   - due_base_anchor='contract' → ngày ký HĐ + due_offset_days
+//   - due_base_bb_type_id       → ngày biên bản gốc (bbDateMap) + due_offset_days
+//   - không chọn mốc            → due_date (nhập tay)
+// Trả về yyyy-mm-dd hoặc null (mốc gốc chưa có ngày / thiếu offset → null).
+export function resolveDueDate(row, { bbDateMap = {}, contractDate = null } = {}) {
+  const offset    = parseInt(row.due_offset_days, 10)
+  const hasOffset = Number.isFinite(offset)
+  if (row.due_base_anchor === 'contract') {
+    return (contractDate && hasOffset) ? addDays(contractDate.slice(0, 10), offset) : null
+  }
+  if (row.due_base_bb_type_id != null && row.due_base_bb_type_id !== '') {
+    const base = bbDateMap[String(row.due_base_bb_type_id)]
+    return (base && hasOffset) ? addDays(base.slice(0, 10), offset) : null
+  }
+  return row.due_date ? row.due_date.slice(0, 10) : null
+}
+
 // Trạng thái + màu của một khoản phải thu, dựa vào tiến độ thu thực tế & thời hạn.
 //  - Còn thiếu <= 0 (đã thu đủ): so thời hạn thu với NGÀY NHẬN gần nhất.
 //  - Còn thiếu  > 0 (chưa đủ):   so thời hạn thu với NGÀY HIỆN TẠI.
-export function receivableStatus(row, linkedPayments = []) {
+// effectiveDue (yyyy-mm-dd) ghi đè row.due_date — dùng khi thời hạn tính động theo biên bản.
+export function receivableStatus(row, linkedPayments = [], effectiveDue = undefined) {
   const schedAmt = parseFloat(row.amount) || 0
   if (schedAmt <= 0) return null
 
   const received = linkedPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
   const shortage = schedAmt - received
-  const due      = row.due_date ? new Date(row.due_date.slice(0, 10)) : null
+  const dueStr   = effectiveDue !== undefined ? effectiveDue : row.due_date
+  const due      = dueStr ? new Date(dueStr.slice(0, 10)) : null
   const today    = new Date(new Date().toDateString())
   const daysBetween = (a, b) => Math.round((a - b) / 86400000)
 

@@ -3,6 +3,7 @@ import './ContractReceivableTab.css'
 
 import { API } from '../../config/api'
 import { fmtVND, fmtAmt, useRows } from './receivableUtils'
+import { computeForecasts } from './progressUtils'
 import ScheduleSection from './ReceivableScheduleSection'
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -20,15 +21,24 @@ export default function ContractReceivableTab({ contractId }) {
   // ── Giá trị hợp đồng (từ BOQ hoặc contract_out) ────────────────────────────
   const [contractRef, setContractRef] = useState(null) // { boqTotal, currency, amountAfterVat }
 
+  // Mốc biên bản để tính "Thời hạn thu" động (giống Ngày dự kiến ở tab Tiến độ)
+  const [contractDate, setContractDate] = useState(null)
+  const [bbDateMap, setBBDateMap]   = useState({})  // bb_type_id → ngày hiệu lực (yyyy-mm-dd)
+  const [baseOptions, setBaseOptions] = useState([]) // [{ bb_type_id, code }]
+
   const loadContractRef = useCallback(async () => {
     try {
-      // Lấy tổng BOQ (ưu tiên vì phản ánh bảng giá thực tế)
-      const [boqRes, contractRes] = await Promise.all([
+      // Lấy tổng BOQ (ưu tiên vì phản ánh bảng giá thực tế) + tiến độ biên bản (mốc thời hạn thu)
+      const [boqRes, contractRes, progRes, bbRes] = await Promise.all([
         fetch(`${API}/contracts/${contractId}/boq`),
         fetch(`${API}/contracts/${contractId}`),
+        fetch(`${API}/contracts/${contractId}/progress`),
+        fetch(`${API}/bb-types`),
       ])
       const boqData      = await boqRes.json()
       const contractData = await contractRes.json()
+      const progData     = await progRes.json()
+      const bbData       = await bbRes.json()
 
       const boqTotal = Array.isArray(boqData)
         ? boqData.reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
@@ -40,6 +50,32 @@ export default function ContractReceivableTab({ contractId }) {
         currency: contractData.currency_code || 'VND',
         exchangeRate: parseFloat(contractData.exchange_rate) || 1,
       })
+
+      // Tính ngày hiệu lực của từng loại biên bản: ưu tiên ngày thực tế, nếu chưa có thì lấy Ngày dự kiến.
+      const cDate = contractData?.contract_date || null
+      setContractDate(cDate)
+      const progRows  = (Array.isArray(progData) ? progData : []).map(r => ({ ...r, _key: String(r.id) }))
+      const bbTypes   = Array.isArray(bbData) ? bbData : []
+      const forecasts = computeForecasts(progRows, cDate)
+      const dateMap   = {}
+      const options   = []
+      const seen      = new Set()
+      progRows.forEach(r => {
+        const t = r.bb_type_id
+        if (t == null || t === '') return
+        const key = String(t)
+        if (!(key in dateMap)) {
+          const eff = (r.actual_date ? r.actual_date.slice(0, 10) : null) || forecasts[r._key] || null
+          if (eff) dateMap[key] = eff
+        }
+        if (!seen.has(key)) {
+          seen.add(key)
+          const bb = bbTypes.find(x => String(x.id) === key)
+          options.push({ bb_type_id: t, code: bb ? bb.code : '—' })
+        }
+      })
+      setBBDateMap(dateMap)
+      setBaseOptions(options)
     } catch (e) { console.error('loadContractRef:', e) }
   }, [contractId])
 
@@ -140,6 +176,9 @@ export default function ContractReceivableTab({ contractId }) {
         payRows={pay.rows}
         setPayRows={pay.setRows}
         onRateSynced={handleRateSynced}
+        bbDateMap={bbDateMap}
+        baseOptions={baseOptions}
+        contractDate={contractDate}
       />
     </div>
   )

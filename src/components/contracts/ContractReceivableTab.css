@@ -191,6 +191,14 @@
 .recv-status--blue  { color: #1d4ed8; background: #dbeafe; }
 .recv-status--gray  { color: #475569; background: #e2e8f0; }
 
+/* Ô "Thời hạn thu": nhập ngày trực tiếp, hoặc tính động theo biên bản */
+.due-cell { display: flex; flex-direction: column; gap: 3px; }
+.due-cell .due-row { display: flex; align-items: center; gap: 4px; }
+.recv-table td .due-cell .due-base { flex: 0 0 auto; width: 60px; min-width: 0; font-size: 11px; padding: 3px 2px !important; }
+.recv-table td .due-cell .due-days { width: 46px; flex: 0 0 auto; text-align: center; padding-left: 4px !important; padding-right: 2px !important; }
+.due-cell .due-from { font-size: 11px; color: #94a3b8; flex: 0 0 auto; }
+.due-cell .due-resolved { font-size: 12px; font-weight: 600; color: #1e293b; white-space: nowrap; }
+
 /* Column widths */
 .th-stt    { width: 40px; text-align: center !important; }
 .th-desc   { min-width: 200px; }
@@ -198,7 +206,7 @@
 .th-num    { width: 120px; }
 .th-rate   { width: 100px; }
 .th-vnd    { width: 140px; }
-.th-date   { width: 140px; }
+.th-date   { width: 200px; }
 .th-reason { min-width: 160px; }
 .th-ratio  { width: 90px; }
 .th-ratio2 { width: 90px; text-align: center !important; }

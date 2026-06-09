@@ -43,7 +43,8 @@ export async function getSchedule(req, res) {
 export async function createSchedule(req, res) {
   try {
     const { contractId } = req.params
-    const { description, currency_code, amount, exchange_rate, due_date, delay_reason } = req.body
+    const { description, currency_code, amount, exchange_rate, due_date, delay_reason,
+            due_offset_days, due_base_bb_type_id, due_base_anchor } = req.body
 
     const { rows: mx } = await pool.query(
       'SELECT COALESCE(MAX(sort_order),0) AS m FROM public.contract_receivable WHERE contract_out_id=$1',
@@ -55,11 +56,15 @@ export async function createSchedule(req, res) {
 
     const { rows } = await pool.query(`
       INSERT INTO public.contract_receivable
-        (contract_out_id,sort_order,description,currency_code,amount,exchange_rate,amount_vnd,due_date,delay_reason)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+        (contract_out_id,sort_order,description,currency_code,amount,exchange_rate,amount_vnd,due_date,delay_reason,
+         due_offset_days,due_base_bb_type_id,due_base_anchor)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *
     `, [contractId, sortOrder, description || '', currency,
         parseFloat(amount) || 0, parseFloat(exchange_rate) || 1, amtVND,
-        due_date || null, delay_reason || ''])
+        due_date || null, delay_reason || '',
+        due_offset_days === '' || due_offset_days == null ? null : parseInt(due_offset_days, 10),
+        due_base_bb_type_id ? parseInt(due_base_bb_type_id, 10) : null,
+        due_base_anchor || null])
 
     await syncContractRate(contractId, currency, exchange_rate)
     res.status(201).json(rows[0])
@@ -71,17 +76,22 @@ export async function createSchedule(req, res) {
 
 export async function updateSchedule(req, res) {
   try {
-    const { description, currency_code, amount, exchange_rate, due_date, delay_reason } = req.body
+    const { description, currency_code, amount, exchange_rate, due_date, delay_reason,
+            due_offset_days, due_base_bb_type_id, due_base_anchor } = req.body
     const currency = currency_code || 'VND'
     const amtVND   = calcVND(amount, exchange_rate, currency)
 
     const { rows } = await pool.query(`
       UPDATE public.contract_receivable SET
         description=$1, currency_code=$2, amount=$3, exchange_rate=$4,
-        amount_vnd=$5, due_date=$6, delay_reason=$7, updated_at=now()
-      WHERE id=$8 RETURNING *
+        amount_vnd=$5, due_date=$6, delay_reason=$7,
+        due_offset_days=$8, due_base_bb_type_id=$9, due_base_anchor=$10, updated_at=now()
+      WHERE id=$11 RETURNING *
     `, [description || '', currency, parseFloat(amount) || 0, parseFloat(exchange_rate) || 1,
-        amtVND, due_date || null, delay_reason || '', req.params.id])
+        amtVND, due_date || null, delay_reason || '',
+        due_offset_days === '' || due_offset_days == null ? null : parseInt(due_offset_days, 10),
+        due_base_bb_type_id ? parseInt(due_base_bb_type_id, 10) : null,
+        due_base_anchor || null, req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     await syncContractRate(rows[0].contract_out_id, currency, exchange_rate)
