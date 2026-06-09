@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API } from '../config/api'
 import { warrantyStatus, fmtDate } from '../components/contracts/warrantyUtils'
 import { ReplaceSerialModal } from '../components/contracts/SerialModals'
-import BarcodeScanner from '../components/BarcodeScanner'
 import '../components/contracts/ContractWarrantyTab.css'  // tái dùng style modal + badge màu
 import './WarrantyLookupPage.css'
+
+// Tải scanner (kèm thư viện ZXing) theo nhu cầu → không nằm trong bundle chính
+const BarcodeScanner = lazy(() => import('../components/BarcodeScanner'))
 
 // Thiết bị cảm ứng (điện thoại/máy tính bảng) có camera → cho phép quét barcode
 const isMobile = typeof navigator !== 'undefined'
@@ -187,10 +189,12 @@ export default function WarrantyLookupPage() {
       </div>
 
       {showScanner && (
-        <BarcodeScanner
-          onDetected={handleScanned}
-          onClose={() => setShowScanner(false)}
-        />
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            onDetected={handleScanned}
+            onClose={() => setShowScanner(false)}
+          />
+        </Suspense>
       )}
 
       {replaceFor && (
