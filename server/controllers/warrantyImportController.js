@@ -24,6 +24,18 @@ export async function importEquipment(req, res) {
   if (existing.length)
     return res.status(409).json({ error: `Các serial sau đã tồn tại ở phía bán ra: ${existing.join(', ')}`, duplicates: existing })
 
+  // Lưới an toàn: thiết bị có serial thì số serial phải khớp số lượng khai báo.
+  const qtyBad = []
+  for (const item of items) {
+    const cnt = Array.isArray(item.serials) ? item.serials.filter(s => s?.trim()).length : 0
+    if (cnt > 0) {
+      const q = parseFloat(item.quantity)
+      if (!isNaN(q) && q !== cnt) qtyBad.push(`${item.name}: khai ${q}, có ${cnt} serial`)
+    }
+  }
+  if (qtyBad.length)
+    return res.status(400).json({ error: `Số lượng không khớp số serial: ${qtyBad.join('; ')}`, mismatches: qtyBad })
+
   const client = await pool.connect()
   let imported = 0
   try {

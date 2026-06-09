@@ -13,13 +13,20 @@ export function toISODate(val) {
   if (val instanceof Date) {
     return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`
   }
-  const n = typeof val === 'number' ? val : parseFloat(String(val))
-  if (!isNaN(n) && n > 1) {
-    // Excel serial → UTC date (Excel epoch = Dec 30, 1899; Unix epoch offset = 25569 days)
-    const d = new Date(Math.round((n - 25569) * 864e5))
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
+  const str = String(val).trim()
+  // Chuỗi ngày ISO: YYYY-MM-DD hoặc YYYY/MM/DD (xử lý trước để không bị parseFloat nuốt thành số)
+  const iso = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  if (iso) return `${iso[1]}-${String(+iso[2]).padStart(2,'0')}-${String(+iso[3]).padStart(2,'0')}`
+  // Chỉ coi là serial Excel khi là SỐ THUẦN (tránh nhầm "2025-01-01" → 2025)
+  if (/^\d+(\.\d+)?$/.test(str)) {
+    const n = parseFloat(str)
+    if (!isNaN(n) && n > 1) {
+      // Excel serial → UTC date (Excel epoch = Dec 30, 1899; Unix epoch offset = 25569 days)
+      const d = new Date(Math.round((n - 25569) * 864e5))
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
+    }
   }
-  return String(val).trim() || null
+  return str || null
 }
 
 export function warrantyStatus(to) {

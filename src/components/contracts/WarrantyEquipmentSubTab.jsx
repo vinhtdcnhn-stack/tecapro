@@ -1,7 +1,8 @@
 import { useState } from 'react'
 
 import { API } from '../../config/api'
-import { fmtDate, toISODate, warrantyStatus, warrantyCounts } from './warrantyUtils'
+import { fmtDate, warrantyStatus, warrantyCounts } from './warrantyUtils'
+import { parseEquipmentRows } from './warrantyImportUtils'
 import EquipmentModal from './WarrantyEquipmentModal'
 import WarrantyBulkDateModal from './WarrantyBulkDateModal'
 
@@ -101,14 +102,32 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
     const XLSX = await import('xlsx')
     const ws = XLSX.utils.aoa_to_sheet([
       ['Tên thiết bị', 'Hãng', 'Model', 'Serial', 'Số lượng', 'Vị trí lắp đặt', 'BH từ (YYYY-MM-DD)', 'BH đến (YYYY-MM-DD)'],
-      ['Rectifier', 'Megmeet', 'R483000G1', 'MM001', '1', 'BTS Hà Đông', '2025-01-01', '2026-12-31'],
-      ['Rectifier', 'Megmeet', 'R483000G1', 'MM002', '1', 'BTS Hà Đông', '2025-01-01', '2026-12-31'],
+      // Thiết bị có serial: 1 serial/dòng. Dòng nối tiếp để trống cột Tên (kế thừa dòng trên).
+      ['Rectifier', 'Megmeet', 'R483000G1', 'MM001', '2', 'BTS Hà Đông', '2025-01-01', '2026-12-31'],
+      ['', '', '', 'MM002', '', '', '', ''],
+      // Thiết bị 1 serial.
       ['Pin Lithium', 'EVE', 'LF100', 'EVE123', '1', 'BTS Hà Đông', '2025-01-01', '2026-12-31'],
+      // Thiết bị không có serial: bỏ trống cột Serial, Số lượng là số đơn vị.
       ['Cáp DC 16mm²', 'Cadivi', 'CV-16', '', '500', 'BTS Hà Đông', '2025-01-01', '2026-12-31'],
     ])
-    ws['!cols'] = [20,14,16,12,8,18,18,18].map(w => ({ wch: w }))
+    ws['!cols'] = [20,14,16,18,8,18,18,18].map(w => ({ wch: w }))
+
+    const guide = XLSX.utils.aoa_to_sheet([
+      ['HƯỚNG DẪN NHẬP'],
+      [''],
+      ['1. Mỗi serial một dòng. Với thiết bị có nhiều serial, các dòng sau có thể BỎ TRỐNG'],
+      ['   cột "Tên thiết bị" (và Hãng/Model/Vị trí/Bảo hành) — hệ thống tự kế thừa dòng phía trên.'],
+      ['2. Với thiết bị CÓ serial: số serial phải KHỚP cột "Số lượng". Lệch sẽ bị chặn import.'],
+      ['3. Mỗi serial phải DUY NHẤT (trong file và trong toàn hệ thống phía bán). Trùng sẽ bị chặn.'],
+      ['4. Thiết bị KHÔNG có serial (vd: cáp): để trống cột "Serial", "Số lượng" là số đơn vị.'],
+      ['5. Ngày bảo hành dùng định dạng YYYY-MM-DD (vd: 2025-01-01).'],
+      ['6. Có thể ghi nhiều serial trong một ô, ngăn cách bằng dấu chấm phẩy ";".'],
+    ])
+    guide['!cols'] = [{ wch: 95 }]
+
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Thiết bị')
+    XLSX.utils.book_append_sheet(wb, guide, 'Hướng dẫn')
     XLSX.writeFile(wb, 'mau_thiet_bi_bh.xlsx')
   }
 
@@ -121,38 +140,24 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
       const XLSX  = await import('xlsx')
       const wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true })
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' })
-      // Group by (name, brand, model, location, warranty_from, warranty_to)
-      const grouped = new Map()
-      for (const row of rows) {
-        const name  = String(row['Tên thiết bị'] || '').trim()
-        const brand = String(row['Hãng'] || '').trim()
-        const model = String(row['Model'] || '').trim()
-        const loc   = String(row['Vị trí lắp đặt'] || '').trim()
-        const wFrom = toISODate(row['BH từ (YYYY-MM-DD)'])
-        const wTo   = toISODate(row['BH đến (YYYY-MM-DD)'])
-        if (!name) continue
-        const key   = `${name}||${model}||${loc}`
-        if (!grouped.has(key)) {
-          grouped.set(key, { name, brand, model, quantity: parseFloat(row['Số lượng'])||1,
-            location: loc, warranty_from: wFrom, warranty_to: wTo, serials: [] })
-        }
-        const sn = String(row['Serial'] || '').trim()
-        if (sn) sn.split(';').map(s => s.trim()).filter(Boolean).forEach(s => grouped.get(key).serials.push(s))
-      }
-      setImportPreview([...grouped.values()])
+      setImportPreview(parseEquipmentRows(rows))
     }
     reader.readAsArrayBuffer(file)
     e.target.value = ''
   }
 
+  // Có lỗi chặn (trùng serial trong file hoặc lệch số lượng) thì không cho import.
+  const hasBlocking = !!importPreview &&
+    (importPreview.dupInFile.length > 0 || importPreview.qtyMismatch.length > 0)
+
   async function confirmImport() {
-    if (!importPreview?.length) return
+    if (!importPreview?.items?.length || hasBlocking) return
     setImporting(true)
     try {
       const res = await fetch(`${API}/contracts/${contractId}/equipment/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(importPreview),
+        body: JSON.stringify(importPreview.items),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -193,32 +198,64 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
       {importPreview && (
         <div className="wty-section">
           <div className="wty-section-header">
-            <span className="wty-section-title">Xem trước dữ liệu import ({importPreview.length} thiết bị)</span>
-            <div style={{ display:'flex', gap:8 }}>
+            <span className="wty-section-title">Xem trước dữ liệu import ({importPreview.items.length} thiết bị)</span>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              {hasBlocking && <span style={{ fontSize:13, color:'#b91c1c', fontWeight:600 }}>Sửa lỗi bên dưới rồi import lại</span>}
               <button className="wty-btn wty-btn-secondary" onClick={() => setImportPreview(null)}>Hủy</button>
-              <button className="wty-btn wty-btn-primary" onClick={confirmImport} disabled={importing}>
-                {importing ? 'Đang import...' : 'Xác nhận import'}
-              </button>
+              {!hasBlocking && (
+                <button className="wty-btn wty-btn-primary" onClick={confirmImport} disabled={importing}>
+                  {importing ? 'Đang import...' : 'Xác nhận import'}
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Cảnh báo chặn import */}
+          {importPreview.dupInFile.length > 0 && (
+            <div className="wty-import-alert wty-import-alert--error">
+              <strong>⛔ Serial bị lặp trong file ({importPreview.dupInFile.length}):</strong> {importPreview.dupInFile.join(', ')}.
+              <div>Sửa file cho mỗi serial là duy nhất rồi import lại.</div>
+            </div>
+          )}
+          {importPreview.qtyMismatch.length > 0 && (
+            <div className="wty-import-alert wty-import-alert--error">
+              <strong>⛔ Số serial không khớp cột "Số lượng" ({importPreview.qtyMismatch.length} thiết bị):</strong>
+              <ul style={{ margin:'4px 0 0', paddingLeft:18 }}>
+                {importPreview.qtyMismatch.map((m, i) => (
+                  <li key={i}>{m.name}{m.model ? ` / ${m.model}` : ''}: khai <strong>{m.declared}</strong>, có <strong>{m.actual}</strong> serial</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {importPreview.skipped > 0 && (
+            <div className="wty-import-alert wty-import-alert--warn">
+              ⚠️ Có <strong>{importPreview.skipped}</strong> dòng chứa serial nhưng thiếu "Tên thiết bị" ở đầu file nên bị bỏ qua.
+            </div>
+          )}
+
           <div className="import-preview">
             <table>
               <thead>
                 <tr><th>Tên</th><th>Hãng</th><th>Model</th><th>SL</th><th>Serial</th><th>Vị trí</th><th>BH từ</th><th>BH đến</th></tr>
               </thead>
               <tbody>
-                {importPreview.map((item, i) => (
-                  <tr key={i}>
-                    <td>{item.name}</td>
-                    <td>{item.brand}</td>
-                    <td>{item.model}</td>
-                    <td>{item.serials.length || item.quantity}</td>
-                    <td>{item.serials.length > 0 ? item.serials.join(', ') : '—'}</td>
-                    <td>{item.location}</td>
-                    <td>{item.warranty_from}</td>
-                    <td>{item.warranty_to}</td>
-                  </tr>
-                ))}
+                {importPreview.items.map((item, i) => {
+                  const mismatch = item.serials.length > 0 && item.declaredQty != null && item.declaredQty !== item.serials.length
+                  return (
+                    <tr key={i}>
+                      <td>{item.name}</td>
+                      <td>{item.brand}</td>
+                      <td>{item.model}</td>
+                      <td style={mismatch ? { color:'#dc2626', fontWeight:700 } : undefined}>
+                        {item.serials.length > 0 ? `${item.serials.length}${item.declaredQty != null ? `/${item.declaredQty}` : ''}` : item.quantity}
+                      </td>
+                      <td>{item.serials.length > 0 ? item.serials.join(', ') : '—'}</td>
+                      <td>{item.location}</td>
+                      <td>{item.warranty_from}</td>
+                      <td>{item.warranty_to}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
