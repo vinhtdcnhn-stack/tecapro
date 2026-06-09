@@ -5,6 +5,7 @@ import {
   CASE_STATUSES, PRIORITIES, ACTIVITY_TYPES,
   fmtDT, caseStatusCls, caseStatusModalCls, priorityCls, activityIcon,
 } from './warrantyUtils'
+import CaseEquipmentLinker from './CaseEquipmentLinker'
 
 // ── Case detail modal ─────────────────────────────────────────────────────────
 
@@ -13,15 +14,12 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
   const [activities, setActs]    = useState([])
   const [form, setForm]          = useState({ ...caseData })
   const [saving, setSaving]      = useState(false)
-  const [linkForm, setLinkForm]  = useState({ equipment_id: '', serial_id: '' })
   const [actForm, setActForm]    = useState({ activity_type: 'Tiếp nhận', description: '', performed_by: '', performed_at: new Date().toISOString().slice(0,16) })
 
   useEffect(() => {
     fetch(`${API}/warranty-cases/${caseId}/equipment`).then(r=>r.json()).then(d => setLinked(Array.isArray(d)?d:[]))
     fetch(`${API}/warranty-cases/${caseId}/activities`).then(r=>r.json()).then(d => setActs(Array.isArray(d)?d:[]))
   }, [caseId])
-
-  const selectedEquip = equipment.find(e => String(e.id) === String(linkForm.equipment_id))
 
   async function saveInfo() {
     setSaving(true)
@@ -33,23 +31,6 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
     onUpdate(data)
     setSaving(false)
     alert('Đã lưu thông tin case.')
-  }
-
-  async function linkEquip() {
-    if (!linkForm.equipment_id) return
-    const res = await fetch(`${API}/warranty-cases/${caseId}/equipment`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ equipment_id: linkForm.equipment_id, serial_id: linkForm.serial_id||null }),
-    })
-    const data = await res.json()
-    if (!res.ok) { alert(data.error); return }
-    const eq = equipment.find(e => String(e.id) === String(linkForm.equipment_id))
-    const sn = eq?.serials?.find(s => String(s.id) === String(linkForm.serial_id))
-    setLinked(prev => [...prev, {
-      link_id: data.link_id, equipment_id: eq?.id, name: eq?.name,
-      brand: eq?.brand, model: eq?.model, serial_id: sn?.id||null, serial_no: sn?.serial_no||null,
-    }])
-    setLinkForm({ equipment_id: '', serial_id: '' })
   }
 
   async function unlinkEquip(linkId) {
@@ -154,23 +135,11 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
             <div style={{ fontWeight:700, fontSize:13, color:'#374151', marginBottom:10 }}>
               Thiết bị liên quan ({linkedEquip.length})
             </div>
-            <div style={{ display:'flex', gap:8, marginBottom:10, flexWrap:'wrap' }}>
-              <select style={{ flex:1, padding:'7px 10px', border:'1px solid #d1d5db', borderRadius:6, fontSize:13 }}
-                value={linkForm.equipment_id} onChange={e => setLinkForm({equipment_id:e.target.value, serial_id:''})}>
-                <option value="">-- Chọn thiết bị --</option>
-                {equipment.map(e => <option key={e.id} value={e.id}>{e.name} {e.model ? `(${e.model})` : ''}</option>)}
-              </select>
-              {selectedEquip?.serials?.length > 0 && (
-                <select style={{ flex:1, padding:'7px 10px', border:'1px solid #d1d5db', borderRadius:6, fontSize:13 }}
-                  value={linkForm.serial_id} onChange={e => setLinkForm(p=>({...p,serial_id:e.target.value}))}>
-                  <option value="">-- Tất cả serial --</option>
-                  {selectedEquip.serials.map(s => <option key={s.id} value={s.id}>{s.serial_no}</option>)}
-                </select>
-              )}
-              <button className="wty-btn wty-btn-primary" onClick={linkEquip} disabled={!linkForm.equipment_id}>
-                + Thêm
-              </button>
-            </div>
+            <CaseEquipmentLinker
+              caseId={caseId}
+              equipment={equipment}
+              onLinked={links => setLinked(prev => [...prev, ...links])}
+            />
             {linkedEquip.length === 0 ? (
               <div style={{ fontSize:12, color:'#9ca3af', padding:'8px 0' }}>Chưa có thiết bị nào được liên kết với case này.</div>
             ) : (

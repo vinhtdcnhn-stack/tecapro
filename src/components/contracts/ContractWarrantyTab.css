@@ -108,6 +108,41 @@
 .priority--high   { background: #fef9c3; color: #a16207; }
 .priority--urgent { background: #fee2e2; color: #b91c1c; }
 
+/* Liên kết thiết bị cho case: combobox tìm kiếm + multi-select serial */
+.wty-linker { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: flex-start; }
+.wty-combo { position: relative; flex: 1; min-width: 200px; }
+.wty-combo-input {
+  width: 100%; padding: 7px 28px 7px 10px; border: 1px solid #d1d5db;
+  border-radius: 6px; font-size: 13px;
+}
+.wty-combo-input:focus { outline: none; border-color: #16a34a; box-shadow: 0 0 0 2px #16a34a22; }
+.wty-combo-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  border: none; background: none; cursor: pointer; color: #9ca3af; font-size: 16px; line-height: 1;
+}
+.wty-combo-clear:hover { color: #ef4444; }
+.wty-combo-menu {
+  position: absolute; z-index: 60; top: calc(100% + 2px); left: 0; right: 0;
+  max-height: 200px; overflow-y: auto; background: #fff;
+  border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 8px 20px rgba(0,0,0,.12);
+}
+.wty-combo-opt { padding: 7px 10px; font-size: 13px; cursor: pointer; }
+.wty-combo-opt:hover, .wty-combo-opt.active { background: #eff6ff; }
+.wty-combo-sub { color: #9ca3af; font-size: 12px; }
+.wty-combo-empty { padding: 8px 10px; font-size: 12px; color: #9ca3af; }
+.wty-ms {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 6px;
+  border: 1px solid #d1d5db; border-radius: 6px; background: #fff; min-height: 36px; cursor: text;
+}
+.wty-ms-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px;
+  background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;
+  border-radius: 99px; font-size: 11px; font-weight: 600;
+}
+.wty-ms-chip button { border: none; background: none; cursor: pointer; color: #1d4ed8; font-size: 13px; line-height: 1; padding: 0; }
+.wty-ms-chip button:hover { color: #ef4444; }
+.wty-ms-input { flex: 1; min-width: 90px; border: none; outline: none; font-size: 13px; padding: 3px 2px; background: transparent; }
+
 /* Serial chips */
 .serial-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .serial-chip {

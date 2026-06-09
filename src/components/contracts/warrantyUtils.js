@@ -11,7 +11,9 @@ export const fmtDT   = (d) => d ? new Date(d).toLocaleString('vi-VN') : '—'
 export function toISODate(val) {
   if (!val && val !== 0) return null
   if (val instanceof Date) {
-    return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`
+    // SheetJS (cellDates) neo ngày theo UTC nửa đêm → đọc bằng getUTC* để không bị
+    // lệch ±1 ngày theo múi giờ máy. (Nhánh serial Excel bên dưới cũng dùng getUTC*.)
+    return `${val.getUTCFullYear()}-${String(val.getUTCMonth()+1).padStart(2,'0')}-${String(val.getUTCDate()).padStart(2,'0')}`
   }
   const str = String(val).trim()
   // Chuỗi ngày ISO: YYYY-MM-DD hoặc YYYY/MM/DD (xử lý trước để không bị parseFloat nuốt thành số)
