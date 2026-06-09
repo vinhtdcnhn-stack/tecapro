@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractProgressTab.css'
+import DateInput from './DateInput'
 
 import { API } from '../../config/api'
 
@@ -156,11 +157,11 @@ export default function ContractInProgressTab({ contractInId }) {
                     </select>
                   </td>
                   <td className="td-date">
-                    <input type="date" value={row.planned_date?.slice(0,10) || ''}
+                    <DateInput value={row.planned_date?.slice(0,10) || ''}
                       onChange={e => set(row._key, 'planned_date', e.target.value)} />
                   </td>
                   <td className="td-date">
-                    <input type="date" value={row.actual_date?.slice(0,10) || ''}
+                    <DateInput value={row.actual_date?.slice(0,10) || ''}
                       onChange={e => set(row._key, 'actual_date', e.target.value)} />
                   </td>
                   <td className="td-status">

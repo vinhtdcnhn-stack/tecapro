@@ -4,6 +4,7 @@ import './ContractProgressTab.css'
 import { API } from '../../config/api'
 import { getStatusInfo, computeForecasts, fmtDate, forecastHint, tmpId } from './progressUtils'
 import BBTypeManager from './BBTypeManager'
+import DateInput from './DateInput'
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -229,8 +230,7 @@ export default function ContractProgressTab({ contractId }) {
                   </td>
 
                   <td className="td-date">
-                    <input
-                      type="date"
+                    <DateInput
                       value={row.planned_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'planned_date', e.target.value)}
                     />
@@ -242,8 +242,7 @@ export default function ContractProgressTab({ contractId }) {
                   </td>
 
                   <td className="td-date">
-                    <input
-                      type="date"
+                    <DateInput
                       value={row.actual_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'actual_date', e.target.value)}
                     />

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 import { DELIVERY_STATUSES } from './deliveryUtils'
 
@@ -38,7 +39,7 @@ export default function BatchModal({ batch, onSave, onClose }) {
             </div>
             <div className="form-group">
               <label>Ngày nhận</label>
-              <input type="date" value={form.receive_date} onChange={e=>s({receive_date:e.target.value})} />
+              <DateInput value={form.receive_date} onChange={e=>s({receive_date:e.target.value})} />
             </div>
           </div>
           <div className="form-group">

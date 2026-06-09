@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 import { API } from '../../config/api'
 import { CURRENCIES, PURCHASE_TYPES, STATUSES, statusCfg } from './contractInUtils'
@@ -67,7 +68,7 @@ export default function ContractInInfoTab({ item, suppliers, onUpdate, onDelete 
           </div>
           <div className="form-group">
             <label>Ngày hợp đồng</label>
-            <input type="date" value={form.contract_date}
+            <DateInput value={form.contract_date}
               onChange={e => s({ contract_date: e.target.value })} />
           </div>
         </div>

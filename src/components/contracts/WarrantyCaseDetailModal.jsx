@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import DateInput from './DateInput'
 
 import { API } from '../../config/api'
 import {
@@ -80,7 +81,7 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
             </div>
             <div className="wty-form-group">
               <label>Ngày báo</label>
-              <input type="date" value={form.reported_date?.slice(0,10)||''} onChange={e=>setForm(p=>({...p,reported_date:e.target.value}))} />
+              <DateInput value={form.reported_date?.slice(0,10)||''} onChange={e=>setForm(p=>({...p,reported_date:e.target.value}))} />
             </div>
           </div>
           <div className="wty-form-row">
@@ -121,7 +122,7 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
           {form.status === 'Hoàn thành' && (
             <div className="wty-form-group">
               <label>Ngày hoàn thành</label>
-              <input type="date" value={form.resolved_date?.slice(0,10)||''} onChange={e=>setForm(p=>({...p,resolved_date:e.target.value}))} />
+              <DateInput value={form.resolved_date?.slice(0,10)||''} onChange={e=>setForm(p=>({...p,resolved_date:e.target.value}))} />
             </div>
           )}
           <div style={{ display:'flex', justifyContent:'flex-end' }}>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 // ── Equipment Form Modal ──────────────────────────────────────────────────────
 
@@ -61,11 +62,11 @@ export default function EquipmentModal({ item, onSave, onClose }) {
           <div className="wty-form-row">
             <div className="wty-form-group">
               <label>Bảo hành từ</label>
-              <input type="date" value={form.warranty_from} onChange={e=>s({warranty_from:e.target.value})} />
+              <DateInput value={form.warranty_from} onChange={e=>s({warranty_from:e.target.value})} />
             </div>
             <div className="wty-form-group">
               <label>Bảo hành đến</label>
-              <input type="date" value={form.warranty_to} onChange={e=>s({warranty_to:e.target.value})} />
+              <DateInput value={form.warranty_to} onChange={e=>s({warranty_to:e.target.value})} />
             </div>
           </div>
           <div className="wty-form-row">

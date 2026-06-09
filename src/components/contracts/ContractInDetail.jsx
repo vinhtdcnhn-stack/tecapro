@@ -113,7 +113,7 @@ export default function ContractInDetail({ item, suppliers, onBack, onUpdate, on
             basePath={`contract-ins/${item.id}`}
           />
         ) : activeTab === 'pricing' ? (
-          <ContractInBOQTab contractInId={item.id} />
+          <ContractInBOQTab contractInId={item.id} currency={item.currency_code || 'VND'} />
         ) : activeTab === 'delivery' ? (
           <ContractInDeliveryTab contractInId={item.id} />
         ) : activeTab === 'payment' ? (

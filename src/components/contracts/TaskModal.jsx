@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 
 import { API } from '../../config/api'
 import { PRIORITIES, STATUSES, statusModalClass } from './taskUtils'
+import DateInput from './DateInput'
 
 // ── Task modal (create / edit) ────────────────────────────────────────────────
 
@@ -181,8 +182,7 @@ export default function TaskModal({ task, departments, users, currentUser, onSav
             </div>
             <div className="task-form-group">
               <label>Thời hạn hoàn thành *</label>
-              <input
-                type="date"
+              <DateInput
                 value={form.due_date}
                 onChange={e => set('due_date', e.target.value)}
                 className={errors.due_date ? 'has-error' : ''}

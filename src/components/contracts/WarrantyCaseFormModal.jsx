@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 import { CASE_STATUSES, PRIORITIES, caseStatusModalCls } from './warrantyUtils'
 
@@ -43,7 +44,7 @@ export default function CaseFormModal({ caseData, defaultCaseNo, onSave, onClose
             </div>
             <div className="wty-form-group">
               <label>Ngày báo cáo</label>
-              <input type="date" value={form.reported_date} onChange={e=>s({reported_date:e.target.value})} />
+              <DateInput value={form.reported_date} onChange={e=>s({reported_date:e.target.value})} />
             </div>
           </div>
           <div className="wty-form-row">

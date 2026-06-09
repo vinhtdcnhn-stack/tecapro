@@ -3,7 +3,19 @@ import './ContractBOQTab.css'
 import BOQImportModal from './BOQImportModal'
 import { API } from '../../config/api'
 
-const fmtNum = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
+// Định dạng tiền theo đồng tiền HĐ:
+//  - VND: làm tròn về số nguyên, KHÔNG hiển thị thập phân.
+//  - Ngoại tệ: giữ tối đa 2 chữ số thập phân (chỉ hiện khi thực sự có lẻ).
+// Làm tròn trước khi xét phần lẻ để tránh sai số dấu phẩy động (vd 4117740000.0000001 → ,00).
+const fmtNum = (n, currency = 'VND') => {
+  let num = parseFloat(n) || 0
+  if (currency === 'VND') return new Intl.NumberFormat('vi-VN').format(Math.round(num))
+  num = Math.round(num * 100) / 100
+  return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num)
+}
+
+// Bỏ đuôi số 0 thừa khi hiển thị trong ô nhập (vd "62.0000" → "62", "1234.50" → "1234.5").
+const stripNum = (v) => (v === '' || v == null) ? '' : String(Number(v))
 
 function calcAmounts(qty, price, vat) {
   const q = parseFloat(qty) || 0
@@ -20,6 +32,7 @@ const tmpId = () => `tmp_${++_tmpCounter}`
 
 export default function ContractBOQTab({ contractId }) {
   const [rows, setRows]           = useState([])
+  const [currency, setCurrency]   = useState('VND')
   const [loading, setLoading]     = useState(true)
   const [importData, setImportData] = useState(null)  // { items, total }
   const [importMode, setImportMode] = useState('append')
@@ -30,8 +43,13 @@ export default function ContractBOQTab({ contractId }) {
 
   const load = useCallback(async () => {
     try {
-      const res  = await fetch(`${API}/contracts/${contractId}/boq`)
-      const data = await res.json()
+      const [res, cRes] = await Promise.all([
+        fetch(`${API}/contracts/${contractId}/boq`),
+        fetch(`${API}/contracts/${contractId}`),
+      ])
+      const data  = await res.json()
+      const cData = await cRes.json()
+      setCurrency(cData?.currency_code || 'VND')
       setRows(data.map(r => toLocalRow(r)))
     } catch (e) {
       console.error('load BOQ:', e)
@@ -45,7 +63,10 @@ export default function ContractBOQTab({ contractId }) {
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   function toLocalRow(r) {
-    return { ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false }
+    return {
+      ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
+      quantity: stripNum(r.quantity), unit_price: stripNum(r.unit_price), vat_rate: stripNum(r.vat_rate),
+    }
   }
 
   function emptyRow(insertAfterRefId = null) {
@@ -235,9 +256,9 @@ export default function ContractBOQTab({ contractId }) {
           <span className="boq-summary">
             <span className="boq-summary-count">{rows.length} dòng</span>
             <span className="boq-summary-sep">|</span>
-            Trước VAT: <strong>{fmtNum(totals.before)}</strong>
+            Trước VAT: <strong>{fmtNum(totals.before, currency)}</strong>
             <span className="boq-summary-sep">|</span>
-            Sau VAT: <strong>{fmtNum(totals.after)}</strong>
+            Sau VAT: <strong>{fmtNum(totals.after, currency)}</strong>
           </span>
         </div>
       </div>
@@ -334,7 +355,7 @@ export default function ContractBOQTab({ contractId }) {
                     />
                   </td>
 
-                  <td className="td-amt computed">{fmtNum(before)}</td>
+                  <td className="td-amt computed">{fmtNum(before, currency)}</td>
 
                   <td className="td-vat">
                     <input
@@ -347,7 +368,7 @@ export default function ContractBOQTab({ contractId }) {
                     />
                   </td>
 
-                  <td className="td-amt computed">{fmtNum(after)}</td>
+                  <td className="td-amt computed">{fmtNum(after, currency)}</td>
 
                   <td className="td-warranty">
                     <input
@@ -410,9 +431,9 @@ export default function ContractBOQTab({ contractId }) {
             <tfoot>
               <tr className="totals-row">
                 <td colSpan="6" className="totals-label">TỔNG CỘNG</td>
-                <td className="td-amt">{fmtNum(totals.before)}</td>
+                <td className="td-amt">{fmtNum(totals.before, currency)}</td>
                 <td />
-                <td className="td-amt">{fmtNum(totals.after)}</td>
+                <td className="td-amt">{fmtNum(totals.after, currency)}</td>
                 <td colSpan="3" />
               </tr>
             </tfoot>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 // Modal đặt BH từ / BH đến cho nhiều dòng. Để trống trường nào thì giữ nguyên trường đó.
 export default function WarrantyBulkDateModal({ count, onClose, onApply }) {
@@ -26,9 +27,9 @@ export default function WarrantyBulkDateModal({ count, onClose, onApply }) {
           </p>
           <div className="wty-form-row">
             <div className="wty-form-group"><label>Bảo hành từ</label>
-              <input type="date" value={from} onChange={e => setFrom(e.target.value)} /></div>
+              <DateInput value={from} onChange={e => setFrom(e.target.value)} /></div>
             <div className="wty-form-group"><label>Bảo hành đến</label>
-              <input type="date" value={to} onChange={e => setTo(e.target.value)} /></div>
+              <DateInput value={to} onChange={e => setTo(e.target.value)} /></div>
           </div>
         </div>
         <div className="wty-modal-footer">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 import { CURRENCIES, PURCHASE_TYPES, STATUSES, statusCfg } from './contractInUtils'
 
@@ -35,7 +36,7 @@ export default function ContractInFormModal({ suppliers, onSave, onClose }) {
               </div>
               <div className="form-group">
                 <label>Ngày hợp đồng</label>
-                <input type="date" value={form.contract_date} onChange={e => s({ contract_date: e.target.value })} />
+                <DateInput value={form.contract_date} onChange={e => s({ contract_date: e.target.value })} />
               </div>
             </div>
             <div className="form-row">

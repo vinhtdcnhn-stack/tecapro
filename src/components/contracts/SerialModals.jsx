@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 // Modal dùng chung cho phần Quản lý Serial.
 
@@ -44,9 +45,9 @@ export function ComponentModal({ equipment, serials, onClose, onSave }) {
           </div>
           <div className="wty-form-row">
             <div className="wty-form-group"><label>Bảo hành từ</label>
-              <input type="date" value={f.warranty_from} onChange={e => set('warranty_from', e.target.value)} /></div>
+              <DateInput value={f.warranty_from} onChange={e => set('warranty_from', e.target.value)} /></div>
             <div className="wty-form-group"><label>Bảo hành đến</label>
-              <input type="date" value={f.warranty_to} onChange={e => set('warranty_to', e.target.value)} /></div>
+              <DateInput value={f.warranty_to} onChange={e => set('warranty_to', e.target.value)} /></div>
           </div>
           <div className="wty-form-row">
             <div className="wty-form-group full"><label>Thuộc máy (tùy chọn)</label>
@@ -125,14 +126,14 @@ export function ReplaceSerialModal({ serial, endpoint, showWarranty = true, onCl
           {showWarranty && (
             <div className="wty-form-row">
               <div className="wty-form-group"><label>Bảo hành từ</label>
-                <input type="date" value={f.warranty_from} onChange={e => set('warranty_from', e.target.value)} /></div>
+                <DateInput value={f.warranty_from} onChange={e => set('warranty_from', e.target.value)} /></div>
               <div className="wty-form-group"><label>Bảo hành đến</label>
-                <input type="date" value={f.warranty_to} onChange={e => set('warranty_to', e.target.value)} /></div>
+                <DateInput value={f.warranty_to} onChange={e => set('warranty_to', e.target.value)} /></div>
             </div>
           )}
           <div className="wty-form-row">
             <div className="wty-form-group"><label>Ngày thay thế</label>
-              <input type="date" value={f.replaced_at} onChange={e => set('replaced_at', e.target.value)} /></div>
+              <DateInput value={f.replaced_at} onChange={e => set('replaced_at', e.target.value)} /></div>
             <div className="wty-form-group"><label>Ghi chú</label>
               <input value={f.note} onChange={e => set('note', e.target.value)} placeholder="VD: NCC đổi mới do lỗi nguồn" /></div>
           </div>

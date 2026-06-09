@@ -3,6 +3,7 @@ import { API } from '../../config/api'
 import { fmtVND, fmtAmt, fmtDate, calcVND, receivableStatus, resolveDueDate, tmpId, needsRate } from './receivableUtils'
 import RowActions from './ReceivableRowActions'
 import LinkedPaymentsRow from './LinkedPaymentsRow'
+import DateInput from './DateInput'
 
 // ── Schedule section ──────────────────────────────────────────────────────────
 
@@ -197,7 +198,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
                       </div>
                       {dueComputed
                         ? <span className="due-resolved">→ {fmtDate(dueResolved)}</span>
-                        : <input type="date" value={row.due_date?.slice(0, 10) || ''}
+                        : <DateInput value={row.due_date?.slice(0, 10) || ''}
                             onChange={e => set(row._key, 'due_date', e.target.value)} />}
                       {status && <span className={`recv-status recv-status--${status.color}`}>{status.label}</span>}
                     </div>

@@ -131,6 +131,7 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
               {addItemForm ? (
                 <AddItemForm
                   boqItems={boqItems}
+                  existingNames={items.map(i => i.item_name)}
                   onSave={handleAddItem}
                   onCancel={() => setAddItem(false)}
                 />
@@ -153,10 +154,14 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
 
 // ── Add item form (inline) ────────────────────────────────────────────────────
 
-function AddItemForm({ boqItems, onSave, onCancel }) {
+function AddItemForm({ boqItems, existingNames = [], onSave, onCancel }) {
   const [form, setForm] = useState({
     boq_item_id: '', item_name: '', unit: '', ordered_quantity: '', received_quantity: '', note: '',
   })
+
+  // Chuẩn hóa tên để so trùng (bỏ khoảng trắng thừa, không phân biệt hoa/thường)
+  const norm = (s) => String(s || '').trim().toLowerCase()
+  const usedNames = new Set(existingNames.map(norm))
 
   function handleBoqSelect(id) {
     const boq = boqItems.find(b => String(b.id) === String(id))
@@ -169,6 +174,10 @@ function AddItemForm({ boqItems, onSave, onCancel }) {
 
   async function handleSubmit() {
     if (!form.item_name.trim()) { alert('Vui lòng nhập tên hàng hóa'); return }
+    if (usedNames.has(norm(form.item_name))) {
+      alert(`Chủng loại "${form.item_name.trim()}" đã có trong đợt nhận này. Mỗi chủng loại chỉ thêm một dòng.`)
+      return
+    }
     await onSave(form)
   }
 
@@ -181,7 +190,8 @@ function AddItemForm({ boqItems, onSave, onCancel }) {
           <select value={form.boq_item_id} onChange={e => handleBoqSelect(e.target.value)}
             style={{ width:'100%', padding:'6px 8px', border:'1px solid #d1d5db', borderRadius:5, fontSize:12 }}>
             <option value="">-- Chọn hoặc nhập tự do --</option>
-            {boqItems.map(b => <option key={b.id} value={b.id}>{b.item_name}</option>)}
+            {boqItems.filter(b => !usedNames.has(norm(b.item_name)))
+              .map(b => <option key={b.id} value={b.id}>{b.item_name}</option>)}
           </select>
         </div>
         <div>

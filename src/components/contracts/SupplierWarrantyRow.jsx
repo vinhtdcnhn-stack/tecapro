@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 import { fmtDate, fmtDateInput, td } from './supplierWarrantyUtils'
 
@@ -26,7 +27,7 @@ export default function WarrantyRow({ idx, w, selected, onToggle, onFieldUpdate,
     if (editField === field) {
       return (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <input type="date" value={tempVal} onChange={e => setTempVal(e.target.value)} autoFocus
+          <DateInput value={tempVal} onChange={e => setTempVal(e.target.value)} autoFocus
             onKeyDown={e => { if (e.key === 'Enter') commitEdit(field); if (e.key === 'Escape') setEditField(null) }}
             style={{ padding: '3px 6px', border: '1px solid #3b82f6', borderRadius: 4, fontSize: 12 }} />
           <button onClick={() => commitEdit(field)}

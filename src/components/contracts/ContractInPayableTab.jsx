@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractReceivableTab.css'
+import DateInput from './DateInput'
 
 import { API } from '../../config/api'
 
@@ -263,7 +264,7 @@ function PayableSection({ rows, setRows, contractInId }) {
                   </td>
                   <td className="td-vnd computed">{fmtVND(vnd)}</td>
                   <td className="td-date">
-                    <input type="date" value={row.due_date?.slice(0, 10) || ''}
+                    <DateInput value={row.due_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'due_date', e.target.value)} />
                     {overdue && <span className="overdue-tag">Quá hạn</span>}
                   </td>
@@ -395,7 +396,7 @@ function PaymentSection({ rows, setRows, contractInId, totalExpected }) {
                     <span>{idx + 1}</span>
                   </td>
                   <td className="td-date">
-                    <input type="date" value={row.payment_date?.slice(0, 10) || ''}
+                    <DateInput value={row.payment_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'payment_date', e.target.value)} />
                   </td>
                   <td className="td-cur">

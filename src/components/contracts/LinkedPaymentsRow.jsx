@@ -1,5 +1,6 @@
 import { API } from '../../config/api'
 import { fmtVND, fmtAmt, calcVND, tmpId, needsRate } from './receivableUtils'
+import DateInput from './DateInput'
 import RowActions from './ReceivableRowActions'
 
 // Inline sub-row: payments linked to one schedule item
@@ -102,7 +103,7 @@ export default function LinkedPaymentsRow({ schedRow, payRows, setPayRows, contr
                         <span>{idx + 1}</span>
                       </td>
                       <td className="td-date">
-                        <input type="date" value={p.payment_date?.slice(0, 10) || ''}
+                        <DateInput value={p.payment_date?.slice(0, 10) || ''}
                           onChange={e => set(p._key, 'payment_date', e.target.value)} />
                       </td>
                       <td className="td-num">

@@ -3,7 +3,17 @@ import './ContractBOQTab.css'
 
 import { API } from '../../config/api'
 
-const fmtNum = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
+// Định dạng tiền theo đồng tiền HĐ: VND → số nguyên (không thập phân); ngoại tệ → tối đa 2 chữ số lẻ.
+// Làm tròn trước khi xét phần lẻ để tránh sai số dấu phẩy động (vd 3841985400.0000001 → ,00).
+const fmtNum = (n, currency = 'VND') => {
+  let num = parseFloat(n) || 0
+  if (currency === 'VND') return new Intl.NumberFormat('vi-VN').format(Math.round(num))
+  num = Math.round(num * 100) / 100
+  return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num)
+}
+
+// Bỏ đuôi số 0 thừa khi hiển thị trong ô nhập (vd "62.0000" → "62", "1234.50" → "1234.5").
+const stripNum = (v) => (v === '' || v == null) ? '' : String(Number(v))
 
 function calcAmounts(qty, price, vat) {
   const q = parseFloat(qty) || 0
@@ -16,7 +26,7 @@ function calcAmounts(qty, price, vat) {
 let _ctr = 0
 const tmpId = () => `tmp_${++_ctr}`
 
-export default function ContractInBOQTab({ contractInId }) {
+export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const [rows, setRows]               = useState([])
   const [loading, setLoading]         = useState(true)
   const [importData, setImportData]   = useState(null)
@@ -35,7 +45,10 @@ export default function ContractInBOQTab({ contractInId }) {
 
   useEffect(() => { load() }, [load])
 
-  const toLocalRow = (r) => ({ ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false })
+  const toLocalRow = (r) => ({
+    ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
+    quantity: stripNum(r.quantity), unit_price: stripNum(r.unit_price), vat_rate: stripNum(r.vat_rate),
+  })
 
   const emptyRow = (insertAfterRefId = null) => ({
     id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
@@ -168,9 +181,9 @@ export default function ContractInBOQTab({ contractInId }) {
           <span className="boq-summary">
             <span className="boq-summary-count">{rows.length} dòng</span>
             <span className="boq-summary-sep">|</span>
-            Trước VAT: <strong>{fmtNum(totals.before)}</strong>
+            Trước VAT: <strong>{fmtNum(totals.before, currency)}</strong>
             <span className="boq-summary-sep">|</span>
-            Sau VAT: <strong>{fmtNum(totals.after)}</strong>
+            Sau VAT: <strong>{fmtNum(totals.after, currency)}</strong>
           </span>
         </div>
       </div>
@@ -232,13 +245,13 @@ export default function ContractInBOQTab({ contractInId }) {
                       onChange={e => set(row._key, 'unit_price', e.target.value)}
                       placeholder="0" min="0" />
                   </td>
-                  <td className="td-amt computed">{fmtNum(before)}</td>
+                  <td className="td-amt computed">{fmtNum(before, currency)}</td>
                   <td className="td-vat">
                     <input type="number" value={row.vat_rate}
                       onChange={e => set(row._key, 'vat_rate', e.target.value)}
                       placeholder="10" min="0" max="100" />
                   </td>
-                  <td className="td-amt computed">{fmtNum(after)}</td>
+                  <td className="td-amt computed">{fmtNum(after, currency)}</td>
                   <td className="td-warranty">
                     <input type="text" value={row.warranty_period}
                       onChange={e => set(row._key, 'warranty_period', e.target.value)}
@@ -271,9 +284,9 @@ export default function ContractInBOQTab({ contractInId }) {
             <tfoot>
               <tr className="totals-row">
                 <td colSpan="5" className="totals-label">TỔNG CỘNG</td>
-                <td className="td-amt">{fmtNum(totals.before)}</td>
+                <td className="td-amt">{fmtNum(totals.before, currency)}</td>
                 <td />
-                <td className="td-amt">{fmtNum(totals.after)}</td>
+                <td className="td-amt">{fmtNum(totals.after, currency)}</td>
                 <td colSpan="2" />
               </tr>
             </tfoot>
@@ -333,11 +346,11 @@ export default function ContractInBOQTab({ contractInId }) {
                         <td className="td-stt"><span className="stt-num">{idx+1}</span></td>
                         <td className="td-name"><span className="preview-text">{item.item_name}</span></td>
                         <td className="td-unit"><span className="preview-text">{item.unit}</span></td>
-                        <td className="td-num"><span className="preview-text">{fmtNum(item.quantity)}</span></td>
-                        <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price)}</span></td>
-                        <td className="td-amt computed">{fmtNum(before)}</td>
+                        <td className="td-num"><span className="preview-text">{fmtNum(item.quantity, currency)}</span></td>
+                        <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price, currency)}</span></td>
+                        <td className="td-amt computed">{fmtNum(before, currency)}</td>
                         <td className="td-vat"><span className="preview-text">{item.vat_rate}%</span></td>
-                        <td className="td-amt computed">{fmtNum(after)}</td>
+                        <td className="td-amt computed">{fmtNum(after, currency)}</td>
                         <td className="td-warranty"><span className="preview-text">{item.warranty_period}</span></td>
                       </tr>
                     )

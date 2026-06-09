@@ -104,6 +104,15 @@ export async function createDeliveryItem(req, res) {
   const { boq_item_id, item_name, unit, ordered_quantity, received_quantity, note } = req.body
   if (!item_name?.trim()) return res.status(400).json({ error: 'Tên hàng hóa không được để trống' })
   try {
+    // Trong cùng 1 đợt nhận, chủng loại hàng hóa không được trùng (không phân biệt hoa/thường).
+    const dup = await pool.query(
+      `SELECT 1 FROM contract_in_delivery_item
+         WHERE delivery_id=$1 AND lower(btrim(item_name))=lower(btrim($2)) LIMIT 1`,
+      [deliveryId, item_name]
+    )
+    if (dup.rows.length)
+      return res.status(409).json({ error: `Chủng loại "${item_name.trim()}" đã có trong đợt nhận này. Mỗi chủng loại chỉ thêm một dòng.` })
+
     const { rows } = await pool.query(`
       INSERT INTO contract_in_delivery_item
         (delivery_id, boq_item_id, item_name, unit, ordered_quantity, received_quantity, note)

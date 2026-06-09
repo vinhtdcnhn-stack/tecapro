@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { API_BASE } from '../../config/api'
 import MultiSelect from '../common/MultiSelect'
 import CustomerSelect from '../common/CustomerSelect'
+import DateInput from './DateInput'
 
 export default function ContractModal({ 
   isOpen, 
@@ -228,8 +229,7 @@ export default function ContractModal({
               </div>
               <div className="form-group">
                 <label>Ngày ký *</label>
-                <input
-                  type="date"
+                <DateInput
                   value={formData.contract_date}
                   onChange={(e) => updateField('contract_date', e.target.value)}
                 />

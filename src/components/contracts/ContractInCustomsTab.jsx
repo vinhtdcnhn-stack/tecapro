@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
+import DateInput from './DateInput'
 
 const SHIPMENT_TYPES   = ['Nhập khẩu', 'Xuất khẩu']
 const CUSTOMS_STATUSES = ['Chưa khai báo', 'Đang làm thủ tục', 'Đã thông quan', 'Bị tạm giữ']
@@ -251,10 +252,10 @@ function CustomsModal({ row, onSave, onClose }) {
                   placeholder="VD: COSCO123456789" style={inp} />
               </Field>
               <Field label="Ngày ETD (Khởi hành)">
-                <input type="date" value={form.etd} onChange={e => s({ etd: e.target.value })} style={inp} />
+                <DateInput value={form.etd} onChange={e => s({ etd: e.target.value })} style={inp} />
               </Field>
               <Field label="Ngày ETA (Dự kiến đến)">
-                <input type="date" value={form.eta} onChange={e => s({ eta: e.target.value })} style={inp} />
+                <DateInput value={form.eta} onChange={e => s({ eta: e.target.value })} style={inp} />
               </Field>
               <Field label="Cảng đi (POL)">
                 <input type="text" value={form.port_of_loading} onChange={e => s({ port_of_loading: e.target.value })}
@@ -274,7 +275,7 @@ function CustomsModal({ row, onSave, onClose }) {
                   placeholder="VD: 101234567890" style={inp} />
               </Field>
               <Field label="Ngày tờ khai">
-                <input type="date" value={form.declaration_date} onChange={e => s({ declaration_date: e.target.value })} style={inp} />
+                <DateInput value={form.declaration_date} onChange={e => s({ declaration_date: e.target.value })} style={inp} />
               </Field>
               <Field label="Trạng thái thông quan">
                 <select value={form.customs_status} onChange={e => s({ customs_status: e.target.value })} style={inp}>

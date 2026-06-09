@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractGuaranteeTab.css'
+import DateInput from './DateInput'
 
 import { API } from '../../config/api'
 
@@ -240,16 +241,14 @@ export default function ContractGuaranteeTab({ contractId }) {
                     </td>
 
                     <td>
-                      <input
-                        type="date"
+                      <DateInput
                         value={row.issue_date?.slice(0, 10) || ''}
                         onChange={e => set(row._key, 'issue_date', e.target.value)}
                       />
                     </td>
 
                     <td>
-                      <input
-                        type="date"
+                      <DateInput
                         value={row.expiry_date?.slice(0, 10) || ''}
                         onChange={e => set(row._key, 'expiry_date', e.target.value)}
                       />

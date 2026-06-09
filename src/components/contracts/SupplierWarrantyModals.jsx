@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import DateInput from './DateInput'
 
 import { CLAIM_STATUSES, fmtDateInput, inputStyle } from './supplierWarrantyUtils'
 
@@ -62,10 +63,10 @@ export function BulkUpdateModal({ count, onSave, onClose }) {
           Áp dụng cho <strong>{count} dòng</strong> đang được chọn. Trường nào để trống sẽ không thay đổi.
         </p>
         <FormField label="Ngày bắt đầu bảo hành">
-          <input type="date" value={startDate} onChange={e => setStart(e.target.value)} style={inputStyle} />
+          <DateInput value={startDate} onChange={e => setStart(e.target.value)} style={inputStyle} />
         </FormField>
         <FormField label="Ngày hết hạn bảo hành">
-          <input type="date" value={endDate} onChange={e => setEnd(e.target.value)} style={inputStyle} />
+          <DateInput value={endDate} onChange={e => setEnd(e.target.value)} style={inputStyle} />
         </FormField>
       </div>
       <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} saveLabel={`Cập nhật ${count} dòng`} />
@@ -108,10 +109,10 @@ export function WarrantyModal({ warranty, onSave, onClose }) {
         </FormField>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <FormField label="Ngày bắt đầu BH">
-            <input type="date" value={form.warranty_start} onChange={e => s({ warranty_start: e.target.value })} style={inputStyle} />
+            <DateInput value={form.warranty_start} onChange={e => s({ warranty_start: e.target.value })} style={inputStyle} />
           </FormField>
           <FormField label="Ngày hết hạn BH">
-            <input type="date" value={form.warranty_end} onChange={e => s({ warranty_end: e.target.value })} style={inputStyle} />
+            <DateInput value={form.warranty_end} onChange={e => s({ warranty_end: e.target.value })} style={inputStyle} />
           </FormField>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -168,7 +169,7 @@ export function ClaimModal({ claim, warranties, onSave, onClose }) {
               placeholder="VD: CLM-2026-001" style={inputStyle} />
           </FormField>
           <FormField label="Ngày báo">
-            <input type="date" value={form.reported_date} onChange={e => s({ reported_date: e.target.value })} style={inputStyle} />
+            <DateInput value={form.reported_date} onChange={e => s({ reported_date: e.target.value })} style={inputStyle} />
           </FormField>
         </div>
         <FormField label="Tiêu đề *">
@@ -192,7 +193,7 @@ export function ClaimModal({ claim, warranties, onSave, onClose }) {
             </select>
           </FormField>
           <FormField label="Ngày giải quyết">
-            <input type="date" value={form.resolved_date} onChange={e => s({ resolved_date: e.target.value })} style={inputStyle} />
+            <DateInput value={form.resolved_date} onChange={e => s({ resolved_date: e.target.value })} style={inputStyle} />
           </FormField>
         </div>
         <FormField label="Ghi chú">
