@@ -50,7 +50,7 @@ This is a full-stack app with a React/Vite frontend and an Express/Node.js backe
 - `server/controllers/` — business logic per domain (auth, customer, contract, document)
 - Uploaded files are stored at `server/uploads/` and served statically
 
-**Database** — PostgreSQL. Key tables: `app_user`, `customer`, `contract_out`, `contract_out_member`, `document_folder`, `document_file`. A trigger on `contract_out` auto-creates a default folder tree (Hồ sơ thầu, Hợp đồng bán, Hợp đồng nhập, Triển khai, Nghiệm thu, Khác) whenever a new contract is inserted.
+**Database** — PostgreSQL. Key tables: `app_user`, `customer`, `contract_out`, `contract_out_member`, `document_folder`, `document_file`. Originally a trigger on `contract_out` (`trg_create_default_folders`) auto-created a default folder tree on insert, but this was **disabled** in migration `034_drop_default_folders_trigger.sql` — new contracts now start with an empty folder tree and users create folders manually. The `create_default_contract_folders()` / `trigger_create_default_folders()` functions are kept so the trigger can be re-enabled if needed.
 
 **Auth** — simple email+password login using `bcryptjs`. No JWT; the frontend stores only `userId` in localStorage and re-fetches user data from `/api/me/:id` on page load. Role is an integer (`role == 1` = admin).
 
