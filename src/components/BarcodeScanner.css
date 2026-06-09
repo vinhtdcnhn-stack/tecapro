@@ -27,8 +27,8 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(78vw, 340px);
-  height: min(48vw, 200px);
+  width: min(82vw, 360px);
+  height: min(30vw, 130px);
   border: 3px solid rgba(255, 255, 255, 0.9);
   border-radius: 14px;
   box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45);
