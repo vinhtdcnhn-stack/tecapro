@@ -49,6 +49,8 @@
 .wty-btn-secondary:hover{ background: #e5e7eb; }
 .wty-btn-blue  { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
 .wty-btn-blue:hover { background: #dbeafe; }
+.wty-btn-danger { background: #dc2626; color: #fff; }
+.wty-btn-danger:hover { background: #b91c1c; }
 .wty-search {
   padding: 7px 12px; border: 1px solid #e5e7eb; border-radius: 6px;
   font-size: 13px; color: #374151; outline: none; min-width: 220px;

@@ -62,6 +62,13 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
     setEquipment(prev => prev.filter(x => x.id !== e.id))
   }
 
+  async function handleBulkDelete() {
+    if (!confirm(`Xóa ${selected.size} thiết bị đã chọn? Toàn bộ serial và liên kết bảo hành của chúng sẽ bị xóa.`)) return
+    await Promise.all([...selected].map(id => fetch(`${API}/equipment/${id}`, { method: 'DELETE' })))
+    setSelected(new Set())
+    await reload()
+  }
+
   async function handleSave(form, isEdit) {
     const url = isEdit ? `${API}/equipment/${editItem.id}` : `${API}/contracts/${contractId}/equipment`
     const res = await fetch(url, {
@@ -289,6 +296,7 @@ export default function EquipmentSubTab({ contractId, equipment, setEquipment, r
           <span>Đã chọn <strong>{selected.size}</strong> thiết bị</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="wty-btn wty-btn-primary" onClick={() => setShowBulk(true)}>Sửa bảo hành hàng loạt</button>
+            <button className="wty-btn wty-btn-danger" onClick={handleBulkDelete}>Xóa đã chọn ({selected.size})</button>
             <button className="wty-btn wty-btn-secondary" onClick={() => setSelected(new Set())}>Bỏ chọn</button>
           </div>
         </div>
