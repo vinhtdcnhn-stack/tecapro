@@ -15,6 +15,7 @@ export async function getAllContracts(req, res) {
         co.amount_after_vat,
         co.currency_code,
         co.exchange_rate,
+        co.is_joint_venture,
         COALESCE(au.full_name, '-') AS pm_name,
         co.status
       FROM contract_out co
@@ -60,6 +61,7 @@ export async function getContractById(req, res) {
         co.currency_code,
         co.exchange_rate,
         co.payment_term AS terms,
+        co.is_joint_venture,
         co.status
       FROM contract_out co
       LEFT JOIN customer c ON c.id = co.customer_id
@@ -216,6 +218,7 @@ export async function createContract(req, res) {
     exchange_rate,
     terms,
     status,
+    is_joint_venture,
     pm_primary_id,
     pm_team,
     sale_team,
@@ -267,10 +270,11 @@ export async function createContract(req, res) {
           exchange_rate,
           payment_term,
           status,
+          is_joint_venture,
           created_at,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
         RETURNING id
       `
 
@@ -285,7 +289,8 @@ export async function createContract(req, res) {
         currency_code || 'VND',
         exchange_rate ? parseFloat(exchange_rate) : null,
         terms?.trim() || null,
-        status || 'Pending'
+        status || 'Pending',
+        is_joint_venture === true
       ])
 
       const contractId = contractResult.rows[0].id
@@ -335,6 +340,7 @@ export async function updateContract(req, res) {
     exchange_rate,
     terms,
     status,
+    is_joint_venture,
     pm_primary_id,
     pm_team,
     sale_team,
@@ -384,8 +390,9 @@ export async function updateContract(req, res) {
           exchange_rate = $7,
           payment_term = $8,
           status = $9,
+          is_joint_venture = $10,
           updated_at = NOW()
-        WHERE id = $10
+        WHERE id = $11
         RETURNING id
       `
 
@@ -399,6 +406,7 @@ export async function updateContract(req, res) {
         exchange_rate ? parseFloat(exchange_rate) : null,
         terms?.trim() || null,
         status || 'Pending',
+        is_joint_venture === true,
         parseInt(contractId)
       ])
 

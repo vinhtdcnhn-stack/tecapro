@@ -50,11 +50,15 @@ export default function ContractTable({ contracts, searchTerm, onManage }) {
               </td>
             </tr>
           ) : (
-            filteredContracts.map((c) => (
-              <tr key={c.id}>
-                <td className="sticky-col-1">
-                  <button 
-                    className="edit-btn" 
+            filteredContracts.map((c) => {
+              const jv = !!c.is_joint_venture
+              // HĐ liên danh: tô nền cam nhạt để phân biệt (ghi đè cả nền trắng của cột dính)
+              const jvBg = jv ? { background: '#fff7ed' } : undefined
+              return (
+              <tr key={c.id} style={jvBg}>
+                <td className="sticky-col-1" style={jvBg}>
+                  <button
+                    className="edit-btn"
                     onClick={() => {
                       if (onManage) onManage(c)
                     }}
@@ -62,7 +66,17 @@ export default function ContractTable({ contracts, searchTerm, onManage }) {
                     Quản trị
                   </button>
                 </td>
-                <td className="sticky-col-2">{c.contract_no || '-'}</td>
+                <td className="sticky-col-2" style={jvBg}>
+                  {c.contract_no || '-'}
+                  {jv && (
+                    <span style={{
+                      display: 'inline-block', marginLeft: 6, padding: '1px 7px',
+                      fontSize: 10, fontWeight: 700, lineHeight: 1.6, borderRadius: 999,
+                      color: '#c2410c', background: '#ffedd5', border: '1px solid #fed7aa',
+                      whiteSpace: 'nowrap',
+                    }}>Liên danh</span>
+                  )}
+                </td>
                 <td>{c.project_name || '-'}</td>
                 <td>{c.customer_name || '-'}</td>
                 <td>{formatDate(c.contract_date)}</td>
@@ -78,7 +92,8 @@ export default function ContractTable({ contracts, searchTerm, onManage }) {
                 <td>{c.status || '-'}</td>
                 <td>-</td>
               </tr>
-            ))
+              )
+            })
           )}
         </tbody>
       </table>

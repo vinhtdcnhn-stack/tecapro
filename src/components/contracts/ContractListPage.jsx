@@ -246,14 +246,28 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                   </td>
                 </tr>
               ) : (
-                filteredAndSortedContracts.map((c) => (
-                  <tr key={c.id} className="table-row">
-                    <td className="sticky-col-1 px-4 py-3 whitespace-nowrap">
+                filteredAndSortedContracts.map((c) => {
+                  const jv = !!c.is_joint_venture
+                  // HĐ liên danh: tô nền cam nhạt để phân biệt (ghi đè cả nền trắng của cột dính)
+                  const jvBg = jv ? { background: '#fff7ed' } : undefined
+                  return (
+                  <tr key={c.id} className="table-row" style={jvBg}>
+                    <td className="sticky-col-1 px-4 py-3 whitespace-nowrap" style={jvBg}>
                       <button className="btn-manage" onClick={(e) => { e.stopPropagation(); if (onManage) onManage(c) }} title="Quản trị">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                       </button>
                     </td>
-                    <td className="sticky-col-2 px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.contract_no || '-'}</td>
+                    <td className="sticky-col-2 px-4 py-3 whitespace-nowrap text-sm text-gray-900" style={jvBg}>
+                      {c.contract_no || '-'}
+                      {jv && (
+                        <span style={{
+                          display: 'inline-block', marginLeft: 6, padding: '1px 7px',
+                          fontSize: 10, fontWeight: 700, lineHeight: 1.6, borderRadius: 999,
+                          color: '#c2410c', background: '#ffedd5', border: '1px solid #fed7aa',
+                          whiteSpace: 'nowrap',
+                        }}>Liên danh</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.customer_name || '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDate(c.contract_date)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.tender_name || '-'}</td>
@@ -264,7 +278,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                     <td className="px-6 py-3 whitespace-nowrap">{getStatusBadge(c.status)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.project_name || '-'}</td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>

@@ -24,6 +24,7 @@ export default function ContractModal({
     exchange_rate: '',
     terms: '',
     status: 'Pending',
+    is_joint_venture: false,
     // Nhân sự
     sale_team: [],
     presale_team: [],
@@ -54,6 +55,7 @@ export default function ContractModal({
           exchange_rate: editData.exchange_rate || '',
           terms: editData.terms || '',
           status: editData.status || 'Pending',
+          is_joint_venture: editData.is_joint_venture || false,
           sale_team: editData.sale_member_ids || [],
           presale_team: editData.presale_member_ids || [],
           technical_team: editData.technical_member_ids || [],
@@ -86,6 +88,7 @@ export default function ContractModal({
       exchange_rate: '',
       terms: '',
       status: 'Pending',
+      is_joint_venture: false,
       sale_team: [],
       presale_team: [],
       technical_team: [],
@@ -268,6 +271,21 @@ export default function ContractModal({
                   onChange={(e) => updateField('tender_name', e.target.value)}
                   placeholder="Nhập tên gói thầu"
                 />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group full-width">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.is_joint_venture}
+                    onChange={(e) => updateField('is_joint_venture', e.target.checked)}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                  Hợp đồng liên danh
+                  <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 12 }}>(đánh dấu nếu HĐ thực hiện theo hình thức liên danh)</span>
+                </label>
               </div>
             </div>
 

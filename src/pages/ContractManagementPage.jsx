@@ -266,6 +266,14 @@ function ContractInfoTab({ contract, onEdit }) {
             </div>
           </div>
           <div className="form-row">
+            <div className="form-group">
+              <label>Liên danh</label>
+              <input type="text" readOnly
+                value={contract.is_joint_venture ? 'Có – Hợp đồng liên danh' : 'Không'}
+                style={contract.is_joint_venture ? { color: '#c2410c', fontWeight: 600, background: '#fff7ed' } : {}} />
+            </div>
+          </div>
+          <div className="form-row">
             <div className="form-group full-width">
               <label>Điều khoản</label>
               <textarea rows="4" readOnly value={contract.terms || ''} placeholder="Chưa có điều khoản" />
