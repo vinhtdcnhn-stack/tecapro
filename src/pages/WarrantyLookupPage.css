@@ -16,6 +16,8 @@
 }
 .wl-btn:hover { background: #15803d; }
 .wl-btn:disabled { opacity: .6; cursor: not-allowed; }
+.wl-btn-scan { background: #2563eb; white-space: nowrap; }
+.wl-btn-scan:hover { background: #1d4ed8; }
 
 .wl-error { background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 8px; font-size: 14px; }
 .wl-empty { background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px; padding: 28px; text-align: center; color: #6b7280; }
@@ -76,4 +78,7 @@
 @media (max-width: 600px) {
   .wl-row { flex-direction: column; gap: 2px; }
   .wl-row-label { flex: none; }
+  .wl-search { flex-wrap: wrap; }
+  .wl-input { flex: 1 1 100%; }
+  .wl-search .wl-btn { flex: 1 1 0; }
 }

@@ -3,8 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { API } from '../config/api'
 import { warrantyStatus, fmtDate } from '../components/contracts/warrantyUtils'
 import { ReplaceSerialModal } from '../components/contracts/SerialModals'
+import BarcodeScanner from '../components/BarcodeScanner'
 import '../components/contracts/ContractWarrantyTab.css'  // tái dùng style modal + badge màu
 import './WarrantyLookupPage.css'
+
+// Thiết bị cảm ứng (điện thoại/máy tính bảng) có camera → cho phép quét barcode
+const isMobile = typeof navigator !== 'undefined'
+  && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  && !!navigator.mediaDevices?.getUserMedia
 
 // Hạn bảo hành hiệu lực cho khách: ưu tiên hạn của serial, fallback hạn của thiết bị
 const effFrom = (r) => r.warranty_from || r.eq_warranty_from || null
@@ -22,10 +28,11 @@ export default function WarrantyLookupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [replaceFor, setReplaceFor] = useState(null)
+  const [showScanner, setShowScanner] = useState(false)
 
-  async function search(e) {
+  async function search(e, override) {
     e?.preventDefault()
-    const serial = term.trim()
+    const serial = (override ?? term).trim()
     if (!serial) return
     setLoading(true); setError(''); setResult(null)
     try {
@@ -35,6 +42,14 @@ export default function WarrantyLookupPage() {
       setResult(data)
     } catch (err) { setError(err.message) }
     finally { setLoading(false) }
+  }
+
+  // Quét được mã: điền vào ô tìm kiếm và tra cứu ngay
+  function handleScanned(text) {
+    const code = (text || '').trim()
+    setShowScanner(false)
+    setTerm(code)
+    if (code) search(null, code)
   }
 
   const sale = result?.sale || []
@@ -58,6 +73,11 @@ export default function WarrantyLookupPage() {
           <button className="wl-btn" type="submit" disabled={loading}>
             {loading ? 'Đang tra...' : 'Tra cứu'}
           </button>
+          {isMobile && (
+            <button className="wl-btn wl-btn-scan" type="button" onClick={() => setShowScanner(true)}>
+              📷 Quét mã
+            </button>
+          )}
         </form>
 
         {error && <div className="wl-error">{error}</div>}
@@ -165,6 +185,13 @@ export default function WarrantyLookupPage() {
           </div>
         )}
       </div>
+
+      {showScanner && (
+        <BarcodeScanner
+          onDetected={handleScanned}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
 
       {replaceFor && (
         <ReplaceSerialModal
