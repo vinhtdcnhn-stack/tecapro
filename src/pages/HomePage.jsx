@@ -3,6 +3,7 @@ import { API_BASE as API } from '../config/api'
 import { useAuth } from '../context/AuthContext'
 import homeHero from '../assets/home-hero.png'
 import Dashboard from './Dashboard'
+import PMDashboard from './PMDashboard'
 
 
 export default function HomePage() {
@@ -10,6 +11,9 @@ export default function HomePage() {
   const [contracts, setContracts] = useState([])
   const [customers, setCustomers] = useState([])
   const [users, setUsers] = useState([])
+
+  // User giữ vị trí PM TEAM → dashboard theo dõi tiến độ dự án
+  const isPM = user?.positions?.some(p => p.code === 'PM_TEAM') || user?.position_code === 'PM_TEAM'
 
   useEffect(() => {
     if (!user || user.department_code !== '1') return
@@ -21,6 +25,14 @@ export default function HomePage() {
       .then(([c, cu, u]) => { setContracts(c); setCustomers(cu); setUsers(u) })
       .catch(console.error)
   }, [user])
+
+  if (user && isPM) {
+    return (
+      <main className="page admin-page dash-page">
+        <PMDashboard user={user} />
+      </main>
+    )
+  }
 
   if (user && user.department_code === '1') {
     return (

@@ -1,0 +1,75 @@
+/* Dashboard PM — bảng theo dõi & nhắc việc theo thời hạn */
+
+.pm-stats { grid-template-columns: repeat(4, 1fr); }
+
+.pm-track-wrap {
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.pm-track-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pm-track-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: #f1f5f9; color: #475569;
+  text-align: left; font-weight: 700; font-size: 11px; text-transform: uppercase;
+  padding: 10px 14px; border-bottom: 1px solid #e5e7eb; white-space: nowrap;
+}
+.pm-track-table tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.pm-track-table tbody tr:hover { background: #f9fafb; }
+.pm-row-pinned { background: #fffbeb; }
+.pm-row-pinned:hover { background: #fef3c7; }
+
+.pm-col-contract { width: 130px; }
+.pm-col-actions  { width: 190px; }
+
+.pm-contract-link {
+  background: none; border: none; cursor: pointer; padding: 0;
+  color: #2563eb; font-weight: 700; font-size: 13px; font-family: inherit;
+}
+.pm-contract-link:hover { text-decoration: underline; }
+
+.pm-item-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.pm-item-title { font-weight: 600; color: #111827; }
+.pm-bell { font-size: 13px; }
+.pm-item-meta { margin-top: 3px; font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.pm-sub { color: #6b7280; }
+
+.pm-kind {
+  display: inline-block; padding: 1px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; white-space: nowrap;
+}
+.kind-progress    { color: #1d4ed8; background: #dbeafe; }
+.kind-receivable  { color: #c2410c; background: #ffedd5; }
+.kind-guarantee   { color: #7c3aed; background: #ede9fe; }
+.kind-task        { color: #15803d; background: #dcfce7; }
+.kind-payable     { color: #b91c1c; background: #fee2e2; }
+.kind-delivery    { color: #0f766e; background: #ccfbf1; }
+.kind-logistics   { color: #4338ca; background: #e0e7ff; }
+.kind-supwarranty { color: #be185d; background: #fce7f3; }
+
+/* Nhãn phân biệt phía Bán / Nhập */
+.pm-side {
+  display: inline-block; padding: 1px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; white-space: nowrap;
+}
+.side-out { color: #166534; background: #dcfce7; }
+.side-in  { color: #475569; background: #e2e8f0; }
+
+.pm-due { font-weight: 600; }
+.due-overdue { color: #b91c1c; }
+.due-soon    { color: #b45309; }
+.due-normal  { color: #6b7280; }
+
+.pm-actions { display: flex; align-items: center; gap: 6px; }
+.pm-pin {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 6px;
+  border: 1px solid #e5e7eb; background: #fff; cursor: pointer;
+  font-size: 14px; line-height: 1; filter: grayscale(1); opacity: 0.55;
+}
+.pm-pin:hover { opacity: 0.9; }
+.pm-pin.on { filter: none; opacity: 1; background: #fef3c7; border-color: #fcd34d; }
+.pm-remind-input { flex: 1 1 auto; min-width: 0; }
+.pm-track-table .pm-remind-input input { font-size: 12px; padding: 5px 24px 5px 8px; }
