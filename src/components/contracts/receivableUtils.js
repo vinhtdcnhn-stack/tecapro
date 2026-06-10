@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { API } from '../../config/api'
 
 // Shared constants, formatters, calculators & data hook for the receivable tab.
 
@@ -87,6 +88,28 @@ export const needsRate = (row) => {
   if (!cur || cur === 'VND') return false
   const rate = parseFloat(row.exchange_rate)
   return !(rate > 1)
+}
+
+// Lưu 1 đợt tiền về (dùng chung cho nút lưu từng dòng và Ctrl+S lưu hàng loạt).
+export async function savePaymentRow(row, contractId, setPayRows) {
+  if (needsRate(row)) { alert(`Nhập tỷ giá cho ${row.currency_code}.`); return }
+  setPayRows(prev => prev.map(p => p._key === row._key ? { ...p, _saving: true } : p))
+  const body = {
+    payment_date: row.payment_date, currency_code: row.currency_code,
+    amount: row.amount, exchange_rate: row.exchange_rate,
+    amount_vnd: row.amount_vnd, note: row.note, schedule_id: row.schedule_id,
+  }
+  try {
+    const url    = row._isNew ? `${API}/contracts/${contractId}/receivable-payments` : `${API}/receivable-payments/${row.id}`
+    const method = row._isNew ? 'POST' : 'PUT'
+    const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const saved  = await res.json()
+    if (!res.ok) throw new Error(saved.error || 'Save failed')
+    setPayRows(prev => prev.map(p => p._key === row._key ? { ...saved, _key: row._key, _dirty: false, _isNew: false, _saving: false } : p))
+  } catch (e) {
+    alert('Lỗi: ' + e.message)
+    setPayRows(prev => prev.map(p => p._key === row._key ? { ...p, _saving: false } : p))
+  }
 }
 
 // ── Generic inline-editable rows loader ──────────────────────────────────────

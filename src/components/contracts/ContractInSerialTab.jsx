@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { API } from '../../config/api'
 import { SERIAL_STATUSES } from './warrantyUtils'
 import ContractInSerialRow from './ContractInSerialRow'
+import useCtrlSave from './useCtrlSave'
 import { AddComponentModal, ImportSerialModal, ReplaceSerialModal } from './ContractInSerialModals'
 
 // ── Quản lý serial tập trung cho hợp đồng NHẬP ─────────────────────────────────
@@ -74,6 +75,13 @@ export default function ContractInSerialTab({ contractInId }) {
     setSerials(prev => prev.filter(s => s.id !== row.id))
     setSelected(prev => { const n = new Set(prev); n.delete(row.id); return n })
   }
+
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => Object.keys(edits).forEach(id => {
+    if (saving[id]) return
+    const row = serials.find(s => String(s.id) === String(id))
+    if (row) save(row)
+  }))
 
   // ── Filtering ─────────────────────────────────────────────────────────────────
   const itemNames = useMemo(

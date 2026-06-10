@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractProgressTab.css'
 import DateInput from './DateInput'
+import useCtrlSave from './useCtrlSave'
 
 import { API } from '../../config/api'
 
@@ -31,6 +32,8 @@ export default function ContractInProgressTab({ contractInId }) {
   const [loading, setLoading]     = useState(true)
   const [showBBMgr, setShowBBMgr] = useState(false)
 
+  const toLocal = (r) => ({ ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false })
+
   const load = useCallback(async () => {
     try {
       const [pRes, tRes] = await Promise.all([
@@ -46,7 +49,6 @@ export default function ContractInProgressTab({ contractInId }) {
 
   useEffect(() => { load() }, [load])
 
-  const toLocal = (r) => ({ ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false })
   const emptyRow = () => ({
     id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
     bb_type_id: '', planned_date: '', actual_date: '', reason: '', penalty_note: '', bb_code: '', bb_name: '',
@@ -85,6 +87,9 @@ export default function ContractInProgressTab({ contractInId }) {
       setRows(prev => prev.filter(r => r._key !== row._key))
     } catch { alert('Không thể xóa.') }
   }
+
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
 
   const savedRows = rows.filter(r => !r._isNew)
   const doneCount = savedRows.filter(r => r.actual_date).length

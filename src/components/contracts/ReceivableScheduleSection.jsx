@@ -1,9 +1,10 @@
 import { Fragment } from 'react'
 import { API } from '../../config/api'
-import { fmtVND, fmtAmt, fmtDate, calcVND, receivableStatus, resolveDueDate, tmpId, needsRate } from './receivableUtils'
+import { fmtVND, fmtAmt, fmtDate, calcVND, receivableStatus, resolveDueDate, tmpId, needsRate, savePaymentRow } from './receivableUtils'
 import RowActions from './ReceivableRowActions'
 import LinkedPaymentsRow from './LinkedPaymentsRow'
 import DateInput from './DateInput'
+import useCtrlSave from './useCtrlSave'
 
 // ── Schedule section ──────────────────────────────────────────────────────────
 
@@ -90,6 +91,12 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
       setRows(prev => prev.filter(r => r._key !== row._key))
     } catch { alert('Không thể xóa.') }
   }
+
+  // Ctrl+S: lưu tất cả khoản phải thu + đợt tiền về đang sửa
+  useCtrlSave(() => {
+    rows.filter(r => r._dirty && !r._saving).forEach(saveRow)
+    payRows.filter(p => p._dirty && !p._saving).forEach(p => savePaymentRow(p, contractId, setPayRows))
+  })
 
   const totalAmt = rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
   const totalVND = rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)

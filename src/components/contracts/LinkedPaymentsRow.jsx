@@ -1,5 +1,5 @@
 import { API } from '../../config/api'
-import { fmtVND, fmtAmt, calcVND, tmpId, needsRate } from './receivableUtils'
+import { fmtVND, fmtAmt, calcVND, tmpId, savePaymentRow } from './receivableUtils'
 import DateInput from './DateInput'
 import RowActions from './ReceivableRowActions'
 
@@ -44,27 +44,7 @@ export default function LinkedPaymentsRow({ schedRow, payRows, setPayRows, contr
     }])
   }
 
-  const savePayment = async (row) => {
-    if (needsRate(row)) { alert(`Nhập tỷ giá cho ${row.currency_code}.`); return }
-    setPayRows(prev => prev.map(p => p._key === row._key ? { ...p, _saving: true } : p))
-    const body = {
-      payment_date: row.payment_date, currency_code: row.currency_code,
-      amount: row.amount, exchange_rate: row.exchange_rate,
-      amount_vnd: row.amount_vnd, note: row.note,
-      schedule_id: row.schedule_id,
-    }
-    try {
-      const url    = row._isNew ? `${API}/contracts/${contractId}/receivable-payments` : `${API}/receivable-payments/${row.id}`
-      const method = row._isNew ? 'POST' : 'PUT'
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const saved  = await res.json()
-      if (!res.ok) throw new Error(saved.error || 'Save failed')
-      setPayRows(prev => prev.map(p => p._key === row._key ? { ...saved, _key: row._key, _dirty: false, _isNew: false, _saving: false } : p))
-    } catch (e) {
-      alert('Lỗi: ' + e.message)
-      setPayRows(prev => prev.map(p => p._key === row._key ? { ...p, _saving: false } : p))
-    }
-  }
+  const savePayment = (row) => savePaymentRow(row, contractId, setPayRows)
 
   const deletePayment = async (row) => {
     if (row._isNew) { setPayRows(prev => prev.filter(p => p._key !== row._key)); return }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import './ContractBOQTab.css'
+import useCtrlSave from './useCtrlSave'
 
 import { API } from '../../config/api'
 
@@ -34,6 +35,11 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const [importSaving, setImportSaving] = useState(false)
   const excelRef = useRef(null)
 
+  const toLocalRow = (r) => ({
+    ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
+    quantity: stripNum(r.quantity), unit_price: stripNum(r.unit_price), vat_rate: stripNum(r.vat_rate),
+  })
+
   const load = useCallback(async () => {
     try {
       const res  = await fetch(`${API}/contract-ins/${contractInId}/boq`)
@@ -44,11 +50,6 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   }, [contractInId])
 
   useEffect(() => { load() }, [load])
-
-  const toLocalRow = (r) => ({
-    ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
-    quantity: stripNum(r.quantity), unit_price: stripNum(r.unit_price), vat_rate: stripNum(r.vat_rate),
-  })
 
   const emptyRow = (insertAfterRefId = null) => ({
     id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
@@ -108,6 +109,9 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   }
 
   const addRow = () => setRows(prev => [...prev, emptyRow(null)])
+
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
 
   const handleExcelFile = async (e) => {
     const file = e.target.files[0]

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractReceivableTab.css'
 import DateInput from './DateInput'
+import useCtrlSave from './useCtrlSave'
 
 import { API } from '../../config/api'
 
@@ -189,6 +190,9 @@ function PayableSection({ rows, setRows, contractInId }) {
     } catch { alert('Không thể xóa.') }
   }
 
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
+
   const totalVND = rows.reduce((s, r) => s + calcVND(r.amount, r.exchange_rate, r.currency_code), 0)
 
   return (
@@ -352,6 +356,9 @@ function PaymentSection({ rows, setRows, contractInId, totalExpected }) {
       setRows(prev => prev.filter(r => r._key !== row._key))
     } catch { alert('Không thể xóa.') }
   }
+
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
 
   const totalPaidVND = rows.reduce((s, r) => s + calcVND(r.amount, r.exchange_rate, r.currency_code), 0)
 

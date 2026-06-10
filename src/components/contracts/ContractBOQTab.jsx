@@ -3,6 +3,7 @@ import './ContractBOQTab.css'
 import BOQImportModal from './BOQImportModal'
 import BOQRow from './BOQRow'
 import { fmtNum, stripNum, calcAmounts, tmpId } from './boqUtils'
+import useCtrlSave from './useCtrlSave'
 import { API } from '../../config/api'
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -148,6 +149,9 @@ export default function ContractBOQTab({ contractId }) {
   // ── Add row at end ────────────────────────────────────────────────────────────
 
   const addRow = () => setRows(prev => [...prev, emptyRow(null)])
+
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
 
   // ── Filter ──────────────────────────────────────────────────────────────────
 

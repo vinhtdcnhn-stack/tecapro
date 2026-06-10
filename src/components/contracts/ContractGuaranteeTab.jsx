@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractGuaranteeTab.css'
 import DateInput from './DateInput'
+import useCtrlSave from './useCtrlSave'
 
 import { API } from '../../config/api'
 
@@ -128,6 +129,9 @@ export default function ContractGuaranteeTab({ contractId }) {
       setRows(prev => prev.filter(r => r._key !== row._key))
     } catch { alert('Không thể xóa.') }
   }
+
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
 
   // Summary stats
   const active   = rows.filter(r => !r._isNew && r.status === 'Còn hiệu lực').length

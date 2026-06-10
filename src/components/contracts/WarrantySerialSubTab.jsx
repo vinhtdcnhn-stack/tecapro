@@ -5,6 +5,7 @@ import { API } from '../../config/api'
 import { SERIAL_STATUSES, warrantyStatus, flattenSerials, toISODate } from './warrantyUtils'
 import WarrantyBulkDateModal from './WarrantyBulkDateModal'
 import { ComponentModal, ReplaceSerialModal } from './SerialModals'
+import useCtrlSave from './useCtrlSave'
 
 const INACTIVE_STATUSES = ['Đã thay thế', 'Ngừng sử dụng']
 
@@ -178,6 +179,13 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
     setSelected(new Set())
     await reload()
   }
+
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => Object.keys(edits).forEach(id => {
+    if (saving[id]) return
+    const row = all.find(s => String(s.id) === String(id))
+    if (row) save(row)
+  }))
 
   return (
     <>

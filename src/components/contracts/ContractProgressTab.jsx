@@ -5,6 +5,7 @@ import { API } from '../../config/api'
 import { getStatusInfo, computeForecasts, fmtDate, forecastHint, tmpId } from './progressUtils'
 import BBTypeManager from './BBTypeManager'
 import DateInput from './DateInput'
+import useCtrlSave from './useCtrlSave'
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,9 @@ export default function ContractProgressTab({ contractId }) {
       setRows(prev => prev.filter(r => r._key !== row._key))
     } catch { alert('Không thể xóa.') }
   }
+
+  // Ctrl+S: lưu tất cả dòng đang sửa
+  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
