@@ -170,17 +170,19 @@ export async function getDeliverySerials(req, res) {
 
 export async function createDeliverySerial(req, res) {
   const { itemId } = req.params
-  const { serial_no, note } = req.body
+  const { serial_no, note, parent_serial_id, status } = req.body
   if (!serial_no?.trim()) return res.status(400).json({ error: 'Số serial không được để trống' })
   try {
     if (await serialExists(pool, TABLE_DELIVERY, serial_no))
       return res.status(409).json({ error: `Serial "${serial_no.trim()}" đã tồn tại ở phía nhập.` })
     const { rows } = await pool.query(
-      'INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no, note) VALUES ($1,$2,$3) RETURNING *',
-      [itemId, serial_no.trim(), note?.trim()||null]
+      `INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no, note, parent_serial_id, status)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [itemId, serial_no.trim(), note?.trim()||null, parent_serial_id||null, status||'Đang hoạt động']
     )
     res.json(rows[0])
   } catch (err) {
+    console.error('createDeliverySerial:', err)
     res.status(500).json({ error: 'Không thể thêm serial' })
   }
 }
@@ -191,6 +193,127 @@ export async function deleteDeliverySerial(req, res) {
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa serial' })
+  }
+}
+
+// ── Quản lý serial tập trung (toàn hợp đồng nhập) ──────────────────────────────
+
+// GET /contract-ins/:contractInId/all-serials — gom mọi serial của mọi đợt nhận,
+// kèm chủng loại hàng (delivery_item) và đợt nhận (delivery batch).
+export async function getAllDeliverySerials(req, res) {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        ds.id, ds.serial_no, ds.note, ds.status, ds.parent_serial_id,
+        ds.replaced_by_serial_id, ds.replaced_at, ds.delivery_item_id,
+        di.item_name, di.unit,
+        d.id AS delivery_id, d.batch_name, d.receive_date
+      FROM contract_in_delivery_serial ds
+      JOIN contract_in_delivery_item di ON di.id = ds.delivery_item_id
+      JOIN contract_in_delivery       d  ON d.id  = di.delivery_id
+      WHERE d.contract_in_id = $1
+      ORDER BY di.item_name, ds.serial_no
+    `, [req.params.contractInId])
+    res.json(rows)
+  } catch (err) {
+    console.error('getAllDeliverySerials:', err)
+    res.status(500).json({ error: 'Không thể tải danh sách serial' })
+  }
+}
+
+// GET /contract-ins/:contractInId/all-items — danh sách chủng loại của mọi đợt nhận
+// (để chọn khi thêm linh kiện / import vào màn quản lý serial tập trung).
+export async function getAllDeliveryItems(req, res) {
+  try {
+    const { rows } = await pool.query(`
+      SELECT di.id, di.item_name, di.unit, d.id AS delivery_id, d.batch_name, d.receive_date
+      FROM contract_in_delivery_item di
+      JOIN contract_in_delivery d ON d.id = di.delivery_id
+      WHERE d.contract_in_id = $1
+      ORDER BY d.receive_date DESC NULLS LAST, di.item_name
+    `, [req.params.contractInId])
+    res.json(rows)
+  } catch (err) {
+    console.error('getAllDeliveryItems:', err)
+    res.status(500).json({ error: 'Không thể tải danh mục hàng' })
+  }
+}
+
+// PUT /delivery-serials/:id — sửa serial (serial_no / tình trạng / thuộc máy / ghi chú)
+export async function updateDeliverySerial(req, res) {
+  const { id } = req.params
+  const { serial_no, note, status, parent_serial_id } = req.body
+  if (!serial_no?.trim()) return res.status(400).json({ error: 'Số serial không được để trống' })
+  if (String(parent_serial_id) === String(id))
+    return res.status(400).json({ error: 'Không thể gắn serial vào chính nó' })
+  try {
+    if (await serialExists(pool, TABLE_DELIVERY, serial_no, id))
+      return res.status(409).json({ error: `Serial "${serial_no.trim()}" đã tồn tại ở phía nhập.` })
+    const { rows } = await pool.query(
+      `UPDATE contract_in_delivery_serial
+         SET serial_no=$1, note=$2, status=$3, parent_serial_id=$4
+       WHERE id=$5 RETURNING *`,
+      [serial_no.trim(), note?.trim()||null, status||'Đang hoạt động', parent_serial_id||null, id]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    res.json(rows[0])
+  } catch (err) {
+    console.error('updateDeliverySerial:', err)
+    res.status(500).json({ error: 'Không thể cập nhật serial' })
+  }
+}
+
+// POST /delivery-serials/bulk-delete  { ids: [...] }
+export async function bulkDeleteDeliverySerials(req, res) {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : []
+  if (!ids.length) return res.status(400).json({ error: 'No ids provided' })
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM contract_in_delivery_serial WHERE id = ANY($1::int[])', [ids]
+    )
+    res.json({ success: true, count: rowCount })
+  } catch (err) {
+    console.error('bulkDeleteDeliverySerials:', err)
+    res.status(500).json({ error: 'Không thể xóa các serial đã chọn' })
+  }
+}
+
+// POST /delivery-serials/:id/replace  { new_serial_no, replaced_at }
+// Tạo serial mới (cùng chủng loại + thừa kế máy cha), đánh dấu serial cũ "Đã thay thế".
+export async function replaceDeliverySerial(req, res) {
+  const { id } = req.params
+  const { new_serial_no, replaced_at } = req.body
+  if (!new_serial_no?.trim()) return res.status(400).json({ error: 'Serial mới không được để trống' })
+  const client = await pool.connect()
+  try {
+    const old = await client.query('SELECT * FROM contract_in_delivery_serial WHERE id=$1', [id])
+    if (!old.rows[0]) return res.status(404).json({ error: 'Không tìm thấy serial' })
+    if (await serialExists(client, TABLE_DELIVERY, new_serial_no))
+      return res.status(409).json({ error: `Serial "${new_serial_no.trim()}" đã tồn tại ở phía nhập.` })
+
+    await client.query('BEGIN')
+    const o = old.rows[0]
+    const ins = await client.query(
+      `INSERT INTO contract_in_delivery_serial
+         (delivery_item_id, serial_no, parent_serial_id, status)
+       VALUES ($1,$2,$3,'Đang hoạt động') RETURNING *`,
+      [o.delivery_item_id, new_serial_no.trim(), o.parent_serial_id]
+    )
+    const newSerial = ins.rows[0]
+    await client.query(
+      `UPDATE contract_in_delivery_serial
+         SET status='Đã thay thế', replaced_by_serial_id=$1, replaced_at=$2
+       WHERE id=$3`,
+      [newSerial.id, replaced_at || new Date().toISOString().slice(0,10), id]
+    )
+    await client.query('COMMIT')
+    res.json({ new_serial: newSerial })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('replaceDeliverySerial:', err)
+    res.status(500).json({ error: 'Không thể thay thế serial' })
+  } finally {
+    client.release()
   }
 }
 

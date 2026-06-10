@@ -9,6 +9,7 @@ export const SUB_TABS = [
   { key: 'documents',   label: 'Tài liệu' },
   { key: 'pricing',     label: 'Bảng giá mua' },
   { key: 'delivery',    label: 'Nhận hàng' },
+  { key: 'serials',     label: 'Quản lý Serial' },
   { key: 'payment',     label: 'Thanh toán' },
   { key: 'progress',    label: 'Tiến độ theo BB' },
   { key: 'warranty',    label: 'Bảo hành NCC' },

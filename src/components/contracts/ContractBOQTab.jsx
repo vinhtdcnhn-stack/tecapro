@@ -1,32 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import './ContractBOQTab.css'
 import BOQImportModal from './BOQImportModal'
+import BOQRow from './BOQRow'
+import { fmtNum, stripNum, calcAmounts, tmpId } from './boqUtils'
 import { API } from '../../config/api'
-
-// Định dạng tiền theo đồng tiền HĐ:
-//  - VND: làm tròn về số nguyên, KHÔNG hiển thị thập phân.
-//  - Ngoại tệ: giữ tối đa 2 chữ số thập phân (chỉ hiện khi thực sự có lẻ).
-// Làm tròn trước khi xét phần lẻ để tránh sai số dấu phẩy động (vd 4117740000.0000001 → ,00).
-const fmtNum = (n, currency = 'VND') => {
-  let num = parseFloat(n) || 0
-  if (currency === 'VND') return new Intl.NumberFormat('vi-VN').format(Math.round(num))
-  num = Math.round(num * 100) / 100
-  return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num)
-}
-
-// Bỏ đuôi số 0 thừa khi hiển thị trong ô nhập (vd "62.0000" → "62", "1234.50" → "1234.5").
-const stripNum = (v) => (v === '' || v == null) ? '' : String(Number(v))
-
-function calcAmounts(qty, price, vat) {
-  const q = parseFloat(qty) || 0
-  const p = parseFloat(price) || 0
-  const v = parseFloat(vat) || 0
-  const before = q * p
-  return { before, after: before * (1 + v / 100) }
-}
-
-let _tmpCounter = 0
-const tmpId = () => `tmp_${++_tmpCounter}`
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +14,10 @@ export default function ContractBOQTab({ contractId }) {
   const [importData, setImportData] = useState(null)  // { items, total }
   const [importMode, setImportMode] = useState('append')
   const [importSaving, setImportSaving] = useState(false)
+  const [search, setSearch]       = useState('')
+  const [typeFilter, setTypeFilter] = useState('all') // 'all' | 'trong_nuoc' | 'di_thang'
+  const [selected, setSelected]   = useState(() => new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const excelRef = useRef(null)
 
   // ── Load ─────────────────────────────────────────────────────────────────────
@@ -51,6 +32,7 @@ export default function ContractBOQTab({ contractId }) {
       const cData = await cRes.json()
       setCurrency(cData?.currency_code || 'VND')
       setRows(data.map(r => toLocalRow(r)))
+      setSelected(new Set())
     } catch (e) {
       console.error('load BOQ:', e)
     } finally {
@@ -146,6 +128,7 @@ export default function ContractBOQTab({ contractId }) {
       const res = await fetch(`${API}/boq/${row.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Delete failed')
       setRows(prev => prev.filter(r => r._key !== row._key))
+      setSelected(prev => { const n = new Set(prev); n.delete(row._key); return n })
     } catch {
       alert('Không thể xóa dòng này.')
     }
@@ -165,6 +148,68 @@ export default function ContractBOQTab({ contractId }) {
   // ── Add row at end ────────────────────────────────────────────────────────────
 
   const addRow = () => setRows(prev => [...prev, emptyRow(null)])
+
+  // ── Filter ──────────────────────────────────────────────────────────────────
+
+  // Lọc theo từ khóa (tên hàng / HScode) và loại hàng. Dòng mới (_isNew) luôn hiển
+  // thị để không bị ẩn khi đang lọc. Giữ số thứ tự gốc qua _idx.
+  const visibleRows = useMemo(() => {
+    const kw = search.trim().toLowerCase()
+    return rows
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ r }) => {
+        if (r._isNew) return true
+        if (typeFilter !== 'all' && (r.item_type || 'trong_nuoc') !== typeFilter) return false
+        if (!kw) return true
+        return `${r.item_name || ''} ${r.hs_code || ''}`.toLowerCase().includes(kw)
+      })
+  }, [rows, search, typeFilter])
+
+  const isFiltering = search.trim() !== '' || typeFilter !== 'all'
+
+  // ── Selection ─────────────────────────────────────────────────────────────────
+
+  const toggleSelect = (key) =>
+    setSelected(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
+
+  // Các dòng đang nhìn thấy (đã lưu, có id) có thể chọn
+  const selectableKeys = visibleRows.filter(({ r }) => !r._isNew).map(({ r }) => r._key)
+  const allSelected = selectableKeys.length > 0 && selectableKeys.every(k => selected.has(k))
+
+  const toggleSelectAll = () =>
+    setSelected(prev => {
+      if (allSelected) {
+        const n = new Set(prev); selectableKeys.forEach(k => n.delete(k)); return n
+      }
+      return new Set([...prev, ...selectableKeys])
+    })
+
+  const selectedCount = selected.size
+
+  const bulkDelete = async () => {
+    const keys = [...selected]
+    const targets = rows.filter(r => keys.includes(r._key))
+    const ids = targets.filter(r => !r._isNew && r.id).map(r => r.id)
+    if (!confirm(`Xóa ${targets.length} dòng đã chọn?`)) return
+
+    setBulkDeleting(true)
+    try {
+      if (ids.length) {
+        const res = await fetch(`${API}/boq/bulk-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        })
+        if (!res.ok) throw new Error('Bulk delete failed')
+      }
+      setRows(prev => prev.filter(r => !keys.includes(r._key)))
+      setSelected(new Set())
+    } catch {
+      alert('Không thể xóa các dòng đã chọn.')
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
 
   // ── Excel import ──────────────────────────────────────────────────────────────
 
@@ -263,11 +308,62 @@ export default function ContractBOQTab({ contractId }) {
         </div>
       </div>
 
+      {/* ── Filter / bulk actions bar ── */}
+      <div className="boq-filterbar">
+        <div className="boq-filter-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Tìm theo tên hàng / HScode..."
+          />
+          {search && <button className="boq-filter-clear" onClick={() => setSearch('')} title="Xóa tìm kiếm">×</button>}
+        </div>
+
+        <select className="boq-filter-type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+          <option value="all">Tất cả loại hàng</option>
+          <option value="trong_nuoc">Trong nước</option>
+          <option value="di_thang">Đi thẳng</option>
+        </select>
+
+        {isFiltering && (
+          <span className="boq-filter-count">Hiển thị {visibleRows.length}/{rows.length} dòng</span>
+        )}
+
+        <div className="boq-filter-spacer" />
+
+        {selectedCount > 0 && (
+          <>
+            <span className="boq-sel-count">Đã chọn {selectedCount}</span>
+            <button className="boq-btn boq-btn-danger" onClick={bulkDelete} disabled={bulkDeleting}>
+              {bulkDeleting ? 'Đang xóa…' : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                  Xóa {selectedCount} dòng
+                </>
+              )}
+            </button>
+          </>
+        )}
+      </div>
+
       {/* ── Table ── */}
       <div className="boq-table-wrapper">
         <table className="boq-table">
           <thead>
             <tr>
+              <th className="th-select">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  disabled={selectableKeys.length === 0}
+                  title="Chọn tất cả"
+                />
+              </th>
               <th className="th-stt">#</th>
               <th className="th-name">Danh mục hàng hóa</th>
               <th className="th-hs">HScode</th>
@@ -285,152 +381,35 @@ export default function ContractBOQTab({ contractId }) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="12" className="boq-empty">
+                <td colSpan="13" className="boq-empty">
                   Chưa có dữ liệu bảng giá.
                   Nhấn <strong>Thêm dòng</strong> hoặc <strong>Import Excel</strong> để bắt đầu.
                 </td>
               </tr>
-            ) : rows.map((row, idx) => {
-              const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate)
-              const isDiThang = row.item_type === 'di_thang'
-              return (
-                <tr
-                  key={row._key}
-                  className={[
-                    row._isNew  ? 'row-new'   : '',
-                    row._dirty  ? 'row-dirty' : '',
-                    row._saving ? 'row-saving': '',
-                    isDiThang   ? 'row-di-thang' : '',
-                  ].filter(Boolean).join(' ')}
-                >
-                  <td className="td-stt">
-                    {row._dirty && <span className="dirty-dot" title="Chưa lưu" />}
-                    <span className="stt-num">{idx + 1}</span>
-                  </td>
-
-                  <td className="td-name">
-                    <input
-                      type="text"
-                      value={row.item_name}
-                      onChange={e => set(row._key, 'item_name', e.target.value)}
-                      placeholder="Nhập tên hàng hóa..."
-                    />
-                  </td>
-
-                  <td className="td-hs">
-                    <input
-                      type="text"
-                      value={row.hs_code}
-                      onChange={e => set(row._key, 'hs_code', e.target.value)}
-                      placeholder="—"
-                    />
-                  </td>
-
-                  <td className="td-unit">
-                    <input
-                      type="text"
-                      value={row.unit}
-                      onChange={e => set(row._key, 'unit', e.target.value)}
-                      placeholder="Bộ"
-                    />
-                  </td>
-
-                  <td className="td-num">
-                    <input
-                      type="number"
-                      value={row.quantity}
-                      onChange={e => set(row._key, 'quantity', e.target.value)}
-                      placeholder="0"
-                      min="0"
-                    />
-                  </td>
-
-                  <td className="td-num">
-                    <input
-                      type="number"
-                      value={row.unit_price}
-                      onChange={e => set(row._key, 'unit_price', e.target.value)}
-                      placeholder="0"
-                      min="0"
-                    />
-                  </td>
-
-                  <td className="td-amt computed">{fmtNum(before, currency)}</td>
-
-                  <td className="td-vat">
-                    <input
-                      type="number"
-                      value={row.vat_rate}
-                      onChange={e => set(row._key, 'vat_rate', e.target.value)}
-                      placeholder="10"
-                      min="0"
-                      max="100"
-                    />
-                  </td>
-
-                  <td className="td-amt computed">{fmtNum(after, currency)}</td>
-
-                  <td className="td-warranty">
-                    <input
-                      type="text"
-                      value={row.warranty_period}
-                      onChange={e => set(row._key, 'warranty_period', e.target.value)}
-                      placeholder="12 tháng"
-                    />
-                  </td>
-
-                  <td className="td-item-type">
-                    <select
-                      value={row.item_type || 'trong_nuoc'}
-                      onChange={e => set(row._key, 'item_type', e.target.value)}
-                      className={`item-type-select ${row.item_type === 'di_thang' ? 'type-di-thang' : 'type-trong-nuoc'}`}
-                    >
-                      <option value="trong_nuoc">Trong nước</option>
-                      <option value="di_thang">Đi thẳng</option>
-                    </select>
-                  </td>
-
-                  <td className="td-action">
-                    <div className="action-group">
-                      {row._dirty && (
-                        <button
-                          className="act save"
-                          onClick={() => saveRow(row)}
-                          disabled={row._saving}
-                          title="Lưu dòng"
-                        >
-                          {row._saving
-                            ? <span className="spin">⟳</span>
-                            : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
-                          }
-                        </button>
-                      )}
-                      <button
-                        className="act insert"
-                        onClick={() => insertAfter(row)}
-                        title="Thêm dòng bên dưới"
-                        disabled={row._isNew && !row.id}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                      </button>
-                      <button
-                        className="act delete"
-                        onClick={() => deleteRow(row)}
-                        title="Xóa dòng"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
+            ) : visibleRows.length === 0 ? (
+              <tr>
+                <td colSpan="13" className="boq-empty">Không có dòng nào khớp bộ lọc.</td>
+              </tr>
+            ) : visibleRows.map(({ r, idx }) => (
+              <BOQRow
+                key={r._key}
+                row={r}
+                idx={idx}
+                currency={currency}
+                selected={selected.has(r._key)}
+                onToggleSelect={toggleSelect}
+                set={set}
+                saveRow={saveRow}
+                insertAfter={insertAfter}
+                deleteRow={deleteRow}
+              />
+            ))}
           </tbody>
 
           {rows.length > 0 && (
             <tfoot>
               <tr className="totals-row">
-                <td colSpan="6" className="totals-label">TỔNG CỘNG</td>
+                <td colSpan="7" className="totals-label">TỔNG CỘNG</td>
                 <td className="td-amt">{fmtNum(totals.before, currency)}</td>
                 <td />
                 <td className="td-amt">{fmtNum(totals.after, currency)}</td>

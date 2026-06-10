@@ -62,6 +62,73 @@
 .boq-summary-count { font-weight: 600; color: #374151; }
 .boq-summary-sep   { color: #d1d5db; }
 
+.boq-btn.boq-btn-danger { background: #dc2626; border-color: #dc2626; color: white; }
+.boq-btn.boq-btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.boq-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Filter / bulk actions bar ────────────────────────────────────────────── */
+
+.boq-filterbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.boq-filter-spacer { flex: 1 1 auto; }
+
+.boq-filter-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: white;
+  color: #9ca3af;
+  min-width: 240px;
+}
+.boq-filter-search:focus-within { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,0.15); }
+.boq-filter-search input {
+  border: none;
+  outline: none;
+  padding: 7px 0;
+  font-size: 13px;
+  font-family: inherit;
+  background: transparent;
+  flex: 1;
+  color: #1f2937;
+}
+.boq-filter-clear {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.boq-filter-clear:hover { color: #374151; }
+
+.boq-filter-type {
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  outline: none;
+}
+.boq-filter-type:focus { border-color: #16a34a; }
+
+.boq-filter-count { font-size: 12px; color: #6b7280; }
+.boq-sel-count { font-size: 13px; font-weight: 600; color: #b91c1c; }
+
 /* ── Table wrapper ────────────────────────────────────────────────────────── */
 
 .boq-table-wrapper {
@@ -121,9 +188,17 @@
 .boq-table tbody tr.row-di-thang { background: #fff0f0; }
 .boq-table tbody tr.row-di-thang:hover { background: #ffe4e4; }
 .boq-table tbody tr.row-di-thang.row-dirty { background: #fff0d6; }
+.boq-table tbody tr.row-selected { background: #eff6ff; }
+.boq-table tbody tr.row-selected:hover { background: #dbeafe; }
+
+/* Select column */
+.td-select { text-align: center; }
+.boq-table .th-select input,
+.boq-table .td-select input { cursor: pointer; accent-color: #2563eb; width: 15px; height: 15px; }
 
 /* ── Column widths ────────────────────────────────────────────────────────── */
 
+.th-select    { width: 36px; }
 .th-stt       { width: 44px; }
 .th-name      { min-width: 220px; text-align: left !important; }
 .th-hs        { width: 96px; }

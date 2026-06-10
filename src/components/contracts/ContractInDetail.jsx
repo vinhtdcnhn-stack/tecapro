@@ -3,6 +3,7 @@ import { useState } from 'react'
 import ContractDocumentsTab from './ContractDocumentsTab'
 import ContractInBOQTab from './ContractInBOQTab'
 import ContractInDeliveryTab from './ContractInDeliveryTab'
+import ContractInSerialTab from './ContractInSerialTab'
 import ContractInPayableTab from './ContractInPayableTab'
 import ContractInProgressTab from './ContractInProgressTab'
 import ContractInSupplierWarrantyTab from './ContractInSupplierWarrantyTab'
@@ -116,6 +117,8 @@ export default function ContractInDetail({ item, suppliers, onBack, onUpdate, on
           <ContractInBOQTab contractInId={item.id} currency={item.currency_code || 'VND'} />
         ) : activeTab === 'delivery' ? (
           <ContractInDeliveryTab contractInId={item.id} />
+        ) : activeTab === 'serials' ? (
+          <ContractInSerialTab contractInId={item.id} />
         ) : activeTab === 'payment' ? (
           <ContractInPayableTab contractInId={item.id} />
         ) : activeTab === 'progress' ? (

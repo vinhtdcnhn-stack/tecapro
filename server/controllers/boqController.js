@@ -248,6 +248,32 @@ export async function deleteBOQItem(req, res) {
   }
 }
 
+// ── POST /boq/bulk-delete  { ids: [...] } ─ xóa nhiều dòng trong 1 transaction ─
+
+export async function bulkDeleteBOQItems(req, res) {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : []
+  if (!ids.length) return res.status(400).json({ error: 'No ids provided' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rows } = await client.query(
+      'DELETE FROM public.contract_out_boq WHERE id = ANY($1::bigint[]) RETURNING contract_out_id',
+      [ids]
+    )
+    const contractIds = [...new Set(rows.map(r => r.contract_out_id))]
+    for (const cid of contractIds) await syncContractTotal(cid, client)
+    await client.query('COMMIT')
+    res.json({ message: 'Deleted', count: rows.length })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('bulkDeleteBOQItems:', err)
+    res.status(500).json({ error: 'Failed to delete BOQ items' })
+  } finally {
+    client.release()
+  }
+}
+
 // ── POST /contracts/:contractId/boq/import  (parse Excel → preview) ──────────
 
 export async function importBOQPreview(req, res) {

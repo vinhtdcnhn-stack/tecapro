@@ -5,6 +5,7 @@ import {
   insertBOQAfter,
   updateBOQItem,
   deleteBOQItem,
+  bulkDeleteBOQItems,
   importBOQPreview,
   saveImportedBOQ,
   downloadBOQTemplate,
@@ -24,6 +25,7 @@ router.post('/contracts/:contractId/boq/import',  excelUpload.single('file'), im
 router.post('/contracts/:contractId/boq/save-import',           saveImportedBOQ)
 
 // Item routes
+router.post('/boq/bulk-delete', bulkDeleteBOQItems)
 router.put('/boq/:id',    updateBOQItem)
 router.delete('/boq/:id', deleteBOQItem)
 
