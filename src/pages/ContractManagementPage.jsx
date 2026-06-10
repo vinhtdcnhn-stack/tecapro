@@ -12,10 +12,10 @@ import ContractTaskTab from '../components/contracts/ContractTaskTab'
 import ContractWarrantyTab from '../components/contracts/ContractWarrantyTab'
 import ContractInTab from '../components/contracts/ContractInTab'
 
-export default function ContractManagementPage({ selectedContractId }) {
+export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab }) {
   const [contractId, setContractId] = useState(null)
   const [contract, setContract] = useState(null)
-  const [activeMenu, setActiveMenu] = useState('contract-info')
+  const [activeMenu, setActiveMenu] = useState(initialMenu || 'contract-info')
   const [loading, setLoading] = useState(true)
   
   // Edit modal state
@@ -68,6 +68,11 @@ export default function ContractManagementPage({ selectedContractId }) {
     loadContract()
   }, [selectedContractId])
 
+  // Khi đến từ deep-link (dashboard), nhảy thẳng tới đúng menu được yêu cầu.
+  useEffect(() => {
+    if (initialMenu) setActiveMenu(initialMenu)
+  }, [initialMenu, selectedContractId])
+
   const renderContent = () => {
     switch (activeMenu) {
       case 'contract-info':
@@ -87,7 +92,7 @@ case 'contract-debt':
       case 'contract-tasks':
         return <ContractTaskTab contractId={contractId} currentUser={currentUser} />
       case 'purchase-contract-info':
-        return <ContractInTab contractId={contractId} />
+        return <ContractInTab contractId={contractId} initialContractInId={initialInId} initialTab={initialInTab} />
 default:
         return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} />
     }

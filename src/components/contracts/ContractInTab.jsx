@@ -7,13 +7,14 @@ import ContractInFormModal from './ContractInFormModal'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function ContractInTab({ contractId }) {
+export default function ContractInTab({ contractId, initialContractInId, initialTab }) {
   const [items, setItems]           = useState([])
   const [suppliers, setSuppliers]   = useState([])
   const [loading, setLoading]       = useState(true)
   const [selectedItem, setSelected] = useState(null)  // null = list; item = detail
   const [addModalOpen, setAddModal] = useState(false)
   const [search, setSearch]         = useState('')
+  const [autoOpened, setAutoOpened] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -29,6 +30,13 @@ export default function ContractInTab({ contractId }) {
   }, [contractId])
 
   useEffect(() => { load() }, [load])
+
+  // Deep-link từ dashboard: tự mở đúng HĐ nhập được yêu cầu (một lần).
+  useEffect(() => {
+    if (autoOpened || !initialContractInId || !items.length) return
+    const found = items.find(c => String(c.id) === String(initialContractInId))
+    if (found) { setSelected(found); setAutoOpened(true) }
+  }, [items, initialContractInId, autoOpened])
 
   // When returning from detail, refresh the specific item if edited
   function handleItemUpdated(updated) {
@@ -61,6 +69,7 @@ export default function ContractInTab({ contractId }) {
       <ContractInDetail
         item={selectedItem}
         suppliers={suppliers}
+        initialTab={initialTab}
         onBack={() => setSelected(null)}
         onUpdate={handleItemUpdated}
         onDelete={handleDelete}

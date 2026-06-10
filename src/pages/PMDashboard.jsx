@@ -27,6 +27,34 @@ const KIND_META = {
 // Ngày nhắc hiệu lực: do user đặt, hoặc mặc định = hạn − 7 ngày
 const effRemind = (it) => it.remind_at || (it.due_date ? addDays(it.due_date, -7) : null)
 
+// Mốc thuộc phía bán → menu sidebar của HĐ bán
+const SELL_MENU = {
+  progress:   'contract-progress',
+  receivable: 'contract-debt',
+  guarantee:  'contract-guarantee',
+  task:       'contract-tasks',
+}
+// Mốc thuộc phía nhập → tab con trong chi tiết HĐ nhập
+const IN_TAB = {
+  in_progress:  'progress',
+  in_payable:   'payment',
+  in_delivery:  'delivery',
+  in_customs:   'customs',
+  in_guarantee: 'guarantee',
+  in_warranty:  'warranty',
+}
+
+// Đường dẫn nhảy thẳng tới đúng trang chứa mốc việc được nhấn.
+function targetUrl(it) {
+  if (!it.contract_id) return null
+  if (it.side === 'Nhập' && it.contract_in_id) {
+    const inTab = IN_TAB[it.source_type] || 'info'
+    return `/qlda/${it.contract_id}?tab=purchase-contract-info&inId=${it.contract_in_id}&inTab=${inTab}`
+  }
+  const menu = SELL_MENU[it.source_type]
+  return menu ? `/qlda/${it.contract_id}?tab=${menu}` : `/qlda/${it.contract_id}`
+}
+
 function dueInfo(due) {
   if (!due) return { cls: 'due-normal', label: '—', days: null }
   const days = daysBetween(due, todayISO()) // còn lại
@@ -134,7 +162,7 @@ export default function PMDashboard({ user }) {
                   return (
                     <tr key={`${it.source_type}:${it.source_id}`} className={it.pinned ? 'pm-row-pinned' : ''}>
                       <td className="pm-col-contract">
-                        <button className="pm-contract-link" onClick={() => navigate(`/qlda/${it.contract_id}`)}>
+                        <button className="pm-contract-link" onClick={() => navigate(targetUrl(it))} title="Mở thẳng tới mục công việc này">
                           {it.contract_no || '—'}
                         </button>
                       </td>

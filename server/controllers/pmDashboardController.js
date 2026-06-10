@@ -131,6 +131,7 @@ export async function getPMDashboard(req, res) {
         items.push(attach({
           source_type, source_id, side: 'Nhập',
           contract_id: ci?.contract_out_id, contract_no: parent?.contract_no,
+          contract_in_id: ci?.id,
           due_date: iso(due_date), title, kind,
           sub: `HĐ nhập ${ci?.contract_no || ''}${sub ? ' · ' + sub : ''}`.trim(),
         }))

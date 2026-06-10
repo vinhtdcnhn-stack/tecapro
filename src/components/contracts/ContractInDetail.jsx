@@ -15,8 +15,10 @@ import { SUB_TABS, fmtNum, statusCfg } from './contractInUtils'
 
 // ── Detail view ───────────────────────────────────────────────────────────────
 
-export default function ContractInDetail({ item, suppliers, onBack, onUpdate, onDelete }) {
-  const [activeTab, setActiveTab] = useState('info')
+export default function ContractInDetail({ item, suppliers, initialTab, onBack, onUpdate, onDelete }) {
+  const [activeTab, setActiveTab] = useState(
+    initialTab && SUB_TABS.some(t => t.key === initialTab) ? initialTab : 'info'
+  )
   const sc = statusCfg[item.status] || { label: item.status, cls: '' }
 
   return (
