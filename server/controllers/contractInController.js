@@ -1,8 +1,16 @@
 import { pool } from '../db.js'
 
+// Giá trị HĐ nhập do bảng giá mua quyết định (xem syncContractInTotal). Tính thẳng
+// từ tổng BOQ ở đây để list/header luôn khớp bảng giá, kể cả dữ liệu cũ chưa sync
+// (cột ci.amount có thể còn giá trị nhập tay cũ). Alias "amount" đặt SAU ci.* để
+// đè cột amount gốc trong kết quả; fallback về ci.amount khi HĐ chưa có dòng BOQ nào.
 const BASE_SELECT = `
   SELECT
     ci.*,
+    COALESCE(
+      (SELECT SUM(b.amount_after_vat) FROM contract_in_boq b WHERE b.contract_in_id = ci.id),
+      ci.amount
+    ) AS amount,
     s.name  AS supplier_name,
     s.code  AS supplier_code
   FROM contract_in ci
