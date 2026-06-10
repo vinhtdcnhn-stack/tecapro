@@ -66,7 +66,7 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
             }}>{item.purchase_type}</span>
             {item.amount > 0 && (
               <span style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
-                {fmtNum(item.amount)} {item.currency_code}
+                {fmtNum(item.amount, item.currency_code)} {item.currency_code}
               </span>
             )}
           </div>

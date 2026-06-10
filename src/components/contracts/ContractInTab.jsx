@@ -157,7 +157,7 @@ export default function ContractInTab({ contractId, initialContractInId, initial
                   <td style={tdStyle('left', { whiteSpace: 'normal', maxWidth: 200 })}>{c.goods_type || '-'}</td>
                   <td style={tdStyle()}>{fmtDate(c.contract_date)}</td>
                   <td style={tdStyle()}>{c.supplier_name || <span style={{ color: '#d1d5db' }}>—</span>}</td>
-                  <td style={tdStyle('right', { fontWeight: 600 })}>{fmtNum(c.amount)}</td>
+                  <td style={tdStyle('right', { fontWeight: 600 })}>{fmtNum(c.amount, c.currency_code)}</td>
                   <td style={tdStyle('center', { color: '#6b7280' })}>{c.currency_code}</td>
                   <td style={tdStyle('right', { color: '#6b7280' })}>
                     {c.exchange_rate ? new Intl.NumberFormat('vi-VN').format(c.exchange_rate) : '—'}
