@@ -167,6 +167,17 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
     setShowBulk(false); setSelected(new Set())
     await reload()
   }
+  async function bulkDelete() {
+    if (!confirm(`Xóa ${selected.size} serial đã chọn?`)) return
+    const res = await fetch(`${API}/serials/bulk-delete`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selected] }),
+    })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error || 'Không thể xóa'); return }
+    setSelected(new Set())
+    await reload()
+  }
 
   return (
     <>
@@ -200,6 +211,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
           <span>Đã chọn <strong>{selected.size}</strong> dòng</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="wty-btn wty-btn-primary" onClick={() => setShowBulk(true)}>Sửa bảo hành hàng loạt</button>
+            <button className="wty-btn wty-btn-danger" onClick={bulkDelete}>Xóa hàng loạt</button>
             <button className="wty-btn wty-btn-secondary" onClick={() => setSelected(new Set())}>Bỏ chọn</button>
           </div>
         </div>

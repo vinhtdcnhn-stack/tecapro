@@ -154,6 +154,19 @@ export async function deleteSerial(req, res) {
   }
 }
 
+// Xóa HÀNG LOẠT serial. Body: { ids: [...] }
+export async function bulkDeleteSerials(req, res) {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : []
+  if (!ids.length) return res.status(400).json({ error: 'Chưa chọn dòng nào' })
+  try {
+    const { rowCount } = await pool.query('DELETE FROM equipment_serial WHERE id = ANY($1::int[])', [ids])
+    res.json({ success: true, count: rowCount })
+  } catch (err) {
+    console.error('bulkDeleteSerials:', err)
+    res.status(500).json({ error: 'Không thể xóa các serial đã chọn' })
+  }
+}
+
 // Sửa bảo hành HÀNG LOẠT (1 truy vấn). Để trống trường nào thì giữ nguyên trường đó.
 // Body: { ids:[...], warranty_from?, warranty_to? }
 async function bulkWarranty(table, req, res) {
