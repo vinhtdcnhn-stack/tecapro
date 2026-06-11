@@ -7,6 +7,9 @@ import './PMDashboard.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Chỉ hiển thị mốc đến hạn trong vòng N ngày tới (mốc quá hạn vẫn luôn hiện)
+const WINDOW_DAYS = 30
+
 const todayISO = () => new Date(new Date().toDateString()).toISOString().slice(0, 10)
 const addDays = (isoDate, n) => { const d = new Date(isoDate); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
 const daysBetween = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000) // a - b
@@ -101,6 +104,16 @@ export default function PMDashboard({ user }) {
     } catch (e) { console.error('saveTracking:', e); load() }
   }
 
+  // Chỉ giữ mốc trong vòng 30 ngày tới (gồm cả mốc đã quá hạn); mốc đã ghim luôn hiện
+  const inWindow = useMemo(() => {
+    const today = todayISO()
+    return items.filter(it => {
+      if (it.pinned) return true
+      if (!it.due_date) return false
+      return daysBetween(it.due_date, today) <= WINDOW_DAYS
+    })
+  }, [items])
+
   // Sắp xếp: ghim → tới ngày nhắc → hạn gần nhất
   const sorted = useMemo(() => {
     const today = todayISO()
@@ -109,20 +122,20 @@ export default function PMDashboard({ user }) {
       const reminding = remind && remind <= today
       return { pin: it.pinned ? 1 : 0, remind: reminding ? 1 : 0 }
     }
-    return [...items].sort((a, b) => {
+    return [...inWindow].sort((a, b) => {
       const ra = rank(a), rb = rank(b)
       if (ra.pin !== rb.pin) return rb.pin - ra.pin
       if (ra.remind !== rb.remind) return rb.remind - ra.remind
       const da = a.due_date || '9999-12-31', db = b.due_date || '9999-12-31'
       return da < db ? -1 : da > db ? 1 : 0
     })
-  }, [items])
+  }, [inWindow])
 
   // Danh sách số HĐ để lọc
   const contractOptions = useMemo(() => {
-    const set = new Set(items.map(it => it.contract_no).filter(Boolean))
+    const set = new Set(inWindow.map(it => it.contract_no).filter(Boolean))
     return [...set].sort()
-  }, [items])
+  }, [inWindow])
 
   // Áp bộ lọc theo số HĐ
   const visible = useMemo(
