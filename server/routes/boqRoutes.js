@@ -3,6 +3,7 @@ import {
   getBOQ,
   createBOQItem,
   insertBOQAfter,
+  reorderBOQ,
   updateBOQItem,
   deleteBOQItem,
   bulkDeleteBOQItems,
@@ -21,6 +22,7 @@ router.get('/boq/template', downloadBOQTemplate)
 router.get('/contracts/:contractId/boq',                        getBOQ)
 router.post('/contracts/:contractId/boq',                       createBOQItem)
 router.post('/contracts/:contractId/boq/after/:refId',          insertBOQAfter)
+router.post('/contracts/:contractId/boq/reorder',               reorderBOQ)
 router.post('/contracts/:contractId/boq/import',  excelUpload.single('file'), importBOQPreview)
 router.post('/contracts/:contractId/boq/save-import',           saveImportedBOQ)
 

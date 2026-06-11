@@ -274,6 +274,33 @@ export async function bulkDeleteBOQItems(req, res) {
   }
 }
 
+// ── POST /contracts/:contractId/boq/reorder  { ids: [...] } ─ đổi thứ tự dòng ─
+
+export async function reorderBOQ(req, res) {
+  const { contractId } = req.params
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : []
+  if (!ids.length) return res.status(400).json({ error: 'No ids provided' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    for (let i = 0; i < ids.length; i++) {
+      await client.query(
+        'UPDATE public.contract_out_boq SET sort_order = $1 WHERE id = $2 AND contract_out_id = $3',
+        [i + 1, ids[i], contractId]
+      )
+    }
+    await client.query('COMMIT')
+    res.json({ message: 'Reordered', count: ids.length })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('reorderBOQ:', err)
+    res.status(500).json({ error: 'Failed to reorder BOQ' })
+  } finally {
+    client.release()
+  }
+}
+
 // ── POST /contracts/:contractId/boq/import  (parse Excel → preview) ──────────
 
 export async function importBOQPreview(req, res) {

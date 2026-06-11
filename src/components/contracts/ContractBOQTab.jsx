@@ -21,6 +21,8 @@ export default function ContractBOQTab({ contractId }) {
   const [typeFilter, setTypeFilter] = useState('all') // 'all' | 'trong_nuoc' | 'di_thang'
   const [selected, setSelected]   = useState(() => new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [dragKey, setDragKey]     = useState(null)   // _key của dòng đang kéo
+  const [dragOverKey, setDragOverKey] = useState(null)
   const excelRef = useRef(null)
 
   // ── Load ─────────────────────────────────────────────────────────────────────
@@ -154,6 +156,72 @@ export default function ContractBOQTab({ contractId }) {
     const r = emptyRow(null)
     setRows(prev => [...prev, r])
     return r._key
+  }
+
+  // ── Kéo-thả đổi thứ tự ─────────────────────────────────────────────────────
+  // Chỉ cho phép kéo dòng đã lưu khi không lọc (thứ tự hiển thị == thứ tự gốc).
+
+  const persistOrder = async (orderedRows) => {
+    const ids = orderedRows.filter(r => !r._isNew && r.id).map(r => r.id)
+    if (!ids.length) return
+    try {
+      await fetch(`${API}/contracts/${contractId}/boq/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+    } catch (e) {
+      console.error('reorder BOQ:', e)
+      load()  // khôi phục thứ tự từ server nếu lỗi
+    }
+  }
+
+  const handleDragStart = (e, key) => {
+    // Không bắt đầu kéo khi thao tác trong ô nhập liệu
+    const tag = e.target.tagName
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON') {
+      e.preventDefault()
+      return
+    }
+    setDragKey(key)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', key)  // Firefox cần dữ liệu để khởi động kéo
+  }
+
+  const handleDragOver = (e) => {
+    if (!dragKey) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDragEnter = (key) => {
+    if (dragKey && key !== dragKey) setDragOverKey(key)
+  }
+
+  const handleDragEnd = () => { setDragKey(null); setDragOverKey(null) }
+
+  const handleDrop = (e, targetKey) => {
+    e.preventDefault()
+    if (!dragKey || dragKey === targetKey) { handleDragEnd(); return }
+
+    // Thả ở nửa dưới của dòng đích → chèn sau, nửa trên → chèn trước
+    const rect = e.currentTarget.getBoundingClientRect()
+    const after = (e.clientY - rect.top) > rect.height / 2
+
+    let reordered = null
+    setRows(prev => {
+      const copy = [...prev]
+      const from = copy.findIndex(r => r._key === dragKey)
+      if (from < 0) return prev
+      const [moved] = copy.splice(from, 1)
+      const to = copy.findIndex(r => r._key === targetKey)
+      if (to < 0) return prev
+      copy.splice(after ? to + 1 : to, 0, moved)
+      reordered = copy
+      return copy
+    })
+    if (reordered) persistOrder(reordered)
+    handleDragEnd()
   }
 
   const isMobile = useIsMobile()
@@ -425,6 +493,14 @@ export default function ContractBOQTab({ contractId }) {
                 saveRow={saveRow}
                 insertAfter={insertAfter}
                 deleteRow={deleteRow}
+                canDrag={!isFiltering && !r._isNew && !!r.id}
+                isDragging={dragKey === r._key}
+                isDragOver={dragOverKey === r._key}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
               />
             ))}
           </tbody>

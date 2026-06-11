@@ -1,18 +1,29 @@
 import { fmtNum, calcAmounts } from './boqUtils'
 
 // Một dòng trong bảng giá (BOQ). Tách riêng để giữ ContractBOQTab gọn dưới 500 dòng.
-export default function BOQRow({ row, idx, currency, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow }) {
+export default function BOQRow({
+  row, idx, currency, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow,
+  canDrag, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
+}) {
   const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate)
   const isDiThang = row.item_type === 'di_thang'
 
   return (
     <tr
+      draggable={canDrag}
+      onDragStart={canDrag ? (e) => onDragStart(e, row._key) : undefined}
+      onDragOver={canDrag ? onDragOver : undefined}
+      onDragEnter={canDrag ? () => onDragEnter(row._key) : undefined}
+      onDrop={canDrag ? (e) => onDrop(e, row._key) : undefined}
+      onDragEnd={canDrag ? onDragEnd : undefined}
       className={[
         row._isNew  ? 'row-new'   : '',
         row._dirty  ? 'row-dirty' : '',
         row._saving ? 'row-saving': '',
         isDiThang   ? 'row-di-thang' : '',
         selected    ? 'row-selected' : '',
+        isDragging  ? 'row-dragging' : '',
+        isDragOver  ? 'row-dragover' : '',
       ].filter(Boolean).join(' ')}
     >
       <td className="td-select">
@@ -26,6 +37,7 @@ export default function BOQRow({ row, idx, currency, selected, onToggleSelect, s
 
       <td className="td-stt">
         {row._dirty && <span className="dirty-dot" title="Chưa lưu" />}
+        {canDrag && <span className="drag-handle" title="Kéo để đổi thứ tự">⠿</span>}
         <span className="stt-num">{idx + 1}</span>
       </td>
 
