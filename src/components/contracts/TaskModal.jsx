@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 
 import { API } from '../../config/api'
+import Modal from '../common/Modal'
 import { PRIORITIES, STATUSES, statusModalClass } from './taskUtils'
 import DateInput from './DateInput'
 
@@ -101,11 +102,15 @@ export default function TaskModal({ task, departments, users, currentUser, onSav
   }
 
   return (
-    <div className="task-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="task-modal">
+    <Modal
+      onClose={onClose}
+      overlayClassName="task-modal-overlay"
+      contentClassName="task-modal"
+      labelledBy="task-modal-title"
+    >
         <div className="task-modal-header">
-          <h3>{isEdit ? 'Cập nhật công việc' : 'Thêm công việc mới'}</h3>
-          <button className="task-modal-close" onClick={onClose}>✕</button>
+          <h3 id="task-modal-title">{isEdit ? 'Cập nhật công việc' : 'Thêm công việc mới'}</h3>
+          <button className="task-modal-close" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
 
         <div className="task-modal-body">
@@ -273,7 +278,6 @@ export default function TaskModal({ task, departments, users, currentUser, onSav
             {saving ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Thêm công việc'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

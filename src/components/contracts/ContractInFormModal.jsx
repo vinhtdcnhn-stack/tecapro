@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../common/Modal'
 import DateInput from './DateInput'
 import CustomerSelect from '../common/CustomerSelect'
 
@@ -22,11 +23,10 @@ export default function ContractInFormModal({ suppliers, onSave, onClose }) {
   }
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000 }}>
-      <div className="modal contract-modal" style={{ width: 680, maxWidth: '95vw' }}>
+    <Modal onClose={onClose} className="contract-modal contractin-form-modal" width={680} labelledBy="contractin-form-title">
         <div className="modal-header">
-          <h2>THÊM HỢP ĐỒNG NHẬP</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <h2 id="contractin-form-title">THÊM HỢP ĐỒNG NHẬP</h2>
+          <button className="close-btn" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
         <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <div className="contract-form-section">
@@ -105,7 +105,6 @@ export default function ContractInFormModal({ suppliers, onSave, onClose }) {
             {saving ? 'Đang lưu...' : 'Lưu'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

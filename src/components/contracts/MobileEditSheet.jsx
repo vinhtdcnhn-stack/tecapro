@@ -1,3 +1,4 @@
+import Modal from '../common/Modal'
 import './MobileEditSheet.css'
 
 // Bottom-sheet sửa 1 bản ghi trên mobile. Tái dùng cho mọi tab: truyền tiêu đề,
@@ -6,10 +7,14 @@ export default function MobileEditSheet({
   title, onClose, onSave, onDelete, saving, saveLabel = 'Lưu', children,
 }) {
   return (
-    <div className="msheet-overlay" onClick={onClose}>
-      <div className="msheet-panel" onClick={e => e.stopPropagation()}>
+    <Modal
+      onClose={onClose}
+      overlayClassName="msheet-overlay"
+      contentClassName="msheet-panel"
+      labelledBy="msheet-title"
+    >
         <div className="msheet-header">
-          <span className="msheet-title">{title}</span>
+          <span className="msheet-title" id="msheet-title">{title}</span>
           <button className="msheet-close" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
         <div className="msheet-body">{children}</div>
@@ -25,8 +30,7 @@ export default function MobileEditSheet({
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

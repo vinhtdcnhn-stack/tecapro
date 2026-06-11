@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Modal from '../common/Modal'
 
 export default function SupplierModal({ isOpen, onClose, onSave, supplier = null }) {
   const isEdit = !!supplier
@@ -42,14 +43,11 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier = null
     await onSave(formData, isEdit)
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="modal-overlay">
-      <div className="modal">
+    <Modal isOpen={isOpen} onClose={() => { onClose(); resetForm() }} labelledBy="supplier-modal-title">
         <div className="modal-header">
-          <h2>{isEdit ? 'SỬA NHÀ CUNG CẤP' : 'THÊM NHÀ CUNG CẤP'}</h2>
-          <button className="close-btn" onClick={() => { onClose(); resetForm() }}>✕</button>
+          <h2 id="supplier-modal-title">{isEdit ? 'SỬA NHÀ CUNG CẤP' : 'THÊM NHÀ CUNG CẤP'}</h2>
+          <button className="close-btn" onClick={() => { onClose(); resetForm() }} aria-label="Đóng">✕</button>
         </div>
 
         <div className="modal-body">
@@ -153,7 +151,6 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier = null
             {isEdit ? 'Cập nhật' : 'Lưu'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

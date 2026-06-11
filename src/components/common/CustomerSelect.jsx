@@ -70,8 +70,8 @@ export default function CustomerSelect({ customers, selectedId, onChange, placeh
             return (
               <div key={c.id} onClick={() => handleSelect(c.id)} style={{
                 padding: '8px 12px', cursor: 'pointer',
-                backgroundColor: isSelected ? '#dbeafe' : 'transparent',
-                color: isSelected ? '#1e40af' : '#374151',
+                backgroundColor: isSelected ? 'var(--chip-bg)' : 'transparent',
+                color: isSelected ? 'var(--chip-text)' : '#374151',
               }}>
                 {isSelected && '✓ '}{c.name} {c.code && `(${c.code})`}
               </div>

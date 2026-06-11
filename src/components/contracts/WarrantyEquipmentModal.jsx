@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../common/Modal'
 import DateInput from './DateInput'
 
 // ── Equipment Form Modal ──────────────────────────────────────────────────────
@@ -25,11 +26,15 @@ export default function EquipmentModal({ item, onSave, onClose }) {
   const s = f => setForm(p=>({...p,...f}))
 
   return (
-    <div className="wty-modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
-      <div className="wty-modal">
+    <Modal
+      onClose={onClose}
+      overlayClassName="wty-modal-overlay"
+      contentClassName="wty-modal"
+      labelledBy="wty-equip-title"
+    >
         <div className="wty-modal-header">
-          <h3>{isEdit ? 'Cập nhật thiết bị' : 'Thêm thiết bị bàn giao'}</h3>
-          <button className="wty-modal-close" onClick={onClose}>✕</button>
+          <h3 id="wty-equip-title">{isEdit ? 'Cập nhật thiết bị' : 'Thêm thiết bị bàn giao'}</h3>
+          <button className="wty-modal-close" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
         <div className="wty-modal-body">
           <div className="wty-form-row">
@@ -89,7 +94,6 @@ export default function EquipmentModal({ item, onSave, onClose }) {
             {saving ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Thêm thiết bị'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

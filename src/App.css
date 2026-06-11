@@ -147,6 +147,12 @@ background:
 
 }
 
+/* Trang đăng nhập đứng độc lập (ngoài .shell) nên cần tự cao toàn màn hình
+   để gradient phủ kín, tránh lộ nền trắng ở nửa dưới. */
+.page--auth {
+  min-height: 100svh;
+}
+
 .page--home {
   padding: 0;
   align-items: stretch;
@@ -559,7 +565,7 @@ background:
   text-align: center;
 }
 .add-btn {
-  background: #15803d;
+  background: var(--accent);
   color: white;
   border: none;
   padding: 10px 18px;
@@ -570,11 +576,11 @@ background:
 }
 
 .add-btn:hover {
-  background: #166534;
+  background: var(--accent-hover);
 }
 
 .edit-btn {
-  background: #2563eb;
+  background: var(--accent);
   color: white;
   border: none;
   padding: 6px 12px;
@@ -584,7 +590,7 @@ background:
 }
 
 .edit-btn:hover {
-  background: #1d4ed8;
+  background: var(--accent-hover);
 }
 .modal-overlay {
   position: fixed;
@@ -655,6 +661,38 @@ background:
   margin-top: 24px;
 }
 
+/* Tiêu đề từng nhóm trong modal hợp đồng (trước đây không được style) */
+.contract-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+/* Modal "Thêm HĐ nhập" chỉ có 1 nhóm trường — bỏ lưới 2 cột để dùng full chiều
+   rộng (lưới 2 cột mặc định của .modal-body khiến nội dung dồn về nửa trái). */
+.contractin-form-modal .modal-body {
+  display: block;
+}
+
+/* Form đổi mật khẩu: xếp dọc 1 cột (không dùng lưới 2 cột của .modal-body) */
+.changepw-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.changepw-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
 .cancel-btn {
   background: #e5e7eb;
   border: none;
@@ -666,7 +704,7 @@ background:
 }
 
 .save-btn {
-  background: #15803d;
+  background: var(--accent);
   color: white;
 
   border: none;
@@ -675,6 +713,10 @@ background:
   border-radius: 10px;
 
   cursor: pointer;
+}
+
+.save-btn:hover {
+  background: var(--accent-hover);
 }
 .field {
   display: flex;

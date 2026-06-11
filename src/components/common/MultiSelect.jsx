@@ -43,13 +43,13 @@ export default function MultiSelect({ options, selectedValues, onChange, placeho
           return option ? (
             <span key={value} style={{
               display: 'inline-flex', alignItems: 'center', gap: '4px',
-              padding: '2px 8px', backgroundColor: '#dbeafe',
-              color: '#1e40af', borderRadius: '4px', fontSize: '13px',
+              padding: '2px 8px', backgroundColor: 'var(--chip-bg)',
+              color: 'var(--chip-text)', borderRadius: '4px', fontSize: '13px',
             }}>
               {option.label}
               <button onClick={(e) => removeOption(value, e)} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: '0', color: '#1e40af', fontSize: '14px',
+                padding: '0', color: 'var(--chip-text)', fontSize: '14px',
               }}>×</button>
             </span>
           ) : null
@@ -72,8 +72,8 @@ export default function MultiSelect({ options, selectedValues, onChange, placeho
           {filteredOptions.map(opt => (
             <div key={opt.value} onClick={() => toggleOption(opt.value)} style={{
               padding: '8px 12px', cursor: 'pointer',
-              backgroundColor: selectedValues.includes(opt.value) ? '#dbeafe' : 'transparent',
-              color: selectedValues.includes(opt.value) ? '#1e40af' : '#374151',
+              backgroundColor: selectedValues.includes(opt.value) ? 'var(--chip-bg)' : 'transparent',
+              color: selectedValues.includes(opt.value) ? 'var(--chip-text)' : '#374151',
             }}>
               {selectedValues.includes(opt.value) && '✓ '}{opt.label}
             </div>

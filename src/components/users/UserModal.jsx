@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import Modal from '../common/Modal'
 
-export default function UserModal({ 
+export default function UserModal({
   isOpen, 
   onClose, 
   onSave, 
@@ -115,14 +116,11 @@ export default function UserModal({
     await onSave(formData, isEdit)
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="modal-overlay">
-      <div className="modal">
+    <Modal isOpen={isOpen} onClose={() => { onClose(); resetForm() }} labelledBy="user-modal-title">
         <div className="modal-header">
-          <h2>{isEdit ? 'SỬA NGƯỜI DÙNG' : 'THÊM NGƯỜI DÙNG'}</h2>
-          <button className="close-btn" onClick={() => { onClose(); resetForm() }}>✕</button>
+          <h2 id="user-modal-title">{isEdit ? 'SỬA NGƯỜI DÙNG' : 'THÊM NGƯỜI DÙNG'}</h2>
+          <button className="close-btn" onClick={() => { onClose(); resetForm() }} aria-label="Đóng">✕</button>
         </div>
 
         <div className="modal-body">
@@ -276,7 +274,6 @@ export default function UserModal({
             {isEdit ? 'Cập nhật' : 'Lưu'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

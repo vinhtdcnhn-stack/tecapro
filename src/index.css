@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens — màu thương hiệu xanh lá TECAPRO.
+   Trước đây các biến này được dùng trong App.css nhưng chưa từng được khai báo,
+   khiến tiêu đề login (.title-accent) mất chữ và focus ring không hiển thị. */
+:root {
+  --accent: #15803d;          /* xanh lá đậm — chữ nhấn, link, eyebrow */
+  --accent-2: #22c55e;        /* xanh lá sáng — điểm cuối gradient */
+  --accent-soft: rgba(21, 128, 61, 0.15); /* nền mờ — focus ring, glow */
+  --border: #d1d5db;          /* viền input (gray-300) */
+  --text: #475569;            /* chữ nội dung (slate-600) */
+  --text-heading: #1f2937;    /* chữ tiêu đề (gray-800) */
+
+  /* Nút & chip — nguồn màu duy nhất, dùng chung cho add/save/edit-btn và
+     các chip lựa chọn (MultiSelect/CustomerSelect). */
+  --accent-hover: #166534;    /* xanh lá đậm hơn khi hover nút */
+  --chip-bg: #dcfce7;         /* nền chip (green-100) */
+  --chip-text: #166534;       /* chữ chip (green-800) */
+}
+
 /* Custom styles for Contract List Page */
 @layer components {
   .stat-card {
@@ -80,7 +98,7 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    background-color: #f0f4ff; /* tecapro-50 */
+    background-color: #f0fdf4; /* tecapro-50 (green) */
   }
   
   .table-row {
@@ -156,7 +174,7 @@
     left: 0;
     top: 0;
     z-index: 50;
-    background: #f1f5f9;
+    background: #f0fdf4;
     width: 70px;
     min-width: 70px;
   }
@@ -166,7 +184,7 @@
     left: 70px;
     top: 0;
     z-index: 49;
-    background: #f1f5f9;
+    background: #f0fdf4;
     width: 160px;
     min-width: 160px;
     border-right: 1px solid #e5e7eb;

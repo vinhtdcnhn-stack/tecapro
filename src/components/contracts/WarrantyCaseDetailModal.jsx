@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Modal from '../common/Modal'
 import DateInput from './DateInput'
 
 import { API } from '../../config/api'
@@ -58,17 +59,21 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
   }
 
   return (
-    <div className="wty-modal-overlay" onClick={e => { if(e.target===e.currentTarget) onClose() }}>
-      <div className="wty-modal wty-modal--wide">
+    <Modal
+      onClose={onClose}
+      overlayClassName="wty-modal-overlay"
+      contentClassName="wty-modal wty-modal--wide"
+      labelledBy="wty-detail-title"
+    >
         <div className="wty-modal-header">
           <div>
-            <h3>{form.case_no||'Case'} — {form.title}</h3>
+            <h3 id="wty-detail-title">{form.case_no||'Case'} — {form.title}</h3>
             <div style={{ display:'flex', gap:8, marginTop:4 }}>
               <span className={`case-status ${caseStatusCls(form.status)}`}>{form.status}</span>
               <span className={`priority-badge ${priorityCls(form.priority)}`}>{form.priority}</span>
             </div>
           </div>
-          <button className="wty-modal-close" onClick={onClose}>✕</button>
+          <button className="wty-modal-close" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
 
         <div className="wty-modal-body">
@@ -216,7 +221,6 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
         <div className="wty-modal-footer">
           <button className="wty-modal-btn cancel" onClick={onClose}>Đóng</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

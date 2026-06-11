@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import './ContractBOQTab.css'
+import Modal from '../common/Modal'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import BOQMobile from './BOQMobile'
@@ -316,14 +317,13 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
 
       {/* ── Import modal ── */}
       {importData && (
-        <div className="modal-overlay" onClick={() => setImportData(null)}>
-          <div className="boq-import-modal" onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setImportData(null)} contentClassName="boq-import-modal" labelledBy="boqin-import-title">
             <div className="boq-import-header">
               <div>
-                <h3>Preview dữ liệu Excel</h3>
+                <h3 id="boqin-import-title">Preview dữ liệu Excel</h3>
                 <p className="boq-import-count">{importData.total} dòng dữ liệu</p>
               </div>
-              <button className="btn-close-preview" onClick={() => setImportData(null)}>
+              <button className="btn-close-preview" onClick={() => setImportData(null)} aria-label="Đóng">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                 </svg>
@@ -384,8 +384,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 {importSaving ? 'Đang lưu...' : `Xác nhận nhập ${importData.total} dòng`}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

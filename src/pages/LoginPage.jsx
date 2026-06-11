@@ -27,7 +27,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page page--auth">
       <LoginForm onLogin={handleLogin} error={error} />
     </main>
   )

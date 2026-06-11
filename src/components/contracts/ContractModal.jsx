@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API_BASE } from '../../config/api'
+import Modal from '../common/Modal'
 import MultiSelect from '../common/MultiSelect'
 import CustomerSelect from '../common/CustomerSelect'
 import DateInput from './DateInput'
@@ -37,6 +38,8 @@ export default function ContractModal({
   const [errors, setErrors] = useState({
     contract_no: ''
   })
+  // Lỗi hiển thị inline ngay dưới từng ô bắt buộc (thay cho chuỗi alert)
+  const [fieldErrors, setFieldErrors] = useState({})
 
   const [isChecking, setIsChecking] = useState(false)
   const [isDuplicate, setIsDuplicate] = useState(false)
@@ -97,18 +100,21 @@ export default function ContractModal({
       pm_team: []
     })
     setErrors({ contract_no: '' })
+    setFieldErrors({})
     setIsChecking(false)
     setIsDuplicate(false)
   }
 
   function updateField(field, value) {
     setFormData(prev => ({ ...prev, [field]: value }))
-    
+
     // Clear error when typing contract_no
     if (field === 'contract_no') {
       setErrors(prev => ({ ...prev, contract_no: '' }))
       setIsDuplicate(false)
     }
+    // Xóa lỗi inline của ô khi người dùng bắt đầu sửa
+    setFieldErrors(prev => (prev[field] ? { ...prev, [field]: '' } : prev))
   }
 
   async function handleBlurContractNo(value) {
@@ -161,29 +167,29 @@ export default function ContractModal({
     setFormData(prev => ({ ...prev, [group]: selectedValues }))
   }
 
-  async function handleSubmit() {
-    if (errors.contract_no || isDuplicate) {
-      alert('Vui lòng sửa lỗi trùng số hợp đồng trước khi lưu!')
-      return
-    }
-
-    const requiredFields = ['contract_no', 'contract_date', 'project_name', 'customer_id']
-    
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        const fieldName = field === 'contract_no' ? 'số hợp đồng'
-          : field === 'contract_date' ? 'ngày ký'
-          : field === 'project_name' ? 'tên dự án'
-          : 'chủ đầu tư'
-        alert(`Vui lòng nhập ${fieldName}!`)
-        return
-      }
-    }
-
+  // Kiểm tra toàn bộ ô bắt buộc, trả về object lỗi (rỗng nếu hợp lệ)
+  function validate() {
+    const errs = {}
+    if (!formData.contract_date) errs.contract_date = 'Vui lòng chọn ngày ký'
+    if (!formData.project_name) errs.project_name = 'Vui lòng nhập tên dự án'
+    if (!formData.customer_id) errs.customer_id = 'Vui lòng chọn chủ đầu tư'
     if (formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1)) {
-      alert(`Vui lòng nhập tỷ giá quy đổi VNĐ khi chọn đồng tiền ${formData.currency_code}!`)
-      return
+      errs.exchange_rate = `Nhập tỷ giá quy đổi VNĐ cho ${formData.currency_code}`
     }
+    return errs
+  }
+
+  async function handleSubmit() {
+    const errs = validate()
+    setFieldErrors(errs)
+
+    // Số hợp đồng dùng cơ chế lỗi riêng (errors.contract_no) vì còn check trùng
+    let cnErr = ''
+    if (!formData.contract_no) cnErr = 'Vui lòng nhập số hợp đồng'
+    else if (isDuplicate || errors.contract_no) cnErr = errors.contract_no || 'Số hợp đồng đã tồn tại'
+    if (cnErr) setErrors(prev => ({ ...prev, contract_no: cnErr }))
+
+    if (Object.keys(errs).length > 0 || cnErr || isDuplicate) return
 
     // Chuẩn bị dữ liệu gửi đi
     const submitData = {
@@ -196,14 +202,17 @@ export default function ContractModal({
     await onSave(submitData)
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000 }}>
-      <div className="modal contract-modal" style={{ width: '1000px', maxWidth: '95vw' }}>
+    <Modal
+      isOpen={isOpen}
+      onClose={() => { onClose(); resetForm() }}
+      className="contract-modal"
+      width={1000}
+      labelledBy="contract-modal-title"
+    >
         <div className="modal-header">
-          <h2>{editMode ? 'CẬP NHẬT THÔNG TIN HỢP ĐỒNG' : 'THÊM HỢP ĐỒNG MỚI'}</h2>
-          <button className="close-btn" onClick={() => { onClose(); resetForm() }}>✕</button>
+          <h2 id="contract-modal-title">{editMode ? 'CẬP NHẬT THÔNG TIN HỢP ĐỒNG' : 'THÊM HỢP ĐỒNG MỚI'}</h2>
+          <button className="close-btn" onClick={() => { onClose(); resetForm() }} aria-label="Đóng">✕</button>
         </div>
 
         <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
@@ -236,6 +245,9 @@ export default function ContractModal({
                   value={formData.contract_date}
                   onChange={(e) => updateField('contract_date', e.target.value)}
                 />
+                {fieldErrors.contract_date && (
+                  <p className="error-text" style={{ color: '#dc2626' }}>{fieldErrors.contract_date}</p>
+                )}
               </div>
             </div>
 
@@ -247,7 +259,12 @@ export default function ContractModal({
                   value={formData.project_name}
                   onChange={(e) => updateField('project_name', e.target.value)}
                   placeholder="Nhập tên dự án"
+                  className={fieldErrors.project_name ? 'error' : ''}
+                  style={fieldErrors.project_name ? { borderColor: '#dc2626' } : undefined}
                 />
+                {fieldErrors.project_name && (
+                  <p className="error-text" style={{ color: '#dc2626' }}>{fieldErrors.project_name}</p>
+                )}
               </div>
             </div>
 
@@ -259,6 +276,9 @@ export default function ContractModal({
                   selectedId={formData.customer_id}
                   onChange={(id) => updateField('customer_id', id)}
                 />
+                {fieldErrors.customer_id && (
+                  <p className="error-text" style={{ color: '#dc2626' }}>{fieldErrors.customer_id}</p>
+                )}
               </div>
             </div>
 
@@ -454,17 +474,12 @@ export default function ContractModal({
           </button>
           <button
             className="save-btn"
-            disabled={
-              isDuplicate || !!errors.contract_no ||
-              !formData.contract_no || !formData.contract_date || !formData.project_name || !formData.customer_id ||
-              (formData.currency_code !== 'VND' && !(parseFloat(formData.exchange_rate) > 1))
-            }
+            disabled={isDuplicate || isChecking}
             onClick={handleSubmit}
           >
             Lưu
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

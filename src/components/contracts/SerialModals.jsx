@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../common/Modal'
 import DateInput from './DateInput'
 
 // Modal dùng chung cho phần Quản lý Serial.
@@ -19,11 +20,15 @@ export function ComponentModal({ equipment, serials, onClose, onSave }) {
   }
 
   return (
-    <div className="wty-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="wty-modal">
+    <Modal
+      onClose={onClose}
+      overlayClassName="wty-modal-overlay"
+      contentClassName="wty-modal"
+      labelledBy="serial-comp-title"
+    >
         <div className="wty-modal-header">
-          <h3>Thêm linh kiện</h3>
-          <button className="wty-modal-close" onClick={onClose}>✕</button>
+          <h3 id="serial-comp-title">Thêm linh kiện</h3>
+          <button className="wty-modal-close" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
         <div className="wty-modal-body">
           <div className="wty-form-row">
@@ -64,8 +69,7 @@ export function ComponentModal({ equipment, serials, onClose, onSave }) {
             {saving ? 'Đang lưu...' : 'Thêm'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -107,11 +111,15 @@ export function ReplaceSerialModal({ serial, endpoint, showWarranty = true, onCl
   }
 
   return (
-    <div className="wty-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="wty-modal">
+    <Modal
+      onClose={onClose}
+      overlayClassName="wty-modal-overlay"
+      contentClassName="wty-modal"
+      labelledBy="serial-replace-title"
+    >
         <div className="wty-modal-header">
-          <h3>Thay thế serial sau bảo hành</h3>
-          <button className="wty-modal-close" onClick={onClose}>✕</button>
+          <h3 id="serial-replace-title">Thay thế serial sau bảo hành</h3>
+          <button className="wty-modal-close" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
         <div className="wty-modal-body">
           <div className="wty-replace-old">
@@ -144,7 +152,6 @@ export function ReplaceSerialModal({ serial, endpoint, showWarranty = true, onCl
             {saving ? 'Đang xử lý...' : 'Thay thế'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { API } from '../../config/api'
+import Modal from '../common/Modal'
 
 // ── Quản lý loại Biên bản (master toàn cục) ───────────────────────────────────
 
@@ -61,11 +62,10 @@ export default function BBTypeManager({ types, onClose, onUpdated }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="bbmgr-modal" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} contentClassName="bbmgr-modal" labelledBy="bbmgr-title">
         <div className="bbmgr-header">
-          <h3>Quản lý loại Biên bản</h3>
-          <button className="btn-close-preview" onClick={onClose}>
+          <h3 id="bbmgr-title">Quản lý loại Biên bản</h3>
+          <button className="btn-close-preview" onClick={onClose} aria-label="Đóng">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
             </svg>
@@ -135,7 +135,6 @@ export default function BBTypeManager({ types, onClose, onUpdated }) {
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

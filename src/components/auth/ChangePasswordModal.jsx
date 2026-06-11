@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Modal from '../common/Modal'
 
 export default function ChangePasswordModal({ isOpen, onClose, onSave }) {
   const [currentPassword, setCurrentPassword] = useState('')
@@ -6,8 +7,6 @@ export default function ChangePasswordModal({ isOpen, onClose, onSave }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  if (!isOpen) return null
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -40,45 +39,37 @@ export default function ChangePasswordModal({ isOpen, onClose, onSave }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+    <Modal isOpen={isOpen} onClose={handleClose} width={440} className="changepw-modal" labelledBy="changepw-title">
         <div className="modal-header">
-          <h3 className="modal-title">Đổi mật khẩu</h3>
-          <button type="button" className="modal-close" onClick={handleClose}>✕</button>
+          <h2 id="changepw-title">Đổi mật khẩu</h2>
+          <button type="button" className="close-btn" onClick={handleClose} aria-label="Đóng">✕</button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            {error && (
-              <div style={{ color: '#e53e3e', background: '#fff5f5', border: '1px solid #fed7d7', borderRadius: '4px', padding: '8px 12px', marginBottom: '12px', fontSize: '14px' }}>
-                {error}
-              </div>
-            )}
-            <div className="form-group">
-              <label className="form-label">Mật khẩu hiện tại</label>
+          <div className="changepw-body">
+            {error && <div className="changepw-error">{error}</div>}
+            <div className="field">
+              <label>Mật khẩu hiện tại</label>
               <input
                 type="password"
-                className="form-input"
                 value={currentPassword}
                 onChange={e => setCurrentPassword(e.target.value)}
                 autoFocus
                 autoComplete="current-password"
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Mật khẩu mới</label>
+            <div className="field">
+              <label>Mật khẩu mới</label>
               <input
                 type="password"
-                className="form-input"
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 autoComplete="new-password"
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Xác nhận mật khẩu mới</label>
+            <div className="field">
+              <label>Xác nhận mật khẩu mới</label>
               <input
                 type="password"
-                className="form-input"
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
@@ -86,13 +77,12 @@ export default function ChangePasswordModal({ isOpen, onClose, onSave }) {
             </div>
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn-cancel" onClick={handleClose}>Hủy</button>
-            <button type="submit" className="btn-save" disabled={loading}>
+            <button type="button" className="cancel-btn" onClick={handleClose}>Hủy</button>
+            <button type="submit" className="save-btn" disabled={loading}>
               {loading ? 'Đang lưu...' : 'Đổi mật khẩu'}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
