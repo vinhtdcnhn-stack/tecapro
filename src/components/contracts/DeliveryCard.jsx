@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { API } from '../../config/api'
 import { fmtDate, statusStyle } from './deliveryUtils'
 import DeliveryItemRow from './DeliveryItemRow'
+import useIsMobile from './useIsMobile'
 
 // ── Delivery card ─────────────────────────────────────────────────────────────
 
@@ -53,17 +54,18 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
   }
 
   const ss = statusStyle(delivery.status)
+  const isMobile = useIsMobile()
 
   return (
     <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, overflow:'hidden' }}>
       {/* Batch header */}
       <div
-        style={{ display:'flex', alignItems:'center', gap:12, padding:'13px 18px', background:'#f9fafb', borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none', cursor:'pointer' }}
+        style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap:12, padding:'13px 18px', background:'#f9fafb', borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none', cursor:'pointer', flexWrap: isMobile ? 'wrap' : 'nowrap' }}
         onClick={onToggle}
       >
-        <span style={{ color:'#9ca3af', fontSize:11, transition:'transform .2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display:'inline-block' }}>▶</span>
+        <span style={{ color:'#9ca3af', fontSize:11, transition:'transform .2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display:'inline-block', marginTop: isMobile ? 4 : 0 }}>▶</span>
 
-        <div style={{ flex:1 }}>
+        <div style={{ flex:1, minWidth: isMobile ? '70%' : 0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
             <strong style={{ fontSize:14, color:'#111827' }}>{delivery.batch_name || 'Đợt nhận'}</strong>
             <span style={{ fontSize:12, color:'#6b7280' }}>{fmtDate(delivery.receive_date)}</span>

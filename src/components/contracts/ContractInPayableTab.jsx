@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import './ContractReceivableTab.css'
 import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
+import useIsMobile from './useIsMobile'
+import { PayableSectionMobile, PaymentSectionMobile } from './PayableMobile'
 
 import { API } from '../../config/api'
 
@@ -152,11 +154,16 @@ function PayableSection({ rows, setRows, contractInId }) {
       return updated
     }))
 
-  const addRow = () => setRows(prev => [...prev, {
-    id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-    description: '', payment_method: 'TT', currency_code: 'VND',
-    amount: '', exchange_rate: 1, amount_vnd: 0, due_date: '', delay_reason: '',
-  }])
+  const addRow = () => {
+    const r = {
+      id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
+      description: '', payment_method: 'TT', currency_code: 'VND',
+      amount: '', exchange_rate: 1, amount_vnd: 0, due_date: '', delay_reason: '',
+    }
+    setRows(prev => [...prev, r])
+    return r._key
+  }
+  const isMobile = useIsMobile()
 
   const saveRow = async (row) => {
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
@@ -205,6 +212,12 @@ function PayableSection({ rows, setRows, contractInId }) {
         </button>
       </div>
 
+      {isMobile ? (
+        <PayableSectionMobile
+          rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
+          currencies={CURRENCIES} methods={PAYMENT_METHODS} calcVND={calcVND} fmtVND={fmtVND} isOverdue={isOverdue}
+        />
+      ) : (
       <div className="recv-table-wrapper">
         <table className="recv-table">
           <thead>
@@ -296,6 +309,7 @@ function PayableSection({ rows, setRows, contractInId }) {
           )}
         </table>
       </div>
+      )}
     </div>
   )
 }
@@ -320,11 +334,16 @@ function PaymentSection({ rows, setRows, contractInId, totalExpected }) {
       return updated
     }))
 
-  const addRow = () => setRows(prev => [...prev, {
-    id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-    payment_date: new Date().toISOString().slice(0, 10),
-    currency_code: 'VND', amount: '', exchange_rate: 1, amount_vnd: 0, payment_ratio: '', note: '',
-  }])
+  const addRow = () => {
+    const r = {
+      id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
+      payment_date: new Date().toISOString().slice(0, 10),
+      currency_code: 'VND', amount: '', exchange_rate: 1, amount_vnd: 0, payment_ratio: '', note: '',
+    }
+    setRows(prev => [...prev, r])
+    return r._key
+  }
+  const isMobile = useIsMobile()
 
   const saveRow = async (row) => {
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
@@ -372,6 +391,12 @@ function PaymentSection({ rows, setRows, contractInId, totalExpected }) {
         </button>
       </div>
 
+      {isMobile ? (
+        <PaymentSectionMobile
+          rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
+          currencies={CURRENCIES} calcVND={calcVND} fmtVND={fmtVND}
+        />
+      ) : (
       <div className="recv-table-wrapper">
         <table className="recv-table">
           <thead>
@@ -454,6 +479,7 @@ function PaymentSection({ rows, setRows, contractInId, totalExpected }) {
           )}
         </table>
       </div>
+      )}
     </div>
   )
 }

@@ -3,6 +3,8 @@ import { API } from '../../config/api'
 import { SERIAL_STATUSES } from './warrantyUtils'
 import ContractInSerialRow from './ContractInSerialRow'
 import useCtrlSave from './useCtrlSave'
+import useIsMobile from './useIsMobile'
+import InSerialMobile from './InSerialMobile'
 import { AddComponentModal, ImportSerialModal, ReplaceSerialModal } from './ContractInSerialModals'
 
 // ── Quản lý serial tập trung cho hợp đồng NHẬP ─────────────────────────────────
@@ -131,6 +133,8 @@ export default function ContractInSerialTab({ contractInId }) {
     finally { setBulkDeleting(false) }
   }
 
+  const isMobile = useIsMobile()
+
   if (loading) return <div style={{ padding:40, textAlign:'center', color:'#9ca3af' }}>Đang tải...</div>
 
   const selBox   = { padding:'7px 10px', border:'1px solid #d1d5db', borderRadius:7, fontSize:13, fontFamily:'inherit', background:'#fff', color:'#374151', cursor:'pointer', outline:'none' }
@@ -176,7 +180,13 @@ export default function ContractInSerialTab({ contractInId }) {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Table (desktop) / Cards (mobile) */}
+      {isMobile ? (
+        <InSerialMobile
+          rows={filtered} val={val} setF={setF} save={save} saving={saving} del={del}
+          onReplace={setReplaceFor} statuses={SERIAL_STATUSES} parentOptions={parentOptions}
+        />
+      ) : (
       <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead>
@@ -217,6 +227,7 @@ export default function ContractInSerialTab({ contractInId }) {
           </tbody>
         </table>
       </div>
+      )}
 
       {showAdd && (
         <AddComponentModal items={items} parentOptions={parentOptions}

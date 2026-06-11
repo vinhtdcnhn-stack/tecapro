@@ -73,3 +73,48 @@
 .pm-pin.on { filter: none; opacity: 1; background: #fef3c7; border-color: #fcd34d; }
 .pm-remind-input { flex: 1 1 auto; min-width: 0; }
 .pm-track-table .pm-remind-input input { font-size: 12px; padding: 5px 24px 5px 8px; }
+
+/* ─── Mobile: bỏ phần đầu + card thống kê, bảng mốc → thẻ xếp dọc vừa màn hình ─── */
+@media (max-width: 768px) {
+  .pm-dashboard { padding: 0.85rem; }
+
+  /* Ẩn tiêu đề/lời chào + các ô thống kê cho gọn */
+  .pm-dashboard .dash-welcome,
+  .pm-dashboard .pm-stats { display: none; }
+
+  .pm-dashboard .dash-section { padding: 0.85rem; }
+  .pm-dashboard .dash-section-title { margin-bottom: 0.85rem; font-size: 0.9rem; }
+
+  /* Bỏ vùng cuộn riêng + đường viền bảng — để cuộn theo cả trang */
+  .pm-dashboard .pm-track-wrap {
+    max-height: none; overflow: visible;
+    border: none; border-radius: 0; background: transparent;
+  }
+
+  /* Biến bảng thành các thẻ xếp dọc */
+  .pm-dashboard .pm-track-table { font-size: 13px; }
+  .pm-dashboard .pm-track-table thead { display: none; }
+  .pm-dashboard .pm-track-table tbody,
+  .pm-dashboard .pm-track-table tr,
+  .pm-dashboard .pm-track-table td { display: block; width: 100%; }
+
+  .pm-dashboard .pm-track-table tr {
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+  .pm-dashboard .pm-row-pinned { background: #fffbeb; border-color: #fcd34d; }
+
+  .pm-dashboard .pm-track-table tbody td { padding: 0; border: none; }
+  .pm-dashboard .pm-col-contract,
+  .pm-dashboard .pm-col-actions { width: auto; }
+
+  /* Số HĐ lên đầu thẻ */
+  .pm-dashboard .pm-col-contract { margin-bottom: 5px; }
+
+  /* Hàng ghim & nhắc xuống dưới cùng, trải hết bề ngang */
+  .pm-dashboard .pm-col-actions { margin-top: 9px; }
+  .pm-dashboard .pm-actions { gap: 8px; }
+}

@@ -123,7 +123,7 @@ export default function PMDashboard({ user }) {
   const today = todayISO()
 
   return (
-    <div className="dashboard">
+    <div className="dashboard pm-dashboard">
       <div className="dash-welcome">
         <div>
           <h1 className="dash-title">Bảng theo dõi tiến độ dự án</h1>

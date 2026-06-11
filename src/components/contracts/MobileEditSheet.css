@@ -1,0 +1,105 @@
+/* ── Bottom sheet sửa bản ghi (mobile) ─────────────────────────────────────── */
+.msheet-overlay {
+  position: fixed; inset: 0; z-index: 1100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.msheet-panel {
+  background: #fff;
+  width: 100%; max-width: 640px;
+  max-height: 90vh;
+  border-radius: 16px 16px 0 0;
+  display: flex; flex-direction: column;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.25);
+  animation: msheet-up 0.18s ease-out;
+}
+@keyframes msheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.msheet-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+}
+.msheet-title { font-size: 15px; font-weight: 700; color: #111827; flex: 1; }
+.msheet-close {
+  border: none; background: #f3f4f6; color: #6b7280; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 8px; font-size: 15px; line-height: 1;
+}
+.msheet-close:hover { background: #e5e7eb; color: #374151; }
+
+.msheet-body { padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+
+.msheet-footer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-top: 1px solid #e5e7eb; flex-shrink: 0;
+}
+.msheet-spacer { flex: 1; }
+.msheet-btn {
+  padding: 9px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent; font-family: inherit;
+}
+.msheet-btn-primary { background: #16a34a; color: #fff; }
+.msheet-btn-primary:disabled { opacity: 0.6; }
+.msheet-btn-secondary { background: #fff; color: #374151; border-color: #d1d5db; }
+.msheet-btn-danger { background: #fee2e2; color: #b91c1c; }
+
+/* Trường trong sheet: nhãn trên, control dưới */
+.msheet-field { display: flex; flex-direction: column; gap: 5px; }
+.msheet-field-label { font-size: 12px; font-weight: 600; color: #374151; }
+.msheet-field > input,
+.msheet-field > select,
+.msheet-field .date-input,
+.msheet-field input {
+  width: 100%; box-sizing: border-box;
+  padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 8px;
+  font-size: 14px; font-family: inherit; outline: none; background: #fff; color: #1f2937;
+}
+.msheet-field > input:focus,
+.msheet-field > select:focus { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,.15); }
+
+/* ── Danh sách thẻ tóm tắt (thay bảng trên mobile) ─────────────────────────── */
+.mcards { display: flex; flex-direction: column; gap: 10px; }
+.mcard {
+  border: 1px solid #e5e7eb; border-radius: 12px; background: #fff;
+  padding: 12px 14px; cursor: pointer; position: relative;
+  transition: background 0.12s, border-color 0.12s;
+}
+.mcard:active { background: #f9fafb; }
+.mcard--dirty { background: #fffbeb; border-color: #fcd34d; }
+.mcard-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mcard-title { font-weight: 600; color: #111827; font-size: 14px; flex: 1; min-width: 0; }
+.mcard-amount { font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mcard-meta { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #6b7280; }
+.mcard-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; }
+
+.mcard-add {
+  border: 1px dashed #86efac; color: #15803d; background: #f0fdf4;
+  border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600;
+  cursor: pointer; width: 100%; font-family: inherit;
+}
+.mcard-add:active { background: #dcfce7; }
+
+.mcards-total {
+  display: flex; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; margin-top: 4px;
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+  font-size: 13px; font-weight: 700; color: #0f172a;
+}
+
+/* ── Đợt tiền về trong sheet Công nợ ───────────────────────────────────────── */
+.recv-mobile-pays {
+  border-top: 1px dashed #e5e7eb; padding-top: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.recv-pay-block {
+  border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.recv-pay-block.mcard--dirty { background: #fffbeb; border-color: #fcd34d; }
+.recv-pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.recv-pay-block input {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px;
+  font-size: 14px; font-family: inherit; outline: none;
+}
+.recv-pay-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.recv-pay-actions .msheet-btn { padding: 7px 12px; font-size: 13px; }

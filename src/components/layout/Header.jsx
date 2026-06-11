@@ -5,10 +5,10 @@ import tecaproLogo from '../../assets/tecapro-logo.png'
 
 const MENUS = [
   { label: 'Trang chủ',        path: '/'        },
-  { label: 'Hợp đồng bán',    path: '/qlda'    },
+  { label: 'Hợp đồng bán',    path: '/qlda',    desktopOnly: true },
   { label: 'Tra cứu bảo hành', path: '/tracuu'  },
-  { label: 'Giao ban tuần',    path: '/giaoban' },
-  { label: 'Quản trị hệ thống', path: '/quantri' },
+  { label: 'Giao ban tuần',    path: '/giaoban', desktopOnly: true },
+  { label: 'Quản trị hệ thống', path: '/quantri', desktopOnly: true },
 ]
 
 export default function Header({ onChangePassword }) {
@@ -55,7 +55,7 @@ export default function Header({ onChangePassword }) {
               <button
                 key={m.label}
                 type="button"
-                className={`menu-item ${isActive(m) ? 'is-active' : ''}`}
+                className={`menu-item ${isActive(m) ? 'is-active' : ''} ${m.desktopOnly ? 'menu-item--desktop-only' : ''}`}
                 onClick={() => handleMenuClick(m)}
               >
                 {m.label}

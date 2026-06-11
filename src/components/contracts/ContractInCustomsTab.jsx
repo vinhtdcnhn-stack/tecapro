@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
 import DateInput from './DateInput'
+import useIsMobile from './useIsMobile'
+import CustomsMobile from './CustomsMobile'
 
 const SHIPMENT_TYPES   = ['Nhập khẩu', 'Xuất khẩu']
 const CUSTOMS_STATUSES = ['Chưa khai báo', 'Đang làm thủ tục', 'Đã thông quan', 'Bị tạm giữ']
@@ -52,11 +54,12 @@ export default function ContractInCustomsTab({ contractInId }) {
   const inProcess = rows.filter(r => r.customs_status === 'Đang làm thủ tục').length
   const held      = rows.filter(r => r.customs_status === 'Bị tạm giữ').length
   const grandTotal = rows.reduce((s, r) => s + totalCost(r), 0)
+  const isMobile = useIsMobile()
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
-      {/* Summary */}
-      {rows.length > 0 && (
+      {/* Summary — ẩn trên mobile */}
+      {!isMobile && rows.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
           {[
             { label: 'Tổng lô hàng',      value: rows.length,              color: '#3b82f6', sub: 'lô' },
@@ -92,7 +95,10 @@ export default function ContractInCustomsTab({ contractInId }) {
             Thêm lô hàng
           </button>
         </div>
-        {rows.length === 0 ? (
+        {isMobile ? (
+          <CustomsMobile rows={rows} onEdit={setModal} onDelete={handleDelete}
+            fmtVND={fmtVND} fmtDate={fmtDate} customsStatusStyle={customsStatusStyle} totalCost={totalCost} />
+        ) : rows.length === 0 ? (
           <div style={{ padding: 56, textAlign: 'center', color: '#9ca3af' }}>
             <div style={{ marginBottom: 8 }}>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
@@ -199,6 +205,9 @@ function td(align = 'left', extra = {}) {
 // ── Add / Edit modal ──────────────────────────────────────────────────────────
 function CustomsModal({ row, onSave, onClose }) {
   const isEdit = !!row
+  const isMobile = useIsMobile()
+  const g2 = isMobile ? gridCol : grid2
+  const g3 = isMobile ? gridCol : grid3
   const [form, setForm] = useState({
     shipment_type:     row?.shipment_type     || 'Nhập khẩu',
     declaration_no:    row?.declaration_no    || '',
@@ -241,7 +250,7 @@ function CustomsModal({ row, onSave, onClose }) {
         <div style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
           {/* Section 1: Thông tin lô hàng */}
           <Section title="Thông tin lô hàng">
-            <div style={grid2}>
+            <div style={g2}>
               <Field label="Loại">
                 <select value={form.shipment_type} onChange={e => s({ shipment_type: e.target.value })} style={inp}>
                   {SHIPMENT_TYPES.map(t => <option key={t}>{t}</option>)}
@@ -269,7 +278,7 @@ function CustomsModal({ row, onSave, onClose }) {
           </Section>
           {/* Section 2: Tờ khai hải quan */}
           <Section title="Tờ khai hải quan">
-            <div style={grid3}>
+            <div style={g3}>
               <Field label="Số tờ khai">
                 <input type="text" value={form.declaration_no} onChange={e => s({ declaration_no: e.target.value })}
                   placeholder="VD: 101234567890" style={inp} />
@@ -286,7 +295,7 @@ function CustomsModal({ row, onSave, onClose }) {
           </Section>
           {/* Section 3: Chi phí logistics */}
           <Section title="Chi phí logistics">
-            <div style={grid3}>
+            <div style={g3}>
               <Field label="Chi phí vận chuyển (VNĐ)">
                 <input type="number" value={form.shipping_cost} min="0" placeholder="0"
                   onChange={e => s({ shipping_cost: e.target.value })} style={inp} />
@@ -345,3 +354,4 @@ function Field({ label, children }) {
 const inp   = { width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }
 const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }
 const grid3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }
+const gridCol = { display: 'grid', gridTemplateColumns: '1fr', gap: 12 }

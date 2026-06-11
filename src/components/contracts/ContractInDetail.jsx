@@ -11,6 +11,7 @@ import ContractInGuaranteeTab from './ContractInGuaranteeTab'
 import ContractInCustomsTab from './ContractInCustomsTab'
 import ContractInLogisticsTab from './ContractInLogisticsTab'
 import ContractInInfoTab from './ContractInInfoTab'
+import useIsMobile from './useIsMobile'
 import { SUB_TABS, fmtNum, statusCfg } from './contractInUtils'
 
 // ── Detail view ───────────────────────────────────────────────────────────────
@@ -20,6 +21,7 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
     initialTab && SUB_TABS.some(t => t.key === initialTab) ? initialTab : 'info'
   )
   const sc = statusCfg[item.status] || { label: item.status, cls: '' }
+  const isMobile = useIsMobile()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
@@ -28,30 +30,37 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
         padding: '16px 24px', background: '#fff', borderBottom: '1px solid #e5e7eb',
         display: 'flex', alignItems: 'center', gap: 16,
       }}>
-        <button
-          onClick={onBack}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px',
-            background: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer',
-            fontSize: 13, color: '#374151', fontWeight: 500, flexShrink: 0,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Danh sách
-        </button>
+        {!isMobile && (
+          <button
+            onClick={onBack}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+              background: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer',
+              fontSize: 13, color: '#374151', fontWeight: 500, flexShrink: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Danh sách
+          </button>
+        )}
 
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>
               {item.contract_no || '(Chưa có số HĐ)'}
             </span>
-            <span style={{ color: '#d1d5db', fontSize: 16 }}>|</span>
-            <span style={{ fontSize: 14, color: '#4b5563', fontWeight: 500 }}>
-              {item.goods_type || '(Chưa có loại hàng hóa)'}
-            </span>
+            {!isMobile && (
+              <>
+                <span style={{ color: '#d1d5db', fontSize: 16 }}>|</span>
+                <span style={{ fontSize: 14, color: '#4b5563', fontWeight: 500 }}>
+                  {item.goods_type || '(Chưa có loại hàng hóa)'}
+                </span>
+              </>
+            )}
           </div>
+          {!isMobile && (
           <div style={{ display: 'flex', gap: 10, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
             {item.supplier_name && (
               <span style={{ fontSize: 12, color: '#6b7280' }}>
@@ -70,10 +79,12 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
               </span>
             )}
           </div>
+          )}
         </div>
       </div>
 
-      {/* Sub-tab bar */}
+      {/* Sub-tab bar — ẩn trên mobile (vào từ trang chủ là đúng tab cần xem) */}
+      {!isMobile && (
       <div style={{
         display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb',
         padding: '0 24px', background: '#fff', overflowX: 'auto',
@@ -95,6 +106,7 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
           </button>
         ))}
       </div>
+      )}
 
       {/* Tab content */}
       <div style={{

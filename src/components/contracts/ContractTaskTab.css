@@ -231,6 +231,25 @@
 }
 .task-loading { padding: 48px; text-align: center; color: #9ca3af; }
 
+/* ── Mobile: bảng công việc → thẻ xếp dọc, form trong modal stack 1 cột ─────── */
+@media (max-width: 768px) {
+  .task-table-wrapper { overflow-x: visible; }
+  .task-table thead { display: none; }
+  .task-table,
+  .task-table tbody,
+  .task-table tr,
+  .task-table td { display: block; width: 100%; box-sizing: border-box; }
+  .task-table tr {
+    border: 1px solid #e5e7eb; border-radius: 10px;
+    margin: 0 0 10px; padding: 8px 12px;
+  }
+  .task-table td { border: none !important; padding: 3px 0; }
+  .task-table td:first-child { display: none; }  /* ẩn cột # trên thẻ */
+  .task-actions { justify-content: flex-start; }
+
+  .task-form-row { grid-template-columns: 1fr; }
+}
+
 /* No dept group */
 .task-nodept .task-dept-header { background: #fafafa; }
 

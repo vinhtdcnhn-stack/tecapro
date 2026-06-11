@@ -6,6 +6,8 @@ import { getStatusInfo, computeForecasts, fmtDate, forecastHint, tmpId } from '.
 import BBTypeManager from './BBTypeManager'
 import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
+import useIsMobile from './useIsMobile'
+import ProgressMobile from './ProgressMobile'
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -101,6 +103,10 @@ export default function ContractProgressTab({ contractId }) {
     } catch { alert('Không thể xóa.') }
   }
 
+  const addRow = () => { const r = emptyRow(); setRows(p => [...p, r]); return r._key }
+
+  const isMobile = useIsMobile()
+
   // Ctrl+S: lưu tất cả dòng đang sửa
   useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
 
@@ -134,7 +140,7 @@ export default function ContractProgressTab({ contractId }) {
       {/* ── Toolbar ── */}
       <div className="prog-toolbar">
         <div className="prog-toolbar-left">
-          <button className="prog-btn prog-btn-primary" onClick={() => setRows(p => [...p, emptyRow()])}>
+          <button className="prog-btn prog-btn-primary" onClick={addRow}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             Thêm biên bản
           </button>
@@ -150,7 +156,14 @@ export default function ContractProgressTab({ contractId }) {
         </div>
       </div>
 
-      {/* ── Table ── */}
+      {/* ── Table (desktop) / Cards (mobile) ── */}
+      {isMobile ? (
+        <ProgressMobile
+          rows={rows} bbTypes={bbTypes} baseOptions={baseOptions} forecasts={forecasts}
+          getStatusInfo={getStatusInfo}
+          set={set} setBase={setBase} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
+        />
+      ) : (
       <div className="prog-table-wrapper">
         <table className="prog-table">
           <thead>
@@ -302,6 +315,7 @@ export default function ContractProgressTab({ contractId }) {
           </tbody>
         </table>
       </div>
+      )}
 
       {/* ── BB Type Manager Modal ── */}
       {showBBMgr && (

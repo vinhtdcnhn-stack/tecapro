@@ -1168,6 +1168,11 @@ background:
     padding: 0.65rem 1rem;
   }
 
+  /* Trên mobile chỉ giữ Trang chủ + Tra cứu bảo hành; ẩn các mục desktop-only */
+  .menu-item--desktop-only {
+    display: none;
+  }
+
   /* Ẩn tên người dùng trên mobile, giữ nút đăng nhập/xuất */
   .user-pill {
     display: none;
@@ -1203,30 +1208,21 @@ background:
     flex-direction: column;
     min-height: auto;
   }
-  .contract-sidebar {
-    width: 100% !important;
-    max-height: none;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 12px;
-  }
-  .contract-sidebar-section {
-    flex: 1 1 160px;
-    margin-bottom: 0;
-  }
-  .contract-sidebar-category {
-    font-size: 11px;
-    padding: 6px 8px;
-    margin-bottom: 4px;
-  }
-  .contract-sidebar-item {
-    padding: 8px 10px;
-    font-size: 13px;
-  }
+  /* Mobile: ẩn hẳn sidebar (vào từ trang chủ là đúng tab cần sửa) */
+  .contract-sidebar { display: none; }
   .contract-management-content {
     padding: 16px;
   }
+
+  /* Mobile: ẩn các card thống kê + banner trong tab — chỉ giữ phần sửa */
+  .contract-management-content .recv-summary,
+  .contract-management-content .recv-ref-banner,
+  .contract-management-content .task-summary,
+  .contract-management-content .boq-summary,
+  .contract-management-content .guar-summary,
+  .contract-management-content .prog-stats,
+  .contract-management-content .wty-summary,
+  .contract-management-content .stat-card { display: none; }
 
   /* Contract header KPI */
   .contract-header {

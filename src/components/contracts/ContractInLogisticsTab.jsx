@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 import { API } from '../../config/api'
+import useIsMobile from './useIsMobile'
 
 const STATUSES = ['Chờ vận chuyển', 'Đang vận chuyển', 'Đã về kho', 'Giao hàng thành công']
 
@@ -67,14 +68,15 @@ export default function ContractInLogisticsTab({ contractInId }) {
   const inTransit  = list.filter(r => r.status === 'Đang vận chuyển').length
   const arrived    = list.filter(r => r.status === 'Đã về kho' || r.status === 'Giao hàng thành công').length
   const insured    = list.filter(r => r.has_insurance).length
+  const isMobile = useIsMobile()
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
 
-      {/* Summary */}
-      {list.length > 0 && (
+      {/* Summary — ẩn trên mobile */}
+      {!isMobile && list.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10 }}>
           {[
             { label: 'Tổng lô',           value: list.length, color: '#3b82f6' },
@@ -134,6 +136,7 @@ export default function ContractInLogisticsTab({ contractInId }) {
 // ── Logistics card ────────────────────────────────────────────────────────────
 
 function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCountChange, onLastUpdate }) {
+  const isMobile = useIsMobile()
   const [updates, setUpdates]     = useState([])
   const [loaded, setLoaded]       = useState(false)
   const [loadingU, setLoadingU]   = useState(false)
@@ -184,7 +187,7 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
       {/* Card header */}
       <div
         onClick={onToggle}
-        style={{ padding: '14px 18px', background: '#f9fafb', borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
+        style={{ padding: '14px 18px', background: '#f9fafb', borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none', cursor: 'pointer', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: 14, flexWrap: isMobile ? 'wrap' : 'nowrap' }}
       >
         {/* Chevron */}
         <span style={{ color: '#9ca3af', fontSize: 11, transform: isExpanded ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform .18s', display: 'inline-block', flexShrink: 0 }}>▶</span>
@@ -193,7 +196,7 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
 
         {/* Main info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: isMobile ? '60%' : 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 14, color: '#111827' }}>{rec.carrier || '(Chưa có đơn vị vận chuyển)'}</strong>
             {rec.tracking_no && (
@@ -249,7 +252,7 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
           {/* Add update form */}
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 10 }}>Thêm cập nhật vận chuyển</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
               <div>
                 <label style={lbl}>Mô tả cập nhật *</label>
                 <input type="text" value={addForm.description}
@@ -328,6 +331,7 @@ const inp = { width: '100%', padding: '6px 9px', border: '1px solid #d1d5db', bo
 
 function LogisticsModal({ rec, onSave, onClose }) {
   const isEdit = !!rec
+  const isMobile = useIsMobile()
   const [form, setForm] = useState({
     carrier:        rec?.carrier        || '',
     tracking_no:    rec?.tracking_no    || '',
@@ -359,7 +363,7 @@ function LogisticsModal({ rec, onSave, onClose }) {
         </div>
 
         <div style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 13 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             <MField label="Đơn vị vận chuyển">
               <input type="text" value={form.carrier} onChange={e => s({ carrier: e.target.value })}
                 placeholder="VD: Maersk, COSCO, DHL, FedEx..." style={minp} />

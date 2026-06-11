@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import './ContractBOQTab.css'
 import BOQImportModal from './BOQImportModal'
 import BOQRow from './BOQRow'
+import BOQMobile from './BOQMobile'
 import { fmtNum, stripNum, calcAmounts, tmpId } from './boqUtils'
 import useCtrlSave from './useCtrlSave'
+import useIsMobile from './useIsMobile'
 import { API } from '../../config/api'
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -148,7 +150,13 @@ export default function ContractBOQTab({ contractId }) {
 
   // ── Add row at end ────────────────────────────────────────────────────────────
 
-  const addRow = () => setRows(prev => [...prev, emptyRow(null)])
+  const addRow = () => {
+    const r = emptyRow(null)
+    setRows(prev => [...prev, r])
+    return r._key
+  }
+
+  const isMobile = useIsMobile()
 
   // Ctrl+S: lưu tất cả dòng đang sửa
   useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
@@ -354,7 +362,18 @@ export default function ContractBOQTab({ contractId }) {
         )}
       </div>
 
-      {/* ── Table ── */}
+      {/* ── Table (desktop) / Cards (mobile) ── */}
+      {isMobile ? (
+        <BOQMobile
+          rows={visibleRows.map(v => v.r)}
+          currency={currency}
+          set={set}
+          saveRow={saveRow}
+          deleteRow={deleteRow}
+          addRow={addRow}
+          totals={totals}
+        />
+      ) : (
       <div className="boq-table-wrapper">
         <table className="boq-table">
           <thead>
@@ -423,6 +442,7 @@ export default function ContractBOQTab({ contractId }) {
           )}
         </table>
       </div>
+      )}
 
       {/* ── Excel Import Modal ── */}
       {importData && (

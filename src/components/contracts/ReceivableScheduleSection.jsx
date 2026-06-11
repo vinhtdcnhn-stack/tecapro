@@ -5,10 +5,13 @@ import RowActions from './ReceivableRowActions'
 import LinkedPaymentsRow from './LinkedPaymentsRow'
 import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
+import useIsMobile from './useIsMobile'
+import ReceivableMobile from './ReceivableMobile'
 
 // ── Schedule section ──────────────────────────────────────────────────────────
 
 export default function ScheduleSection({ rows, setRows, contractId, refTotal, refCurrency, refExRate, payRows, setPayRows, onRateSynced, bbDateMap = {}, baseOptions = [], contractDate = null }) {
+  const isMobile = useIsMobile()
   const dueCtx = { bbDateMap, contractDate }
   // % theo HĐ tính trên GIÁ TRỊ GỐC; giữ tới 4 chữ số thập phân để khoản nhỏ trên tổng HĐ lớn vẫn hiện ra.
   const ratioOf = (amt) => refTotal > 0 ? parseFloat((((parseFloat(amt) || 0) / refTotal) * 100).toFixed(4)) : ''
@@ -45,12 +48,16 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
       due_base_bb_type_id: (val === 'contract' || val === '') ? '' : val,
     } : r))
 
-  const addRow = () => setRows(prev => [...prev, {
-    id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-    description: '', currency_code: refCurrency || 'VND', amount: '', exchange_rate: refCurrency !== 'VND' ? (refExRate || '') : 1,
-    amount_vnd: 0, due_date: '', delay_reason: '',
-    due_offset_days: '', due_base_bb_type_id: '', due_base_anchor: '',
-  }])
+  const addRow = () => {
+    const r = {
+      id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
+      description: '', currency_code: refCurrency || 'VND', amount: '', exchange_rate: refCurrency !== 'VND' ? (refExRate || '') : 1,
+      amount_vnd: 0, due_date: '', delay_reason: '',
+      due_offset_days: '', due_base_bb_type_id: '', due_base_anchor: '',
+    }
+    setRows(prev => [...prev, r])
+    return r._key
+  }
 
   const saveRow = async (row) => {
     if (needsRate(row)) {
@@ -101,6 +108,23 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
   const totalAmt = rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
   const totalVND = rows.reduce((s, r) => s + (parseFloat(calcVND(r.amount, r.exchange_rate, r.currency_code)) || 0), 0)
   const unit     = refCurrency === 'VND' ? 'đ' : refCurrency
+
+  if (isMobile) {
+    return (
+      <div className="recv-section">
+        <div className="recv-section-header">
+          <h4 className="recv-section-title">Phải thu theo ĐKTT hợp đồng</h4>
+        </div>
+        <ReceivableMobile
+          rows={rows} set={set} setDueBase={setDueBase} addRow={addRow} saveRow={saveRow} deleteRow={deleteRow}
+          payRows={payRows} setPayRows={setPayRows} contractId={contractId}
+          refTotal={refTotal} refCurrency={refCurrency}
+          bbDateMap={bbDateMap} baseOptions={baseOptions} contractDate={contractDate}
+          ratioOf={ratioOf} totalAmt={totalAmt} totalVND={totalVND} unit={unit}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="recv-section">

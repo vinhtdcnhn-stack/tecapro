@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import './ContractGuaranteeTab.css'
 import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
+import useIsMobile from './useIsMobile'
+import GuaranteeMobile from './GuaranteeMobile'
 
 import { API } from '../../config/api'
 
@@ -63,11 +65,15 @@ export default function ContractInGuaranteeTab({ contractInId }) {
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => r._key !== key ? r : { ...r, [field]: val, _dirty: true }))
 
-  const addRow = () => setRows(prev => [...prev, {
-    id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-    guarantee_type: 'Bảo lãnh thanh toán', amount: '', issue_date: '',
-    expiry_date: '', status: 'Còn hiệu lực', note: '',
-  }])
+  const addRow = () => {
+    const r = {
+      id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
+      guarantee_type: 'Bảo lãnh thanh toán', amount: '', issue_date: '',
+      expiry_date: '', status: 'Còn hiệu lực', note: '',
+    }
+    setRows(prev => [...prev, r])
+    return r._key
+  }
 
   const saveRow = async (row) => {
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
@@ -100,6 +106,8 @@ export default function ContractInGuaranteeTab({ contractInId }) {
       setRows(prev => prev.filter(r => r._key !== row._key))
     } catch { alert('Không thể xóa.') }
   }
+
+  const isMobile = useIsMobile()
 
   // Ctrl+S: lưu tất cả dòng đang sửa
   useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
@@ -148,6 +156,14 @@ export default function ContractInGuaranteeTab({ contractInId }) {
           </button>
         </div>
 
+        {isMobile ? (
+          <GuaranteeMobile
+            rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
+            types={GUARANTEE_TYPES} statuses={STATUSES} contractCurrency="VND"
+            pctOf={() => null} fmtVND={fmtVND} fmtPct={() => ''} autoStatus={autoStatus}
+            StatusPill={StatusPill} totalAmt={totalAmt}
+          />
+        ) : (
         <div className="guar-table-wrapper">
           <table className="guar-table">
             <thead>
@@ -257,6 +273,7 @@ export default function ContractInGuaranteeTab({ contractInId }) {
             )}
           </table>
         </div>
+        )}
       </div>
     </div>
   )

@@ -4,6 +4,7 @@ import { API } from '../../config/api'
 import { fmtDate, fmtNum } from './deliveryUtils'
 import DeliveryCard from './DeliveryCard'
 import BatchModal from './DeliveryBatchModal'
+import useIsMobile from './useIsMobile'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -57,13 +58,15 @@ export default function ContractInDeliveryTab({ contractInId }) {
   const totalBatches  = deliveries.length
   const received      = deliveries.filter(d => d.status === 'Đã nhận đủ').length
   const totalReceived = deliveries.reduce((s, d) => s + parseFloat(d.total_received || 0), 0)
+  const isMobile = useIsMobile()
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
 
   return (
-    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
+    <div style={{ padding: isMobile ? '14px 14px' : '20px 24px', display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
 
-      {/* Summary */}
+      {/* Summary — ẩn trên mobile */}
+      {!isMobile && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12 }}>
         {[
           { label: 'Tổng đợt nhận', value: totalBatches, color: '#3b82f6' },
@@ -76,6 +79,7 @@ export default function ContractInDeliveryTab({ contractInId }) {
           </div>
         ))}
       </div>
+      )}
 
       {/* Toolbar */}
       <div style={{ display:'flex', justifyContent:'flex-end' }}>

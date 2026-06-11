@@ -4,6 +4,8 @@ import { API } from '../../config/api'
 import { fmtDate, fmtDateInput, claimStatusStyle, warrantyExpiry, th, td } from './supplierWarrantyUtils'
 import WarrantyRow from './SupplierWarrantyRow'
 import { BulkUpdateModal, WarrantyModal, ClaimModal } from './SupplierWarrantyModals'
+import useIsMobile from './useIsMobile'
+import { ClaimCardList, WarrantyCardList } from './SupplierWarrantyMobile'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -120,6 +122,8 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
     setSelected(selected.size === warranties.length && warranties.length > 0 ? new Set() : new Set(warranties.map(w => w.id)))
   }
 
+  const isMobile = useIsMobile()
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
 
   const expiredCount = warranties.filter(w => w.warranty_end && new Date(w.warranty_end) < new Date()).length
@@ -128,8 +132,8 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
 
-      {/* Summary */}
-      {warranties.length > 0 && (
+      {/* Summary — ẩn trên mobile */}
+      {!isMobile && warranties.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10 }}>
           {[
             { label: 'Tổng chủng loại', value: warranties.length, color: '#3b82f6' },
@@ -160,7 +164,9 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
           </button>
         </div>
 
-        {claims.length === 0 ? (
+        {isMobile ? (
+          <ClaimCardList rows={claims} onEdit={setCModal} onDelete={handleDeleteClaim} />
+        ) : claims.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center', color: '#9ca3af' }}>Chưa có claim bảo hành nào.</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -236,7 +242,9 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
           </div>
         </div>
 
-        {warranties.length === 0 ? (
+        {isMobile ? (
+          <WarrantyCardList rows={warranties} onEdit={setWModal} onDelete={handleDeleteWarranty} />
+        ) : warranties.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center', color: '#9ca3af' }}>
             Chưa có dữ liệu bảo hành.{' '}
             Nhấn <strong>Khởi tạo từ nhận hàng</strong> để tự động tạo từ danh sách đã nhận.

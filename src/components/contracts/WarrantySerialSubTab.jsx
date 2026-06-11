@@ -6,6 +6,8 @@ import { SERIAL_STATUSES, warrantyStatus, flattenSerials, toISODate } from './wa
 import WarrantyBulkDateModal from './WarrantyBulkDateModal'
 import { ComponentModal, ReplaceSerialModal } from './SerialModals'
 import useCtrlSave from './useCtrlSave'
+import useIsMobile from './useIsMobile'
+import SerialMobile from './SerialMobile'
 
 const INACTIVE_STATUSES = ['Đã thay thế', 'Ngừng sử dụng']
 
@@ -22,6 +24,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
   const [selected, setSelected] = useState(new Set())
   const [showBulk, setShowBulk] = useState(false)
   const [replaceFor, setReplaceFor] = useState(null)   // serial đang được thay thế
+  const isMobile = useIsMobile()
 
   const all = flattenSerials(equipment)
   const snById = new Map(all.map(s => [String(s.id), s.serial_no]))
@@ -255,6 +258,13 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
         </div>
       )}
 
+      {isMobile ? (
+        <SerialMobile
+          rows={filtered} allSerials={all}
+          val={val} setF={setF} save={save} saving={saving} del={del}
+          onReplace={setReplaceFor} statuses={SERIAL_STATUSES} warrantyStatus={warrantyStatus}
+        />
+      ) : (
       <div className="wty-section">
         <div className="wty-table-wrap">
           <table className="wty-table">
@@ -354,6 +364,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
           </table>
         </div>
       </div>
+      )}
 
       {showAdd && (
         <ComponentModal equipment={equipment} serials={all} onClose={() => setShowAdd(false)} onSave={addComponent} />
