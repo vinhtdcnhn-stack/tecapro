@@ -2,6 +2,12 @@
 
 .pm-stats { grid-template-columns: repeat(4, 1fr); }
 
+/* Số tiền dài (VNĐ/USD) — giữ trên một dòng, tự co cỡ chữ vừa thẻ */
+.pm-dashboard .pm-stats .dash-stat-value {
+  font-size: clamp(1rem, 1.6vw, 1.6rem);
+  white-space: nowrap;
+}
+
 .pm-section-bar {
   display: flex;
   align-items: center;
