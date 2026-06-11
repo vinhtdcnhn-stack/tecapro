@@ -71,6 +71,7 @@ export default function PMDashboard({ user }) {
   const [summary, setSummary] = useState(null)
   const [items, setItems]     = useState([])
   const [loading, setLoading] = useState(true)
+  const [contractFilter, setContractFilter] = useState('')
 
   const load = useCallback(async () => {
     if (!user?.id) return
@@ -117,6 +118,18 @@ export default function PMDashboard({ user }) {
     })
   }, [items])
 
+  // Danh sách số HĐ để lọc
+  const contractOptions = useMemo(() => {
+    const set = new Set(items.map(it => it.contract_no).filter(Boolean))
+    return [...set].sort()
+  }, [items])
+
+  // Áp bộ lọc theo số HĐ
+  const visible = useMemo(
+    () => contractFilter ? sorted.filter(it => it.contract_no === contractFilter) : sorted,
+    [sorted, contractFilter]
+  )
+
   if (loading) return <div className="dashboard"><p className="dash-empty">Đang tải bảng theo dõi...</p></div>
 
   const s = summary || { contractCount: 0, totalVnd: 0, totalUsd: 0, upcomingCount: 0 }
@@ -141,9 +154,26 @@ export default function PMDashboard({ user }) {
 
       {/* Phần dưới: bảng theo dõi & nhắc việc */}
       <div className="dash-section">
-        <h2 className="dash-section-title">Mốc thời hạn cần theo dõi ({items.length})</h2>
+        <div className="pm-section-bar">
+          <h2 className="dash-section-title">Mốc thời hạn<span className="pm-title-full"> cần theo dõi</span> ({visible.length})</h2>
+          {contractOptions.length > 0 && (
+            <div className={`pm-filter-wrap ${contractFilter ? 'active' : ''}`} title="Lọc theo số hợp đồng">
+              <span className="pm-filter-icon" aria-hidden>⛃</span>
+              <select
+                className="pm-contract-filter"
+                value={contractFilter}
+                onChange={e => setContractFilter(e.target.value)}
+              >
+                <option value="">Tất cả hợp đồng</option>
+                {contractOptions.map(no => <option key={no} value={no}>{no}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
         {items.length === 0 ? (
           <p className="dash-empty">Chưa có mốc thời hạn nào cần theo dõi.</p>
+        ) : visible.length === 0 ? (
+          <p className="dash-empty">Không có mốc nào cho hợp đồng đã chọn.</p>
         ) : (
           <div className="pm-track-wrap">
             <table className="pm-track-table">
@@ -155,7 +185,7 @@ export default function PMDashboard({ user }) {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map(it => {
+                {visible.map(it => {
                   const di = dueInfo(it.due_date)
                   const remind = effRemind(it)
                   const reminding = remind && remind <= today

@@ -2,6 +2,30 @@
 
 .pm-stats { grid-template-columns: repeat(4, 1fr); }
 
+.pm-section-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.pm-filter-wrap { position: relative; display: inline-flex; align-items: center; }
+.pm-filter-icon { display: none; }
+.pm-contract-filter {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.85rem;
+  color: #374151;
+  cursor: pointer;
+}
+.pm-contract-filter:focus {
+  outline: none;
+  border-color: #2f6b3a;
+  box-shadow: 0 0 0 2px rgba(47, 107, 58, 0.15);
+}
+
 .pm-track-wrap {
   max-height: 60vh;
   overflow-y: auto;
@@ -83,7 +107,44 @@
   .pm-dashboard .pm-stats { display: none; }
 
   .pm-dashboard .dash-section { padding: 0.85rem; }
-  .pm-dashboard .dash-section-title { margin-bottom: 0.85rem; font-size: 0.9rem; }
+  .pm-dashboard .dash-section-title { margin-bottom: 0; font-size: 0.9rem; }
+
+  /* Thanh tiêu đề: tiêu đề + icon lọc trên cùng một dòng */
+  .pm-dashboard .pm-section-bar {
+    flex-wrap: nowrap;
+    margin-bottom: 0.85rem;
+  }
+  .pm-dashboard .dash-section-title { flex: 1 1 auto; min-width: 0; }
+  .pm-dashboard .pm-title-full { display: none; }
+
+  /* Filter co lại thành nút icon vuông; select trong suốt phủ lên trên */
+  .pm-dashboard .pm-filter-wrap {
+    flex: 0 0 auto;
+    width: 34px; height: 34px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    justify-content: center;
+  }
+  .pm-dashboard .pm-filter-wrap.active {
+    border-color: #2f6b3a;
+    background: #ecfdf3;
+  }
+  .pm-dashboard .pm-filter-icon {
+    display: block;
+    font-size: 16px;
+    color: #4b5563;
+    line-height: 1;
+  }
+  .pm-dashboard .pm-filter-wrap.active .pm-filter-icon { color: #2f6b3a; }
+  .pm-dashboard .pm-contract-filter {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    padding: 0;
+    border: none;
+  }
 
   /* Bỏ vùng cuộn riêng + đường viền bảng — để cuộn theo cả trang */
   .pm-dashboard .pm-track-wrap {
