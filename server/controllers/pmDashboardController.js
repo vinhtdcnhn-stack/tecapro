@@ -93,7 +93,7 @@ export async function getPMDashboard(req, res) {
       `SELECT id, contract_out_id, guarantee_type, expiry_date
          FROM contract_guarantee
         WHERE contract_out_id = ANY($1) AND expiry_date IS NOT NULL
-          AND COALESCE(status, '') <> 'Đã giải tỏa'`, [ids])
+          AND COALESCE(status, '') <> 'Đã hoàn trả'`, [ids])
     guar.forEach(g => {
       const c = getC(g.contract_out_id)
       items.push(attach({
@@ -197,7 +197,7 @@ export async function getPMDashboard(req, res) {
       const { rows: inGuar } = await pool.query(
         `SELECT id, contract_in_id, guarantee_type, expiry_date FROM contract_in_guarantee
           WHERE contract_in_id = ANY($1) AND expiry_date IS NOT NULL
-            AND COALESCE(status,'') <> 'Đã giải tỏa'`, [inIds])
+            AND COALESCE(status,'') <> 'Đã hoàn trả'`, [inIds])
       inGuar.forEach(g => pushIn({
         source_type: 'in_guarantee', source_id: g.id, contract_in_id: g.contract_in_id,
         due_date: g.expiry_date, kind: 'Bảo lãnh',
