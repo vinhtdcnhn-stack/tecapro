@@ -167,6 +167,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
               return (
                 <Fragment key={row._key}>
                 <tr className={[
+                  'recv-group-top',
                   status ? `recv-row--${status.color}` : '',
                   row._dirty  ? 'row-dirty'  : '',
                   row._isNew  ? 'row-new'    : '',
@@ -251,6 +252,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
                   contractId={contractId}
                   colSpan={10}
                 />
+                <tr className="recv-group-gap" aria-hidden="true"><td colSpan="10" /></tr>
                 </Fragment>
               )
             })}
