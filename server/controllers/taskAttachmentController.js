@@ -7,9 +7,17 @@ import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
+
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    const dir = path.join(__dirname, '..', 'uploads', 'tasks', String(req.params.taskId))
+    // taskId phải là số — chặn path traversal kiểu `..%2F..%2F` qua param.
+    const taskId = String(req.params.taskId)
+    if (!/^\d+$/.test(taskId)) {
+      cb(new Error('ID không hợp lệ.'))
+      return
+    }
+    const dir = path.join(UPLOADS_ROOT, 'tasks', taskId)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
     cb(null, dir)
   },
@@ -70,8 +78,9 @@ export async function deleteAttachment(req, res) {
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy' })
 
-    const fullPath = path.join(__dirname, '..', rows[0].file_path)
-    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
+    // file_path do server tự ghi, nhưng vẫn chặn thoát khỏi uploads/ (defense-in-depth)
+    const fullPath = path.resolve(path.join(__dirname, '..', String(rows[0].file_path)))
+    if (fullPath.startsWith(UPLOADS_ROOT + path.sep) && fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
 
     await pool.query('DELETE FROM contract_task_attachment WHERE id = $1', [id])
     res.json({ success: true })

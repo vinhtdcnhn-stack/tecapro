@@ -3,23 +3,38 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
+import { safeUploadFilter, UPLOAD_LIMITS, BLOCKED_EXT } from '../middleware/uploadFilter.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
+
+// Param id trong đường dẫn upload phải là số — chặn path traversal kiểu `..%2F..%2F`
+// (Express decode %2F trong param trước khi đưa vào path.join).
+function numericIdOr(cb, raw) {
+  const id = String(raw)
+  if (!/^\d+$/.test(id)) {
+    cb(new Error('ID không hợp lệ.'))
+    return null
+  }
+  return id
+}
 
 // ── Multer storage ───────────────────────────────────────────────────────────
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    const uploadDir = path.join(__dirname, '..', 'uploads', 'contracts', String(req.params.contractId))
+    const contractId = numericIdOr(cb, req.params.contractId)
+    if (contractId === null) return
+    const uploadDir = path.join(UPLOADS_ROOT, 'contracts', contractId)
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
     cb(null, uploadDir)
   },
   filename(req, file, cb) {
     // Sanitize filename — keep extension, replace special chars
-    const ext = path.extname(file.originalname)
-    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9._-]/g, '_')
+    const ext = path.extname(file.originalname).replace(/[^a-zA-Z0-9.]/g, '_')
+    const base = path.basename(file.originalname, path.extname(file.originalname)).replace(/[^a-zA-Z0-9._-]/g, '_')
     cb(null, `${Date.now()}_${base}${ext}`)
   }
 })
@@ -34,13 +49,15 @@ export const upload = multer({
 
 const storageIn = multer.diskStorage({
   destination(req, file, cb) {
-    const uploadDir = path.join(__dirname, '..', 'uploads', 'contract-ins', String(req.params.contractInId))
+    const contractInId = numericIdOr(cb, req.params.contractInId)
+    if (contractInId === null) return
+    const uploadDir = path.join(UPLOADS_ROOT, 'contract-ins', contractInId)
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
     cb(null, uploadDir)
   },
   filename(req, file, cb) {
-    const ext  = path.extname(file.originalname)
-    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9._-]/g, '_')
+    const ext  = path.extname(file.originalname).replace(/[^a-zA-Z0-9.]/g, '_')
+    const base = path.basename(file.originalname, path.extname(file.originalname)).replace(/[^a-zA-Z0-9._-]/g, '_')
     cb(null, `${Date.now()}_${base}${ext}`)
   }
 })
@@ -65,8 +82,13 @@ function buildTree(folders, parentId = null) {
     }))
 }
 
+// file_path chỉ do server tự ghi vào DB, nhưng vẫn normalize + chặn thoát khỏi uploads/ (defense-in-depth)
 function resolveFilePath(storedPath) {
-  return path.join(__dirname, '..', storedPath)
+  const abs = path.resolve(path.join(__dirname, '..', String(storedPath)))
+  if (abs !== UPLOADS_ROOT && !abs.startsWith(UPLOADS_ROOT + path.sep)) {
+    throw new Error(`file_path nằm ngoài thư mục uploads: ${storedPath}`)
+  }
+  return abs
 }
 
 function deleteFileFromDisk(storedPath) {
@@ -476,6 +498,13 @@ export async function viewFile(req, res) {
 
     // nosniff: với preview inline, không cho trình duyệt suy diễn kiểu nội dung khác kiểu thật.
     res.setHeader('X-Content-Type-Options', 'nosniff')
+
+    // File cũ upload trước khi có blocklist có thể là HTML/SVG → không render inline, ép tải về.
+    const ext = path.extname(filePath).toLowerCase()
+    if (BLOCKED_EXT.has(ext)) {
+      res.download(filePath, file.file_name)
+      return
+    }
     res.sendFile(filePath)
   } catch (err) {
     console.error('viewFile error:', err)

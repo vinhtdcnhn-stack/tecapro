@@ -1,11 +1,12 @@
 // Bộ lọc loại file cho multer: chặn các định dạng thực thi/script nguy hiểm.
 // Tài liệu hợp pháp (office, pdf, ảnh, nén, text) vẫn được chấp nhận.
 
-const BLOCKED_EXT = new Set([
+export const BLOCKED_EXT = new Set([
   '.exe', '.bat', '.cmd', '.com', '.msi', '.scr', '.pif',
   '.sh', '.bash', '.ps1', '.psm1', '.vbs', '.vbe', '.js', '.mjs', '.cjs',
   '.jar', '.app', '.dll', '.so', '.dylib',
-  '.html', '.htm', '.xhtml', '.svg', // có thể nhúng script → XSS khi mở
+  // Các đuôi trình duyệt render như HTML/SVG (theo mime-db) → có thể nhúng script → XSS khi mở
+  '.html', '.htm', '.shtml', '.xhtml', '.xht', '.svg', '.svgz',
   '.php', '.phtml', '.asp', '.aspx', '.jsp',
 ])
 
