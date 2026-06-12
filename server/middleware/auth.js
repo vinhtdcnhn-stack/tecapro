@@ -1,4 +1,5 @@
 import { verifyToken, AUTH_COOKIE } from '../auth/token.js'
+import { pool } from '../db.js'
 
 // Parse cookie thủ công (không phụ thuộc cookie-parser).
 export function parseCookies(req) {
@@ -24,13 +25,25 @@ function readToken(req) {
 }
 
 // Bắt buộc đã đăng nhập. Gắn req.user = { id, role } lấy từ token đã xác thực.
-export function requireAuth(req, res, next) {
+// Đối chiếu DB mỗi request: role lấy giá trị MỚI NHẤT (đổi quyền có hiệu lực ngay,
+// không chờ token hết hạn), token_version phải khớp claim `tv` (đổi mật khẩu bump
+// version → mọi token cũ bị từ chối). Token cũ chưa có `tv` được coi là 0.
+export async function requireAuth(req, res, next) {
   const payload = verifyToken(readToken(req))
   if (!payload) {
     res.status(401).json({ error: 'Chưa đăng nhập hoặc phiên đã hết hạn.' })
     return
   }
-  req.user = { id: payload.uid, role: payload.role }
+  const { rows } = await pool.query(
+    'SELECT role, token_version FROM app_user WHERE id = $1',
+    [payload.uid],
+  )
+  const user = rows[0]
+  if (!user || Number(payload.tv ?? 0) !== Number(user.token_version)) {
+    res.status(401).json({ error: 'Phiên không còn hiệu lực. Vui lòng đăng nhập lại.' })
+    return
+  }
+  req.user = { id: payload.uid, role: user.role }
   next()
 }
 

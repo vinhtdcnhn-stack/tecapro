@@ -13,8 +13,10 @@ const BCRYPT_ROUNDS = 12
 // ==================== AUTH CONTROLLER ====================
 
 // Đặt cookie phiên httpOnly (không đọc được từ JS phía client).
+// Claim `tv` (token_version) phải khớp DB khi verify — đổi mật khẩu bump version
+// để vô hiệu mọi token cũ (xem requireAuth).
 function setAuthCookie(res, user) {
-  const token = signToken({ uid: user.id, role: user.role })
+  const token = signToken({ uid: user.id, role: user.role, tv: Number(user.token_version ?? 0) })
   res.cookie(AUTH_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
@@ -35,7 +37,7 @@ export async function login(req, res) {
 
   const { rows } = await pool.query(
     `SELECT u.id, u.email, u.full_name, u.role, u.password_hash, u.telegram_chat_id,
-       u.department_id, d.code AS department_code, d.name AS department_name,
+       u.token_version, u.department_id, d.code AS department_code, d.name AS department_name,
        COALESCE((
          SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
          FROM app_user_position up JOIN position p ON p.id = up.position_id
@@ -338,12 +340,13 @@ export async function updateUser(req, res) {
     let rows
     if (password && password.trim() !== '') {
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
+      // Đặt mật khẩu mới → bump token_version để vô hiệu các phiên cũ của user này (F-05).
       ;({ rows } = await client.query(
         `UPDATE app_user SET
            username=$1, email=$2, full_name=$3, phone=$4, employee_code=$5,
            department_id=$6, position_id=$7, manager_id=$8, role=$9,
-           password_hash=$10, telegram_chat_id=$11, updated_at=NOW()
-         WHERE id=$12 RETURNING id`,
+           password_hash=$10, telegram_chat_id=$11, token_version=token_version+1, updated_at=NOW()
+         WHERE id=$12 RETURNING id, role, token_version`,
         [username, email.trim().toLowerCase(), full_name?.trim()||null, phone?.trim()||null,
          employee_code?.trim()||null, department_id||null, posIds[0]||null,
          manager_id||null, role, passwordHash, tgChatId, id]
@@ -377,6 +380,12 @@ export async function updateUser(req, res) {
     }
 
     await client.query('COMMIT')
+
+    // Admin tự đổi mật khẩu của chính mình qua form này → cấp lại cookie để không bị logout.
+    if (password && password.trim() !== '' && String(req.user.id) === String(id)) {
+      setAuthCookie(res, { id, role: rows[0].role, token_version: rows[0].token_version })
+    }
+
     res.json({ success: true, id: rows[0].id })
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {})
@@ -426,8 +435,18 @@ export async function changePassword(req, res) {
     return
   }
 
+  // Bump token_version để vô hiệu MỌI phiên đang đăng nhập của user này (F-05).
   const passwordHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS)
-  await pool.query('UPDATE app_user SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, id])
+  const { rows: updated } = await pool.query(
+    `UPDATE app_user SET password_hash = $1, token_version = token_version + 1, updated_at = NOW()
+     WHERE id = $2 RETURNING role, token_version`,
+    [passwordHash, id],
+  )
+
+  // Tự đổi mật khẩu của mình → cấp lại cookie với version mới để không bị logout phiên hiện tại.
+  if (String(req.user.id) === String(id)) {
+    setAuthCookie(res, { id, role: updated[0].role, token_version: updated[0].token_version })
+  }
 
   res.json({ success: true })
 }
