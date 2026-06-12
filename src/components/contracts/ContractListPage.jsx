@@ -8,11 +8,21 @@ const currentYear = new Date().getFullYear()
 const defaultDateFrom = `${currentYear}-01-01`
 const defaultDateTo = `${currentYear}-12-31`
 
+// Ghi nhớ khung thời gian đã chọn để lần sau vào trang không phải đặt lại
+const DATE_RANGE_KEY = 'contractList.dateRange'
+const loadSavedRange = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DATE_RANGE_KEY) || '{}')
+    return { from: saved.from ?? defaultDateFrom, to: saved.to ?? defaultDateTo }
+  } catch { return { from: defaultDateFrom, to: defaultDateTo } }
+}
+
 export default function ContractListPage({ contracts, searchTerm: parentSearchTerm, onManage, onLoadContracts, currentUser, users, customers }) {
+  const savedRange = loadSavedRange()
   const [localContracts, setLocalContracts] = useState([])
   const [localSearchTerm, setLocalSearchTerm] = useState(parentSearchTerm || '')
-  const [dateFrom, setDateFrom] = useState(defaultDateFrom)
-  const [dateTo, setDateTo] = useState(defaultDateTo)
+  const [dateFrom, setDateFrom] = useState(savedRange.from)
+  const [dateTo, setDateTo] = useState(savedRange.to)
   const [filters, setFilters] = useState({ contract_no: '', project_name: '', customer_name: '', pm_name: '', status: '' })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
   const [openDropdown, setOpenDropdown] = useState(null)
@@ -27,6 +37,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
            || currentUser?.position_code === 'PM_TEAM'
   
   useEffect(() => { if (onLoadContracts) onLoadContracts() }, [])
+  useEffect(() => { try { localStorage.setItem(DATE_RANGE_KEY, JSON.stringify({ from: dateFrom, to: dateTo })) } catch { /* ignore */ } }, [dateFrom, dateTo])
   useEffect(() => { setLocalContracts(contracts || []) }, [contracts])
   useEffect(() => { setLocalSearchTerm(parentSearchTerm || '') }, [parentSearchTerm])
   useEffect(() => { function handleClickOutside(event) { if (currentDropdownRef.current && !currentDropdownRef.current.contains(event.target)) setOpenDropdown(null) } document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside) }, [])

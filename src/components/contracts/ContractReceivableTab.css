@@ -180,6 +180,10 @@
 .recv-table tbody tr.recv-group-top > td:first-child { border-left: 1px solid #cbd5e1; }
 .recv-table tbody tr.recv-group-top > td:last-child  { border-right: 1px solid #cbd5e1; }
 
+/* Kẻ dọc ngăn cách các cột (nhạt hơn viền thẻ) */
+.recv-table thead th:not(:last-child) { border-right: 1px solid #e5e7eb; }
+.recv-table tbody tr.recv-group-top > td:not(:last-child) { border-right: 1px solid #e5e7eb; }
+
 .recv-table tbody tr.linked-payments-row > .linked-payments-cell {
   border-left: 1px solid #cbd5e1;
   border-right: 1px solid #cbd5e1;

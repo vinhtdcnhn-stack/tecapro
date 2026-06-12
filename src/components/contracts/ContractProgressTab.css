@@ -105,6 +105,10 @@
 .prog-table tbody tr.prog-card-row > td:first-child { border-left: 1px solid #cbd5e1; }
 .prog-table tbody tr.prog-card-row > td:last-child  { border-right: 1px solid #cbd5e1; }
 
+/* Kẻ dọc ngăn cách các cột (nhạt hơn viền thẻ) */
+.prog-table thead th:not(:last-child) { border-right: 1px solid #e2e8f0; }
+.prog-table tbody tr.prog-card-row > td:not(:last-child) { border-right: 1px solid #e5e7eb; }
+
 /* Hàng đệm tạo khoảng trống giữa các thẻ */
 .prog-table tbody tr.prog-row-gap > td { height: 10px; padding: 0; background: #fff; border: none; }
 .prog-table tbody tr.prog-row-gap:hover { filter: none; }
