@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
 import './ContractDocumentsTab.css'
 
@@ -35,23 +35,9 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const [showDeleteFolderConfirm, setShowDeleteFolderConfirm] = useState(false)
   const [deletingFolder, setDeletingFolder] = useState(null)
 
-  useEffect(() => {
-    loadFolders().finally(() => setLoading(false))
-  }, [contractId])
+  // ── Data loaders (khai báo TRƯỚC effect dùng chúng; memo theo resourcePath) ─
 
-  useEffect(() => {
-    if (selectedFolderId) {
-      loadFiles(selectedFolderId)
-    } else {
-      setFiles([])
-    }
-    setPreviewFile(null)
-    setSelectedFiles(new Set())
-  }, [selectedFolderId])
-
-  // ── Data loaders ─────────────────────────────────────────────────────────
-
-  const loadFolders = async ({ expandParentId = null } = {}) => {
+  const loadFolders = useCallback(async ({ expandParentId = null } = {}) => {
     try {
       const res = await fetch(`${API}/${resourcePath}/folders`)
       const data = await res.json()
@@ -65,9 +51,9 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
     } catch (err) {
       console.error('Failed to load folders:', err)
     }
-  }
+  }, [resourcePath])
 
-  const loadFiles = async (folderId) => {
+  const loadFiles = useCallback(async (folderId) => {
     try {
       const res = await fetch(`${API}/${resourcePath}/files?folderId=${folderId}`)
       const data = await res.json()
@@ -75,7 +61,25 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
     } catch (err) {
       console.error('Failed to load files:', err)
     }
-  }
+  }, [resourcePath])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadFolders() async: setState xảy ra SAU await
+    loadFolders().finally(() => setLoading(false))
+  }, [loadFolders])
+
+  // loadFiles() async; các setState reset (files/preview/selection) là đồng bộ có chủ đích khi đổi thư mục.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (selectedFolderId) {
+      loadFiles(selectedFolderId)
+    } else {
+      setFiles([])
+    }
+    setPreviewFile(null)
+    setSelectedFiles(new Set())
+  }, [selectedFolderId, loadFiles])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const {
     uploadQueue, isUploading,

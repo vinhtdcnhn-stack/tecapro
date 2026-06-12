@@ -42,6 +42,7 @@ export default function DateInput({
   const [text, setText] = useState(isoToDisplay(value))
   const hiddenRef = useRef(null)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ text hiển thị từ prop value (input có buffer cục bộ khi gõ)
   useEffect(() => { setText(isoToDisplay(value)) }, [value])
 
   const emit = (iso) => onChange?.({ target: { value: iso } })

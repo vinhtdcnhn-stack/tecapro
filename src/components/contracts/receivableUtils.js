@@ -125,8 +125,10 @@ export function useRows(url, toLocal) {
       setRows((Array.isArray(data) ? data : []).map(toLocal))
     } catch (e) { console.error('load:', e) }
     finally { setLoading(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- toLocal là mapper thuần (tạo mới mỗi render); cố ý ngoài deps để load chỉ chạy lại khi url đổi
   }, [url])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
   useEffect(() => { load() }, [load])
 
   return { rows, setRows, loading, reload: load }

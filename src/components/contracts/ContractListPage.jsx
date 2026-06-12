@@ -36,9 +36,12 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const isPM = currentUser?.positions?.some(p => p.code === 'PM_TEAM')
            || currentUser?.position_code === 'PM_TEAM'
   
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lần đầu khi mount; QldaPage tự tải lại khi user đổi
   useEffect(() => { if (onLoadContracts) onLoadContracts() }, [])
   useEffect(() => { try { localStorage.setItem(DATE_RANGE_KEY, JSON.stringify({ from: dateFrom, to: dateTo })) } catch { /* ignore */ } }, [dateFrom, dateTo])
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state nội bộ từ prop (để lọc/sửa cục bộ) khi prop đổi
   useEffect(() => { setLocalContracts(contracts || []) }, [contracts])
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state nội bộ từ prop khi prop đổi
   useEffect(() => { setLocalSearchTerm(parentSearchTerm || '') }, [parentSearchTerm])
   useEffect(() => { function handleClickOutside(event) { if (currentDropdownRef.current && !currentDropdownRef.current.contains(event.target)) setOpenDropdown(null) } document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside) }, [])
 

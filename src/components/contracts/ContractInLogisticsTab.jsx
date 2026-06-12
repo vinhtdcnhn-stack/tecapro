@@ -35,6 +35,7 @@ export default function ContractInLogisticsTab({ contractInId }) {
     finally { setLoading(false) }
   }, [contractInId])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
   useEffect(() => { load() }, [load])
 
   async function handleSave(form) {
@@ -145,6 +146,7 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
 
   useEffect(() => {
     if (isExpanded && !loaded) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- bật cờ loading rồi fetch khi mở (theo điều kiện)
       setLoadingU(true)
       fetch(`${API}/contract-in-logistics/${rec.id}/updates`)
         .then(r => r.json())

@@ -33,6 +33,7 @@ export default function ContractInCustomsTab({ contractInId }) {
     } catch (e) { console.error('load customs:', e) }
     finally { setLoading(false) }
   }, [contractInId])
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
   useEffect(() => { load() }, [load])
   async function handleSave(form) {
     const isEdit = modal && modal !== 'add'

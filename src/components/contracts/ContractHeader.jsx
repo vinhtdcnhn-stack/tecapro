@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react'
-
 // Ngày ký → 'dd/mm/yyyy' (dùng giờ địa phương để khớp ô "Ngày ký" trong tab thông tin).
 const fmtSignedDate = (d) => {
   if (!d) return ''
@@ -9,15 +7,8 @@ const fmtSignedDate = (d) => {
 }
 
 export default function ContractHeader({ contract }) {
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (contract) {
-      setLoading(false)
-    }
-  }, [contract])
-
-  if (loading || !contract) {
+  // "Đang tải" = chưa có contract; không cần state/effect riêng (trước đây setLoading trong effect).
+  if (!contract) {
     return (
       <div className="contract-header">
         <div className="contract-header-loading">Đang tải thông tin hợp đồng...</div>

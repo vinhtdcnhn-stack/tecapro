@@ -22,6 +22,7 @@ export default function CustomerModal({
 
   useEffect(() => {
     if (customer) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ form từ prop customer khi mở modal sửa
       setFormData({
         code: customer.code || '',
         name: customer.name || '',

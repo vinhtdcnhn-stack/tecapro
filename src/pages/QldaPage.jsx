@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../config/api'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -12,21 +12,22 @@ export default function QldaPage() {
   const [users, setUsers] = useState([])
   const [customers, setCustomers] = useState([])
 
-  async function loadContracts() {
+  // Backend lọc theo danh tính từ cookie phiên (req.user): admin xem tất cả, PM chỉ xem HĐ
+  // mình phụ trách — không cần truyền userId. Memo hoá để ổn định (truyền xuống onLoadContracts).
+  const loadContracts = useCallback(async () => {
     try {
-      // Truyền userId để backend lọc: admin xem tất cả, PM chỉ xem HĐ mình phụ trách.
-      const qs = user?.id ? `?userId=${user.id}` : ''
-      const res = await fetch(`${API}/api/contracts${qs}`)
+      const res = await fetch(`${API}/api/contracts`)
       setContracts(await res.json())
     } catch (err) { console.error(err) }
-  }
+  }, [])
 
   useEffect(() => {
     if (!user?.id) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadContracts() là async: setState xảy ra SAU await
     loadContracts()
     fetch(`${API}/api/users`).then(r => r.json()).then(setUsers).catch(console.error)
     fetch(`${API}/api/customers`).then(r => r.json()).then(setCustomers).catch(console.error)
-  }, [user])
+  }, [user, loadContracts])
 
   return (
     <main className="page admin-page">

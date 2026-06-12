@@ -95,6 +95,7 @@ export default function ContractGuaranteeTab({ contractId }) {
     finally { setLoading(false) }
   }, [contractId])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
   useEffect(() => { load() }, [load])
 
   const set = (key, field, val) =>

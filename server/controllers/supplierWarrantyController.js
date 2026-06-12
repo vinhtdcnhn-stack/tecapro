@@ -16,6 +16,10 @@ const WARRANTY_SELECT = `
   FROM contract_in_supplier_warranty w
   LEFT JOIN contract_in_delivery_item di ON di.id = w.delivery_item_id
   LEFT JOIN contract_in_delivery_serial ds ON ds.delivery_item_id = w.delivery_item_id
+`
+
+// WHERE phải nằm giữa FROM/JOIN và GROUP BY → chèn điều kiện rồi mới nối phần này
+const WARRANTY_GROUP_BY = `
   GROUP BY w.id, di.item_name, di.unit
 `
 
@@ -24,7 +28,7 @@ const WARRANTY_SELECT = `
 export async function getSupplierWarranties(req, res) {
   try {
     const { rows } = await pool.query(
-      `${WARRANTY_SELECT} WHERE w.contract_in_id = $1 ORDER BY w.id`,
+      `${WARRANTY_SELECT} WHERE w.contract_in_id = $1 ${WARRANTY_GROUP_BY} ORDER BY w.id`,
       [req.params.contractInId]
     )
     res.json(rows)
@@ -46,7 +50,7 @@ export async function createSupplierWarranty(req, res) {
       [contractInId, delivery_item_id||null, item_name||'', warranty_period_text||'',
        warranty_start||null, warranty_end||null, has_guarantee||false, note||null]
     )
-    const full = await pool.query(`${WARRANTY_SELECT} WHERE w.id = $1`, [rows[0].id])
+    const full = await pool.query(`${WARRANTY_SELECT} WHERE w.id = $1 ${WARRANTY_GROUP_BY}`, [rows[0].id])
     res.json(full.rows[0])
   } catch (err) {
     console.error('createSupplierWarranty:', err)
@@ -66,7 +70,7 @@ export async function updateSupplierWarranty(req, res) {
       [item_name||'', warranty_period_text||'', warranty_start||null,
        warranty_end||null, has_guarantee||false, note||null, id]
     )
-    const full = await pool.query(`${WARRANTY_SELECT} WHERE w.id = $1`, [id])
+    const full = await pool.query(`${WARRANTY_SELECT} WHERE w.id = $1 ${WARRANTY_GROUP_BY}`, [id])
     if (!full.rows[0]) return res.status(404).json({ error: 'Not found' })
     res.json(full.rows[0])
   } catch (err) {

@@ -48,6 +48,7 @@ export default function ContractModal({
     if (isOpen) {
       if (editMode && editData) {
         // Load existing contract data for editing
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ form từ prop editData khi mở modal sửa
         setFormData({
           contract_no: editData.contract_no || '',
           contract_date: editData.contract_date ? editData.contract_date.split('T')[0] : new Date().toISOString().split('T')[0],

@@ -79,6 +79,7 @@ export default function ContractReceivableTab({ contractId }) {
     } catch (e) { console.error('loadContractRef:', e) }
   }, [contractId])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- loadContractRef() là async: setState xảy ra SAU await
   useEffect(() => { loadContractRef() }, [loadContractRef])
 
   // Tỷ giá dùng chung: sau khi 1 khoản đồng bộ tỷ giá HĐ, backend cập nhật mọi khoản

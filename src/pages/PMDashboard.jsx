@@ -87,6 +87,7 @@ export default function PMDashboard({ user }) {
     finally { setLoading(false) }
   }, [user])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
   useEffect(() => { load() }, [load])
 
   // Lưu ghim/nhắc (gửi trạng thái đầy đủ của dòng) rồi cập nhật cục bộ

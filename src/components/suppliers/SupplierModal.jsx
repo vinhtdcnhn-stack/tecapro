@@ -11,6 +11,7 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier = null
 
   useEffect(() => {
     if (supplier) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ form từ prop supplier khi mở modal sửa
       setFormData({
         code:           supplier.code           || '',
         name:           supplier.name           || '',

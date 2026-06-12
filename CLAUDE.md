@@ -31,11 +31,23 @@ Copy `.env.example` to `.env` and fill in values:
 - `PORT` — Express API port (default: `5174`)
 - `VITE_API_BASE_URL` — Frontend base URL for API calls (default: `http://localhost:5174`)
 
-Run the SQL files to initialize the database schema before first use:
-1. `server/schema.sql` — core tables (app_user, customer, contract_out, contract_out_member)
-2. `server/migrations/001_document_management.sql` — document_folder and document_file tables + triggers
-3. `server/migrations/002_add_is_deleted_to_document_file.sql`
-4. `server/migrations/003_add_is_deleted_to_document_folder.sql`
+Initialize the database before first use — run the baseline, then any migrations in order:
+
+```bash
+psql -d <db> -f server/schema.sql               # consolidated baseline (up to 2026-06-12)
+# then each server/migrations/*.sql in numeric order, if any exist
+```
+
+`server/schema.sql` is the **consolidated baseline** — the full schema (all tables,
+indexes, constraints) as of 2026-06-12, generated via `pg_dump --schema-only`. The
+original 41 incremental migrations were folded into it and removed.
+
+**Schema changes from now on** go back to incremental files: add a new numbered file
+`server/migrations/NNN_short_name.sql` (continue numbering from `041`) containing the
+ALTER/CREATE, and apply it by hand via `psql` to both the local DB and the running VPS
+DB. Do NOT re-run the full `schema.sql` against a live DB — it has plain `CREATE TABLE`
+and will fail on existing tables. When migration files pile up, re-consolidate: re-dump
+`schema.sql` from an up-to-date DB and delete the migration files.
 
 ## Architecture
 
@@ -50,7 +62,7 @@ This is a full-stack app with a React/Vite frontend and an Express/Node.js backe
 - `server/controllers/` — business logic per domain (auth, customer, contract, document)
 - Uploaded files are stored at `server/uploads/` and served statically
 
-**Database** — PostgreSQL. Key tables: `app_user`, `customer`, `contract_out`, `contract_out_member`, `document_folder`, `document_file`. Originally a trigger on `contract_out` (`trg_create_default_folders`) auto-created a default folder tree on insert, but this was **disabled** in migration `034_drop_default_folders_trigger.sql` — new contracts now start with an empty folder tree and users create folders manually. The `create_default_contract_folders()` / `trigger_create_default_folders()` functions are kept so the trigger can be re-enabled if needed.
+**Database** — PostgreSQL. Key tables: `app_user`, `customer`, `contract_out`, `contract_out_member`, `document_folder`, `document_file`. Earlier a trigger on `contract_out` (`trg_create_default_folders`) auto-created a default folder tree on insert; it was **removed** — new contracts now start with an empty folder tree and users create folders manually.
 
 **Auth** — email+password login using `bcryptjs`. On login the server issues an **HMAC-signed session token** (`server/auth/token.js`, no external JWT lib) stored in an **httpOnly cookie** (`tecapro_auth`). Every API request is gated server-side by `requireAuth` (`server/middleware/auth.js`), which verifies the cookie and sets `req.user = { id, role }`. **Authorization must always derive identity from `req.user`, never from client-supplied `userId`/query params.** Public routes are only `/api/auth/login`, `/api/auth/logout`, `/api/health`; everything else (mounted after `router.use(requireAuth)` in `server/routes/index.js`) requires a valid session. Admin-only ops use `requireAdmin`; self-or-admin uses `requireSelfOrAdmin`. Role is an integer (`role == 1` = admin). Frontend restores the session via `/api/auth/me` (no id sent); a global `fetch` wrapper (`src/config/fetchSetup.js`) adds `credentials: 'include'` to every request. Requires env `AUTH_SECRET`; set `NODE_ENV=production` on the VPS to enable Secure cookies. The `/uploads` static mount is also behind `requireAuth` (contract documents are served via `/api/files/:id/view`; `/uploads` mainly serves task attachments, linked relatively so the session cookie rides along same-origin in production).
 

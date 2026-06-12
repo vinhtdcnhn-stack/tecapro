@@ -48,6 +48,7 @@ export default function QuantriPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- các loader async: setState xảy ra SAU await
     loadUsers()
     loadCustomers()
     loadSuppliers()

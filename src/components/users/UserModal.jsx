@@ -37,6 +37,7 @@ export default function UserModal({
 
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ form từ prop user khi mở modal sửa
       setFormData({
         username: user.username || '',
         email: user.email || '',

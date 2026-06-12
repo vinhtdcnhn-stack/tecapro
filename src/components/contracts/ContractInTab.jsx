@@ -29,12 +29,14 @@ export default function ContractInTab({ contractId, initialContractInId, initial
     finally { setLoading(false) }
   }, [contractId])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
   useEffect(() => { load() }, [load])
 
   // Deep-link từ dashboard: tự mở đúng HĐ nhập được yêu cầu (một lần).
   useEffect(() => {
     if (autoOpened || !initialContractInId || !items.length) return
     const found = items.find(c => String(c.id) === String(initialContractInId))
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mở đúng HĐ theo deep-link một lần khi danh sách đã tải
     if (found) { setSelected(found); setAutoOpened(true) }
   }, [items, initialContractInId, autoOpened])
 

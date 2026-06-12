@@ -13,7 +13,7 @@ import ContractWarrantyTab from '../components/contracts/ContractWarrantyTab'
 import ContractInTab from '../components/contracts/ContractInTab'
 
 export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab }) {
-  const [contractId, setContractId] = useState(null)
+  const contractId = selectedContractId // dẫn xuất thẳng từ prop (trước đây mirror qua state + setContractId)
   const [contract, setContract] = useState(null)
   const [activeMenu, setActiveMenu] = useState(initialMenu || 'contract-info')
   const [loading, setLoading] = useState(true)
@@ -25,9 +25,7 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
   const [currentUser, setCurrentUser] = useState(null)
 
   useEffect(() => {
-    // Use selectedContractId from props instead of URL
     const id = selectedContractId
-    setContractId(id)
 
     async function loadContract() {
       try {
@@ -67,6 +65,7 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
 
   // Khi đến từ deep-link (dashboard), nhảy thẳng tới đúng menu được yêu cầu.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- áp menu theo deep-link khi mở/đổi hợp đồng
     if (initialMenu) setActiveMenu(initialMenu)
   }, [initialMenu, selectedContractId])
 

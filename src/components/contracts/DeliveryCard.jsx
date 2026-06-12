@@ -15,6 +15,7 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
 
   useEffect(() => {
     if (isExpanded && !itemsLoaded) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- bật cờ loading rồi fetch khi mở card (theo điều kiện)
       setLoad(true)
       fetch(`${API}/deliveries/${delivery.id}/items`)
         .then(r => r.json())

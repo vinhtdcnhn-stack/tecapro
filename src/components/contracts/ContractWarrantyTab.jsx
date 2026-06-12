@@ -35,6 +35,7 @@ export default function ContractWarrantyTab({ contractId }) {
   }, [contractId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- bật cờ loading rồi chạy các loader async (Promise.all)
     setLoading(true)
     Promise.all([loadEquipment(), loadCases(), loadAllActivities()])
       .finally(() => setLoading(false))
