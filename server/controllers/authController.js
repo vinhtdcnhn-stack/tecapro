@@ -10,6 +10,11 @@ import { logger } from '../utils/logger.js'
 // bình thường (cost được nhúng trong hash); chỉ hash mới dùng cost này.
 const BCRYPT_ROUNDS = 12
 
+// Độ dài tối thiểu khi ĐẶT mật khẩu mới (create/update/change-password).
+// Mật khẩu cũ ngắn hơn vẫn đăng nhập được — chỉ chặn khi đặt mới.
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_TOO_SHORT = `Mật khẩu phải có ít nhất ${PASSWORD_MIN_LENGTH} ký tự.`
+
 // ==================== AUTH CONTROLLER ====================
 
 // Đặt cookie phiên httpOnly (không đọc được từ JS phía client).
@@ -127,6 +132,10 @@ export async function createUser(req, res) {
     res.status(400).json({
       error: 'Thiếu dữ liệu.'
     })
+    return
+  }
+  if (String(password).length < PASSWORD_MIN_LENGTH) {
+    res.status(400).json({ error: PASSWORD_TOO_SHORT })
     return
   }
 
@@ -329,6 +338,10 @@ export async function updateUser(req, res) {
     res.status(400).json({ error: 'Tên đăng nhập và email là bắt buộc.' })
     return
   }
+  if (password && password.trim() !== '' && String(password).length < PASSWORD_MIN_LENGTH) {
+    res.status(400).json({ error: PASSWORD_TOO_SHORT })
+    return
+  }
 
   const posIds = Array.isArray(position_ids) ? position_ids.map(Number).filter(Boolean) : []
   const tgChatId = telegram_chat_id?.trim() || null
@@ -417,8 +430,8 @@ export async function changePassword(req, res) {
     res.status(400).json({ error: 'Vui lòng nhập đầy đủ thông tin.' })
     return
   }
-  if (new_password.length < 6) {
-    res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 6 ký tự.' })
+  if (String(new_password).length < PASSWORD_MIN_LENGTH) {
+    res.status(400).json({ error: PASSWORD_TOO_SHORT })
     return
   }
 
