@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import * as authController from '../controllers/authController.js'
+import { requireAuth, requireAdmin, requireSelfOrAdmin } from '../middleware/auth.js'
+import { loginLimiter } from '../middleware/loginRateLimit.js'
 import customerRoutes from './customerRoutes.js'
 import contractRoutes from './contractRoutes.js'
 import documentRoutes from './documentRoutes.js'
@@ -22,20 +24,26 @@ import pmDashboardRoutes from './pmDashboardRoutes.js'
 
 const router = Router()
 
-// Auth routes
-router.post('/auth/login', authController.login)
-router.post('/auth/seed', authController.seedAdmin)
+// ── Route công khai (không yêu cầu đăng nhập) ──
+router.post('/auth/login', loginLimiter.guard, authController.login)
+router.post('/auth/logout', authController.logout)
+
+// ── Mọi route phía dưới đều yêu cầu đã đăng nhập ──
+router.use(requireAuth)
+
+// Thông tin người dùng hiện tại (danh tính lấy từ cookie phiên)
+router.get('/auth/me', authController.getCurrentUser)
 
 // User routes
 router.get('/users', authController.getAllUsers)
-router.get('/users/:id', authController.getUserById)
-router.get('/me/:id', authController.getUserById) // Alias for user info
-router.post('/users', authController.createUser)
-router.put('/users/:id/change-password', authController.changePassword)
-router.put('/users/:id', authController.updateUser)
-router.post('/users/check-email', authController.checkEmailExists)
-router.post('/users/check-username', authController.checkUsernameExists)
-router.post('/users/check-employee-code', authController.checkEmployeeCodeExists)
+router.get('/users/:id', requireSelfOrAdmin('id'), authController.getUserById)
+router.get('/me/:id', requireSelfOrAdmin('id'), authController.getUserById) // Alias for user info
+router.post('/users', requireAdmin, authController.createUser)
+router.put('/users/:id/change-password', requireSelfOrAdmin('id'), authController.changePassword)
+router.put('/users/:id', requireAdmin, authController.updateUser)
+router.post('/users/check-email', requireAdmin, authController.checkEmailExists)
+router.post('/users/check-username', requireAdmin, authController.checkUsernameExists)
+router.post('/users/check-employee-code', requireAdmin, authController.checkEmployeeCodeExists)
 
 // Department routes
 router.get('/departments', authController.getAllDepartments)
@@ -46,8 +54,8 @@ router.get('/positions', authController.getAllPositions)
 // Manager routes
 router.get('/managers', authController.getAllManagers)
 
-// Customer routes
-router.use('/customers', customerRoutes)
+// Customer routes (customerRoutes tự định nghĩa path đầy đủ /customers/...)
+router.use('/', customerRoutes)
 
 // Contract routes
 router.use('/contracts', contractRoutes)

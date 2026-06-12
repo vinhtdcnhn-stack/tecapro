@@ -3,6 +3,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
+import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,7 +26,8 @@ const storage = multer.diskStorage({
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: UPLOAD_LIMITS,
+  fileFilter: safeUploadFilter,
 })
 
 // ── Multer storage for contract_in ───────────────────────────────────────────
@@ -43,7 +45,7 @@ const storageIn = multer.diskStorage({
   }
 })
 
-export const uploadIn = multer({ storage: storageIn, limits: { fileSize: 50 * 1024 * 1024 } })
+export const uploadIn = multer({ storage: storageIn, limits: UPLOAD_LIMITS, fileFilter: safeUploadFilter })
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,13 +116,14 @@ export async function getFolderTree(req, res) {
 export async function createFolder(req, res) {
   try {
     const { contractId } = req.params
-    const { folderName, parentId, userId } = req.body
+    const { folderName, parentId } = req.body
 
     if (!folderName?.trim()) {
       return res.status(400).json({ error: 'Folder name is required' })
     }
 
-    const createdBy = userId || req.user?.id || null
+    // Người tạo lấy từ phiên đã xác thực (không tin id do client gửi).
+    const createdBy = req.user?.id || null
 
     const { rows } = await pool.query(`
       INSERT INTO public.document_folder (contract_id, parent_id, folder_name, created_by)
@@ -259,7 +262,7 @@ export async function getFolderFiles(req, res) {
 export async function uploadFile(req, res) {
   try {
     const { contractId } = req.params
-    const { folderId, userId } = req.body
+    const { folderId } = req.body
 
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
     if (!folderId) {
@@ -277,7 +280,8 @@ export async function uploadFile(req, res) {
       return res.status(404).json({ error: 'Folder not found or does not belong to this contract' })
     }
 
-    const uploadedBy = userId || req.user?.id || null
+    // Người upload lấy từ phiên đã xác thực (không tin id do client gửi).
+    const uploadedBy = req.user?.id || null
     const filePath = `/uploads/contracts/${contractId}/${req.file.filename}`
     const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
 
@@ -344,6 +348,7 @@ export async function downloadFile(req, res) {
       return res.status(404).json({ error: 'File not found on server' })
     }
 
+    res.setHeader('X-Content-Type-Options', 'nosniff') // chặn trình duyệt "đoán" kiểu nội dung
     res.download(filePath, file.file_name)
   } catch (err) {
     console.error('downloadFile error:', err)
@@ -383,12 +388,12 @@ export async function getFolderTreeIn(req, res) {
 export async function createFolderIn(req, res) {
   try {
     const { contractInId } = req.params
-    const { folderName, parentId, userId } = req.body
+    const { folderName, parentId } = req.body
     if (!folderName?.trim()) return res.status(400).json({ error: 'Folder name is required' })
     const { rows } = await pool.query(`
       INSERT INTO public.document_folder (contract_in_id, parent_id, folder_name, created_by)
       VALUES ($1, $2, $3, $4) RETURNING *
-    `, [contractInId, parentId || null, folderName.trim(), userId || null])
+    `, [contractInId, parentId || null, folderName.trim(), req.user?.id || null])
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createFolderIn error:', err)
@@ -422,7 +427,7 @@ export async function getContractInFiles(req, res) {
 export async function uploadFileIn(req, res) {
   try {
     const { contractInId } = req.params
-    const { folderId, userId } = req.body
+    const { folderId } = req.body
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
     if (!folderId) {
       fs.unlinkSync(req.file.path)
@@ -441,7 +446,7 @@ export async function uploadFileIn(req, res) {
     const { rows } = await pool.query(`
       INSERT INTO public.document_file (contract_in_id, folder_id, file_name, file_path, file_size, mime_type, uploaded_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
-    `, [contractInId, folderId, fileName, filePath, req.file.size, req.file.mimetype, userId || null])
+    `, [contractInId, folderId, fileName, filePath, req.file.size, req.file.mimetype, req.user?.id || null])
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('uploadFileIn error:', err)
@@ -469,6 +474,8 @@ export async function viewFile(req, res) {
       return res.status(404).json({ error: 'File not found on server' })
     }
 
+    // nosniff: với preview inline, không cho trình duyệt suy diễn kiểu nội dung khác kiểu thật.
+    res.setHeader('X-Content-Type-Options', 'nosniff')
     res.sendFile(filePath)
   } catch (err) {
     console.error('viewFile error:', err)

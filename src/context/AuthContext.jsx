@@ -12,14 +12,11 @@ export function AuthProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
-    const userId = localStorage.getItem('userId')
-    if (!userId) { setAuthLoading(false); return }
+    // Khôi phục phiên từ cookie httpOnly (server xác định danh tính, client không tự khai id).
     ;(async () => {
       try {
-        const res = await fetch(`${API}/api/me/${userId}`)
-        if (!res.ok) {
-          localStorage.removeItem('userId')
-        } else {
+        const res = await fetch(`${API}/api/auth/me`)
+        if (res.ok) {
           const data = await res.json()
           setUser({
             ...data,
@@ -28,7 +25,7 @@ export function AuthProvider({ children }) {
           })
         }
       } catch {
-        localStorage.removeItem('userId')
+        /* chưa đăng nhập */
       } finally {
         setAuthLoading(false)
       }
@@ -55,11 +52,11 @@ export function AuthProvider({ children }) {
       position_code:   data.position_code   || null,
       position_name:   data.position_name   || null,
     })
-    localStorage.setItem('userId', data.id)
+    // Phiên được giữ bằng cookie httpOnly do server đặt — không lưu gì nhạy cảm ở client.
   }
 
-  function logout() {
-    localStorage.removeItem('userId')
+  async function logout() {
+    try { await fetch(`${API}/api/auth/logout`, { method: 'POST' }) } catch { /* ignore */ }
     setUser(null)
   }
 

@@ -49,14 +49,11 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
         const customersData = await customersRes.json()
         setCustomers(customersData)
         
-        // Get current user from localStorage
-        const storedUserId = localStorage.getItem('userId')
-        if (storedUserId) {
-          const meRes = await fetch(`${API_BASE}/api/me/${storedUserId}`)
-          if (meRes.ok) {
-            const meData = await meRes.json()
-            setCurrentUser(meData)
-          }
+        // Người dùng hiện tại lấy từ phiên đã xác thực (cookie)
+        const meRes = await fetch(`${API_BASE}/api/auth/me`)
+        if (meRes.ok) {
+          const meData = await meRes.json()
+          setCurrentUser(meData)
         }
       } catch (err) {
         console.error('Failed to load contract:', err)

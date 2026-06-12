@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { API } from '../../config/api'
 import './ContractDocumentsTab.css'
 
-import { getFolderPath, getCurrentUserId } from './documentsUtils'
+import { getFolderPath } from './documentsUtils'
 import { useDocumentUpload } from './useDocumentUpload'
 import DocumentFolderTree from './DocumentFolderTree'
 import DocumentFileTable from './DocumentFileTable'
@@ -110,7 +110,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
       const res = await fetch(`${API}/${resourcePath}/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderName: newFolderName, parentId: newFolderParentId || null, userId: getCurrentUserId() })
+        body: JSON.stringify({ folderName: newFolderName, parentId: newFolderParentId || null })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed')

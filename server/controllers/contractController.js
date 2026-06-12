@@ -3,15 +3,10 @@ import { insertContractMembers } from './contractMemberController.js'
 
 export async function getAllContracts(req, res) {
   try {
-    // Phân quyền xem danh sách: nếu truyền userId thì admin (role=1) xem tất cả,
+    // Phân quyền xem danh sách dựa trên danh tính đã xác thực (req.user từ cookie phiên),
+    // KHÔNG dựa vào tham số client tự truyền: admin (role=1) xem tất cả,
     // còn lại chỉ xem HĐ mình là thành viên PM (PM chính hoặc đồng PM).
-    // Không truyền userId → trả toàn bộ (dùng cho dashboard nội bộ).
-    const userId = req.query.userId ? parseInt(req.query.userId) : null
-    let restrictPmUserId = null
-    if (userId) {
-      const { rows: u } = await pool.query('SELECT role FROM app_user WHERE id = $1', [userId])
-      if (Number(u[0]?.role) !== 1) restrictPmUserId = userId
-    }
+    const restrictPmUserId = Number(req.user?.role) === 1 ? null : (req.user?.id ?? null)
 
     const params = []
     let pmFilter = ''

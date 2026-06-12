@@ -1,9 +1,5 @@
 // Pure helpers & formatters for the documents tab and its sub-components.
 
-export function getCurrentUserId() {
-  return localStorage.getItem('userId') || null
-}
-
 export function getFolderPath(folderList, targetId, path = []) {
   for (const folder of folderList) {
     const current = [...path, { id: folder.id, name: folder.folder_name }]

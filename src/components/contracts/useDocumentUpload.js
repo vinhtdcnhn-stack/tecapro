@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { API } from '../../config/api'
-import { getCurrentUserId } from './documentsUtils'
 
 export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders, loadFiles }) {
   const [fileInputKey, setFileInputKey] = useState(0)
@@ -18,7 +17,6 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
         const formData = new FormData()
         formData.append('file', items[i].file)
         formData.append('folderId', selectedFolderId)
-        formData.append('userId', getCurrentUserId() || '')
         const res = await fetch(`${API}/${resourcePath}/files/upload`, { method: 'POST', body: formData })
         if (!res.ok) throw new Error('Upload failed')
         setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'done' } : item))
@@ -57,7 +55,7 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
         const res = await fetch(`${API}/${resourcePath}/folders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folderName, parentId, userId: getCurrentUserId() })
+          body: JSON.stringify({ folderName, parentId })
         })
         const data = await res.json()
         if (res.ok && data.id) folderIdMap.set(path, data.id)
@@ -75,7 +73,6 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
         const formData = new FormData()
         formData.append('file', items[i].file)
         formData.append('folderId', targetFolderId)
-        formData.append('userId', getCurrentUserId() || '')
         const res = await fetch(`${API}/${resourcePath}/files/upload`, { method: 'POST', body: formData })
         if (!res.ok) throw new Error('Upload failed')
         setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'done' } : item))

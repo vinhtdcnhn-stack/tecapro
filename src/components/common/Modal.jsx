@@ -31,7 +31,9 @@ export default function Modal({
   // (onClose thường là arrow function inline, tạo mới mỗi render — nếu đưa vào
   // deps thì mỗi lần gõ phím sẽ làm effect chạy lại và focus nhảy về nút đầu.)
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  // Cập nhật ref sau mỗi render (không ghi ref trong thân render). Effect không deps →
+  // chạy sau mọi render; handler keydown/overlay đọc onCloseRef.current ở thời điểm sự kiện.
+  useEffect(() => { onCloseRef.current = onClose })
 
   // Effect này CHỈ phụ thuộc isOpen → chạy đúng một lần khi mở, không lặp lại
   // theo mỗi lần render (mỗi ký tự gõ vào).

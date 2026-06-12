@@ -5,18 +5,41 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { pool } from './db.js'
 import apiRoutes from './routes/index.js'
-import customerRoutes from './routes/customerRoutes.js'
+import { requireAuth } from './middleware/auth.js'
+import { logger } from './utils/logger.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const app = express()
 
-app.use(cors({ origin: true }))
+// Sau reverse proxy (nginx) trên VPS: tin X-Forwarded-* để req.ip phản ánh IP client thật (cho rate-limit).
+app.set('trust proxy', 1)
+
+// CORS: chỉ cho phép các origin trong ALLOWED_ORIGINS (phân tách bằng dấu phẩy).
+// Bật credentials để trình duyệt gửi cookie phiên. Nếu không cấu hình → phản chiếu origin (tiện cho dev).
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',').map(s => s.trim()).filter(Boolean)
+// Vì bật credentials (cookie phiên), KHÔNG phản chiếu mọi origin ở production:
+// reflect-any + credentials cho phép bất kỳ site nào gọi API thay người dùng.
+// - Có cấu hình ALLOWED_ORIGINS → chỉ cho phép danh sách đó.
+// - Không cấu hình, production → tắt CORS (chỉ same-origin; frontend prod phục vụ từ /dist nên không cần CORS).
+// - Không cấu hình, dev → phản chiếu origin cho tiện (Vite :5173 → API :5174).
+const isProd = process.env.NODE_ENV === 'production'
+if (!allowedOrigins.length && isProd) {
+  logger.warn('[cors] ALLOWED_ORIGINS chưa cấu hình ở production — chỉ cho phép same-origin. Đặt ALLOWED_ORIGINS nếu frontend khác origin.')
+}
+app.use(cors({
+  origin: allowedOrigins.length ? allowedOrigins : (isProd ? false : true),
+  credentials: true,
+}))
 app.use(express.json())
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+// Serve uploaded files — YÊU CẦU đăng nhập (link same-origin ở production tự gửi cookie phiên).
+// Tài liệu HĐ phục vụ qua /api/files/:id/view; mount này chủ yếu cho file đính kèm công việc.
+app.use('/uploads', requireAuth, express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+}))
 
 // Health check
 app.get('/api/health', async (_req, res) => {
@@ -24,9 +47,8 @@ app.get('/api/health', async (_req, res) => {
   res.json({ ok: true, db: r.rows[0].ok === 1 })
 })
 
-// Mount routes
+// Mount routes (apiRoutes tự chặn các route nội bộ bằng requireAuth, gồm cả /customers)
 app.use('/api', apiRoutes)
-app.use('/api', customerRoutes)
 
 // Serve React frontend in production
 const distPath = path.join(__dirname, '..', 'dist')
@@ -35,8 +57,23 @@ app.get('*splat', (_req, res) => {
   res.sendFile(path.join(distPath, 'index.html'))
 })
 
+// Global error handler — ghi log đầy đủ phía server, nhưng KHÔNG lộ stack trace cho client ở production.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, _next) => {
+  logger.error(`${req.method} ${req.originalUrl} →`, err)
+  if (res.headersSent) return
+  // Lỗi file vượt giới hạn của multer
+  if (err?.code === 'LIMIT_FILE_SIZE') {
+    res.status(413).json({ error: 'Tệp quá lớn (tối đa 50MB).' })
+    return
+  }
+  const status = err?.status || err?.statusCode || 500
+  const isProd = process.env.NODE_ENV === 'production'
+  res.status(status).json({ error: isProd ? 'Đã xảy ra lỗi máy chủ.' : (err?.message || 'Server error') })
+})
+
 const port = Number(process.env.PORT ?? 5174)
 
 app.listen(port, () => {
-  console.log(`[server] listening on http://localhost:${port}`)
+  logger.info(`[server] listening on http://localhost:${port}`)
 })

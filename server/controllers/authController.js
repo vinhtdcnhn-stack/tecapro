@@ -1,8 +1,28 @@
 import bcrypt from 'bcryptjs'
 import { pool } from '../db.js'
 import { sendTelegramMessage } from '../services/telegram.js'
+import { signToken, AUTH_COOKIE, TOKEN_MAX_AGE_SEC, revokeToken } from '../auth/token.js'
+import { parseCookies } from '../middleware/auth.js'
+import { loginLimiter } from '../middleware/loginRateLimit.js'
+import { logger } from '../utils/logger.js'
+
+// Số vòng bcrypt khi băm mật khẩu. Mật khẩu cũ băm ở cost thấp hơn vẫn xác thực
+// bình thường (cost được nhúng trong hash); chỉ hash mới dùng cost này.
+const BCRYPT_ROUNDS = 12
 
 // ==================== AUTH CONTROLLER ====================
+
+// Đặt cookie phiên httpOnly (không đọc được từ JS phía client).
+function setAuthCookie(res, user) {
+  const token = signToken({ uid: user.id, role: user.role })
+  res.cookie(AUTH_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: TOKEN_MAX_AGE_SEC * 1000,
+    path: '/',
+  })
+}
 
 export async function login(req, res) {
   const email = String(req.body?.email ?? '').trim().toLowerCase()
@@ -28,6 +48,7 @@ export async function login(req, res) {
   )
   const user = rows[0]
   if (!user) {
+    loginLimiter.fail(req)
     res.status(401).json({ error: 'Sai email hoặc mật khẩu.' })
     return
   }
@@ -40,6 +61,7 @@ export async function login(req, res) {
 
   const ok = await bcrypt.compare(password, user.password_hash)
   if (!ok) {
+    loginLimiter.fail(req)
     res.status(401).json({ error: 'Sai email hoặc mật khẩu.' })
     return
   }
@@ -51,6 +73,8 @@ export async function login(req, res) {
       `🔐 Tài khoản của bạn vừa đăng nhập vào hệ thống TECAPRO lúc ${now}.`,
     )
   }
+
+  setAuthCookie(res, user)
 
   const positions = user.positions || []
   res.json({
@@ -67,21 +91,18 @@ export async function login(req, res) {
   })
 }
 
-export async function seedAdmin(req, res) {
-  const email = String(req.body?.email ?? 'admin@tecapro.local')
-    .trim()
-    .toLowerCase()
-  const password = String(req.body?.password ?? 'admin123')
+export function logout(req, res) {
+  // Thu hồi token phía server (denylist) ngoài việc xoá cookie, để token bị lộ không tái dùng được.
+  const token = parseCookies(req)[AUTH_COOKIE]
+  if (token) revokeToken(token)
+  res.clearCookie(AUTH_COOKIE, { path: '/' })
+  res.json({ success: true })
+}
 
-  const passwordHash = await bcrypt.hash(password, 10)
-  const r = await pool.query(
-    `insert into app_user (email, password_hash)
-     values ($1, $2)
-     on conflict (email) do update set password_hash = excluded.password_hash
-     returning id, email`,
-    [email, passwordHash],
-  )
-  res.json({ user: r.rows[0], password })
+// Trả thông tin người dùng đang đăng nhập, lấy danh tính từ cookie (req.user) — không nhận id từ client.
+export async function getCurrentUser(req, res) {
+  req.params.id = req.user.id
+  return getUserById(req, res)
 }
 
 // ==================== USER CONTROLLER ====================
@@ -107,11 +128,14 @@ export async function createUser(req, res) {
     return
   }
 
-  const passwordHash = await bcrypt.hash(password, 10)
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
   const posIds = Array.isArray(position_ids) ? position_ids.map(Number).filter(Boolean) : []
 
+  // Transaction: tạo user + gán vị trí phải toàn vẹn (cùng thành công hoặc cùng hủy).
+  const client = await pool.connect()
   try {
-    const { rows } = await pool.query(
+    await client.query('BEGIN')
+    const { rows } = await client.query(
       `INSERT INTO app_user
         (username, email, password_hash, full_name, phone, employee_code, department_id, position_id, manager_id, role)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -131,16 +155,18 @@ export async function createUser(req, res) {
     )
     const userId = rows[0].id
     for (const pid of posIds) {
-      await pool.query(
+      await client.query(
         'INSERT INTO app_user_position (user_id, position_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
         [userId, pid]
       )
     }
+    await client.query('COMMIT')
     res.json({
       success: true,
       id: userId,
     })
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
     if (err.code === '23505') {
       const constraint = err.constraint || err.detail || ''
       
@@ -163,11 +189,13 @@ export async function createUser(req, res) {
       }
       return
     }
-    
-    console.error('Lỗi khi tạo user:', err)
+
+    logger.error('Lỗi khi tạo user:', err)
     res.status(500).json({
       error: 'Có lỗi xảy ra khi tạo nhân viên.'
     })
+  } finally {
+    client.release()
   }
 }
 
@@ -249,6 +277,15 @@ export async function getAllUsers(req, res) {
     ORDER BY u.id
   `)
 
+  // Non-admin chỉ cần id/tên/phòng ban/vị trí để hiển thị & phân công thành viên —
+  // KHÔNG lộ thông tin liên hệ/định danh (email, sđt, mã NV, telegram, username).
+  if (Number(req.user?.role) !== 1) {
+    for (const u of rows) {
+      delete u.email; delete u.phone; delete u.employee_code
+      delete u.telegram_chat_id; delete u.username
+    }
+  }
+
   res.json(rows)
 }
 
@@ -294,11 +331,14 @@ export async function updateUser(req, res) {
   const posIds = Array.isArray(position_ids) ? position_ids.map(Number).filter(Boolean) : []
   const tgChatId = telegram_chat_id?.trim() || null
 
+  // Transaction: cập nhật user + đồng bộ bảng vị trí phải toàn vẹn.
+  const client = await pool.connect()
   try {
+    await client.query('BEGIN')
     let rows
     if (password && password.trim() !== '') {
-      const passwordHash = await bcrypt.hash(password, 10)
-      ;({ rows } = await pool.query(
+      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
+      ;({ rows } = await client.query(
         `UPDATE app_user SET
            username=$1, email=$2, full_name=$3, phone=$4, employee_code=$5,
            department_id=$6, position_id=$7, manager_id=$8, role=$9,
@@ -309,7 +349,7 @@ export async function updateUser(req, res) {
          manager_id||null, role, passwordHash, tgChatId, id]
       ))
     } else {
-      ;({ rows } = await pool.query(
+      ;({ rows } = await client.query(
         `UPDATE app_user SET
            username=$1, email=$2, full_name=$3, phone=$4, employee_code=$5,
            department_id=$6, position_id=$7, manager_id=$8, role=$9,
@@ -322,21 +362,24 @@ export async function updateUser(req, res) {
     }
 
     if (rows.length === 0) {
+      await client.query('ROLLBACK')
       res.status(404).json({ error: 'Không tìm thấy người dùng.' })
       return
     }
 
     // Cập nhật junction table: xóa cũ, insert mới
-    await pool.query('DELETE FROM app_user_position WHERE user_id=$1', [id])
+    await client.query('DELETE FROM app_user_position WHERE user_id=$1', [id])
     for (const pid of posIds) {
-      await pool.query(
+      await client.query(
         'INSERT INTO app_user_position (user_id, position_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
         [id, pid]
       )
     }
 
+    await client.query('COMMIT')
     res.json({ success: true, id: rows[0].id })
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
     if (err.code === '23505') {
       const constraint = err.constraint || err.detail || ''
       if (constraint.includes('email')) {
@@ -350,8 +393,10 @@ export async function updateUser(req, res) {
       }
       return
     }
-    console.error('Lỗi khi cập nhật user:', err)
+    logger.error('Lỗi khi cập nhật user:', err)
     res.status(500).json({ error: 'Có lỗi xảy ra khi cập nhật người dùng.' })
+  } finally {
+    client.release()
   }
 }
 
@@ -381,7 +426,7 @@ export async function changePassword(req, res) {
     return
   }
 
-  const passwordHash = await bcrypt.hash(new_password, 10)
+  const passwordHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS)
   await pool.query('UPDATE app_user SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, id])
 
   res.json({ success: true })

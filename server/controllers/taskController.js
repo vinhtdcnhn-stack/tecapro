@@ -96,11 +96,9 @@ export async function updateTask(req, res) {
   }
 
   try {
-    const completedAt = status === 'Hoàn thành'
-      ? `(SELECT COALESCE(completed_at, NOW()) FROM contract_task WHERE id = ${id})`
-      : 'NULL'
-
     await pool.query(
+      // Hoàn thành: giữ thời điểm hoàn thành cũ nếu đã có (COALESCE đọc giá trị cũ của chính dòng),
+      // ngược lại lấy NOW(); trạng thái khác → NULL. Tham số hoá hoàn toàn, không nội suy chuỗi.
       `UPDATE contract_task SET
         title         = $1,
         description   = $2,
@@ -110,7 +108,7 @@ export async function updateTask(req, res) {
         due_date      = $6,
         status        = $7,
         note          = $8,
-        completed_at  = ${completedAt},
+        completed_at  = CASE WHEN $7 = 'Hoàn thành' THEN COALESCE(completed_at, NOW()) ELSE NULL END,
         updated_at    = NOW()
        WHERE id = $9`,
       [

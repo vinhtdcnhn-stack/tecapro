@@ -3,6 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
+import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -18,7 +19,7 @@ const storage = multer.diskStorage({
   },
 })
 
-export const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } })
+export const upload = multer({ storage, limits: UPLOAD_LIMITS, fileFilter: safeUploadFilter })
 
 export async function getAttachments(req, res) {
   const taskId = parseInt(req.params.taskId)
@@ -44,7 +45,8 @@ export async function uploadAttachment(req, res) {
 
   const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
   const filePath = `/uploads/tasks/${taskId}/${req.file.filename}`
-  const uploadedBy = req.body.uploaded_by ? parseInt(req.body.uploaded_by) : null
+  // Người upload lấy từ phiên đã xác thực (không tin id do client gửi) — đồng bộ với documentController.
+  const uploadedBy = req.user?.id || null
 
   try {
     const { rows } = await pool.query(

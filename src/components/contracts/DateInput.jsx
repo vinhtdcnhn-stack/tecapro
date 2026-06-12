@@ -8,6 +8,8 @@ import './DateInput.css'
 
 const pad = (n) => String(n).padStart(2, '0')
 
+// Helper ngày thuần, đặt cạnh component dùng chính (chỉ ảnh hưởng hot-reload dev, không ảnh hưởng build).
+// eslint-disable-next-line react-refresh/only-export-components
 export function isoToDisplay(iso) {
   if (!iso) return ''
   const m = String(iso).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -15,6 +17,7 @@ export function isoToDisplay(iso) {
 }
 
 // 'dd/mm/yyyy' (chấp nhận cả d/m/yyyy hoặc 8 chữ số 'ddmmyyyy') → 'yyyy-mm-dd' | null
+// eslint-disable-next-line react-refresh/only-export-components
 export function displayToIso(s) {
   if (!s) return ''
   const t = String(s).trim()
