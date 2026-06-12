@@ -1,45 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import './ContractBOQTab.css'
-import Modal from '../common/Modal'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import BOQMobile from './BOQMobile'
-import NumberInput from '../common/NumberInput'
+import PurchaseBOQRow from './PurchaseBOQRow'
+import PurchaseBOQImportModal from './PurchaseBOQImportModal'
+import { fmtNum, stripNum, calcAmounts, tmpId } from './boqUtils'
 
 import { API } from '../../config/api'
-
-// Định dạng tiền theo đồng tiền HĐ: VND → số nguyên (không thập phân); ngoại tệ → tối đa 2 chữ số lẻ.
-// Làm tròn trước khi xét phần lẻ để tránh sai số dấu phẩy động (vd 3841985400.0000001 → ,00).
-const fmtNum = (n, currency = 'VND') => {
-  let num = parseFloat(n) || 0
-  if (currency === 'VND') return new Intl.NumberFormat('vi-VN').format(Math.round(num))
-  num = Math.round(num * 100) / 100
-  return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num)
-}
-
-// Bỏ đuôi số 0 thừa khi hiển thị trong ô nhập (vd "62.0000" → "62", "1234.50" → "1234.5").
-const stripNum = (v) => (v === '' || v == null) ? '' : String(Number(v))
-
-// Số lượng KHÔNG làm tròn theo tiền tệ (có thể là số lẻ, vd 2,5).
-const fmtQty = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 4 }).format(num) }
-
-// Làm tròn tiền theo đồng tiền HĐ: VND → số nguyên; ngoại tệ → 2 chữ số lẻ.
-const roundMoney = (v, currency = 'VND') => {
-  const n = parseFloat(v) || 0
-  return currency === 'VND' ? Math.round(n) : Math.round(n * 100) / 100
-}
-
-function calcAmounts(qty, price, vat, currency = 'VND') {
-  const q = parseFloat(qty) || 0
-  const p = roundMoney(price, currency)
-  const v = parseFloat(vat) || 0
-  const before = roundMoney(q * p, currency)
-  const after  = roundMoney(before * (1 + v / 100), currency)
-  return { before, after }
-}
-
-let _ctr = 0
-const tmpId = () => `tmp_${++_ctr}`
 
 export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const [rows, setRows]               = useState([])
@@ -47,6 +15,11 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const [importData, setImportData]   = useState(null)
   const [importMode, setImportMode]   = useState('append')
   const [importSaving, setImportSaving] = useState(false)
+  const [search, setSearch]           = useState('')
+  const [selected, setSelected]       = useState(() => new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [dragKey, setDragKey]         = useState(null)   // _key của dòng đang kéo
+  const [dragOverKey, setDragOverKey] = useState(null)
   const excelRef = useRef(null)
 
   const toLocalRow = (r) => ({
@@ -59,6 +32,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
       const res  = await fetch(`${API}/contract-ins/${contractInId}/boq`)
       const data = await res.json()
       setRows((Array.isArray(data) ? data : []).map(r => toLocalRow(r)))
+      setSelected(new Set())
     } catch (e) { console.error('load purchase BOQ:', e) }
     finally { setLoading(false) }
   }, [contractInId])
@@ -110,6 +84,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
     try {
       await fetch(`${API}/purchase-boq/${row.id}`, { method: 'DELETE' })
       setRows(prev => prev.filter(r => r._key !== row._key))
+      setSelected(prev => { const n = new Set(prev); n.delete(row._key); return n })
     } catch { alert('Không thể xóa dòng này.') }
   }
 
@@ -128,10 +103,131 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
     return r._key
   }
 
+  // ── Kéo-thả đổi thứ tự ─────────────────────────────────────────────────────
+  // Chỉ cho phép kéo dòng đã lưu (có id).
+
+  const persistOrder = async (orderedRows) => {
+    const ids = orderedRows.filter(r => !r._isNew && r.id).map(r => r.id)
+    if (!ids.length) return
+    try {
+      await fetch(`${API}/contract-ins/${contractInId}/boq/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+    } catch (e) {
+      console.error('reorder purchase BOQ:', e)
+      load()  // khôi phục thứ tự từ server nếu lỗi
+    }
+  }
+
+  const handleDragStart = (e, key) => {
+    // Không bắt đầu kéo khi thao tác trong ô nhập liệu
+    const tag = e.target.tagName
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON') {
+      e.preventDefault()
+      return
+    }
+    setDragKey(key)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', key)  // Firefox cần dữ liệu để khởi động kéo
+  }
+
+  const handleDragOver = (e) => {
+    if (!dragKey) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDragEnter = (key) => {
+    if (dragKey && key !== dragKey) setDragOverKey(key)
+  }
+
+  const handleDragEnd = () => { setDragKey(null); setDragOverKey(null) }
+
+  const handleDrop = (e, targetKey) => {
+    e.preventDefault()
+    if (!dragKey || dragKey === targetKey) { handleDragEnd(); return }
+
+    // Thả ở nửa dưới của dòng đích → chèn sau, nửa trên → chèn trước
+    const rect = e.currentTarget.getBoundingClientRect()
+    const after = (e.clientY - rect.top) > rect.height / 2
+
+    let reordered = null
+    setRows(prev => {
+      const copy = [...prev]
+      const from = copy.findIndex(r => r._key === dragKey)
+      if (from < 0) return prev
+      const [moved] = copy.splice(from, 1)
+      const to = copy.findIndex(r => r._key === targetKey)
+      if (to < 0) return prev
+      copy.splice(after ? to + 1 : to, 0, moved)
+      reordered = copy
+      return copy
+    })
+    if (reordered) persistOrder(reordered)
+    handleDragEnd()
+  }
+
   const isMobile = useIsMobile()
 
   // Ctrl+S: lưu tất cả dòng đang sửa
   useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
+
+  // ── Lọc theo tên hàng ─────────────────────────────────────────────────────
+  // Dòng mới (_isNew) luôn hiển thị để không bị ẩn khi đang lọc. Giữ số thứ tự gốc qua idx.
+  const visibleRows = useMemo(() => {
+    const kw = search.trim().toLowerCase()
+    return rows
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ r }) => {
+        if (r._isNew) return true
+        if (!kw) return true
+        return (r.item_name || '').toLowerCase().includes(kw)
+      })
+  }, [rows, search])
+
+  const isFiltering = search.trim() !== ''
+
+  // ── Chọn nhiều dòng để xóa loạt ────────────────────────────────────────────
+  const toggleSelect = (key) =>
+    setSelected(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
+
+  const selectableKeys = visibleRows.filter(({ r }) => !r._isNew).map(({ r }) => r._key)
+  const allSelected = selectableKeys.length > 0 && selectableKeys.every(k => selected.has(k))
+
+  const toggleSelectAll = () =>
+    setSelected(prev => {
+      if (allSelected) { const n = new Set(prev); selectableKeys.forEach(k => n.delete(k)); return n }
+      return new Set([...prev, ...selectableKeys])
+    })
+
+  const selectedCount = selected.size
+
+  const bulkDelete = async () => {
+    const keys = [...selected]
+    const targets = rows.filter(r => keys.includes(r._key))
+    const ids = targets.filter(r => !r._isNew && r.id).map(r => r.id)
+    if (!confirm(`Xóa ${targets.length} dòng đã chọn?`)) return
+
+    setBulkDeleting(true)
+    try {
+      if (ids.length) {
+        const res = await fetch(`${API}/purchase-boq/bulk-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        })
+        if (!res.ok) throw new Error('Bulk delete failed')
+      }
+      setRows(prev => prev.filter(r => !keys.includes(r._key)))
+      setSelected(new Set())
+    } catch {
+      alert('Không thể xóa các dòng đã chọn.')
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
 
   const handleExcelFile = async (e) => {
     const file = e.target.files[0]
@@ -212,10 +308,46 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
         </div>
       </div>
 
+      {/* ── Filter / bulk actions bar ── */}
+      <div className="boq-filterbar">
+        <div className="boq-filter-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Tìm theo tên hàng hóa..."
+          />
+          {search && <button className="boq-filter-clear" onClick={() => setSearch('')} title="Xóa tìm kiếm">×</button>}
+        </div>
+
+        {isFiltering && (
+          <span className="boq-filter-count">Hiển thị {visibleRows.length}/{rows.length} dòng</span>
+        )}
+
+        <div className="boq-filter-spacer" />
+
+        {selectedCount > 0 && (
+          <>
+            <span className="boq-sel-count">Đã chọn {selectedCount}</span>
+            <button className="boq-btn boq-btn-danger" onClick={bulkDelete} disabled={bulkDeleting}>
+              {bulkDeleting ? 'Đang xóa…' : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                  Xóa {selectedCount} dòng
+                </>
+              )}
+            </button>
+          </>
+        )}
+      </div>
+
       {/* ── Table (desktop) / Cards (mobile) ── */}
       {isMobile ? (
         <BOQMobile
-          rows={rows} currency={currency}
+          rows={visibleRows.map(v => v.r)} currency={currency}
           set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow} totals={totals}
           showHs={false} showType={false}
         />
@@ -224,6 +356,15 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
         <table className="boq-table">
           <thead>
             <tr>
+              <th className="th-select">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  disabled={selectableKeys.length === 0}
+                  title="Chọn tất cả"
+                />
+              </th>
               <th className="th-stt">#</th>
               <th className="th-name">Danh mục hàng hóa</th>
               <th className="th-unit">ĐVT</th>
@@ -239,82 +380,42 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="10" className="boq-empty">
+                <td colSpan="11" className="boq-empty">
                   Chưa có dữ liệu bảng giá mua.
                   Nhấn <strong>Thêm dòng</strong> hoặc <strong>Import Excel</strong> để bắt đầu.
                 </td>
               </tr>
-            ) : rows.map((row, idx) => {
-              const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
-              return (
-                <tr key={row._key} className={[
-                  row._isNew  ? 'row-new'   : '',
-                  row._dirty  ? 'row-dirty' : '',
-                  row._saving ? 'row-saving': '',
-                ].filter(Boolean).join(' ')}>
-                  <td className="td-stt">
-                    {row._dirty && <span className="dirty-dot" title="Chưa lưu" />}
-                    <span className="stt-num">{idx + 1}</span>
-                  </td>
-                  <td className="td-name">
-                    <input type="text" value={row.item_name}
-                      onChange={e => set(row._key, 'item_name', e.target.value)}
-                      placeholder="Nhập tên hàng hóa..." />
-                  </td>
-                  <td className="td-unit">
-                    <input type="text" value={row.unit}
-                      onChange={e => set(row._key, 'unit', e.target.value)}
-                      placeholder="Bộ" />
-                  </td>
-                  <td className="td-num">
-                    <input type="number" value={row.quantity}
-                      onChange={e => set(row._key, 'quantity', e.target.value)}
-                      placeholder="0" min="0" />
-                  </td>
-                  <td className="td-num">
-                    <NumberInput value={row.unit_price}
-                      onChange={v => set(row._key, 'unit_price', v)}
-                      placeholder="0" />
-                  </td>
-                  <td className="td-amt computed">{fmtNum(before, currency)}</td>
-                  <td className="td-vat">
-                    <input type="number" value={row.vat_rate}
-                      onChange={e => set(row._key, 'vat_rate', e.target.value)}
-                      placeholder="10" min="0" max="100" />
-                  </td>
-                  <td className="td-amt computed">{fmtNum(after, currency)}</td>
-                  <td className="td-warranty">
-                    <input type="text" value={row.warranty_period}
-                      onChange={e => set(row._key, 'warranty_period', e.target.value)}
-                      placeholder="12 tháng" />
-                  </td>
-                  <td className="td-action">
-                    <div className="action-group">
-                      {row._dirty && (
-                        <button className="act save" onClick={() => saveRow(row)} disabled={row._saving} title="Lưu dòng">
-                          {row._saving
-                            ? <span className="spin">⟳</span>
-                            : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
-                          }
-                        </button>
-                      )}
-                      <button className="act insert" onClick={() => insertAfter(row)}
-                        title="Thêm dòng bên dưới" disabled={row._isNew && !row.id}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                      </button>
-                      <button className="act delete" onClick={() => deleteRow(row)} title="Xóa dòng">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
+            ) : visibleRows.length === 0 ? (
+              <tr>
+                <td colSpan="11" className="boq-empty">Không có dòng nào khớp tìm kiếm.</td>
+              </tr>
+            ) : visibleRows.map(({ r, idx }) => (
+              <PurchaseBOQRow
+                key={r._key}
+                row={r}
+                idx={idx}
+                currency={currency}
+                selected={selected.has(r._key)}
+                onToggleSelect={toggleSelect}
+                set={set}
+                saveRow={saveRow}
+                insertAfter={insertAfter}
+                deleteRow={deleteRow}
+                canDrag={!isFiltering && !r._isNew && !!r.id}
+                isDragging={dragKey === r._key}
+                isDragOver={dragOverKey === r._key}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
+              />
+            ))}
           </tbody>
           {rows.length > 0 && (
             <tfoot>
               <tr className="totals-row">
-                <td colSpan="5" className="totals-label">TỔNG CỘNG</td>
+                <td colSpan="6" className="totals-label">TỔNG CỘNG</td>
                 <td className="td-amt">{fmtNum(totals.before, currency)}</td>
                 <td />
                 <td className="td-amt">{fmtNum(totals.after, currency)}</td>
@@ -328,74 +429,15 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
 
       {/* ── Import modal ── */}
       {importData && (
-        <Modal onClose={() => setImportData(null)} contentClassName="boq-import-modal" labelledBy="boqin-import-title">
-            <div className="boq-import-header">
-              <div>
-                <h3 id="boqin-import-title">Preview dữ liệu Excel</h3>
-                <p className="boq-import-count">{importData.total} dòng dữ liệu</p>
-              </div>
-              <button className="btn-close-preview" onClick={() => setImportData(null)} aria-label="Đóng">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                </svg>
-              </button>
-            </div>
-            <div className="boq-import-mode">
-              <label>
-                <input type="radio" value="append" checked={importMode==='append'} onChange={()=>setImportMode('append')} />
-                Thêm vào cuối danh sách hiện có
-              </label>
-              <label>
-                <input type="radio" value="replace" checked={importMode==='replace'} onChange={()=>setImportMode('replace')} />
-                <span className="replace-warn">Xóa toàn bộ và nhập mới</span>
-              </label>
-            </div>
-            <div className="boq-import-hint">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-              Định dạng cột Excel: A=Danh mục · B=ĐVT · C=Số lượng · D=Đơn giá · E=VAT(%) · F=Thời hạn bảo hành
-            </div>
-            <div className="boq-import-preview">
-              <table className="boq-table">
-                <thead>
-                  <tr>
-                    <th className="th-stt">#</th>
-                    <th className="th-name">Danh mục hàng hóa</th>
-                    <th className="th-unit">ĐVT</th>
-                    <th className="th-num">Số lượng</th>
-                    <th className="th-num">Đơn giá</th>
-                    <th className="th-amt">Trước VAT</th>
-                    <th className="th-vat">VAT%</th>
-                    <th className="th-amt">Sau VAT</th>
-                    <th className="th-warranty">Bảo hành</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {importData.items.map((item, idx) => {
-                    const { before, after } = calcAmounts(item.quantity, item.unit_price, item.vat_rate, currency)
-                    return (
-                      <tr key={idx}>
-                        <td className="td-stt"><span className="stt-num">{idx+1}</span></td>
-                        <td className="td-name"><span className="preview-text">{item.item_name}</span></td>
-                        <td className="td-unit"><span className="preview-text">{item.unit}</span></td>
-                        <td className="td-num"><span className="preview-text">{fmtQty(item.quantity)}</span></td>
-                        <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price, currency)}</span></td>
-                        <td className="td-amt computed">{fmtNum(before, currency)}</td>
-                        <td className="td-vat"><span className="preview-text">{item.vat_rate}%</span></td>
-                        <td className="td-amt computed">{fmtNum(after, currency)}</td>
-                        <td className="td-warranty"><span className="preview-text">{item.warranty_period}</span></td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div className="boq-import-footer">
-              <button className="btn-cancel" onClick={() => setImportData(null)}>Hủy</button>
-              <button className="btn-confirm" onClick={confirmImport} disabled={importSaving}>
-                {importSaving ? 'Đang lưu...' : `Xác nhận nhập ${importData.total} dòng`}
-              </button>
-            </div>
-        </Modal>
+        <PurchaseBOQImportModal
+          importData={importData}
+          importMode={importMode}
+          importSaving={importSaving}
+          currency={currency}
+          onModeChange={setImportMode}
+          onConfirm={confirmImport}
+          onClose={() => setImportData(null)}
+        />
       )}
     </div>
   )

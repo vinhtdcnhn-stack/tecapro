@@ -201,6 +201,57 @@ export async function deletePurchaseBOQItem(req, res) {
   }
 }
 
+// POST /contract-ins/:contractInId/boq/reorder  { ids: [...] } — đổi thứ tự dòng
+export async function reorderPurchaseBOQ(req, res) {
+  const { contractInId } = req.params
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : []
+  if (!ids.length) return res.status(400).json({ error: 'No ids provided' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    for (let i = 0; i < ids.length; i++) {
+      await client.query(
+        'UPDATE contract_in_boq SET sort_order = $1 WHERE id = $2 AND contract_in_id = $3',
+        [i + 1, ids[i], contractInId]
+      )
+    }
+    await client.query('COMMIT')
+    res.json({ message: 'Reordered', count: ids.length })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('reorderPurchaseBOQ:', err)
+    res.status(500).json({ error: 'Không thể đổi thứ tự dòng' })
+  } finally {
+    client.release()
+  }
+}
+
+// POST /purchase-boq/bulk-delete  { ids: [...] } — xóa nhiều dòng trong 1 transaction
+export async function bulkDeletePurchaseBOQItems(req, res) {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : []
+  if (!ids.length) return res.status(400).json({ error: 'No ids provided' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rows } = await client.query(
+      'DELETE FROM contract_in_boq WHERE id = ANY($1::bigint[]) RETURNING contract_in_id',
+      [ids]
+    )
+    const contractInIds = [...new Set(rows.map(r => r.contract_in_id))]
+    for (const cid of contractInIds) await syncContractInTotal(cid, client)
+    await client.query('COMMIT')
+    res.json({ message: 'Deleted', count: rows.length })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('bulkDeletePurchaseBOQItems:', err)
+    res.status(500).json({ error: 'Không thể xóa các dòng đã chọn' })
+  } finally {
+    client.release()
+  }
+}
+
 // POST /contract-ins/:contractInId/boq/import  (parse Excel → preview)
 export async function importPurchaseBOQPreview(req, res) {
   try {

@@ -9,6 +9,8 @@ import {
   deletePurchaseBOQItem,
   importPurchaseBOQPreview,
   saveImportedPurchaseBOQ,
+  reorderPurchaseBOQ,
+  bulkDeletePurchaseBOQItems,
 } from '../controllers/contractInBOQController.js'
 
 const router = Router()
@@ -19,6 +21,8 @@ router.post('/contract-ins/:contractInId/boq',                          createPu
 router.post('/contract-ins/:contractInId/boq/after/:refId',             insertPurchaseBOQAfter)
 router.post('/contract-ins/:contractInId/boq/import',    excelUploadIn.single('file'), importPurchaseBOQPreview)
 router.post('/contract-ins/:contractInId/boq/save-import',              saveImportedPurchaseBOQ)
+router.post('/contract-ins/:contractInId/boq/reorder',                  reorderPurchaseBOQ)
+router.post('/purchase-boq/bulk-delete',                                bulkDeletePurchaseBOQItems)
 router.put('/purchase-boq/:id',                                         updatePurchaseBOQItem)
 router.delete('/purchase-boq/:id',                                      deletePurchaseBOQItem)
 
