@@ -223,10 +223,10 @@ export default function ContractInGuaranteeTab({ contractInId }) {
                     <td>
                       <DateInput value={row.expiry_date?.slice(0, 10) || ''}
                         onChange={e => set(row._key, 'expiry_date', e.target.value)} />
-                      {!row._isNew && days !== null && days >= 0 && days <= 30 && (
+                      {!row._isNew && computed !== 'Đã hoàn trả' && days !== null && days >= 0 && days <= 30 && (
                         <span className="expiry-warn">Còn {days} ngày</span>
                       )}
-                      {!row._isNew && days !== null && days < 0 && (
+                      {!row._isNew && computed !== 'Đã hoàn trả' && days !== null && days < 0 && (
                         <span className="expiry-error">Quá hạn {Math.abs(days)} ngày</span>
                       )}
                     </td>
