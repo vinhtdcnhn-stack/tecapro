@@ -16,6 +16,9 @@ venv/
 .env.local
 *.env.*
 
+# Uploaded files (managed on server, not tracked in git)
+server/uploads/
+
 # Logs and temp files
 *.log
 *.tmp
