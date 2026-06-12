@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url'
 import { pool } from './db.js'
 import apiRoutes from './routes/index.js'
 import { requireAuth } from './middleware/auth.js'
+import { securityHeaders } from './middleware/securityHeaders.js'
 import { logger } from './utils/logger.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -13,8 +14,15 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 
+// Ẩn header X-Powered-By: Express (giảm lộ thông tin framework).
+app.disable('x-powered-by')
+
 // Sau reverse proxy (nginx) trên VPS: tin X-Forwarded-* để req.ip phản ánh IP client thật (cho rate-limit).
 app.set('trust proxy', 1)
+
+// Security headers tổng thể (nosniff, X-Frame-Options, Referrer-Policy, CSP ở production).
+// Đặt sớm để áp cho mọi response: API, file phục vụ tĩnh, lẫn SPA dist.
+app.use(securityHeaders)
 
 // CORS: chỉ cho phép các origin trong ALLOWED_ORIGINS (phân tách bằng dấu phẩy).
 // Bật credentials để trình duyệt gửi cookie phiên. Nếu không cấu hình → phản chiếu origin (tiện cho dev).
@@ -33,6 +41,16 @@ app.use(cors({
   origin: allowedOrigins.length ? allowedOrigins : (isProd ? false : true),
   credentials: true,
 }))
+// Body JSON: giữ mặc định 100KB (chống body lớn làm tốn RAM/CPU), nhưng các endpoint
+// import nhận mảng JSON lớn (BOQ/serial parse từ Excel) được nới riêng 2MB — file vài
+// nghìn dòng vượt 100KB là tình huống thật. Parser nới phải mount TRƯỚC parser mặc định:
+// body-parser bỏ qua request đã được parser trước đọc xong.
+app.use([
+  '/api/contracts/:contractId/boq/save-import',
+  '/api/contract-ins/:contractInId/boq/save-import',
+  '/api/contracts/:id/equipment/import',
+  '/api/contracts/:id/serials/import',
+], express.json({ limit: '2mb' }))
 app.use(express.json())
 
 // Serve uploaded files — YÊU CẦU đăng nhập (link same-origin ở production tự gửi cookie phiên).
@@ -41,14 +59,25 @@ app.use('/uploads', requireAuth, express.static(path.join(__dirname, 'uploads'),
   setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
 }))
 
-// Health check
+// Health check — public, nên cache kết quả DB 5 giây: spam endpoint này không được
+// phép chiếm connection của pool (pg.Pool mặc định max 10) làm nghẽn request thật.
+let healthCache = { at: 0, db: false }
 app.get('/api/health', async (_req, res) => {
-  const r = await pool.query('select 1 as ok')
-  res.json({ ok: true, db: r.rows[0].ok === 1 })
+  if (Date.now() - healthCache.at > 5000) {
+    const r = await pool.query('select 1 as ok')
+    healthCache = { at: Date.now(), db: r.rows[0].ok === 1 }
+  }
+  res.json({ ok: true, db: healthCache.db })
 })
 
 // Mount routes (apiRoutes tự chặn các route nội bộ bằng requireAuth, gồm cả /customers)
 app.use('/api', apiRoutes)
+
+// 404 rõ ràng cho API/uploads không khớp: nếu không, request rơi xuống SPA fallback
+// bên dưới và trả index.html (HTML 200) — che lỗi và gây nhầm cho client gọi API.
+app.use(['/api', '/uploads'], (_req, res) => {
+  res.status(404).json({ error: 'Not found' })
+})
 
 // Serve React frontend in production
 const distPath = path.join(__dirname, '..', 'dist')

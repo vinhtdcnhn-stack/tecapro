@@ -275,7 +275,7 @@ export async function importPurchaseBOQPreview(req, res) {
     res.json({ items, total: items.length })
   } catch (err) {
     console.error('importPurchaseBOQPreview:', err)
-    res.status(500).json({ error: 'Lỗi đọc file: ' + err.message })
+    res.status(500).json({ error: 'Không đọc được file Excel. Kiểm tra lại định dạng file.' })
   }
 }
 

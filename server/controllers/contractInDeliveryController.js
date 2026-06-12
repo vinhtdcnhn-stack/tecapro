@@ -361,6 +361,7 @@ export async function importDeliverySerials(req, res) {
     }
   } catch (err) {
     console.error('importDeliverySerials:', err)
-    res.status(500).json({ error: 'Lỗi import serial: ' + err.message })
+    // err ở đây có thể là lỗi Postgres (FK/constraint) — không trả message thô lộ tên bảng/constraint.
+    res.status(500).json({ error: 'Lỗi import serial. Kiểm tra lại file hoặc thử lại sau.' })
   }
 }
