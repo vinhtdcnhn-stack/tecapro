@@ -75,13 +75,13 @@ ss -tlnp | grep 5174        # nếu 0.0.0.0:5174 → cần firewall chặn 5174 
 | 3.5 | Kiểm tra mass-assignment: update user ([authController.updateUser](server/controllers/authController.js)) có cho phép tự set `role = 1` qua body không (kể cả qua change-password / self-update path) | ✅ | An toàn: `changePassword` (self-or-admin) chỉ update `password_hash`, không nhận `role`; `createUser`/`updateUser` nhận `role` nhưng đều `requireAdmin`; `getCurrentUser` lấy id từ phiên; không có self-update profile path nào khác. Bonus: `getAllUsers` ẩn email/sđt/mã NV/telegram/username với non-admin ✓. |
 | 3.6 | Kiểm tra warrantyLookupController — đây có phải route tra cứu public/semi-public không, lộ dữ liệu gì | ✅ | KHÔNG public — `/warranty-lookup` mount sau `requireAuth` ✓. Trả serial → HĐ bán/nhập + tên khách hàng/NCC + hạn bảo hành cho **mọi user đăng nhập** (tra cứu cross-contract có chủ đích, chấp nhận với app nội bộ — nhưng lưu ý nếu sau này siết F-11 thì đây là ngoại lệ cố ý). `replaceSerial`/`replaceDeliverySerial` cũng không check membership — thuộc phạm vi F-11. |
 
-## Giai đoạn 4 — SQL Injection
+## Giai đoạn 4 — SQL Injection ✅ Đã xong (không phát hiện lỗ hổng)
 
-| # | Bước | Trạng thái |
-|---|------|-----------|
-| 4.1 | Grep toàn bộ `server/` tìm string interpolation trong SQL: `` query(` `` + `${`, `pool.query(.*\+`, `' || '` — mọi query phải dùng tham số `$1, $2...` | ⬜ |
-| 4.2 | Soát kỹ các chỗ build SQL động: ORDER BY / sort column, filter, search (`ILIKE`), bulk insert (warrantyImportController, BOQ import) — cột sort phải qua allowlist, không nối trực tiếp từ client | ⬜ |
-| 4.3 | Kiểm tra `LIMIT`/`OFFSET` phân trang có ép kiểu số không | ⬜ |
+| # | Bước | Trạng thái | Kết quả |
+|---|------|-----------|---------|
+| 4.1 | Grep toàn bộ `server/` tìm string interpolation trong SQL: `` query(` `` + `${`, `pool.query(.*\+`, `' || '` — mọi query phải dùng tham số `$1, $2...` | ✅ | Sạch. Mọi chỗ nội suy `${}` / nối `+` trong SQL đều là **hằng số server-side** (`BASE_SELECT`, `WARRANTY_SELECT`, `SELECT_FIELDS`, `IN_PROGRESS_SELECT`) hoặc placeholder `$n` sinh từ index ([contractMemberController.js:29](server/controllers/contractMemberController.js#L29), [contractInCustomsController.js:46](server/controllers/contractInCustomsController.js#L46)); dữ liệu client luôn đi qua mảng params. Query duy nhất ngoài controllers ([middleware/auth.js:37](server/middleware/auth.js#L37), health-check [index.js:46](server/index.js#L46)) cũng tham số hóa/tĩnh ✓. |
+| 4.2 | Soát kỹ các chỗ build SQL động: ORDER BY / sort column, filter, search (`ILIKE`), bulk insert (warrantyImportController, BOQ import) — cột sort phải qua allowlist, không nối trực tiếp từ client | ✅ | Không có ORDER BY/sort/search (`ILIKE`) nào nhận từ client — mọi ORDER BY đều hard-code. Các chỗ build SQL động đã soát từng cái: `pmFilter` ([contractController.js:15](server/controllers/contractController.js#L15)) dùng `$1` ✓; `UPDATE ${table} SET ${sets}` ([warrantyController.js:184](server/controllers/warrantyController.js#L184)) — `table` do 2 wrapper server truyền cứng, `sets` là chuỗi cố định ✓; `${table}` trong [serialUtils.js](server/controllers/serialUtils.js) — cả 17 call site chỉ truyền hằng `TABLE_DELIVERY`/`TABLE_EQUIPMENT` ✓; `${FIELDS.join()}` (customs) là mảng cứng ✓. Bulk insert (warrantyImportController, importComponentSerials, BOQ save-all, bulkDeleteBOQ `ANY($1::bigint[])`, bulkDeleteSerials `ANY($1::int[])`) đều tham số hóa ✓. |
+| 4.3 | Kiểm tra `LIMIT`/`OFFSET` phân trang có ép kiểu số không | ✅ | App **không có phân trang** từ client — không tồn tại `OFFSET`, mọi `LIMIT` đều là `LIMIT 1` hard-code trong SQL tĩnh (contractInDeliveryController, warrantyImportController, contractInLogisticsController, progressController). Không có vector. |
 
 ## Giai đoạn 5 — Upload & phục vụ file
 
