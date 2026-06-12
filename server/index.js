@@ -74,6 +74,11 @@ app.use((err, req, res, _next) => {
 
 const port = Number(process.env.PORT ?? 5174)
 
-app.listen(port, () => {
-  logger.info(`[server] listening on http://localhost:${port}`)
+// Production chỉ bind loopback: mọi truy cập từ ngoài phải qua nginx, không gọi thẳng
+// được vào Express để giả X-Forwarded-For vượt rate-limit (trust proxy 1). Override
+// bằng env HOST nếu hạ tầng khác (vd chạy trong container cần 0.0.0.0).
+const host = process.env.HOST || (process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0')
+
+app.listen(port, host, () => {
+  logger.info(`[server] listening on http://${host}:${port}`)
 })
