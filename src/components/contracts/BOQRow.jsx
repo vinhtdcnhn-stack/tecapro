@@ -1,11 +1,12 @@
 import { fmtNum, calcAmounts } from './boqUtils'
+import NumberInput from '../common/NumberInput'
 
 // Một dòng trong bảng giá (BOQ). Tách riêng để giữ ContractBOQTab gọn dưới 500 dòng.
 export default function BOQRow({
   row, idx, currency, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow,
   canDrag, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
-  const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate)
+  const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
   const isDiThang = row.item_type === 'di_thang'
 
   return (
@@ -79,12 +80,10 @@ export default function BOQRow({
       </td>
 
       <td className="td-num">
-        <input
-          type="number"
+        <NumberInput
           value={row.unit_price}
-          onChange={e => set(row._key, 'unit_price', e.target.value)}
+          onChange={v => set(row._key, 'unit_price', v)}
           placeholder="0"
-          min="0"
         />
       </td>
 

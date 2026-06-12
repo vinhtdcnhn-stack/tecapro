@@ -1,17 +1,11 @@
 import Modal from '../common/Modal'
 import './ContractBOQTab.css'
+import { fmtNum, calcAmounts } from './boqUtils'
 
-const fmtNum = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
+// Số lượng KHÔNG làm tròn theo tiền tệ (có thể là số lẻ, vd 2,5).
+const fmtQty = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 4 }).format(num) }
 
-function calcAmounts(qty, price, vat) {
-  const q = parseFloat(qty) || 0
-  const p = parseFloat(price) || 0
-  const v = parseFloat(vat) || 0
-  const before = q * p
-  return { before, after: before * (1 + v / 100) }
-}
-
-export default function BOQImportModal({ importData, importMode, importSaving, onModeChange, onConfirm, onClose }) {
+export default function BOQImportModal({ importData, importMode, importSaving, currency = 'VND', onModeChange, onConfirm, onClose }) {
   return (
     <Modal onClose={onClose} contentClassName="boq-import-modal" labelledBy="boq-import-title">
 
@@ -61,18 +55,18 @@ export default function BOQImportModal({ importData, importMode, importSaving, o
             </thead>
             <tbody>
               {importData.items.map((item, idx) => {
-                const { before, after } = calcAmounts(item.quantity, item.unit_price, item.vat_rate)
+                const { before, after } = calcAmounts(item.quantity, item.unit_price, item.vat_rate, currency)
                 return (
                   <tr key={idx}>
                     <td className="td-stt"><span className="stt-num">{idx + 1}</span></td>
                     <td className="td-name"><span className="preview-text">{item.item_name}</span></td>
                     <td className="td-hs"><span className="preview-text">{item.hs_code}</span></td>
                     <td className="td-unit"><span className="preview-text">{item.unit}</span></td>
-                    <td className="td-num"><span className="preview-text">{fmtNum(item.quantity)}</span></td>
-                    <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price)}</span></td>
-                    <td className="td-amt computed">{fmtNum(before)}</td>
+                    <td className="td-num"><span className="preview-text">{fmtQty(item.quantity)}</span></td>
+                    <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price, currency)}</span></td>
+                    <td className="td-amt computed">{fmtNum(before, currency)}</td>
                     <td className="td-vat"><span className="preview-text">{item.vat_rate}%</span></td>
-                    <td className="td-amt computed">{fmtNum(after)}</td>
+                    <td className="td-amt computed">{fmtNum(after, currency)}</td>
                     <td className="td-warranty"><span className="preview-text">{item.warranty_period}</span></td>
                   </tr>
                 )

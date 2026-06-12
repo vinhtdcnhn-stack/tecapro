@@ -4,6 +4,7 @@ import Modal from '../common/Modal'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import BOQMobile from './BOQMobile'
+import NumberInput from '../common/NumberInput'
 
 import { API } from '../../config/api'
 
@@ -19,12 +20,22 @@ const fmtNum = (n, currency = 'VND') => {
 // Bỏ đuôi số 0 thừa khi hiển thị trong ô nhập (vd "62.0000" → "62", "1234.50" → "1234.5").
 const stripNum = (v) => (v === '' || v == null) ? '' : String(Number(v))
 
-function calcAmounts(qty, price, vat) {
+// Số lượng KHÔNG làm tròn theo tiền tệ (có thể là số lẻ, vd 2,5).
+const fmtQty = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 4 }).format(num) }
+
+// Làm tròn tiền theo đồng tiền HĐ: VND → số nguyên; ngoại tệ → 2 chữ số lẻ.
+const roundMoney = (v, currency = 'VND') => {
+  const n = parseFloat(v) || 0
+  return currency === 'VND' ? Math.round(n) : Math.round(n * 100) / 100
+}
+
+function calcAmounts(qty, price, vat, currency = 'VND') {
   const q = parseFloat(qty) || 0
-  const p = parseFloat(price) || 0
+  const p = roundMoney(price, currency)
   const v = parseFloat(vat) || 0
-  const before = q * p
-  return { before, after: before * (1 + v / 100) }
+  const before = roundMoney(q * p, currency)
+  const after  = roundMoney(before * (1 + v / 100), currency)
+  return { before, after }
 }
 
 let _ctr = 0
@@ -65,7 +76,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
 
   const saveRow = async (row) => {
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
-    const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate)
+    const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
     const body = {
       item_name: row.item_name, unit: row.unit,
       quantity: row.quantity, unit_price: row.unit_price,
@@ -156,7 +167,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   }
 
   const totals = rows.reduce((acc, r) => {
-    const { before, after } = calcAmounts(r.quantity, r.unit_price, r.vat_rate)
+    const { before, after } = calcAmounts(r.quantity, r.unit_price, r.vat_rate, currency)
     return { before: acc.before + before, after: acc.after + after }
   }, { before: 0, after: 0 })
 
@@ -234,7 +245,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 </td>
               </tr>
             ) : rows.map((row, idx) => {
-              const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate)
+              const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
               return (
                 <tr key={row._key} className={[
                   row._isNew  ? 'row-new'   : '',
@@ -261,9 +272,9 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                       placeholder="0" min="0" />
                   </td>
                   <td className="td-num">
-                    <input type="number" value={row.unit_price}
-                      onChange={e => set(row._key, 'unit_price', e.target.value)}
-                      placeholder="0" min="0" />
+                    <NumberInput value={row.unit_price}
+                      onChange={v => set(row._key, 'unit_price', v)}
+                      placeholder="0" />
                   </td>
                   <td className="td-amt computed">{fmtNum(before, currency)}</td>
                   <td className="td-vat">
@@ -360,13 +371,13 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 </thead>
                 <tbody>
                   {importData.items.map((item, idx) => {
-                    const { before, after } = calcAmounts(item.quantity, item.unit_price, item.vat_rate)
+                    const { before, after } = calcAmounts(item.quantity, item.unit_price, item.vat_rate, currency)
                     return (
                       <tr key={idx}>
                         <td className="td-stt"><span className="stt-num">{idx+1}</span></td>
                         <td className="td-name"><span className="preview-text">{item.item_name}</span></td>
                         <td className="td-unit"><span className="preview-text">{item.unit}</span></td>
-                        <td className="td-num"><span className="preview-text">{fmtNum(item.quantity, currency)}</span></td>
+                        <td className="td-num"><span className="preview-text">{fmtQty(item.quantity)}</span></td>
                         <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price, currency)}</span></td>
                         <td className="td-amt computed">{fmtNum(before, currency)}</td>
                         <td className="td-vat"><span className="preview-text">{item.vat_rate}%</span></td>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { fmtNum, calcAmounts } from './boqUtils'
 import MobileEditSheet, { Field } from './MobileEditSheet'
+import NumberInput from '../common/NumberInput'
 
 // Phiên bản mobile của Bảng giá: danh sách thẻ tóm tắt, chạm để mở sheet sửa đúng dòng.
 // Tái dùng nguyên các handler của ContractBOQTab (set / saveRow / deleteRow / addRow).
@@ -12,13 +13,13 @@ export default function BOQMobile({ rows, currency, set, saveRow, deleteRow, add
   const onSave  = () => { if (editing) saveRow(editing); setEditingKey(null) }
   const onDel   = () => { if (editing) deleteRow(editing); setEditingKey(null) }
 
-  const amt = editing ? calcAmounts(editing.quantity, editing.unit_price, editing.vat_rate) : null
+  const amt = editing ? calcAmounts(editing.quantity, editing.unit_price, editing.vat_rate, currency) : null
 
   return (
     <div className="boq-mobile">
       <div className="mcards">
         {rows.map((r, i) => {
-          const { after } = calcAmounts(r.quantity, r.unit_price, r.vat_rate)
+          const { after } = calcAmounts(r.quantity, r.unit_price, r.vat_rate, currency)
           return (
             <div
               key={r._key}
@@ -75,8 +76,8 @@ export default function BOQMobile({ rows, currency, set, saveRow, deleteRow, add
               onChange={e => set(editing._key, 'quantity', e.target.value)} />
           </Field>
           <Field label="Đơn giá">
-            <input type="number" min="0" value={editing.unit_price} placeholder="0"
-              onChange={e => set(editing._key, 'unit_price', e.target.value)} />
+            <NumberInput value={editing.unit_price} placeholder="0"
+              onChange={v => set(editing._key, 'unit_price', v)} />
           </Field>
           <Field label="VAT (%)">
             <input type="number" min="0" max="100" value={editing.vat_rate} placeholder="10"

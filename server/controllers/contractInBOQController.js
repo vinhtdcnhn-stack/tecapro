@@ -1,6 +1,7 @@
 import { pool } from '../db.js'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
+import { roundMoney } from '../utils/money.js'
 
 export const excelUploadIn = multer({
   storage: multer.memoryStorage(),
@@ -11,12 +12,23 @@ export const excelUploadIn = multer({
   }
 })
 
-function calc(qty, unitPrice, vatRate) {
+// Tính tiền theo đồng tiền HĐ nhập. Làm tròn đơn giá + thành tiền trước/sau VAT:
+// VND → số nguyên, ngoại tệ → 2 chữ số lẻ.
+function calc(qty, unitPrice, vatRate, currency) {
   const q = parseFloat(qty) || 0
-  const p = parseFloat(unitPrice) || 0
+  const p = roundMoney(unitPrice, currency)
   const v = parseFloat(vatRate) || 0
-  const before = q * p
-  return { before, after: before * (1 + v / 100) }
+  const before = roundMoney(q * p, currency)
+  const after  = roundMoney(before * (1 + v / 100), currency)
+  return { price: p, before, after }
+}
+
+// Lấy đồng tiền của HĐ nhập (mặc định VND)
+async function getContractInCurrency(contractInId, db = pool) {
+  const { rows } = await db.query(
+    'SELECT currency_code FROM contract_in WHERE id = $1', [contractInId]
+  )
+  return rows[0]?.currency_code || 'VND'
 }
 
 // Đồng bộ tổng giá trị HĐ nhập = SUM(amount_after_vat) của bảng giá mua (nguyên tệ HĐ).
@@ -84,7 +96,8 @@ export async function createPurchaseBOQItem(req, res) {
   try {
     const { contractInId } = req.params
     const { item_name, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
-    const { before, after } = calc(quantity, unit_price, vat_rate)
+    const currency = await getContractInCurrency(contractInId)
+    const { price, before, after } = calc(quantity, unit_price, vat_rate, currency)
     const { rows: mx } = await pool.query(
       'SELECT COALESCE(MAX(sort_order), 0) AS m FROM contract_in_boq WHERE contract_in_id = $1',
       [contractInId]
@@ -97,7 +110,7 @@ export async function createPurchaseBOQItem(req, res) {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *`,
       [contractInId, sortOrder, item_name||'', unit||'',
-       parseFloat(quantity)||0, parseFloat(unit_price)||0,
+       parseFloat(quantity)||0, price,
        before, parseFloat(vat_rate)||0, after, warranty_period||'']
     )
     await syncContractInTotal(contractInId)
@@ -123,7 +136,8 @@ export async function insertPurchaseBOQAfter(req, res) {
       'UPDATE contract_in_boq SET sort_order = sort_order + 1 WHERE contract_in_id = $1 AND sort_order > $2',
       [contractInId, refSort]
     )
-    const { before, after } = calc(quantity, unit_price, vat_rate)
+    const currency = await getContractInCurrency(contractInId)
+    const { price, before, after } = calc(quantity, unit_price, vat_rate, currency)
     const { rows } = await pool.query(`
       INSERT INTO contract_in_boq
         (contract_in_id, sort_order, item_name, unit, quantity, unit_price,
@@ -131,7 +145,7 @@ export async function insertPurchaseBOQAfter(req, res) {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *`,
       [contractInId, refSort+1, item_name||'', unit||'',
-       parseFloat(quantity)||0, parseFloat(unit_price)||0,
+       parseFloat(quantity)||0, price,
        before, parseFloat(vat_rate)||0, after, warranty_period||'']
     )
     await syncContractInTotal(contractInId)
@@ -146,14 +160,20 @@ export async function insertPurchaseBOQAfter(req, res) {
 export async function updatePurchaseBOQItem(req, res) {
   try {
     const { item_name, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
-    const { before, after } = calc(quantity, unit_price, vat_rate)
+    const { rows: cur } = await pool.query(
+      `SELECT c.currency_code FROM contract_in_boq b
+       JOIN contract_in c ON c.id = b.contract_in_id
+       WHERE b.id = $1`, [req.params.id]
+    )
+    const currency = cur[0]?.currency_code || 'VND'
+    const { price, before, after } = calc(quantity, unit_price, vat_rate, currency)
     const { rows } = await pool.query(`
       UPDATE contract_in_boq SET
         item_name=$1, unit=$2, quantity=$3, unit_price=$4,
         amount_before_vat=$5, vat_rate=$6, amount_after_vat=$7,
         warranty_period=$8, updated_at=NOW()
       WHERE id=$9 RETURNING *`,
-      [item_name||'', unit||'', parseFloat(quantity)||0, parseFloat(unit_price)||0,
+      [item_name||'', unit||'', parseFloat(quantity)||0, price,
        before, parseFloat(vat_rate)||0, after, warranty_period||'', req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
@@ -222,6 +242,7 @@ export async function saveImportedPurchaseBOQ(req, res) {
       if (replaceAll) {
         await client.query('DELETE FROM contract_in_boq WHERE contract_in_id = $1', [contractInId])
       }
+      const currency = await getContractInCurrency(contractInId, client)
       const { rows: mx } = await client.query(
         'SELECT COALESCE(MAX(sort_order), 0) AS m FROM contract_in_boq WHERE contract_in_id = $1',
         [contractInId]
@@ -229,14 +250,14 @@ export async function saveImportedPurchaseBOQ(req, res) {
       let sortOrder = Number(mx[0].m) + 1
       const saved = []
       for (const item of items) {
-        const { before, after } = calc(item.quantity, item.unit_price, item.vat_rate)
+        const { price, before, after } = calc(item.quantity, item.unit_price, item.vat_rate, currency)
         const { rows } = await client.query(`
           INSERT INTO contract_in_boq
             (contract_in_id, sort_order, item_name, unit, quantity, unit_price,
              amount_before_vat, vat_rate, amount_after_vat, warranty_period)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
           [contractInId, sortOrder++, item.item_name||'', item.unit||'',
-           parseFloat(item.quantity)||0, parseFloat(item.unit_price)||0,
+           parseFloat(item.quantity)||0, price,
            before, parseFloat(item.vat_rate)||0, after, item.warranty_period||'']
         )
         saved.push(rows[0])

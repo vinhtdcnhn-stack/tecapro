@@ -76,7 +76,7 @@ export default function ContractBOQTab({ contractId }) {
   const saveRow = async (row) => {
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
 
-    const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate)
+    const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
     const body = {
       item_name:        row.item_name,
       hs_code:          row.hs_code,
@@ -335,7 +335,7 @@ export default function ContractBOQTab({ contractId }) {
   // ── Totals ────────────────────────────────────────────────────────────────────
 
   const totals = rows.reduce((acc, r) => {
-    const { before, after } = calcAmounts(r.quantity, r.unit_price, r.vat_rate)
+    const { before, after } = calcAmounts(r.quantity, r.unit_price, r.vat_rate, currency)
     return { before: acc.before + before, after: acc.after + after }
   }, { before: 0, after: 0 })
 
@@ -526,6 +526,7 @@ export default function ContractBOQTab({ contractId }) {
           importData={importData}
           importMode={importMode}
           importSaving={importSaving}
+          currency={currency}
           onModeChange={setImportMode}
           onConfirm={confirmImport}
           onClose={() => setImportData(null)}
