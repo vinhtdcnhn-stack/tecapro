@@ -10,6 +10,10 @@ import { logger } from '../utils/logger.js'
 // bình thường (cost được nhúng trong hash); chỉ hash mới dùng cost này.
 const BCRYPT_ROUNDS = 12
 
+// Hash mồi cho login khi email không tồn tại: vẫn chạy bcrypt.compare để hai nhánh
+// (có user / không có user) tốn thời gian như nhau — chống dò email qua timing.
+const DUMMY_HASH = bcrypt.hashSync('timing-equalizer-dummy', BCRYPT_ROUNDS)
+
 // Độ dài tối thiểu khi ĐẶT mật khẩu mới (create/update/change-password).
 // Mật khẩu cũ ngắn hơn vẫn đăng nhập được — chỉ chặn khi đặt mới.
 const PASSWORD_MIN_LENGTH = 8
@@ -55,6 +59,7 @@ export async function login(req, res) {
   )
   const user = rows[0]
   if (!user) {
+    await bcrypt.compare(password, DUMMY_HASH) // cân bằng timing với nhánh có user
     loginLimiter.fail(req)
     res.status(401).json({ error: 'Sai email hoặc mật khẩu.' })
     return
