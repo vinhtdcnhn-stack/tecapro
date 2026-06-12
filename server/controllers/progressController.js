@@ -94,7 +94,9 @@ export async function getProgress(req, res) {
 export async function createProgress(req, res) {
   try {
     const { contractId } = req.params
-    const { bb_type_id, planned_date, actual_date, reason, penalty_note, offset_days, base_bb_type_id, base_anchor } = req.body
+    const { bb_type_id, planned_date, actual_date, reason, penalty_note,
+            offset_days, base_bb_type_id, base_anchor,
+            hd_offset_days, hd_base_bb_type_id, hd_base_anchor } = req.body
 
     const { rows: mx } = await pool.query(
       'SELECT COALESCE(MAX(sort_order), 0) AS m FROM public.contract_out_progress WHERE contract_out_id = $1',
@@ -104,14 +106,17 @@ export async function createProgress(req, res) {
 
     const { rows } = await pool.query(`
       INSERT INTO public.contract_out_progress
-        (contract_out_id, bb_type_id, sort_order, planned_date, actual_date, reason, penalty_note, offset_days, base_bb_type_id, base_anchor)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        (contract_out_id, bb_type_id, sort_order, planned_date, actual_date, reason, penalty_note,
+         offset_days, base_bb_type_id, base_anchor, hd_offset_days, hd_base_bb_type_id, hd_base_anchor)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING *
     `, [contractId, bb_type_id || null, sortOrder,
         planned_date || null, actual_date || null,
         reason || '', penalty_note || '',
         offset_days === '' || offset_days == null ? null : parseInt(offset_days, 10),
-        base_bb_type_id || null, base_anchor || null])
+        base_bb_type_id || null, base_anchor || null,
+        hd_offset_days === '' || hd_offset_days == null ? null : parseInt(hd_offset_days, 10),
+        hd_base_bb_type_id || null, hd_base_anchor || null])
 
     // Re-fetch with type info
     const { rows: full } = await pool.query(
@@ -126,7 +131,9 @@ export async function createProgress(req, res) {
 
 export async function updateProgress(req, res) {
   try {
-    const { bb_type_id, planned_date, actual_date, reason, penalty_note, offset_days, base_bb_type_id, base_anchor } = req.body
+    const { bb_type_id, planned_date, actual_date, reason, penalty_note,
+            offset_days, base_bb_type_id, base_anchor,
+            hd_offset_days, hd_base_bb_type_id, hd_base_anchor } = req.body
 
     const { rows } = await pool.query(`
       UPDATE public.contract_out_progress SET
@@ -138,13 +145,18 @@ export async function updateProgress(req, res) {
         offset_days     = $6,
         base_bb_type_id = $7,
         base_anchor     = $8,
+        hd_offset_days     = $9,
+        hd_base_bb_type_id = $10,
+        hd_base_anchor     = $11,
         updated_at      = now()
-      WHERE id = $9
+      WHERE id = $12
       RETURNING *
     `, [bb_type_id || null, planned_date || null, actual_date || null,
         reason || '', penalty_note || '',
         offset_days === '' || offset_days == null ? null : parseInt(offset_days, 10),
         base_bb_type_id || null, base_anchor || null,
+        hd_offset_days === '' || hd_offset_days == null ? null : parseInt(hd_offset_days, 10),
+        hd_base_bb_type_id || null, hd_base_anchor || null,
         req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })

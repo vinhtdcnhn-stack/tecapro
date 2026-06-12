@@ -1,13 +1,22 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Fragment } from 'react'
 import './ContractProgressTab.css'
 
 import { API } from '../../config/api'
-import { getStatusInfo, computeForecasts, fmtDate, forecastHint, tmpId } from './progressUtils'
+import { getStatusInfo, computeForecasts, computePlannedDates, fmtDate, forecastHint, tmpId } from './progressUtils'
 import BBTypeManager from './BBTypeManager'
 import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import ProgressMobile from './ProgressMobile'
+
+// Badge trạng thái nhỏ đặt ngay dưới ngày trong ô (giống "Thời hạn thu" ở Công nợ).
+function StatusBadgeInline({ st }) {
+  if (!st || st.type === 'unknown') return null
+  const icon = st.type === 'ok' ? '✓ '
+    : (st.type === 'late' || st.type === 'overdue') ? '⚠ '
+    : st.type === 'pending' ? '⏳ ' : ''
+  return <span className={`dc-status badge-${st.type}`}>{icon}{st.label}</span>
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -45,7 +54,9 @@ export default function ContractProgressTab({ contractId }) {
   function emptyRow() {
     return {
       id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-      bb_type_id: '', offset_days: '', base_bb_type_id: '', base_anchor: '', planned_date: '', actual_date: '', reason: '', penalty_note: '',
+      bb_type_id: '', offset_days: '', base_bb_type_id: '', base_anchor: '',
+      hd_offset_days: '', hd_base_bb_type_id: '', hd_base_anchor: '',
+      planned_date: '', actual_date: '', reason: '', penalty_note: '',
       bb_code: '', bb_name: '',
     }
   }
@@ -55,7 +66,7 @@ export default function ContractProgressTab({ contractId }) {
   const set = (key, field, value) =>
     setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: value, _dirty: true } : r))
 
-  // Chọn mốc gốc: '' = BB trước, 'contract' = ngày ký HĐ, còn lại = id loại biên bản
+  // Mốc gốc "Ngày dự kiến": '' = BB trước, 'contract' = ngày ký HĐ, còn lại = id loại biên bản
   const setBase = (key, val) =>
     setRows(prev => prev.map(r => r._key === key ? {
       ...r, _dirty: true,
@@ -63,16 +74,29 @@ export default function ContractProgressTab({ contractId }) {
       base_bb_type_id: (val === 'contract' || val === '') ? '' : val,
     } : r))
 
+  // Mốc gốc "Ngày theo HĐ": '' = Nhập ngày (tay), 'contract' = ngày ký HĐ, còn lại = id loại biên bản
+  const setHdBase = (key, val) =>
+    setRows(prev => prev.map(r => r._key === key ? {
+      ...r, _dirty: true,
+      hd_base_anchor:     val === 'contract' ? 'contract' : '',
+      hd_base_bb_type_id: (val === 'contract' || val === '') ? '' : val,
+    } : r))
+
   // ── Save ────────────────────────────────────────────────────────────────────
 
   const saveRow = async (row) => {
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
+    // Lưu "Ngày theo HĐ" đã giải (động theo mốc gốc hoặc nhập tay) để nơi khác đọc được mốc thực.
+    const plannedMap = computePlannedDates(rows, contractDate)
     const body = {
       bb_type_id:   row.bb_type_id || null,
       offset_days:  row.offset_days,
       base_bb_type_id: row.base_bb_type_id || null,
       base_anchor:  row.base_anchor || null,
-      planned_date: row.planned_date || null,
+      hd_offset_days: row.hd_offset_days,
+      hd_base_bb_type_id: row.hd_base_bb_type_id || null,
+      hd_base_anchor: row.hd_base_anchor || null,
+      planned_date: plannedMap[row._key] || null,
       actual_date:  row.actual_date  || null,
       reason:       row.reason,
       penalty_note: row.penalty_note,
@@ -112,8 +136,9 @@ export default function ContractProgressTab({ contractId }) {
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
-  // Ngày dự kiến (động) — tính theo thứ tự hiển thị (đã sort theo sort_order ở backend)
-  const forecasts = computeForecasts(rows, contractDate)
+  // Ngày theo HĐ (động) + Ngày dự kiến (động) — tính theo thứ tự hiển thị (đã sort ở backend)
+  const plannedDates = computePlannedDates(rows, contractDate)
+  const forecasts    = computeForecasts(rows, contractDate, plannedDates)
 
   const savedRows  = rows.filter(r => !r._isNew)
   const doneCount  = savedRows.filter(r => r.actual_date).length
@@ -159,9 +184,11 @@ export default function ContractProgressTab({ contractId }) {
       {/* ── Table (desktop) / Cards (mobile) ── */}
       {isMobile ? (
         <ProgressMobile
-          rows={rows} bbTypes={bbTypes} baseOptions={baseOptions} forecasts={forecasts}
+          rows={rows} bbTypes={bbTypes} baseOptions={baseOptions}
+          forecasts={forecasts} plannedDates={plannedDates}
           getStatusInfo={getStatusInfo}
-          set={set} setBase={setBase} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
+          set={set} setBase={setBase} setHdBase={setHdBase}
+          saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
         />
       ) : (
       <div className="prog-table-wrapper">
@@ -170,11 +197,9 @@ export default function ContractProgressTab({ contractId }) {
             <tr>
               <th className="th-stt">#</th>
               <th className="th-type">Loại biên bản</th>
-              <th className="th-offset">Số ngày (tính từ BB)</th>
-              <th className="th-date">Ngày theo HĐ</th>
-              <th className="th-date">Ngày dự kiến</th>
+              <th className="th-datecol">Ngày theo HĐ</th>
+              <th className="th-datecol">Ngày dự kiến</th>
               <th className="th-date">Ngày thực tế</th>
-              <th className="th-status">Trạng thái</th>
               <th className="th-reason">Nguyên nhân chậm trễ</th>
               <th className="th-penalty">Biên bản phạt</th>
               <th className="th-action"></th>
@@ -183,18 +208,26 @@ export default function ContractProgressTab({ contractId }) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="10" className="prog-empty">
+                <td colSpan="8" className="prog-empty">
                   Chưa có biên bản nào. Nhấn <strong>Thêm biên bản</strong> để bắt đầu.
                 </td>
               </tr>
             ) : rows.map((row, idx) => {
               const forecast = forecasts[row._key]
-              const status = getStatusInfo(forecast, row.actual_date)
+              const status = getStatusInfo(forecast, row.actual_date)           // theo Ngày dự kiến
+              const hdStatus = getStatusInfo(plannedDates[row._key], row.actual_date) // theo Ngày theo HĐ
               const isLate = status.type === 'late' || status.type === 'overdue'
               const hint = !row.actual_date ? forecastHint(forecast) : null
+              // Mốc gốc của 2 cột ngày (động). Ngày theo HĐ: '' = nhập tay; Ngày dự kiến: '' = BB trước.
+              const hdBaseVal   = row.hd_base_anchor === 'contract' ? 'contract' : (row.hd_base_bb_type_id || '')
+              const hdComputed  = hdBaseVal !== ''
+              const fcBaseVal   = row.base_anchor === 'contract' ? 'contract' : (row.base_bb_type_id || '')
+              const otherBases  = baseOptions.filter(o => String(o.bb_type_id) !== String(row.bb_type_id))
               return (
-                <tr key={row._key}
+                <Fragment key={row._key}>
+                <tr
                   className={[
+                    'prog-card-row',
                     `status-${status.type}`,
                     row._dirty   ? 'row-dirty'  : '',
                     row._isNew   ? 'row-new'    : '',
@@ -220,42 +253,56 @@ export default function ContractProgressTab({ contractId }) {
                     </select>
                   </td>
 
-                  <td className="td-offset">
-                    <div className="offset-cell">
-                      <input
-                        className="offset-days"
-                        type="number" min="0"
-                        value={row.offset_days ?? ''}
-                        placeholder="20"
-                        title="Số ngày kể từ ngày thực tế của biên bản gốc — dùng để tính Ngày dự kiến"
-                        onChange={e => set(row._key, 'offset_days', e.target.value)}
-                      />
-                      <span className="offset-from">từ</span>
-                      <select
-                        className="offset-base"
-                        value={row.base_anchor === 'contract' ? 'contract' : (row.base_bb_type_id || '')}
-                        title="Mốc gốc để tính số ngày"
-                        onChange={e => setBase(row._key, e.target.value)}
-                      >
-                        <option value="">BB trước</option>
-                        <option value="contract">Ngày ký HĐ</option>
-                        {baseOptions
-                          .filter(o => String(o.bb_type_id) !== String(row.bb_type_id))
-                          .map(o => <option key={o.bb_type_id} value={o.bb_type_id}>{o.code}</option>)}
-                      </select>
+                  {/* Ngày theo HĐ: mốc gốc + số ngày (theo Ngày theo HĐ của mốc), hoặc nhập tay */}
+                  <td className="td-datecol">
+                    <div className="prog-datecell">
+                      <div className="dc-row">
+                        <select className="dc-base" value={hdBaseVal}
+                          title="Mốc tính Ngày theo HĐ: nhập ngày trực tiếp, hoặc số ngày kể từ ngày ký HĐ / biên bản khác"
+                          onChange={e => setHdBase(row._key, e.target.value)}>
+                          <option value="">Nhập ngày</option>
+                          <option value="contract">Ngày ký HĐ</option>
+                          {otherBases.map(o => <option key={o.bb_type_id} value={o.bb_type_id}>{o.code}</option>)}
+                        </select>
+                        {hdComputed && (
+                          <>
+                            <input className="dc-days" type="number" min="0"
+                              value={row.hd_offset_days ?? ''} placeholder="0"
+                              title="Số ngày kể từ mốc gốc"
+                              onChange={e => set(row._key, 'hd_offset_days', e.target.value)} />
+                            <span className="dc-from">ngày</span>
+                          </>
+                        )}
+                      </div>
+                      {hdComputed
+                        ? <span className="dc-resolved">→ {fmtDate(plannedDates[row._key])}</span>
+                        : <DateInput value={row.planned_date?.slice(0, 10) || ''}
+                            onChange={e => set(row._key, 'planned_date', e.target.value)} />}
+                      <StatusBadgeInline st={hdStatus} />
                     </div>
                   </td>
 
-                  <td className="td-date">
-                    <DateInput
-                      value={row.planned_date?.slice(0, 10) || ''}
-                      onChange={e => set(row._key, 'planned_date', e.target.value)}
-                    />
-                  </td>
-
-                  <td className="td-date td-forecast">
-                    <span className="forecast-date">{fmtDate(forecast)}</span>
-                    {hint && <span className={`forecast-tag forecast-${hint.type}`}>{hint.label}</span>}
+                  {/* Ngày dự kiến: mốc gốc + số ngày (theo ngày thực tế đã ký) → tự tính */}
+                  <td className="td-datecol td-forecast">
+                    <div className="prog-datecell">
+                      <div className="dc-row">
+                        <select className="dc-base" value={fcBaseVal}
+                          title="Mốc gốc tính Ngày dự kiến (theo ngày thực tế đã ký của mốc)"
+                          onChange={e => setBase(row._key, e.target.value)}>
+                          <option value="">BB trước</option>
+                          <option value="contract">Ngày ký HĐ</option>
+                          {otherBases.map(o => <option key={o.bb_type_id} value={o.bb_type_id}>{o.code}</option>)}
+                        </select>
+                        <input className="dc-days" type="number" min="0"
+                          value={row.offset_days ?? ''} placeholder="0"
+                          title="Số ngày kể từ ngày thực tế của mốc gốc"
+                          onChange={e => set(row._key, 'offset_days', e.target.value)} />
+                        <span className="dc-from">ngày</span>
+                      </div>
+                      <span className="dc-resolved">→ {fmtDate(forecast)}</span>
+                      <StatusBadgeInline st={status} />
+                      {hint && <span className={`forecast-tag forecast-${hint.type}`}>{hint.label}</span>}
+                    </div>
                   </td>
 
                   <td className="td-date">
@@ -263,16 +310,6 @@ export default function ContractProgressTab({ contractId }) {
                       value={row.actual_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'actual_date', e.target.value)}
                     />
-                  </td>
-
-                  <td className="td-status">
-                    <span className={`status-badge badge-${status.type}`}>
-                      {status.type === 'ok'      && '✓ '}
-                      {status.type === 'late'    && '⚠ '}
-                      {status.type === 'overdue' && '⚠ '}
-                      {status.type === 'pending' && '⏳ '}
-                      {status.label}
-                    </span>
                   </td>
 
                   <td className="td-reason">
@@ -310,6 +347,8 @@ export default function ContractProgressTab({ contractId }) {
                     </div>
                   </td>
                 </tr>
+                <tr className="prog-row-gap" aria-hidden="true"><td colSpan="8" /></tr>
+                </Fragment>
               )
             })}
           </tbody>

@@ -14,16 +14,19 @@ export default function QldaPage() {
 
   async function loadContracts() {
     try {
-      const res = await fetch(`${API}/api/contracts`)
+      // Truyền userId để backend lọc: admin xem tất cả, PM chỉ xem HĐ mình phụ trách.
+      const qs = user?.id ? `?userId=${user.id}` : ''
+      const res = await fetch(`${API}/api/contracts${qs}`)
       setContracts(await res.json())
     } catch (err) { console.error(err) }
   }
 
   useEffect(() => {
+    if (!user?.id) return
     loadContracts()
     fetch(`${API}/api/users`).then(r => r.json()).then(setUsers).catch(console.error)
     fetch(`${API}/api/customers`).then(r => r.json()).then(setCustomers).catch(console.error)
-  }, [])
+  }, [user])
 
   return (
     <main className="page admin-page">

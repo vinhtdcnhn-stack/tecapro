@@ -40,7 +40,52 @@ const addDays = (isoDate, n) => {
 //  - base_anchor='contract' → tính từ ngày ký hợp đồng (contractDate) + offset_days.
 //  - Biên bản đầu tiên (không có mốc gốc) → lấy mốc theo HĐ / ngày thực tế của chính nó.
 // rows phải theo đúng thứ tự sort_order. Trả về map _key → ngày (yyyy-mm-dd) hoặc null.
-export function computeForecasts(rows, contractDate = null) {
+// "Ngày theo HĐ (động)": deadline theo hợp đồng, tính theo NGÀY THEO HĐ của mốc gốc
+// (không phải ngày thực tế — khác với computeForecasts):
+//  - hd_base_anchor='contract' → ngày ký HĐ + hd_offset_days.
+//  - hd_base_bb_type_id        → Ngày theo HĐ (đã giải) của biên bản gốc + hd_offset_days.
+//  - cả hai trống              → nhập ngày trực tiếp (planned_date).
+// Giải đệ quy có chặn vòng lặp; trả về map _key → ngày (yyyy-mm-dd) hoặc null.
+export function computePlannedDates(rows, contractDate = null) {
+  const anchorDate = contractDate ? contractDate.slice(0, 10) : null
+  const byType = new Map()
+  rows.forEach(r => {
+    const t = r.bb_type_id
+    if (t != null && t !== '' && !byType.has(String(t))) byType.set(String(t), r)
+  })
+
+  const out = {}
+  const visiting = new Set()
+  function resolve(r) {
+    if (!r) return null
+    if (Object.prototype.hasOwnProperty.call(out, r._key)) return out[r._key]
+    if (visiting.has(r._key)) return null   // chặn tham chiếu vòng
+    visiting.add(r._key)
+
+    const manual    = r.planned_date ? r.planned_date.slice(0, 10) : null
+    const offset    = parseInt(r.hd_offset_days, 10)
+    const hasOffset = Number.isFinite(offset)
+
+    let result
+    if (r.hd_base_anchor === 'contract') {
+      result = (anchorDate && hasOffset) ? addDays(anchorDate, offset) : null
+    } else if (r.hd_base_bb_type_id != null && r.hd_base_bb_type_id !== '') {
+      const baseRow  = byType.get(String(r.hd_base_bb_type_id))
+      const baseDate = (baseRow && baseRow._key !== r._key) ? resolve(baseRow) : null
+      result = (baseDate && hasOffset) ? addDays(baseDate, offset) : null
+    } else {
+      result = manual   // 'Nhập ngày' (mặc định)
+    }
+
+    visiting.delete(r._key)
+    out[r._key] = result
+    return result
+  }
+  rows.forEach(resolve)
+  return out
+}
+
+export function computeForecasts(rows, contractDate = null, plannedMap = null) {
   const anchorDate = contractDate ? contractDate.slice(0, 10) : null
   // Map loại BB → dòng đầu tiên mang loại đó (để tra "mốc gốc")
   const byType = new Map()
@@ -53,7 +98,10 @@ export function computeForecasts(rows, contractDate = null) {
 
   const out = {}
   rows.forEach((r, idx) => {
-    const planned   = r.planned_date ? r.planned_date.slice(0, 10) : null
+    // "Ngày theo HĐ" đã giải (nếu có) dùng làm mốc cho biên bản đầu tiên.
+    const planned   = plannedMap
+      ? (plannedMap[r._key] || null)
+      : (r.planned_date ? r.planned_date.slice(0, 10) : null)
     const offset    = parseInt(r.offset_days, 10)
     const hasOffset = Number.isFinite(offset)
     const baseRow   = (r.base_bb_type_id != null && r.base_bb_type_id !== '')

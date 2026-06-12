@@ -95,35 +95,66 @@
 }
 
 .prog-table tbody td {
-  padding: 4px 6px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 9px 6px;
+  border-bottom: none;
   vertical-align: middle;
 }
-.prog-table tbody tr:last-child td { border-bottom: none; }
+
+/* ── Mỗi biên bản là một "thẻ": viền bao quanh + khoảng trống giữa các thẻ ── */
+.prog-table tbody tr.prog-card-row > td { border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+.prog-table tbody tr.prog-card-row > td:first-child { border-left: 1px solid #cbd5e1; }
+.prog-table tbody tr.prog-card-row > td:last-child  { border-right: 1px solid #cbd5e1; }
+
+/* Hàng đệm tạo khoảng trống giữa các thẻ */
+.prog-table tbody tr.prog-row-gap > td { height: 10px; padding: 0; background: #fff; border: none; }
+.prog-table tbody tr.prog-row-gap:hover { filter: none; }
 
 /* ── Column widths ────────────────────────────────────────────────────────── */
 
 .th-stt    { width: 44px; text-align: center !important; }
 .th-type   { min-width: 200px; }
-.th-offset { width: 196px; text-align: center !important; }
+.th-datecol { width: 188px; }
 .th-date   { width: 140px; }
 .th-status { width: 140px; }
 .th-reason { min-width: 180px; }
 .th-penalty { width: 160px; }
 .th-action { width: 72px; }
 
-/* ── Số ngày + Ngày dự kiến (động) ────────────────────────────────────────── */
+/* ── Ô ngày gộp (mốc gốc + số ngày + ngày kết quả) — dùng cho Ngày theo HĐ & Ngày dự kiến ── */
 
-.offset-cell { display: flex; align-items: center; gap: 4px; }
-.offset-cell .offset-days { width: 52px; text-align: center; flex: 0 0 auto; }
-.offset-cell .offset-from { font-size: 11px; color: #94a3b8; flex: 0 0 auto; }
-.offset-cell .offset-base { flex: 1 1 auto; min-width: 64px; padding-left: 4px !important; padding-right: 2px !important; }
+.prog-datecell { display: flex; flex-direction: column; gap: 3px; }
+.prog-datecell .dc-row { display: flex; align-items: center; gap: 4px; }
+.prog-table td .prog-datecell .dc-base {
+  flex: 1 1 auto; min-width: 64px;
+  font-size: 12px; padding-left: 5px !important; padding-right: 2px !important;
+}
+.prog-table td .prog-datecell .dc-days {
+  width: 44px; flex: 0 0 auto; text-align: center;
+  padding-left: 4px !important; padding-right: 2px !important;
+}
+.prog-datecell .dc-from { font-size: 11px; color: #94a3b8; flex: 0 0 auto; }
+.prog-datecell .dc-resolved {
+  font-size: 12px; font-weight: 600; color: #334155;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+
+/* Badge trạng thái nằm dưới ngày trong ô (dùng màu .badge-{type} sẵn có) */
+.prog-datecell .dc-status {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  border-radius: 999px;
+  white-space: nowrap;
+}
 
 .td-forecast { white-space: nowrap; }
-.td-forecast .forecast-date { font-weight: 600; color: #334155; font-variant-numeric: tabular-nums; }
 .td-forecast .forecast-tag {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   font-size: 10px;
   font-weight: 700;
   line-height: 1.4;

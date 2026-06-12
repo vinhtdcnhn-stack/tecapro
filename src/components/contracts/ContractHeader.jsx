@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react'
 
+// Ngày ký → 'dd/mm/yyyy' (dùng giờ địa phương để khớp ô "Ngày ký" trong tab thông tin).
+const fmtSignedDate = (d) => {
+  if (!d) return ''
+  const dt = new Date(d)
+  if (isNaN(dt)) return ''
+  return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`
+}
+
 export default function ContractHeader({ contract }) {
   const [loading, setLoading] = useState(true)
 
@@ -19,10 +27,15 @@ export default function ContractHeader({ contract }) {
 
   return (
     <div className="contract-header">
-      {/* Dòng đầu: Tên dự án và Số hợp đồng - Căn giữa */}
+      {/* Dòng đầu: Tên dự án và Số hợp đồng + ngày ký - Căn giữa */}
       <div className="contract-header-title">
         <h1>{contract.project_name || '-'}</h1>
-        <p className="contract-no">{contract.contract_no || '-'}</p>
+        <p className="contract-no">
+          {contract.contract_no || '-'}
+          {fmtSignedDate(contract.contract_date) && (
+            <span className="contract-signed-date"> · Ký ngày {fmtSignedDate(contract.contract_date)}</span>
+          )}
+        </p>
       </div>
     </div>
   )

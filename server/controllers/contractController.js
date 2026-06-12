@@ -3,6 +3,27 @@ import { insertContractMembers } from './contractMemberController.js'
 
 export async function getAllContracts(req, res) {
   try {
+    // Phân quyền xem danh sách: nếu truyền userId thì admin (role=1) xem tất cả,
+    // còn lại chỉ xem HĐ mình là thành viên PM (PM chính hoặc đồng PM).
+    // Không truyền userId → trả toàn bộ (dùng cho dashboard nội bộ).
+    const userId = req.query.userId ? parseInt(req.query.userId) : null
+    let restrictPmUserId = null
+    if (userId) {
+      const { rows: u } = await pool.query('SELECT role FROM app_user WHERE id = $1', [userId])
+      if (Number(u[0]?.role) !== 1) restrictPmUserId = userId
+    }
+
+    const params = []
+    let pmFilter = ''
+    if (restrictPmUserId) {
+      params.push(restrictPmUserId)
+      pmFilter = `
+      AND EXISTS (
+        SELECT 1 FROM contract_out_member m
+        WHERE m.contract_out_id = co.id AND m.user_id = $1 AND m.member_role = 'PM'
+      )`
+    }
+
     const sql = `
       SELECT DISTINCT ON (co.id)
         co.id,
@@ -31,10 +52,11 @@ export async function getAllContracts(req, res) {
       ) com ON com.contract_out_id = co.id AND com.rn = 1
       LEFT JOIN app_user au ON au.id = com.user_id
       WHERE COALESCE(co.is_deleted, false) = false
+      ${pmFilter}
       ORDER BY co.id, co.contract_date DESC
     `
 
-    const result = await pool.query(sql)
+    const result = await pool.query(sql, params)
     res.json(result.rows)
   } catch (err) {
     console.error('Failed to load contracts:', err)

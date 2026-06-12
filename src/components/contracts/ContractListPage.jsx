@@ -1,10 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { API_BASE } from '../../config/api'
 import ContractModal from './ContractModal'
+import DateInput from './DateInput'
+
+// Mặc định lọc theo ngày ký: từ 1/1 đến 31/12 năm hiện tại
+const currentYear = new Date().getFullYear()
+const defaultDateFrom = `${currentYear}-01-01`
+const defaultDateTo = `${currentYear}-12-31`
 
 export default function ContractListPage({ contracts, searchTerm: parentSearchTerm, onManage, onLoadContracts, currentUser, users, customers }) {
   const [localContracts, setLocalContracts] = useState([])
   const [localSearchTerm, setLocalSearchTerm] = useState(parentSearchTerm || '')
+  const [dateFrom, setDateFrom] = useState(defaultDateFrom)
+  const [dateTo, setDateTo] = useState(defaultDateTo)
   const [filters, setFilters] = useState({ contract_no: '', project_name: '', customer_name: '', pm_name: '', status: '' })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
   const [openDropdown, setOpenDropdown] = useState(null)
@@ -23,10 +31,20 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   useEffect(() => { setLocalSearchTerm(parentSearchTerm || '') }, [parentSearchTerm])
   useEffect(() => { function handleClickOutside(event) { if (currentDropdownRef.current && !currentDropdownRef.current.contains(event.target)) setOpenDropdown(null) } document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside) }, [])
 
-  const uniquePMs = [...new Set(localContracts.map(c => c.pm_name).filter(Boolean))]
-  const uniqueStatuses = [...new Set(localContracts.map(c => c.status).filter(Boolean))]
+  // Lọc theo khoảng ngày ký (so sánh trên phần yyyy-mm-dd để tránh lệch múi giờ)
+  const dateFilteredContracts = localContracts.filter(c => {
+    if (!dateFrom && !dateTo) return true
+    const d = c.contract_date ? String(c.contract_date).slice(0, 10) : ''
+    if (!d) return false
+    if (dateFrom && d < dateFrom) return false
+    if (dateTo && d > dateTo) return false
+    return true
+  })
 
-  const filteredAndSortedContracts = localContracts.filter(c => {
+  const uniquePMs = [...new Set(dateFilteredContracts.map(c => c.pm_name).filter(Boolean))]
+  const uniqueStatuses = [...new Set(dateFilteredContracts.map(c => c.status).filter(Boolean))]
+
+  const filteredAndSortedContracts = dateFilteredContracts.filter(c => {
     const term = (localSearchTerm || '').toLowerCase()
     const matchesSearch = !term || (c.contract_no?.toLowerCase().includes(term) || c.project_name?.toLowerCase().includes(term) || c.customer_name?.toLowerCase().includes(term) || c.pm_name?.toLowerCase().includes(term) || c.status?.toLowerCase().includes(term))
     const matchesContractNo = !filters.contract_no || c.contract_no?.toLowerCase().includes(filters.contract_no.toLowerCase())
@@ -60,7 +78,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const renderFilterDropdown = (columnKey, placeholder) => { const isOpen = openDropdown === columnKey; return (<span ref={isOpen ? currentDropdownRef : null} className="relative inline-block"><button onClick={() => setOpenDropdown(isOpen ? null : columnKey)} className="ml-1 text-gray-400 hover:text-tecapro-600 transition-colors">▼</button>{isOpen && (<div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50 p-3"><input type="text" placeholder={placeholder} value={filters[columnKey]} onChange={(e) => setFilters(prev => ({ ...prev, [columnKey]: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-tecapro-500 focus:border-tecapro-500 outline-none" autoFocus /><button onClick={() => { setFilters(prev => ({ ...prev, [columnKey]: '' })); setOpenDropdown(null) }} className="mt-2 w-full text-xs text-tecapro-600 hover:text-tecapro-700 font-medium">Xóa lọc</button></div>)}</span>) }
   const renderSelectDropdown = (columnKey, options) => { const isOpen = openDropdown === columnKey; return (<span ref={isOpen ? currentDropdownRef : null} className="relative inline-block"><button onClick={() => setOpenDropdown(isOpen ? null : columnKey)} className="ml-1 text-gray-400 hover:text-tecapro-600 transition-colors">▼</button>{isOpen && (<div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 p-2"><button onClick={() => { setFilters(prev => ({ ...prev, [columnKey]: '' })); setOpenDropdown(null) }} className={`w-full text-left px-3 py-2 text-sm rounded-md ${!filters[columnKey] ? 'bg-tecapro-50 text-tecapro-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>Tất cả</button>{options.map(opt => (<button key={opt} onClick={() => { setFilters(prev => ({ ...prev, [columnKey]: opt })); setOpenDropdown(null) }} className={`w-full text-left px-3 py-2 text-sm rounded-md ${filters[columnKey] === opt ? 'bg-tecapro-50 text-tecapro-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>{opt}</button>))}</div>)}</span>) }
 
-  const stats = { total: localContracts.length, active: localContracts.filter(c => c.status === 'Active').length, completed: localContracts.filter(c => c.status === 'Completed').length, totalValue: localContracts.reduce((sum, c) => sum + (toVnd(c.amount_after_vat, c) || 0), 0) }
+  const stats = { total: dateFilteredContracts.length, active: dateFilteredContracts.filter(c => c.status === 'Active').length, completed: dateFilteredContracts.filter(c => c.status === 'Completed').length, totalValue: dateFilteredContracts.reduce((sum, c) => sum + (toVnd(c.amount_after_vat, c) || 0), 0) }
 
   async function handleSaveContract(formData) {
     try {
@@ -130,19 +148,31 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         {isPM && (
           <button className="btn-primary" onClick={() => setShowAddContractModal(true)}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             Thêm hợp đồng
           </button>
         )}
+
+        {/* Lọc theo ngày ký */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-sm text-gray-600 whitespace-nowrap">Ngày ký từ:</span>
+          <DateInput value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ width: 130 }} className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm" />
+          <span className="text-sm text-gray-600">đến</span>
+          <DateInput value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ width: 130 }} className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm" />
+          {(dateFrom !== defaultDateFrom || dateTo !== defaultDateTo) && (
+            <button onClick={() => { setDateFrom(defaultDateFrom); setDateTo(defaultDateTo) }} className="text-base text-tecapro-600 hover:text-tecapro-700 leading-none px-1" title="Đặt lại về năm hiện tại (1/1 – 31/12)">↺</button>
+          )}
+        </div>
+
         <input
           type="text"
           placeholder="🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)"
           value={localSearchTerm}
           onChange={(e) => { setLocalSearchTerm(e.target.value); window.dispatchEvent(new CustomEvent('contract-search-change', { detail: e.target.value })) }}
-          className="search-input"
+          className="search-input ml-auto shrink-0"
         />
       </div>
 
@@ -170,7 +200,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
       {/* Result Count */}
       <div className="mb-2 text-sm text-gray-500">
-        Hiển thị: <span className="font-medium text-gray-700">{filteredAndSortedContracts.length}</span> / {localContracts.length} hợp đồng
+        Hiển thị: <span className="font-medium text-gray-700">{filteredAndSortedContracts.length}</span> / {dateFilteredContracts.length} hợp đồng
       </div>
 
       {/* TABLE CARD - SCROLL CONTAINER */}
