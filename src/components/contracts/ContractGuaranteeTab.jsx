@@ -4,8 +4,17 @@ import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import GuaranteeMobile from './GuaranteeMobile'
+import NumberInput from '../common/NumberInput'
 
 import { API } from '../../config/api'
+
+// Giá trị hiển thị trong ô nhập: bỏ số 0 thập phân thừa; tiền VND làm tròn về số nguyên.
+const dispAmount = (amt, currency) => {
+  if (amt === '' || amt == null) return ''
+  const n = parseFloat(amt)
+  if (isNaN(n)) return ''
+  return currency === 'VND' ? String(Math.round(n)) : String(n)
+}
 
 const GUARANTEE_TYPES = [
   'Bảo lãnh dự thầu',
@@ -244,12 +253,10 @@ export default function ContractGuaranteeTab({ contractId }) {
                     </td>
 
                     <td>
-                      <input
-                        type="number"
-                        value={row.amount === '' ? '' : row.amount}
-                        min="0"
+                      <NumberInput
+                        value={dispAmount(row.amount, contractCurrency)}
                         placeholder="0"
-                        onChange={e => set(row._key, 'amount', e.target.value)}
+                        onChange={v => set(row._key, 'amount', v)}
                       />
                     </td>
 

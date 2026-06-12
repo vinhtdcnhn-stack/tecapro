@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import DateInput, { isoToDisplay } from './DateInput'
 import MobileEditSheet, { Field } from './MobileEditSheet'
+import NumberInput from '../common/NumberInput'
+
+// Giá trị hiển thị trong ô nhập: bỏ số 0 thập phân thừa; tiền VND làm tròn về số nguyên.
+const dispAmount = (amt, currency) => {
+  if (amt === '' || amt == null) return ''
+  const n = parseFloat(amt)
+  if (isNaN(n)) return ''
+  return currency === 'VND' ? String(Math.round(n)) : String(n)
+}
 
 // Phiên bản mobile của Bảo lãnh: thẻ tóm tắt, chạm để mở sheet sửa đúng bản ghi.
 // Tái dùng handler + helper của ContractGuaranteeTab (truyền qua props).
@@ -58,9 +67,9 @@ export default function GuaranteeMobile({
             </select>
           </Field>
           <Field label={`Giá trị (${contractCurrency})`}>
-            <input type="number" min="0" placeholder="0"
-              value={editing.amount === '' ? '' : editing.amount}
-              onChange={e => set(editing._key, 'amount', e.target.value)} />
+            <NumberInput placeholder="0"
+              value={dispAmount(editing.amount, contractCurrency)}
+              onChange={v => set(editing._key, 'amount', v)} />
           </Field>
           {pct !== null && (
             <div className="mcard-meta">% so với giá trị HĐ: <strong>{fmtPct(pct)}</strong></div>
