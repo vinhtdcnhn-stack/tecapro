@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 import { API } from '../../config/api'
 import useIsMobile from './useIsMobile'
+import EditGuard from './EditGuard'
 
 const STATUSES = ['Chờ vận chuyển', 'Đang vận chuyển', 'Đã về kho', 'Giao hàng thành công']
 
@@ -95,13 +96,15 @@ export default function ContractInLogisticsTab({ contractInId }) {
 
       {/* Toolbar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          onClick={() => setModal('add')}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          Thêm lô vận chuyển
-        </button>
+        <EditGuard>
+          <button
+            onClick={() => setModal('add')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Thêm lô vận chuyển
+          </button>
+        </EditGuard>
       </div>
 
       {/* Logistics cards */}
@@ -226,14 +229,16 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-          <button onClick={onEdit}
-            style={{ padding: '4px 12px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
-            Sửa
-          </button>
-          <button onClick={onDelete}
-            style={{ padding: '4px 12px', borderRadius: 5, border: 'none', background: '#fee2e2', color: '#b91c1c', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
-            Xóa
-          </button>
+          <EditGuard>
+            <button onClick={onEdit}
+              style={{ padding: '4px 12px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
+              Sửa
+            </button>
+            <button onClick={onDelete}
+              style={{ padding: '4px 12px', borderRadius: 5, border: 'none', background: '#fee2e2', color: '#b91c1c', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
+              Xóa
+            </button>
+          </EditGuard>
         </div>
       </div>
 
@@ -252,6 +257,7 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
           )}
 
           {/* Add update form */}
+          <EditGuard>
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 10 }}>Thêm cập nhật vận chuyển</div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
@@ -320,6 +326,7 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
               ))}
             </div>
           )}
+          </EditGuard>
         </div>
       )}
     </div>

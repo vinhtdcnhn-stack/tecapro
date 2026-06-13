@@ -8,6 +8,8 @@ import DocumentFolderTree from './DocumentFolderTree'
 import DocumentFileTable from './DocumentFileTable'
 import DocumentPreviewPanel from './DocumentPreviewPanel'
 import { NewFolderModal, RenameFolderModal, DeleteFolderModal } from './DocumentModals'
+import EditGuard from './EditGuard'
+import { useCanEdit } from '../../context/ContractPermContext'
 
 export default function ContractDocumentsTab({ contractId, basePath }) {
   // basePath overrides the default "contracts/{contractId}" prefix
@@ -20,6 +22,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const [selectedFiles, setSelectedFiles] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
+  const canEdit = useCanEdit()
 
   // Create folder
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
@@ -179,7 +182,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
 
   const handleDragOver = (e) => {
     e.preventDefault()
-    if (selectedFolderId) setIsDragging(true)
+    if (canEdit && selectedFolderId) setIsDragging(true)
   }
 
   const handleDragLeave = (e) => {
@@ -189,6 +192,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   const handleDrop = async (e) => {
     e.preventDefault()
     setIsDragging(false)
+    if (!canEdit) return // chỉ PM/admin được upload bằng kéo-thả
     if (!selectedFolderId) { alert('Vui lòng chọn thư mục để upload file'); return }
     if (e.dataTransfer.files.length > 0) await uploadFiles(e.dataTransfer.files)
   }
@@ -254,11 +258,13 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
       <div className="documents-left-panel">
         <div className="panel-header">
           <h3>Thư mục</h3>
-          <button className="btn-icon" onClick={handleCreateFolder} title="Tạo thư mục mới">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/>
-            </svg>
-          </button>
+          <EditGuard>
+            <button className="btn-icon" onClick={handleCreateFolder} title="Tạo thư mục mới">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/>
+              </svg>
+            </button>
+          </EditGuard>
         </div>
         <div className="folder-tree">
           {folders.length === 0
@@ -285,23 +291,27 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
           {/* Toolbar */}
           <div className="documents-toolbar">
             <div className="toolbar-left">
-              <button className="btn-toolbar btn-upload" onClick={handleUploadFile} disabled={!selectedFolderId || isUploading}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
-                {isUploading ? 'Đang upload...' : 'Upload'}
-              </button>
-              <button className="btn-toolbar btn-icon-only" onClick={handleUploadFolder} disabled={isUploading} title={selectedFolderId ? 'Upload thư mục vào đây' : 'Upload thư mục (tạo ở cấp gốc)'}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 7h-3v3h-2v-3h-3v-2h3V8h2v3h3v2z"/></svg>
-              </button>
-              <input id="file-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} key={fileInputKey} />
-              <input id="folder-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFolderChange} key={folderInputKey} {...{ webkitdirectory: '' }} />
+              <EditGuard>
+                <button className="btn-toolbar btn-upload" onClick={handleUploadFile} disabled={!selectedFolderId || isUploading}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                  {isUploading ? 'Đang upload...' : 'Upload'}
+                </button>
+                <button className="btn-toolbar btn-icon-only" onClick={handleUploadFolder} disabled={isUploading} title={selectedFolderId ? 'Upload thư mục vào đây' : 'Upload thư mục (tạo ở cấp gốc)'}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 7h-3v3h-2v-3h-3v-2h3V8h2v3h3v2z"/></svg>
+                </button>
+                <input id="file-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} key={fileInputKey} />
+                <input id="folder-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFolderChange} key={folderInputKey} {...{ webkitdirectory: '' }} />
+              </EditGuard>
             </div>
             <div className="toolbar-right">
               <button className="btn-toolbar btn-icon-only" onClick={handleDownload} disabled={selectedFiles.size === 0} title={`Download${selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}`}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
               </button>
-              <button className="btn-toolbar btn-icon-only btn-delete" onClick={handleDelete} disabled={selectedFiles.size === 0} title={`Xóa${selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-              </button>
+              <EditGuard>
+                <button className="btn-toolbar btn-icon-only btn-delete" onClick={handleDelete} disabled={selectedFiles.size === 0} title={`Xóa${selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}`}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+              </EditGuard>
             </div>
           </div>
 

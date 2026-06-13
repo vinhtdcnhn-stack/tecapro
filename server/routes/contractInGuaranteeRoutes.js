@@ -5,12 +5,14 @@ import {
   updateContractInGuarantee,
   deleteContractInGuarantee,
 } from '../controllers/contractInGuaranteeController.js'
+import { pmVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
+// Ghi yêu cầu PM của HĐ bán cha (F-11)
 router.get('/contract-ins/:contractInId/guarantees',  getContractInGuarantees)
-router.post('/contract-ins/:contractInId/guarantees', createContractInGuarantee)
-router.put('/contract-in-guarantees/:id',             updateContractInGuarantee)
-router.delete('/contract-in-guarantees/:id',          deleteContractInGuarantee)
+router.post('/contract-ins/:contractInId/guarantees', pmVia('contractIn', 'contractInId'), createContractInGuarantee)
+router.put('/contract-in-guarantees/:id',             pmVia('inGuarantee'), updateContractInGuarantee)
+router.delete('/contract-in-guarantees/:id',          pmVia('inGuarantee'), deleteContractInGuarantee)
 
 export default router

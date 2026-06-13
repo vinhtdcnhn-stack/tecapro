@@ -16,13 +16,14 @@ export async function getPMDashboard(req, res) {
   const userId = parseInt(req.params.userId)
   if (!userId) return res.status(400).json({ error: 'userId không hợp lệ' })
   try {
-    // 1+2. Các HĐ (chưa xóa) mà user là PM — gồm cả PM team, không chỉ primary
+    // 1+2. Các HĐ (chưa xóa) mà user được phân công BẤT KỲ vai trò nào (PM, kinh
+    // doanh, presale, kỹ thuật, kế toán, người theo dõi) — DISTINCT khử trùng nếu
+    // user giữ nhiều vai trò trong cùng một HĐ.
     const { rows: contracts } = await pool.query(
       `SELECT DISTINCT co.id, co.contract_no, co.project_name, co.contract_date,
               co.amount_after_vat, co.currency_code, co.exchange_rate
          FROM contract_out co
-         JOIN contract_out_member m ON m.contract_out_id = co.id
-                                   AND m.member_role = 'PM' AND m.user_id = $1
+         JOIN contract_out_member m ON m.contract_out_id = co.id AND m.user_id = $1
         WHERE COALESCE(co.is_deleted, false) = false`, [userId])
     const ids = contracts.map(c => c.id)
     if (!ids.length) return res.json({ summary: emptySummary(), items: [] })
@@ -118,7 +119,7 @@ export async function getPMDashboard(req, res) {
       }))
     })
 
-    // ════════ NGUỒN PHÍA NHẬP — HĐ nhập thuộc các HĐ bán mà user là PM ════════
+    // ════════ NGUỒN PHÍA NHẬP — HĐ nhập thuộc các HĐ bán user tham gia ════════
     const { rows: inContracts } = await pool.query(
       'SELECT id, contract_no, contract_out_id, contract_date FROM contract_in WHERE contract_out_id = ANY($1)', [ids])
     const inIds = inContracts.map(c => c.id)

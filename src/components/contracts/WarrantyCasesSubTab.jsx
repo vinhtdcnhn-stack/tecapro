@@ -4,6 +4,7 @@ import { API } from '../../config/api'
 import { fmtDate, caseStatusCls, priorityCls } from './warrantyUtils'
 import CaseFormModal from './WarrantyCaseFormModal'
 import CaseDetailModal from './WarrantyCaseDetailModal'
+import EditGuard from './EditGuard'
 
 // ── Cases Sub-tab ─────────────────────────────────────────────────────────────
 
@@ -67,10 +68,12 @@ export default function CasesSubTab({ contractId, cases, setCases, equipment, re
 
       <div className="wty-toolbar">
         <div />
-        <button className="wty-btn wty-btn-primary" onClick={() => { setEditCase(null); setModal(true) }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          Tạo case bảo hành
-        </button>
+        <EditGuard>
+          <button className="wty-btn wty-btn-primary" onClick={() => { setEditCase(null); setModal(true) }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Tạo case bảo hành
+          </button>
+        </EditGuard>
       </div>
 
       <div className="wty-section">
@@ -111,9 +114,11 @@ export default function CasesSubTab({ contractId, cases, setCases, equipment, re
                         onClick={() => setDetail(c)}>
                         Chi tiết
                       </button>
-                      <button className="wty-act delete" onClick={() => handleDelete(c)} title="Xóa">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                      </button>
+                      <EditGuard>
+                        <button className="wty-act delete" onClick={() => handleDelete(c)} title="Xóa">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        </button>
+                      </EditGuard>
                     </div>
                   </td>
                 </tr>

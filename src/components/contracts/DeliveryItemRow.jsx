@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 
 import { API } from '../../config/api'
 import { fmtNum } from './deliveryUtils'
+import EditGuard from './EditGuard'
+import { useCanEdit } from '../../context/ContractPermContext'
 
 // ── Delivery item row ─────────────────────────────────────────────────────────
 
 export default function DeliveryItemRow({ idx, item, onDelete, onUpdateItem, onSerialCountChange }) {
+  const canEdit = useCanEdit()
   const [showSerials, setShowSerials] = useState(false)
   const [serials, setSerials]         = useState([])
   const [serialsLoaded, setSLoaded]   = useState(false)
@@ -82,13 +85,17 @@ export default function DeliveryItemRow({ idx, item, onDelete, onUpdateItem, onS
               <button onClick={saveQty} style={{ padding:'2px 8px', background:'#16a34a', color:'#fff', border:'none', borderRadius:4, cursor:'pointer', fontSize:11 }}>✓</button>
               <button onClick={() => setEditQty(false)} style={{ padding:'2px 8px', background:'#f3f4f6', border:'none', borderRadius:4, cursor:'pointer', fontSize:11 }}>✕</button>
             </div>
-          ) : (
+          ) : canEdit ? (
             <span
               onClick={() => setEditQty(true)}
               title="Click để sửa"
               style={{ cursor:'pointer', fontWeight:600, color: parseFloat(item.received_quantity) >= parseFloat(item.ordered_quantity) ? '#15803d' : '#d97706', padding:'2px 6px', borderRadius:4, background:'#f9fafb' }}
             >
               {fmtNum(item.received_quantity)} ✎
+            </span>
+          ) : (
+            <span style={{ fontWeight:600, color: parseFloat(item.received_quantity) >= parseFloat(item.ordered_quantity) ? '#15803d' : '#d97706' }}>
+              {fmtNum(item.received_quantity)}
             </span>
           )}
         </td>
@@ -111,7 +118,9 @@ export default function DeliveryItemRow({ idx, item, onDelete, onUpdateItem, onS
         </td>
         <td style={{ padding:'8px 10px', color:'#9ca3af', fontSize:12 }}>{item.note||'—'}</td>
         <td style={{ padding:'8px 10px', textAlign:'center' }}>
-          <button onClick={onDelete} style={{ background:'#fee2e2', color:'#b91c1c', border:'none', borderRadius:5, cursor:'pointer', padding:'3px 8px', fontSize:11, fontWeight:600 }}>Xóa</button>
+          <EditGuard>
+            <button onClick={onDelete} style={{ background:'#fee2e2', color:'#b91c1c', border:'none', borderRadius:5, cursor:'pointer', padding:'3px 8px', fontSize:11, fontWeight:600 }}>Xóa</button>
+          </EditGuard>
         </td>
       </tr>
 
@@ -136,14 +145,17 @@ export default function DeliveryItemRow({ idx, item, onDelete, onUpdateItem, onS
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                   Tải mẫu
                 </button>
-                <label style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#e0f2fe', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-                  Import Excel
-                  <input ref={importRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={importSerials} />
-                </label>
+                <EditGuard>
+                  <label style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#e0f2fe', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    Import Excel
+                    <input ref={importRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={importSerials} />
+                  </label>
+                </EditGuard>
               </div>
 
               {/* Serial list */}
+              <EditGuard>
               <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
                 {serials.map(s => (
                   <span key={s.id} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', background:'#fff', border:'1px solid #93c5fd', borderRadius:99, fontSize:12, fontWeight:600, color:'#1d4ed8' }}>
@@ -167,6 +179,7 @@ export default function DeliveryItemRow({ idx, item, onDelete, onUpdateItem, onS
                   + Thêm
                 </button>
               </div>
+              </EditGuard>
               <div style={{ fontSize:11, color:'#6b7280', marginTop:5 }}>
                 Mẫu Excel import: cột A = Serial (dòng 1 là tiêu đề, từ dòng 2 là dữ liệu)
               </div>

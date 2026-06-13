@@ -4,6 +4,7 @@ import { API } from '../../config/api'
 import { fmtVND, calcVND, useRows } from './contractInPayableUtils'
 import PayableSection from './ContractInPayableSection'
 import PaymentSection from './ContractInPaymentSection'
+import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -68,6 +69,8 @@ export default function ContractInPayableTab({ contractInId }) {
         </div>
       </div>
 
+      {/* ── Khóa nhập/sửa khi không phải PM ── */}
+      <EditGuard>
       {/* ── Section 1: Lịch phải trả ── */}
       <PayableSection
         rows={sched.rows}
@@ -85,6 +88,7 @@ export default function ContractInPayableTab({ contractInId }) {
         reload={pay.reload}
         totalExpected={totalExpected}
       />
+      </EditGuard>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { fmtDate, fmtNum } from './deliveryUtils'
 import DeliveryCard from './DeliveryCard'
 import BatchModal from './DeliveryBatchModal'
 import useIsMobile from './useIsMobile'
+import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -84,13 +85,15 @@ export default function ContractInDeliveryTab({ contractInId }) {
 
       {/* Toolbar */}
       <div style={{ display:'flex', justifyContent:'flex-end' }}>
-        <button
-          onClick={() => { setEditBatch(null); setAddBatch(true) }}
-          style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 16px', background:'#16a34a', color:'#fff', border:'none', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600 }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          Thêm đợt nhận hàng
-        </button>
+        <EditGuard>
+          <button
+            onClick={() => { setEditBatch(null); setAddBatch(true) }}
+            style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 16px', background:'#16a34a', color:'#fff', border:'none', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Thêm đợt nhận hàng
+          </button>
+        </EditGuard>
       </div>
 
       {/* Delivery list */}

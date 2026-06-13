@@ -5,6 +5,7 @@ import { API } from '../../config/api'
 import { isOverdue } from './taskUtils'
 import DeptGroup from './TaskDeptGroup'
 import TaskModal from './TaskModal'
+import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -174,10 +175,12 @@ export default function ContractTaskTab({ contractId, currentUser }) {
             </button>
           ))}
         </div>
-        <button className="task-add-btn" onClick={openCreate}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          Thêm công việc
-        </button>
+        <EditGuard>
+          <button className="task-add-btn" onClick={openCreate}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Thêm công việc
+          </button>
+        </EditGuard>
       </div>
 
       {/* Groups */}

@@ -154,7 +154,7 @@ export default function PMDashboard({ user }) {
       <div className="dash-welcome">
         <div>
           <h1 className="dash-title">Bảng theo dõi tiến độ dự án</h1>
-          <p className="dash-subtitle">Xin chào PM, <strong>{user?.full_name || user?.email}</strong> — các mốc thời hạn cần theo sát</p>
+          <p className="dash-subtitle">Xin chào <strong>{user?.full_name || user?.email}</strong> — các mốc thời hạn cần theo sát</p>
         </div>
       </div>
 

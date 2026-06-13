@@ -11,6 +11,7 @@ import ContractGuaranteeTab from '../components/contracts/ContractGuaranteeTab'
 import ContractTaskTab from '../components/contracts/ContractTaskTab'
 import ContractWarrantyTab from '../components/contracts/ContractWarrantyTab'
 import ContractInTab from '../components/contracts/ContractInTab'
+import { ContractPermProvider, useCanEdit } from '../context/ContractPermContext'
 
 export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab }) {
   const contractId = selectedContractId // dẫn xuất thẳng từ prop (trước đây mirror qua state + setContractId)
@@ -23,6 +24,15 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
   const [users, setUsers] = useState([])
   const [customers, setCustomers] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
+
+  // Quyền sửa: admin (role==1) hoặc PM của HĐ này (PM chính/đồng-PM). Backend đã
+  // chặn cùng quy tắc (F-11); đây là phần phản ánh ở UI để ẩn/khóa nút sửa.
+  const canEdit = (() => {
+    if (!currentUser || !contract) return false
+    if (Number(currentUser.role) === 1) return true
+    const pmIds = (contract.pm_member_ids || []).map(String)
+    return pmIds.includes(String(currentUser.id))
+  })()
 
   useEffect(() => {
     const id = selectedContractId
@@ -132,32 +142,35 @@ default:
   }
 
   return (
-    <div className="contract-management-page">
-      <ContractHeader contract={contract} />
-      <div className="contract-management-body">
-        <ContractSidebar activeMenu={activeMenu} onMenuChange={setActiveMenu} />
-        <div className="contract-management-content">
-          {renderContent()}
+    <ContractPermProvider canEdit={canEdit}>
+      <div className="contract-management-page">
+        <ContractHeader contract={contract} />
+        <div className="contract-management-body">
+          <ContractSidebar activeMenu={activeMenu} onMenuChange={setActiveMenu} />
+          <div className="contract-management-content">
+            {renderContent()}
+          </div>
         </div>
+
+        {/* Edit Contract Modal */}
+        <ContractModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={handleUpdateContract}
+          currentUser={currentUser}
+          contracts={contract ? [contract] : []}
+          users={users}
+          customers={customers}
+          editMode={true}
+          editData={contract}
+        />
       </div>
-      
-      {/* Edit Contract Modal */}
-      <ContractModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onSave={handleUpdateContract}
-        currentUser={currentUser}
-        contracts={contract ? [contract] : []}
-        users={users}
-        customers={customers}
-        editMode={true}
-        editData={contract}
-      />
-    </div>
+    </ContractPermProvider>
   )
 }
 
 function ContractInfoTab({ contract, onEdit }) {
+  const canEdit = useCanEdit()
   if (!contract) {
     return <div className="contract-info-tab">Không tìm thấy thông tin hợp đồng</div>
   }
@@ -201,13 +214,15 @@ function ContractInfoTab({ contract, onEdit }) {
       <div className="contract-info-left">
         <div className="contract-info-section-header">
           <h3 className="contract-info-section-title">Thông tin hợp đồng</h3>
-          <button className="btn-edit-contract" onClick={onEdit}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Cập nhật thông tin hợp đồng
-          </button>
+          {canEdit && (
+            <button className="btn-edit-contract" onClick={onEdit}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              Cập nhật thông tin hợp đồng
+            </button>
+          )}
         </div>
         <div className="contract-info-form">
           <div className="form-row">

@@ -5,6 +5,7 @@ import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import GuaranteeMobile from './GuaranteeMobile'
 import NumberInput from '../common/NumberInput'
+import EditGuard from './EditGuard'
 
 import { API } from '../../config/api'
 
@@ -189,12 +190,15 @@ export default function ContractGuaranteeTab({ contractId }) {
       <div className="guar-section">
         <div className="guar-section-header">
           <h4 className="guar-section-title">Danh sách bảo lãnh</h4>
-          <button className="guar-btn guar-btn-primary" onClick={addRow}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Thêm bảo lãnh
-          </button>
+          <EditGuard>
+            <button className="guar-btn guar-btn-primary" onClick={addRow}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Thêm bảo lãnh
+            </button>
+          </EditGuard>
         </div>
 
+        <EditGuard>
         {isMobile ? (
           <GuaranteeMobile
             rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
@@ -331,6 +335,7 @@ export default function ContractGuaranteeTab({ contractId }) {
           </table>
         </div>
         )}
+        </EditGuard>
       </div>
     </div>
   )

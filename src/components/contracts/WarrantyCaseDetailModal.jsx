@@ -8,6 +8,7 @@ import {
   fmtDT, caseStatusCls, caseStatusModalCls, priorityCls, activityIcon,
 } from './warrantyUtils'
 import CaseEquipmentLinker from './CaseEquipmentLinker'
+import EditGuard from './EditGuard'
 
 // ── Case detail modal ─────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
         </div>
 
         <div className="wty-modal-body">
+          <EditGuard>
           {/* Section 1: Thông tin case */}
           <div style={{ fontWeight:700, fontSize:13, color:'#374151', marginBottom:8 }}>Thông tin case</div>
           <div className="wty-form-row">
@@ -216,6 +218,7 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
               ))}
             </div>
           </div>
+          </EditGuard>
         </div>
 
         <div className="wty-modal-footer">

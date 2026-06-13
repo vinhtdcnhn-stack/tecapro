@@ -3,6 +3,7 @@ import DateInput from './DateInput'
 
 import { API } from '../../config/api'
 import { CURRENCIES, PURCHASE_TYPES, STATUSES, statusCfg } from './contractInUtils'
+import EditGuard from './EditGuard'
 
 // ── Thông tin tab (edit form) ─────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ export default function ContractInInfoTab({ item, suppliers, onUpdate, onDelete 
 
   return (
     <div style={{ maxWidth: 720 }}>
+      <EditGuard>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: 0 }}>Thông tin hợp đồng nhập</h3>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -144,6 +146,7 @@ export default function ContractInInfoTab({ item, suppliers, onUpdate, onDelete 
           </div>
         </div>
       </div>
+      </EditGuard>
     </div>
   )
 }

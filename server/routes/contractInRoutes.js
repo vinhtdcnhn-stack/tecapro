@@ -1,11 +1,13 @@
 import { Router } from 'express'
 import { getContractIns, createContractIn, updateContractIn, deleteContractIn } from '../controllers/contractInController.js'
+import { pmFromParam, pmVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
+// Ghi yêu cầu PM của HĐ bán cha (F-11)
 router.get('/contracts/:id/contract-ins',    getContractIns)
-router.post('/contracts/:id/contract-ins',   createContractIn)
-router.put('/contract-ins/:id',              updateContractIn)
-router.delete('/contract-ins/:id',           deleteContractIn)
+router.post('/contracts/:id/contract-ins',   pmFromParam('id'), createContractIn)
+router.put('/contract-ins/:id',              pmVia('contractIn'), updateContractIn)
+router.delete('/contract-ins/:id',           pmVia('contractIn'), deleteContractIn)
 
 export default router

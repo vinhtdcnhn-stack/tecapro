@@ -4,18 +4,19 @@ import { insertContractMembers } from './contractMemberController.js'
 export async function getAllContracts(req, res) {
   try {
     // Phân quyền xem danh sách dựa trên danh tính đã xác thực (req.user từ cookie phiên),
-    // KHÔNG dựa vào tham số client tự truyền: admin (role=1) xem tất cả,
-    // còn lại chỉ xem HĐ mình là thành viên PM (PM chính hoặc đồng PM).
-    const restrictPmUserId = Number(req.user?.role) === 1 ? null : (req.user?.id ?? null)
+    // KHÔNG dựa vào tham số client tự truyền: admin (role=1) xem tất cả, còn lại xem
+    // mọi HĐ mình được phân công BẤT KỲ vai trò nào (PM/sale/presale/kỹ thuật/kế toán/
+    // người theo dõi) — tức toàn bộ dự án mình tham gia.
+    const restrictMemberUserId = Number(req.user?.role) === 1 ? null : (req.user?.id ?? null)
 
     const params = []
-    let pmFilter = ''
-    if (restrictPmUserId) {
-      params.push(restrictPmUserId)
-      pmFilter = `
+    let memberFilter = ''
+    if (restrictMemberUserId) {
+      params.push(restrictMemberUserId)
+      memberFilter = `
       AND EXISTS (
         SELECT 1 FROM contract_out_member m
-        WHERE m.contract_out_id = co.id AND m.user_id = $1 AND m.member_role = 'PM'
+        WHERE m.contract_out_id = co.id AND m.user_id = $1
       )`
     }
 
@@ -47,7 +48,7 @@ export async function getAllContracts(req, res) {
       ) com ON com.contract_out_id = co.id AND com.rn = 1
       LEFT JOIN app_user au ON au.id = com.user_id
       WHERE COALESCE(co.is_deleted, false) = false
-      ${pmFilter}
+      ${memberFilter}
       ORDER BY co.id, co.contract_date DESC
     `
 

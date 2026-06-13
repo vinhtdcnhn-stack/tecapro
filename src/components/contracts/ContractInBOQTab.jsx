@@ -6,6 +6,8 @@ import BOQMobile from './BOQMobile'
 import PurchaseBOQRow from './PurchaseBOQRow'
 import PurchaseBOQImportModal from './PurchaseBOQImportModal'
 import { fmtNum, stripNum, calcAmounts, tmpId } from './boqUtils'
+import EditGuard from './EditGuard'
+import { useCanEdit } from '../../context/ContractPermContext'
 
 import { API } from '../../config/api'
 
@@ -171,6 +173,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   }
 
   const isMobile = useIsMobile()
+  const canEdit = useCanEdit()
 
   // Ctrl+S: lưu tất cả dòng đang sửa
   useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
@@ -275,13 +278,15 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
       {/* ── Toolbar ── */}
       <div className="boq-toolbar">
         <div className="boq-toolbar-left">
-          <button className="boq-btn boq-btn-green" onClick={() => excelRef.current?.click()}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-            </svg>
-            Import Excel
-          </button>
-          <input ref={excelRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleExcelFile} />
+          <EditGuard>
+            <button className="boq-btn boq-btn-green" onClick={() => excelRef.current?.click()}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+              </svg>
+              Import Excel
+            </button>
+            <input ref={excelRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleExcelFile} />
+          </EditGuard>
 
           <a className="boq-btn" href={`${API}/purchase-boq/template`} download="BangGiaMua_template.xlsx">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -290,12 +295,14 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
             Tải template
           </a>
 
-          <button className="boq-btn" onClick={addRow}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-            </svg>
-            Thêm dòng
-          </button>
+          <EditGuard>
+            <button className="boq-btn" onClick={addRow}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+              Thêm dòng
+            </button>
+          </EditGuard>
         </div>
 
         <div className="boq-toolbar-right">
@@ -333,19 +340,22 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
         {selectedCount > 0 && (
           <>
             <span className="boq-sel-count">Đã chọn {selectedCount}</span>
-            <button className="boq-btn boq-btn-danger" onClick={bulkDelete} disabled={bulkDeleting}>
-              {bulkDeleting ? 'Đang xóa…' : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                  Xóa {selectedCount} dòng
-                </>
-              )}
-            </button>
+            <EditGuard>
+              <button className="boq-btn boq-btn-danger" onClick={bulkDelete} disabled={bulkDeleting}>
+                {bulkDeleting ? 'Đang xóa…' : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    Xóa {selectedCount} dòng
+                  </>
+                )}
+              </button>
+            </EditGuard>
           </>
         )}
       </div>
 
-      {/* ── Table (desktop) / Cards (mobile) ── */}
+      {/* ── Table (desktop) / Cards (mobile) ── Khóa nhập/xóa khi không phải PM */}
+      <EditGuard>
       {isMobile ? (
         <BOQMobile
           rows={visibleRows.map(v => v.r)} currency={currency}
@@ -402,7 +412,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 saveRow={saveRow}
                 insertAfter={insertAfter}
                 deleteRow={deleteRow}
-                canDrag={!isFiltering && !r._isNew && !!r.id}
+                canDrag={canEdit && !isFiltering && !r._isNew && !!r.id}
                 isDragging={dragKey === r._key}
                 isDragOver={dragOverKey === r._key}
                 onDragStart={handleDragStart}
@@ -427,6 +437,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
         </table>
       </div>
       )}
+      </EditGuard>
 
       {/* ── Import modal ── */}
       {importData && (

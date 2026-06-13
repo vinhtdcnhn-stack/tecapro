@@ -12,23 +12,24 @@ import {
   downloadBOQTemplate,
   excelUpload,
 } from '../controllers/boqController.js'
+import { pmFromParam, pmVia, pmViaBody } from '../middleware/contractAccess.js'
 
 const router = Router()
 
 // Template download (no contractId needed)
 router.get('/boq/template', downloadBOQTemplate)
 
-// Collection routes
+// Collection routes — ghi yêu cầu PM của HĐ (F-11)
 router.get('/contracts/:contractId/boq',                        getBOQ)
-router.post('/contracts/:contractId/boq',                       createBOQItem)
-router.post('/contracts/:contractId/boq/after/:refId',          insertBOQAfter)
-router.post('/contracts/:contractId/boq/reorder',               reorderBOQ)
-router.post('/contracts/:contractId/boq/import',  excelUpload.single('file'), importBOQPreview)
-router.post('/contracts/:contractId/boq/save-import',           saveImportedBOQ)
+router.post('/contracts/:contractId/boq',         pmFromParam(), createBOQItem)
+router.post('/contracts/:contractId/boq/after/:refId', pmFromParam(), insertBOQAfter)
+router.post('/contracts/:contractId/boq/reorder', pmFromParam(), reorderBOQ)
+router.post('/contracts/:contractId/boq/import',  pmFromParam(), excelUpload.single('file'), importBOQPreview)
+router.post('/contracts/:contractId/boq/save-import', pmFromParam(), saveImportedBOQ)
 
 // Item routes
-router.post('/boq/bulk-delete', bulkDeleteBOQItems)
-router.put('/boq/:id',    updateBOQItem)
-router.delete('/boq/:id', deleteBOQItem)
+router.post('/boq/bulk-delete', pmViaBody('boq'), bulkDeleteBOQItems)
+router.put('/boq/:id',    pmVia('boq'), updateBOQItem)
+router.delete('/boq/:id', pmVia('boq'), deleteBOQItem)
 
 export default router

@@ -8,6 +8,7 @@ import { ComponentModal, ReplaceSerialModal } from './SerialModals'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import SerialMobile from './SerialMobile'
+import EditGuard from './EditGuard'
 
 const INACTIVE_STATUSES = ['Đã thay thế', 'Ngừng sử dụng']
 
@@ -204,15 +205,17 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
             Tải mẫu Excel
           </button>
-          <label className="wty-btn wty-btn-blue" style={{ cursor: 'pointer' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-            Import Excel
-            <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFile} />
-          </label>
-          <button className="wty-btn wty-btn-primary" onClick={() => setShowAdd(true)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Thêm linh kiện
-          </button>
+          <EditGuard>
+            <label className="wty-btn wty-btn-blue" style={{ cursor: 'pointer' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+              Import Excel
+              <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFile} />
+            </label>
+            <button className="wty-btn wty-btn-primary" onClick={() => setShowAdd(true)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Thêm linh kiện
+            </button>
+          </EditGuard>
         </div>
       </div>
 
@@ -221,8 +224,10 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
         <div className="wty-bulk-bar">
           <span>Đã chọn <strong>{selected.size}</strong> dòng</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="wty-btn wty-btn-primary" onClick={() => setShowBulk(true)}>Sửa bảo hành hàng loạt</button>
-            <button className="wty-btn wty-btn-danger" onClick={bulkDelete}>Xóa hàng loạt</button>
+            <EditGuard>
+              <button className="wty-btn wty-btn-primary" onClick={() => setShowBulk(true)}>Sửa bảo hành hàng loạt</button>
+              <button className="wty-btn wty-btn-danger" onClick={bulkDelete}>Xóa hàng loạt</button>
+            </EditGuard>
             <button className="wty-btn wty-btn-secondary" onClick={() => setSelected(new Set())}>Bỏ chọn</button>
           </div>
         </div>
@@ -235,9 +240,11 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
             <span className="wty-section-title">Xem trước ({importPreview.length} serial linh kiện)</span>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="wty-btn wty-btn-secondary" onClick={() => setImportPreview(null)}>Hủy</button>
-              <button className="wty-btn wty-btn-primary" onClick={confirmImport} disabled={importing}>
-                {importing ? 'Đang thêm...' : 'Xác nhận'}
-              </button>
+              <EditGuard>
+                <button className="wty-btn wty-btn-primary" onClick={confirmImport} disabled={importing}>
+                  {importing ? 'Đang thêm...' : 'Xác nhận'}
+                </button>
+              </EditGuard>
             </div>
           </div>
           <div className="import-preview">
@@ -258,6 +265,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
         </div>
       )}
 
+      <EditGuard>
       {isMobile ? (
         <SerialMobile
           rows={filtered} allSerials={all}
@@ -365,6 +373,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
         </div>
       </div>
       )}
+      </EditGuard>
 
       {showAdd && (
         <ComponentModal equipment={equipment} serials={all} onClose={() => setShowAdd(false)} onSave={addComponent} />

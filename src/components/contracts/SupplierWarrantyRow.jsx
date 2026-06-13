@@ -2,10 +2,13 @@ import { useState } from 'react'
 import DateInput from './DateInput'
 
 import { fmtDate, fmtDateInput, td } from './supplierWarrantyUtils'
+import EditGuard from './EditGuard'
+import { useCanEdit } from '../../context/ContractPermContext'
 
 // ── Warranty row ──────────────────────────────────────────────────────────────
 
 export default function WarrantyRow({ idx, w, selected, onToggle, onFieldUpdate, onEdit, onDelete, expiryInfo }) {
+  const canEdit = useCanEdit()
   const [editField, setEditField] = useState(null) // 'start' | 'end'
   const [tempVal, setTempVal]     = useState('')
   const [showSerials, setShowSerials] = useState(false)
@@ -24,6 +27,13 @@ export default function WarrantyRow({ idx, w, selected, onToggle, onFieldUpdate,
   }
 
   function renderDateCell(field, value) {
+    if (!canEdit) {
+      return (
+        <span style={{ padding: '2px 8px', fontSize: 12, whiteSpace: 'nowrap', color: value ? '#15803d' : '#9ca3af', fontWeight: value ? 600 : 400 }}>
+          {value ? fmtDate(value) : '—'}
+        </span>
+      )
+    }
     if (editField === field) {
       return (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -56,7 +66,9 @@ export default function WarrantyRow({ idx, w, selected, onToggle, onFieldUpdate,
   return (
     <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
       <td style={td('center')}>
-        <input type="checkbox" checked={selected} onChange={onToggle} />
+        <EditGuard>
+          <input type="checkbox" checked={selected} onChange={onToggle} />
+        </EditGuard>
       </td>
       <td style={td('center', { color: '#9ca3af', fontSize: 12 })}>{idx + 1}</td>
       <td style={td('left', { fontWeight: 500 })}>{w.item_name}</td>
@@ -98,27 +110,31 @@ export default function WarrantyRow({ idx, w, selected, onToggle, onFieldUpdate,
         }
       </td>
       <td style={td('center')}>
-        <button
-          onClick={() => onFieldUpdate('has_guarantee', !w.has_guarantee)}
-          style={{
-            padding: '3px 12px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600,
-            background: w.has_guarantee ? '#dcfce7' : '#f3f4f6',
-            color: w.has_guarantee ? '#15803d' : '#9ca3af',
-          }}
-        >
-          {w.has_guarantee ? 'Có' : 'Không'}
-        </button>
+        <EditGuard>
+          <button
+            onClick={() => onFieldUpdate('has_guarantee', !w.has_guarantee)}
+            style={{
+              padding: '3px 12px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+              background: w.has_guarantee ? '#dcfce7' : '#f3f4f6',
+              color: w.has_guarantee ? '#15803d' : '#9ca3af',
+            }}
+          >
+            {w.has_guarantee ? 'Có' : 'Không'}
+          </button>
+        </EditGuard>
       </td>
       <td style={td('left', { color: '#9ca3af', fontSize: 12, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
         {w.note || '—'}
       </td>
       <td style={td()}>
-        <div style={{ display: 'flex', gap: 5 }}>
-          <button onClick={onEdit}
-            style={{ padding: '3px 8px', background: '#f3f4f6', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Sửa</button>
-          <button onClick={onDelete}
-            style={{ padding: '3px 8px', background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Xóa</button>
-        </div>
+        <EditGuard>
+          <div style={{ display: 'flex', gap: 5 }}>
+            <button onClick={onEdit}
+              style={{ padding: '3px 8px', background: '#f3f4f6', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Sửa</button>
+            <button onClick={onDelete}
+              style={{ padding: '3px 8px', background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Xóa</button>
+          </div>
+        </EditGuard>
       </td>
     </tr>
   )

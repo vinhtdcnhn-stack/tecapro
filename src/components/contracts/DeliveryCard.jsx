@@ -4,6 +4,7 @@ import { API } from '../../config/api'
 import { fmtDate, statusStyle } from './deliveryUtils'
 import DeliveryItemRow from './DeliveryItemRow'
 import useIsMobile from './useIsMobile'
+import EditGuard from './EditGuard'
 
 // ── Delivery card ─────────────────────────────────────────────────────────────
 
@@ -81,14 +82,16 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
         <span style={{ ...ss, padding:'2px 10px', borderRadius:99, fontSize:11, fontWeight:600 }}>{delivery.status}</span>
 
         <div style={{ display:'flex', gap:6 }} onClick={e => e.stopPropagation()}>
-          <button onClick={onEdit}
-            style={{ padding:'4px 10px', borderRadius:5, border:'1px solid #e5e7eb', background:'#fff', color:'#374151', cursor:'pointer', fontSize:12, fontWeight:500 }}>
-            Sửa
-          </button>
-          <button onClick={onDelete}
-            style={{ padding:'4px 10px', borderRadius:5, border:'none', background:'#fee2e2', color:'#b91c1c', cursor:'pointer', fontSize:12, fontWeight:500 }}>
-            Xóa
-          </button>
+          <EditGuard>
+            <button onClick={onEdit}
+              style={{ padding:'4px 10px', borderRadius:5, border:'1px solid #e5e7eb', background:'#fff', color:'#374151', cursor:'pointer', fontSize:12, fontWeight:500 }}>
+              Sửa
+            </button>
+            <button onClick={onDelete}
+              style={{ padding:'4px 10px', borderRadius:5, border:'none', background:'#fee2e2', color:'#b91c1c', cursor:'pointer', fontSize:12, fontWeight:500 }}>
+              Xóa
+            </button>
+          </EditGuard>
         </div>
       </div>
 
@@ -139,13 +142,15 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
                   onCancel={() => setAddItem(false)}
                 />
               ) : (
-                <button
-                  onClick={() => setAddItem(true)}
-                  style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 12px', background:'#eff6ff', color:'#2563eb', border:'1px solid #bfdbfe', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600 }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                  Thêm hàng
-                </button>
+                <EditGuard>
+                  <button
+                    onClick={() => setAddItem(true)}
+                    style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 12px', background:'#eff6ff', color:'#2563eb', border:'1px solid #bfdbfe', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600 }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Thêm hàng
+                  </button>
+                </EditGuard>
               )}
             </>
           )}

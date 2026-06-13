@@ -6,6 +6,7 @@ import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import InSerialMobile from './InSerialMobile'
 import { AddComponentModal, ImportSerialModal, ReplaceSerialModal } from './ContractInSerialModals'
+import EditGuard from './EditGuard'
 
 // ── Quản lý serial tập trung cho hợp đồng NHẬP ─────────────────────────────────
 // Gom mọi serial của mọi đợt nhận vào 1 bảng: tìm kiếm/lọc, sửa inline, gắn linh
@@ -162,6 +163,7 @@ export default function ContractInSerialTab({ contractInId }) {
 
         <div style={{ flex:1 }} />
 
+        <EditGuard>
         {selected.size > 0 && (
           <>
             <span style={{ fontSize:13, fontWeight:600, color:'#b91c1c' }}>Đã chọn {selected.size}</span>
@@ -179,9 +181,11 @@ export default function ContractInSerialTab({ contractInId }) {
           style={{ padding:'8px 14px', background:'#16a34a', color:'#fff', border:'none', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>
           + Thêm linh kiện
         </button>
+        </EditGuard>
       </div>
 
-      {/* Table (desktop) / Cards (mobile) */}
+      {/* Table (desktop) / Cards (mobile) — Khóa nhập/xóa khi không phải PM */}
+      <EditGuard>
       {isMobile ? (
         <InSerialMobile
           rows={filtered} val={val} setF={setF} save={save} saving={saving} del={del}
@@ -229,6 +233,7 @@ export default function ContractInSerialTab({ contractInId }) {
         </table>
       </div>
       )}
+      </EditGuard>
 
       {showAdd && (
         <AddComponentModal items={items} parentOptions={parentOptions}

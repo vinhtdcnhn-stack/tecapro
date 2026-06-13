@@ -4,6 +4,7 @@ import { API } from '../../config/api'
 import { thStyle, tdStyle, fmtDate, fmtNum, statusCfg } from './contractInUtils'
 import ContractInDetail from './ContractInDetail'
 import ContractInFormModal from './ContractInFormModal'
+import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -105,12 +106,14 @@ export default function ContractInTab({ contractId, initialContractInId, initial
       </div>
 
       <div className="flex items-center justify-between mb-4" style={{ gap: 12 }}>
-        <button className="btn-primary" onClick={() => setAddModal(true)}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Thêm HĐ nhập
-        </button>
+        <EditGuard>
+          <button className="btn-primary" onClick={() => setAddModal(true)}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm HĐ nhập
+          </button>
+        </EditGuard>
         <input type="text" className="search-input"
           placeholder="🔍 Tìm số HĐ, loại hàng hóa, nhà cung cấp..."
           value={search} onChange={e => setSearch(e.target.value)} />

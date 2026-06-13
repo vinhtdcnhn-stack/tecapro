@@ -3,6 +3,7 @@ import {
   STATUSES, fmtDate, daysUntil, isOverdue, isWarning,
   priorityClass, statusClass, initials,
 } from './taskUtils'
+import EditGuard from './EditGuard'
 
 // ── Department group ──────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ export default function DeptGroup({ group, collapsed, onToggle, onEdit, onDelete
       </div>
 
       {!collapsed && (
+        <EditGuard>
         <div className="task-table-wrapper">
           <table className="task-table">
             <thead>
@@ -63,6 +65,7 @@ export default function DeptGroup({ group, collapsed, onToggle, onEdit, onDelete
             </tbody>
           </table>
         </div>
+        </EditGuard>
       )}
     </div>
   )

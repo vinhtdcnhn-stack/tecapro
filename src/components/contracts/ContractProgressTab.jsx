@@ -8,6 +8,7 @@ import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import ProgressMobile from './ProgressMobile'
+import EditGuard from './EditGuard'
 
 // Badge trạng thái nhỏ đặt ngay dưới ngày trong ô (giống "Thời hạn thu" ở Công nợ).
 function StatusBadgeInline({ st }) {
@@ -166,10 +167,12 @@ export default function ContractProgressTab({ contractId }) {
       {/* ── Toolbar ── */}
       <div className="prog-toolbar">
         <div className="prog-toolbar-left">
-          <button className="prog-btn prog-btn-primary" onClick={addRow}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Thêm biên bản
-          </button>
+          <EditGuard>
+            <button className="prog-btn prog-btn-primary" onClick={addRow}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Thêm biên bản
+            </button>
+          </EditGuard>
           <button className="prog-btn" onClick={() => setShowBBMgr(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             Quản lý loại BB
@@ -182,7 +185,8 @@ export default function ContractProgressTab({ contractId }) {
         </div>
       </div>
 
-      {/* ── Table (desktop) / Cards (mobile) ── */}
+      {/* ── Table (desktop) / Cards (mobile) ── Vô hiệu hóa nhập/xóa khi không phải PM */}
+      <EditGuard>
       {isMobile ? (
         <ProgressMobile
           rows={rows} bbTypes={bbTypes} baseOptions={baseOptions}
@@ -356,6 +360,7 @@ export default function ContractProgressTab({ contractId }) {
         </table>
       </div>
       )}
+      </EditGuard>
 
       {/* ── BB Type Manager Modal ── */}
       {showBBMgr && (

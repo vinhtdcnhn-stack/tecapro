@@ -6,6 +6,7 @@ import WarrantyRow from './SupplierWarrantyRow'
 import { BulkUpdateModal, WarrantyModal, ClaimModal } from './SupplierWarrantyModals'
 import useIsMobile from './useIsMobile'
 import { ClaimCardList, WarrantyCardList } from './SupplierWarrantyMobile'
+import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -157,14 +158,17 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
             <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Claim bảo hành với NCC</div>
             <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Theo dõi các yêu cầu bảo hành gửi đến nhà cung cấp</div>
           </div>
-          <button
-            onClick={() => setCModal('add')}
-            style={{ padding: '7px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-          >
-            + Thêm claim
-          </button>
+          <EditGuard>
+            <button
+              onClick={() => setCModal('add')}
+              style={{ padding: '7px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            >
+              + Thêm claim
+            </button>
+          </EditGuard>
         </div>
 
+        <EditGuard>
         {isMobile ? (
           <ClaimCardList rows={claims} onEdit={setCModal} onDelete={handleDeleteClaim} />
         ) : claims.length === 0 ? (
@@ -209,6 +213,7 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
             </table>
           </div>
         )}
+        </EditGuard>
       </div>
 
       {/* ── Section 2: Warranty list ── */}
@@ -218,6 +223,7 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
             <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Bảo hành theo chủng loại hàng</div>
             <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Thời hạn bảo hành NCC cho từng loại hàng đã nhận</div>
           </div>
+          <EditGuard>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {selected.size > 0 && (
               <button
@@ -241,10 +247,11 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
               + Thêm thủ công
             </button>
           </div>
+          </EditGuard>
         </div>
 
         {isMobile ? (
-          <WarrantyCardList rows={warranties} onEdit={setWModal} onDelete={handleDeleteWarranty} />
+          <EditGuard><WarrantyCardList rows={warranties} onEdit={setWModal} onDelete={handleDeleteWarranty} /></EditGuard>
         ) : warranties.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center', color: '#9ca3af' }}>
             Chưa có dữ liệu bảo hành.{' '}
@@ -256,9 +263,11 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
               <thead>
                 <tr style={{ background: '#f9fafb' }}>
                   <th style={th(36, 'center')}>
-                    <input type="checkbox"
-                      checked={selected.size === warranties.length && warranties.length > 0}
-                      onChange={toggleAll} />
+                    <EditGuard>
+                      <input type="checkbox"
+                        checked={selected.size === warranties.length && warranties.length > 0}
+                        onChange={toggleAll} />
+                    </EditGuard>
                   </th>
                   <th style={th(32, 'center')}>#</th>
                   <th style={th(null, 'left')}>Chủng loại hàng hóa</th>

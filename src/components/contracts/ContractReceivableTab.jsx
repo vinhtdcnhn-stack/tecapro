@@ -5,6 +5,7 @@ import { API } from '../../config/api'
 import { fmtVND, fmtAmt, useRows } from './receivableUtils'
 import { computeForecasts } from './progressUtils'
 import ScheduleSection from './ReceivableScheduleSection'
+import EditGuard from './EditGuard'
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -166,7 +167,8 @@ export default function ContractReceivableTab({ contractId }) {
         </div>
       )}
 
-      {/* ── Phải thu theo ĐKTT HĐ (kèm tiền về liên kết) ── */}
+      {/* ── Phải thu theo ĐKTT HĐ (kèm tiền về liên kết) ── Khóa nhập/sửa khi không phải PM */}
+      <EditGuard>
       <ScheduleSection
         rows={sched.rows}
         setRows={sched.setRows}
@@ -181,6 +183,7 @@ export default function ContractReceivableTab({ contractId }) {
         baseOptions={baseOptions}
         contractDate={contractDate}
       />
+      </EditGuard>
     </div>
   )
 }

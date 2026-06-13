@@ -3,6 +3,7 @@ import { API } from '../../config/api'
 import DateInput from './DateInput'
 import useIsMobile from './useIsMobile'
 import CustomsMobile from './CustomsMobile'
+import EditGuard from './EditGuard'
 
 const SHIPMENT_TYPES   = ['Nhập khẩu', 'Xuất khẩu']
 const CUSTOMS_STATUSES = ['Chưa khai báo', 'Đang làm thủ tục', 'Đã thông quan', 'Bị tạm giữ']
@@ -88,14 +89,17 @@ export default function ContractInCustomsTab({ contractInId }) {
             <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>Danh sách lô hàng xuất nhập khẩu</div>
             <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Tờ khai hải quan, vận đơn, lịch tàu và chi phí logistics</div>
           </div>
-          <button
-            onClick={() => setModal('add')}
-            style={{ padding: '7px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Thêm lô hàng
-          </button>
+          <EditGuard>
+            <button
+              onClick={() => setModal('add')}
+              style={{ padding: '7px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Thêm lô hàng
+            </button>
+          </EditGuard>
         </div>
+        <EditGuard>
         {isMobile ? (
           <CustomsMobile rows={rows} onEdit={setModal} onDelete={handleDelete}
             fmtVND={fmtVND} fmtDate={fmtDate} customsStatusStyle={customsStatusStyle} totalCost={totalCost} />
@@ -188,6 +192,7 @@ export default function ContractInCustomsTab({ contractInId }) {
             </table>
           </div>
         )}
+        </EditGuard>
       </div>
       {/* Modal */}
       {modal !== null && (
