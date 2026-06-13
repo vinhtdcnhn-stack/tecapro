@@ -58,7 +58,8 @@ CREATE TABLE public.app_user (
     last_login_at timestamp without time zone,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    telegram_chat_id text
+    telegram_chat_id text,
+    token_version integer DEFAULT 0 NOT NULL
 );
 
 

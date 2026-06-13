@@ -9,7 +9,7 @@ const router = Router()
 
 const pmOfContractIn = pmVia('contractIn', 'contractInId')
 
-// Ghi yêu cầu PM của HĐ bán cha (F-11)
+// Ghi yêu cầu PM của HĐ bán cha
 router.get('/contract-ins/:contractInId/payables',      getPayables)
 router.post('/contract-ins/:contractInId/payables',     pmOfContractIn, createPayable)
 router.put('/payables/:id',                             pmVia('payable'), updatePayable)

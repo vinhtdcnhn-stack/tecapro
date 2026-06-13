@@ -26,7 +26,7 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
   const [currentUser, setCurrentUser] = useState(null)
 
   // Quyền sửa: admin (role==1) hoặc PM của HĐ này (PM chính/đồng-PM). Backend đã
-  // chặn cùng quy tắc (F-11); đây là phần phản ánh ở UI để ẩn/khóa nút sửa.
+  // chặn cùng quy tắc; đây là phần phản ánh ở UI để ẩn/khóa nút sửa.
   const canEdit = (() => {
     if (!currentUser || !contract) return false
     if (Number(currentUser.role) === 1) return true

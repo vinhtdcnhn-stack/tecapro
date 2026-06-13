@@ -19,7 +19,7 @@ const router = Router()
 // Template download (no contractId needed)
 router.get('/boq/template', downloadBOQTemplate)
 
-// Collection routes — ghi yêu cầu PM của HĐ (F-11)
+// Collection routes — ghi yêu cầu PM của HĐ
 router.get('/contracts/:contractId/boq',                        getBOQ)
 router.post('/contracts/:contractId/boq',         pmFromParam(), createBOQItem)
 router.post('/contracts/:contractId/boq/after/:refId', pmFromParam(), insertBOQAfter)

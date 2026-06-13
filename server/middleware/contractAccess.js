@@ -1,7 +1,7 @@
 import { pool } from '../db.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Vá F-11 — phân quyền ghi theo hợp đồng:
+// Phân quyền ghi theo hợp đồng:
 // Chỉ PM của hợp đồng (contract_out_member.member_role = 'PM', gồm PM chính lẫn
 // đồng PM) hoặc admin (role = 1) mới được GHI/SỬA/XOÁ các thành phần bên trong
 // hợp đồng đó. Đọc (GET) vẫn mở cho mọi user đã đăng nhập theo thiết kế hiện tại

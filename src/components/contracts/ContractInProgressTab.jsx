@@ -8,6 +8,7 @@ import ProgressMobile from './ProgressMobile'
 import EditGuard from './EditGuard'
 
 import { API } from '../../config/api'
+import { useAuth } from '../../context/AuthContext'
 
 function dateDiff(planned, actual) {
   if (!planned || !actual) return null
@@ -35,6 +36,8 @@ export default function ContractInProgressTab({ contractInId }) {
   const [bbTypes, setBBTypes]     = useState([])
   const [loading, setLoading]     = useState(true)
   const [showBBMgr, setShowBBMgr] = useState(false)
+  const { user } = useAuth()                    // loại BB là danh mục dùng chung → chỉ admin quản lý
+  const isAdmin = user?.role == 1
 
   const toLocal = (r) => ({ ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false })
 
@@ -118,10 +121,12 @@ export default function ContractInProgressTab({ contractInId }) {
               Thêm biên bản
             </button>
           </EditGuard>
-          <button className="prog-btn" onClick={() => setShowBBMgr(true)}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-            Quản lý loại BB
-          </button>
+          {isAdmin && (
+            <button className="prog-btn" onClick={() => setShowBBMgr(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+              Quản lý loại BB
+            </button>
+          )}
         </div>
         <div className="prog-stats">
           <span className="stat-chip stat-total">{savedRows.length} biên bản</span>

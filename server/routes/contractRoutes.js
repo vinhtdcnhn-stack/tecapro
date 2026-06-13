@@ -8,7 +8,7 @@ router.get('/', contractController.getAllContracts)
 router.get('/:id', contractController.getContractById)
 router.post('/check-contract-no', contractController.checkContractNoDuplicate)
 router.post('/', contractController.createContract)
-// Chỉ PM của HĐ (hoặc admin) được sửa — gồm cả danh sách thành viên (F-11)
+// Chỉ PM của HĐ (hoặc admin) được sửa — gồm cả danh sách thành viên
 router.put('/:id', pmFromParam('id'), contractController.updateContract)
 
 export default router

@@ -7,7 +7,7 @@ import { pmFromParam, pmVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
-// Receivable schedule — ghi yêu cầu PM của HĐ (F-11)
+// Receivable schedule — ghi yêu cầu PM của HĐ
 router.get('/contracts/:contractId/receivable',       getSchedule)
 router.post('/contracts/:contractId/receivable',      pmFromParam(), createSchedule)
 router.put('/receivable/:id',                         pmVia('receivable'), updateSchedule)

@@ -5,16 +5,17 @@ import {
   getProgressIn, createProgressIn, updateProgressIn, deleteProgressIn,
 } from '../controllers/progressController.js'
 import { pmFromParam, pmVia } from '../middleware/contractAccess.js'
+import { requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
-// BB Type master — dữ liệu dùng chung mọi HĐ, không thuộc một dự án nên không gate theo PM
+// BB Type master — dữ liệu dùng chung mọi HĐ, không thuộc một dự án: ghi chỉ admin
 router.get('/bb-types',       getBBTypes)
-router.post('/bb-types',      createBBType)
-router.put('/bb-types/:id',   updateBBType)
-router.delete('/bb-types/:id', deleteBBType)
+router.post('/bb-types',      requireAdmin, createBBType)
+router.put('/bb-types/:id',   requireAdmin, updateBBType)
+router.delete('/bb-types/:id', requireAdmin, deleteBBType)
 
-// Progress per contract — ghi yêu cầu PM của HĐ (F-11)
+// Progress per contract — ghi yêu cầu PM của HĐ
 router.get('/contracts/:contractId/progress',     getProgress)
 router.post('/contracts/:contractId/progress',    pmFromParam(), createProgress)
 router.put('/progress/:id',                       pmVia('progress'), updateProgress)

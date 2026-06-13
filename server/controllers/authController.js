@@ -358,7 +358,7 @@ export async function updateUser(req, res) {
     let rows
     if (password && password.trim() !== '') {
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
-      // Đặt mật khẩu mới → bump token_version để vô hiệu các phiên cũ của user này (F-05).
+      // Đặt mật khẩu mới → bump token_version để vô hiệu các phiên cũ của user này.
       ;({ rows } = await client.query(
         `UPDATE app_user SET
            username=$1, email=$2, full_name=$3, phone=$4, employee_code=$5,
@@ -453,7 +453,7 @@ export async function changePassword(req, res) {
     return
   }
 
-  // Bump token_version để vô hiệu MỌI phiên đang đăng nhập của user này (F-05).
+  // Bump token_version để vô hiệu MỌI phiên đang đăng nhập của user này.
   const passwordHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS)
   const { rows: updated } = await pool.query(
     `UPDATE app_user SET password_hash = $1, token_version = token_version + 1, updated_at = NOW()

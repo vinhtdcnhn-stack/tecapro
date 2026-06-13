@@ -9,7 +9,7 @@ const router = Router()
 // Tra cứu bảo hành theo serial — cross-contract có chủ đích, chỉ đọc
 router.get('/warranty-lookup', lookup.lookupSerial)
 
-// Equipment — ghi yêu cầu PM của HĐ (F-11)
+// Equipment — ghi yêu cầu PM của HĐ
 router.get('/contracts/:id/equipment',        c.getEquipment)
 router.post('/contracts/:id/equipment',       pmFromParam('id'), c.createEquipment)
 router.post('/contracts/:id/equipment/import', pmFromParam('id'), imp.importEquipment)

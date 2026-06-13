@@ -7,7 +7,7 @@ import { pmVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
-// Ghi yêu cầu PM của HĐ bán cha (F-11)
+// Ghi yêu cầu PM của HĐ bán cha
 router.get('/contract-ins/:contractInId/logistics',  getLogisticsList)
 router.post('/contract-ins/:contractInId/logistics', pmVia('contractIn', 'contractInId'), createLogistics)
 router.put('/contract-in-logistics/:id',             pmVia('logistics'), updateLogistics)

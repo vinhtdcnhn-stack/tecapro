@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react'
 import './ContractProgressTab.css'
 
 import { API } from '../../config/api'
+import { useAuth } from '../../context/AuthContext'
 import { getStatusInfo, computeForecasts, computePlannedDates, fmtDate, forecastHint, tmpId } from './progressUtils'
 import BBTypeManager from './BBTypeManager'
 import DateInput from './DateInput'
@@ -27,6 +28,8 @@ export default function ContractProgressTab({ contractId }) {
   const [contractDate, setContractDate] = useState(null) // ngày ký HĐ (mốc gốc)
   const [loading, setLoading]   = useState(true)
   const [showBBMgr, setShowBBMgr] = useState(false)
+  const { user } = useAuth()                    // loại BB là danh mục dùng chung → chỉ admin quản lý
+  const isAdmin = user?.role == 1
 
   const load = useCallback(async () => {
     try {
@@ -173,10 +176,12 @@ export default function ContractProgressTab({ contractId }) {
               Thêm biên bản
             </button>
           </EditGuard>
-          <button className="prog-btn" onClick={() => setShowBBMgr(true)}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-            Quản lý loại BB
-          </button>
+          {isAdmin && (
+            <button className="prog-btn" onClick={() => setShowBBMgr(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+              Quản lý loại BB
+            </button>
+          )}
         </div>
         <div className="prog-stats">
           <span className="stat-chip stat-total">{savedRows.length} biên bản</span>

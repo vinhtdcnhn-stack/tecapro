@@ -5,7 +5,7 @@ import { pmFromParam, pmVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
-// Ghi yêu cầu PM của HĐ (F-11)
+// Ghi yêu cầu PM của HĐ
 router.get('/contracts/:id/tasks',  getTasks)
 router.post('/contracts/:id/tasks', pmFromParam('id'), createTask)
 router.put('/tasks/:id',            pmVia('task'), updateTask)

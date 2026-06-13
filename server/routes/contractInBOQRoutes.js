@@ -18,7 +18,7 @@ const router = Router()
 
 const pmOfContractIn = pmVia('contractIn', 'contractInId')
 
-// Ghi yêu cầu PM của HĐ bán cha (F-11)
+// Ghi yêu cầu PM của HĐ bán cha
 router.get('/purchase-boq/template',                                    downloadPurchaseBOQTemplate)
 router.get('/contract-ins/:contractInId/boq',                           getPurchaseBOQ)
 router.post('/contract-ins/:contractInId/boq',                          pmOfContractIn, createPurchaseBOQItem)

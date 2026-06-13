@@ -5,7 +5,7 @@ import { createContext, useContext } from 'react'
 // (PM chính lẫn đồng-PM, member_role='PM'). Tính ở ContractManagementPage rồi
 // provide xuống; mọi nút Thêm/Sửa/Xóa và ô nhập inline đọc qua <EditGuard>.
 //
-// Khớp đúng với chốt chặn server-side ở server/middleware/contractAccess.js (F-11):
+// Khớp đúng với chốt chặn server-side ở server/middleware/contractAccess.js:
 // kể cả khi UI bị qua mặt, backend vẫn trả 403 cho user không phải PM.
 const ContractPermContext = createContext(false)
 

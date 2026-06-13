@@ -9,7 +9,7 @@ import { pmFromParam, pmVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
-// Folder routes — ghi yêu cầu PM của HĐ (F-11)
+// Folder routes — ghi yêu cầu PM của HĐ
 router.get('/contracts/:contractId/folders', getFolderTree)
 router.post('/contracts/:contractId/folders', pmFromParam(), createFolder)
 router.put('/folders/:folderId', pmVia('folder', 'folderId'), updateFolder)
