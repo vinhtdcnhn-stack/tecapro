@@ -10,8 +10,9 @@ import CustomerTable from '../components/customers/CustomerTable'
 import CustomerModal from '../components/customers/CustomerModal'
 import SupplierTable from '../components/suppliers/SupplierTable'
 import SupplierModal from '../components/suppliers/SupplierModal'
+import CodeNameModal from '../components/common/CodeNameModal'
 
-const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers']
+const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types']
 
 export default function QuantriPage() {
   const { user } = useAuth()
@@ -36,6 +37,13 @@ export default function QuantriPage() {
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
   const [showEditSupplierModal, setShowEditSupplierModal] = useState(false)
   const [editingSupplierId, setEditingSupplierId] = useState(null)
+  const [showDeptModal, setShowDeptModal] = useState(false)
+  const [editingDept, setEditingDept] = useState(null)
+  const [showPositionModal, setShowPositionModal] = useState(false)
+  const [editingPosition, setEditingPosition] = useState(null)
+  const [bbTypes, setBBTypes] = useState([])
+  const [showBBTypeModal, setShowBBTypeModal] = useState(false)
+  const [editingBBType, setEditingBBType] = useState(null)
 
   async function loadUsers() {
     try { setUsers(await fetch(`${API}/api/users`).then(r => r.json())) } catch (e) { console.error(e) }
@@ -46,12 +54,22 @@ export default function QuantriPage() {
   async function loadSuppliers() {
     try { setSuppliers(await fetch(`${API}/api/suppliers`).then(r => r.json())) } catch (e) { console.error(e) }
   }
+  async function loadDepartments() {
+    try { setDepartments(await fetch(`${API}/api/departments`).then(r => r.json())) } catch (e) { console.error(e) }
+  }
+  async function loadPositions() {
+    try { setPositions(await fetch(`${API}/api/positions`).then(r => r.json())) } catch (e) { console.error(e) }
+  }
+  async function loadBBTypes() {
+    try { setBBTypes(await fetch(`${API}/api/bb-types`).then(r => r.json())) } catch (e) { console.error(e) }
+  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- các loader async: setState xảy ra SAU await
     loadUsers()
     loadCustomers()
     loadSuppliers()
+    loadBBTypes()
     Promise.all([
       fetch(`${API}/api/departments`).then(r => r.json()),
       fetch(`${API}/api/positions`).then(r => r.json()),
@@ -122,6 +140,45 @@ export default function QuantriPage() {
     } catch { alert('Có lỗi xảy ra.') }
   }
 
+  async function handleSaveDepartment(formData, isEdit) {
+    try {
+      const url    = isEdit ? `${API}/api/departments/${editingDept.id}` : `${API}/api/departments`
+      const method = isEdit ? 'PUT' : 'POST'
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+      const data   = await res.json()
+      if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
+      alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
+      await loadDepartments()
+      setShowDeptModal(false); setEditingDept(null)
+    } catch { alert('Có lỗi xảy ra.') }
+  }
+
+  async function handleSavePosition(formData, isEdit) {
+    try {
+      const url    = isEdit ? `${API}/api/positions/${editingPosition.id}` : `${API}/api/positions`
+      const method = isEdit ? 'PUT' : 'POST'
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+      const data   = await res.json()
+      if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
+      alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
+      await loadPositions()
+      setShowPositionModal(false); setEditingPosition(null)
+    } catch { alert('Có lỗi xảy ra.') }
+  }
+
+  async function handleSaveBBType(formData, isEdit) {
+    try {
+      const url    = isEdit ? `${API}/api/bb-types/${editingBBType.id}` : `${API}/api/bb-types`
+      const method = isEdit ? 'PUT' : 'POST'
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+      const data   = await res.json()
+      if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
+      alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
+      await loadBBTypes()
+      setShowBBTypeModal(false); setEditingBBType(null)
+    } catch { alert('Có lỗi xảy ra.') }
+  }
+
   if (!VALID_SECTIONS.includes(section)) return <Navigate to="/quantri/users" replace />
 
   return (
@@ -154,19 +211,61 @@ export default function QuantriPage() {
           )}
 
           {section === 'departments' && (
-            <DataTable
-              title="QUẢN LÝ PHÒNG BAN"
-              columns={[{ header: 'Mã phòng ban', field: 'code' }, { header: 'Tên phòng ban', field: 'name' }]}
-              data={departments}
-            />
+            <>
+              <DataTable
+                title="QUẢN LÝ PHÒNG BAN"
+                headerActions={user?.role == 1 && (
+                  <button className="add-btn" onClick={() => { setEditingDept(null); setShowDeptModal(true) }}>Thêm phòng ban</button>
+                )}
+                columns={[
+                  { header: 'Mã phòng ban', field: 'code' },
+                  { header: 'Tên phòng ban', field: 'name' },
+                  ...(user?.role == 1 ? [{
+                    header: 'Thao tác',
+                    render: (d) => <button className="edit-btn" onClick={() => { setEditingDept(d); setShowDeptModal(true) }}>Sửa</button>,
+                  }] : []),
+                ]}
+                data={departments}
+              />
+              <CodeNameModal
+                isOpen={showDeptModal}
+                onClose={() => { setShowDeptModal(false); setEditingDept(null) }}
+                onSave={handleSaveDepartment}
+                item={editingDept}
+                titleAdd="THÊM PHÒNG BAN" titleEdit="SỬA PHÒNG BAN"
+                codeLabel="Mã phòng ban" nameLabel="Tên phòng ban"
+                labelledBy="dept-modal-title"
+              />
+            </>
           )}
 
           {section === 'positions' && (
-            <DataTable
-              title="QUẢN LÝ VỊ TRÍ"
-              columns={[{ header: 'Mã vị trí', field: 'code' }, { header: 'Tên vị trí', field: 'name' }]}
-              data={positions}
-            />
+            <>
+              <DataTable
+                title="QUẢN LÝ VỊ TRÍ"
+                headerActions={user?.role == 1 && (
+                  <button className="add-btn" onClick={() => { setEditingPosition(null); setShowPositionModal(true) }}>Thêm vị trí</button>
+                )}
+                columns={[
+                  { header: 'Mã vị trí', field: 'code' },
+                  { header: 'Tên vị trí', field: 'name' },
+                  ...(user?.role == 1 ? [{
+                    header: 'Thao tác',
+                    render: (p) => <button className="edit-btn" onClick={() => { setEditingPosition(p); setShowPositionModal(true) }}>Sửa</button>,
+                  }] : []),
+                ]}
+                data={positions}
+              />
+              <CodeNameModal
+                isOpen={showPositionModal}
+                onClose={() => { setShowPositionModal(false); setEditingPosition(null) }}
+                onSave={handleSavePosition}
+                item={editingPosition}
+                titleAdd="THÊM VỊ TRÍ" titleEdit="SỬA VỊ TRÍ"
+                codeLabel="Mã vị trí" nameLabel="Tên vị trí"
+                labelledBy="position-modal-title"
+              />
+            </>
           )}
 
           {section === 'customers' && (
@@ -204,6 +303,35 @@ export default function QuantriPage() {
               </div>
               <SupplierModal isOpen={showAddSupplierModal} onClose={() => setShowAddSupplierModal(false)} onSave={handleSaveSupplier} />
               <SupplierModal isOpen={showEditSupplierModal} onClose={() => { setShowEditSupplierModal(false); setEditingSupplierId(null) }} onSave={handleSaveSupplier} supplier={suppliers.find(s => s.id === editingSupplierId)} />
+            </>
+          )}
+
+          {section === 'bb-types' && (
+            <>
+              <DataTable
+                title="QUẢN LÝ LOẠI BIÊN BẢN"
+                headerActions={user?.role == 1 && (
+                  <button className="add-btn" onClick={() => { setEditingBBType(null); setShowBBTypeModal(true) }}>Thêm loại biên bản</button>
+                )}
+                columns={[
+                  { header: 'Mã', field: 'code' },
+                  { header: 'Tên đầy đủ', field: 'name' },
+                  ...(user?.role == 1 ? [{
+                    header: 'Thao tác',
+                    render: (t) => <button className="edit-btn" onClick={() => { setEditingBBType(t); setShowBBTypeModal(true) }}>Sửa</button>,
+                  }] : []),
+                ]}
+                data={bbTypes}
+              />
+              <CodeNameModal
+                isOpen={showBBTypeModal}
+                onClose={() => { setShowBBTypeModal(false); setEditingBBType(null) }}
+                onSave={handleSaveBBType}
+                item={editingBBType}
+                titleAdd="THÊM LOẠI BIÊN BẢN" titleEdit="SỬA LOẠI BIÊN BẢN"
+                codeLabel="Mã" nameLabel="Tên đầy đủ"
+                labelledBy="bbtype-modal-title"
+              />
             </>
           )}
 

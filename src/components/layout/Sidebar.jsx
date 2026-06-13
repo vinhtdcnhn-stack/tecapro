@@ -6,6 +6,7 @@ const ITEMS = [
   { label: 'QUẢN LÝ VỊ TRÍ',       section: 'positions'   },
   { label: 'QUẢN LÝ KHÁCH HÀNG',   section: 'customers'   },
   { label: 'QUẢN LÝ NHÀ CUNG CẤP', section: 'suppliers'   },
+  { label: 'QUẢN LÝ LOẠI BIÊN BẢN', section: 'bb-types'   },
 ]
 
 export default function Sidebar() {

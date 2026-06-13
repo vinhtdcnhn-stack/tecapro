@@ -31,9 +31,44 @@ export async function getPMDashboard(req, res) {
     const cmap = new Map(contracts.map(c => [String(c.id), c]))
     const getC = (cid) => cmap.get(String(cid))
 
-    // 3. Ghim & nhắc của user
-    const { rows: trk } = await pool.query(
-      'SELECT source_type, source_id, pinned, remind_at FROM pm_dashboard_tracking WHERE user_id = $1', [userId])
+    // Các nguồn phía bán + danh sách HĐ nhập đều chỉ phụ thuộc `ids` (và trk theo userId)
+    // → nạp song song để giảm số round-trip xuống DB (trước đây chạy tuần tự).
+    const [
+      { rows: trk },
+      { rows: prog },
+      { rows: recv },
+      { rows: guar },
+      { rows: tasks },
+      { rows: inContracts },
+    ] = await Promise.all([
+      pool.query(
+        'SELECT source_type, source_id, pinned, remind_at FROM pm_dashboard_tracking WHERE user_id = $1', [userId]),
+      pool.query(
+        `SELECT p.*, t.code AS bb_code, t.name AS bb_name
+           FROM contract_out_progress p
+           LEFT JOIN contract_bb_type t ON t.id = p.bb_type_id
+          WHERE p.contract_out_id = ANY($1)
+          ORDER BY p.contract_out_id, p.sort_order, p.id`, [ids]),
+      pool.query(
+        `SELECT r.id, r.contract_out_id, r.description, r.due_date, r.amount, r.currency_code,
+                COALESCE((SELECT SUM(amount) FROM contract_receivable_payment pm
+                           WHERE pm.schedule_id = r.id), 0) AS paid
+           FROM contract_receivable r
+          WHERE r.contract_out_id = ANY($1) AND r.due_date IS NOT NULL`, [ids]),
+      pool.query(
+        `SELECT id, contract_out_id, guarantee_type, expiry_date
+           FROM contract_guarantee
+          WHERE contract_out_id = ANY($1) AND expiry_date IS NOT NULL
+            AND COALESCE(status, '') <> 'Đã hoàn trả'`, [ids]),
+      pool.query(
+        `SELECT id, contract_out_id, title, due_date
+           FROM contract_task
+          WHERE contract_out_id = ANY($1) AND due_date IS NOT NULL
+            AND status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')`, [ids]),
+      pool.query(
+        'SELECT id, contract_no, contract_out_id, contract_date FROM contract_in WHERE contract_out_id = ANY($1)', [ids]),
+    ])
+
     const tmap = new Map(trk.map(t => [`${t.source_type}:${t.source_id}`, t]))
     const attach = (it) => {
       const t = tmap.get(`${it.source_type}:${it.source_id}`)
@@ -43,12 +78,6 @@ export async function getPMDashboard(req, res) {
     const items = []
 
     // ── Biên bản: thời hạn = Ngày dự kiến (forecast), chỉ mốc chưa ký ──
-    const { rows: prog } = await pool.query(
-      `SELECT p.*, t.code AS bb_code, t.name AS bb_name
-         FROM contract_out_progress p
-         LEFT JOIN contract_bb_type t ON t.id = p.bb_type_id
-        WHERE p.contract_out_id = ANY($1)
-        ORDER BY p.contract_out_id, p.sort_order, p.id`, [ids])
     const byContract = new Map()
     prog.forEach(p => {
       if (!byContract.has(p.contract_out_id)) byContract.set(p.contract_out_id, [])
@@ -71,12 +100,6 @@ export async function getPMDashboard(req, res) {
     }
 
     // ── Công nợ: thời hạn = due_date, chỉ khoản còn thiếu ──
-    const { rows: recv } = await pool.query(
-      `SELECT r.id, r.contract_out_id, r.description, r.due_date, r.amount, r.currency_code,
-              COALESCE((SELECT SUM(amount) FROM contract_receivable_payment pm
-                         WHERE pm.schedule_id = r.id), 0) AS paid
-         FROM contract_receivable r
-        WHERE r.contract_out_id = ANY($1) AND r.due_date IS NOT NULL`, [ids])
     recv.forEach(r => {
       const shortage = (parseFloat(r.amount) || 0) - (parseFloat(r.paid) || 0)
       if (shortage <= 0) return
@@ -90,11 +113,6 @@ export async function getPMDashboard(req, res) {
     })
 
     // ── Bảo lãnh: thời hạn = expiry_date ──
-    const { rows: guar } = await pool.query(
-      `SELECT id, contract_out_id, guarantee_type, expiry_date
-         FROM contract_guarantee
-        WHERE contract_out_id = ANY($1) AND expiry_date IS NOT NULL
-          AND COALESCE(status, '') <> 'Đã hoàn trả'`, [ids])
     guar.forEach(g => {
       const c = getC(g.contract_out_id)
       items.push(attach({
@@ -105,11 +123,6 @@ export async function getPMDashboard(req, res) {
     })
 
     // ── Công việc triển khai: thời hạn = due_date, chỉ việc chưa xong ──
-    const { rows: tasks } = await pool.query(
-      `SELECT id, contract_out_id, title, due_date
-         FROM contract_task
-        WHERE contract_out_id = ANY($1) AND due_date IS NOT NULL
-          AND status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')`, [ids])
     tasks.forEach(t => {
       const c = getC(t.contract_out_id)
       items.push(attach({
@@ -120,8 +133,6 @@ export async function getPMDashboard(req, res) {
     })
 
     // ════════ NGUỒN PHÍA NHẬP — HĐ nhập thuộc các HĐ bán user tham gia ════════
-    const { rows: inContracts } = await pool.query(
-      'SELECT id, contract_no, contract_out_id, contract_date FROM contract_in WHERE contract_out_id = ANY($1)', [ids])
     const inIds = inContracts.map(c => c.id)
     if (inIds.length) {
       const inMap = new Map(inContracts.map(c => [String(c.id), c]))
@@ -138,12 +149,47 @@ export async function getPMDashboard(req, res) {
         }))
       }
 
+      // Các nguồn phía nhập đều chỉ phụ thuộc inIds → nạp song song.
+      const [
+        { rows: inProg },
+        { rows: payRows },
+        { rows: paySum },
+        { rows: paidSum },
+        { rows: deliv },
+        { rows: customs },
+        { rows: inGuar },
+        { rows: supW },
+      ] = await Promise.all([
+        pool.query(
+          `SELECT p.id, p.contract_in_id, p.planned_date, t.code AS bb_code, t.name AS bb_name
+             FROM contract_in_progress p
+             LEFT JOIN contract_bb_type t ON t.id = p.bb_type_id
+            WHERE p.contract_in_id = ANY($1) AND p.actual_date IS NULL AND p.planned_date IS NOT NULL`, [inIds]),
+        pool.query(
+          'SELECT id, contract_in_id, description, due_date, amount, currency_code FROM contract_in_payable WHERE contract_in_id = ANY($1) AND due_date IS NOT NULL', [inIds]),
+        pool.query(
+          'SELECT contract_in_id, SUM(amount) AS total FROM contract_in_payable WHERE contract_in_id = ANY($1) GROUP BY contract_in_id', [inIds]),
+        pool.query(
+          'SELECT contract_in_id, SUM(amount) AS paid FROM contract_in_payment WHERE contract_in_id = ANY($1) GROUP BY contract_in_id', [inIds]),
+        pool.query(
+          `SELECT id, contract_in_id, batch_name, receive_date FROM contract_in_delivery
+            WHERE contract_in_id = ANY($1) AND receive_date IS NOT NULL
+              AND COALESCE(status,'') <> 'Đã nhận đủ'`, [inIds]),
+        pool.query(
+          `SELECT id, contract_in_id, declaration_no, bl_awb_no, etd, eta, customs_status
+             FROM contract_in_customs
+            WHERE contract_in_id = ANY($1) AND (eta IS NOT NULL OR etd IS NOT NULL)
+              AND COALESCE(customs_status,'') <> 'Đã thông quan'`, [inIds]),
+        pool.query(
+          `SELECT id, contract_in_id, guarantee_type, expiry_date FROM contract_in_guarantee
+            WHERE contract_in_id = ANY($1) AND expiry_date IS NOT NULL
+              AND COALESCE(status,'') <> 'Đã hoàn trả'`, [inIds]),
+        pool.query(
+          `SELECT id, contract_in_id, item_name, warranty_end FROM contract_in_supplier_warranty
+            WHERE contract_in_id = ANY($1) AND warranty_end IS NOT NULL`, [inIds]),
+      ])
+
       // Biên bản nhập — planned_date, chỉ mốc chưa ký
-      const { rows: inProg } = await pool.query(
-        `SELECT p.id, p.contract_in_id, p.planned_date, t.code AS bb_code, t.name AS bb_name
-           FROM contract_in_progress p
-           LEFT JOIN contract_bb_type t ON t.id = p.bb_type_id
-          WHERE p.contract_in_id = ANY($1) AND p.actual_date IS NULL AND p.planned_date IS NOT NULL`, [inIds])
       inProg.forEach(p => pushIn({
         source_type: 'in_progress', source_id: p.id, contract_in_id: p.contract_in_id,
         due_date: p.planned_date, kind: 'Biên bản',
@@ -151,12 +197,6 @@ export async function getPMDashboard(req, res) {
       }))
 
       // Công nợ phải trả NCC — due_date; bỏ HĐ đã trả đủ (tính theo tổng HĐ nhập)
-      const { rows: payRows } = await pool.query(
-        'SELECT id, contract_in_id, description, due_date, amount, currency_code FROM contract_in_payable WHERE contract_in_id = ANY($1) AND due_date IS NOT NULL', [inIds])
-      const { rows: paySum } = await pool.query(
-        'SELECT contract_in_id, SUM(amount) AS total FROM contract_in_payable WHERE contract_in_id = ANY($1) GROUP BY contract_in_id', [inIds])
-      const { rows: paidSum } = await pool.query(
-        'SELECT contract_in_id, SUM(amount) AS paid FROM contract_in_payment WHERE contract_in_id = ANY($1) GROUP BY contract_in_id', [inIds])
       const totalPay = new Map(paySum.map(r => [String(r.contract_in_id), parseFloat(r.total) || 0]))
       const paidPay  = new Map(paidSum.map(r => [String(r.contract_in_id), parseFloat(r.paid) || 0]))
       payRows.forEach(r => {
@@ -171,10 +211,6 @@ export async function getPMDashboard(req, res) {
       })
 
       // Nhận hàng — receive_date, chưa nhận đủ
-      const { rows: deliv } = await pool.query(
-        `SELECT id, contract_in_id, batch_name, receive_date FROM contract_in_delivery
-          WHERE contract_in_id = ANY($1) AND receive_date IS NOT NULL
-            AND COALESCE(status,'') <> 'Đã nhận đủ'`, [inIds])
       deliv.forEach(d => pushIn({
         source_type: 'in_delivery', source_id: d.id, contract_in_id: d.contract_in_id,
         due_date: d.receive_date, kind: 'Nhận hàng',
@@ -182,11 +218,6 @@ export async function getPMDashboard(req, res) {
       }))
 
       // Logistics / hải quan — ETA (hoặc ETD), chưa thông quan
-      const { rows: customs } = await pool.query(
-        `SELECT id, contract_in_id, declaration_no, bl_awb_no, etd, eta, customs_status
-           FROM contract_in_customs
-          WHERE contract_in_id = ANY($1) AND (eta IS NOT NULL OR etd IS NOT NULL)
-            AND COALESCE(customs_status,'') <> 'Đã thông quan'`, [inIds])
       customs.forEach(cs => pushIn({
         source_type: 'in_customs', source_id: cs.id, contract_in_id: cs.contract_in_id,
         due_date: cs.eta || cs.etd, kind: 'Logistics',
@@ -195,10 +226,6 @@ export async function getPMDashboard(req, res) {
       }))
 
       // Bảo lãnh nhập — expiry_date
-      const { rows: inGuar } = await pool.query(
-        `SELECT id, contract_in_id, guarantee_type, expiry_date FROM contract_in_guarantee
-          WHERE contract_in_id = ANY($1) AND expiry_date IS NOT NULL
-            AND COALESCE(status,'') <> 'Đã hoàn trả'`, [inIds])
       inGuar.forEach(g => pushIn({
         source_type: 'in_guarantee', source_id: g.id, contract_in_id: g.contract_in_id,
         due_date: g.expiry_date, kind: 'Bảo lãnh',
@@ -206,9 +233,6 @@ export async function getPMDashboard(req, res) {
       }))
 
       // Bảo hành NCC — warranty_end
-      const { rows: supW } = await pool.query(
-        `SELECT id, contract_in_id, item_name, warranty_end FROM contract_in_supplier_warranty
-          WHERE contract_in_id = ANY($1) AND warranty_end IS NOT NULL`, [inIds])
       supW.forEach(w => pushIn({
         source_type: 'in_warranty', source_id: w.id, contract_in_id: w.contract_in_id,
         due_date: w.warranty_end, kind: 'Bảo hành NCC',

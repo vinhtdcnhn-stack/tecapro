@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractProgressTab.css'
-import Modal from '../common/Modal'
 import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
@@ -8,7 +7,6 @@ import ProgressMobile from './ProgressMobile'
 import EditGuard from './EditGuard'
 
 import { API } from '../../config/api'
-import { useAuth } from '../../context/AuthContext'
 
 function dateDiff(planned, actual) {
   if (!planned || !actual) return null
@@ -35,9 +33,6 @@ export default function ContractInProgressTab({ contractInId }) {
   const [rows, setRows]           = useState([])
   const [bbTypes, setBBTypes]     = useState([])
   const [loading, setLoading]     = useState(true)
-  const [showBBMgr, setShowBBMgr] = useState(false)
-  const { user } = useAuth()                    // loại BB là danh mục dùng chung → chỉ admin quản lý
-  const isAdmin = user?.role == 1
 
   const toLocal = (r) => ({ ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false })
 
@@ -121,12 +116,6 @@ export default function ContractInProgressTab({ contractInId }) {
               Thêm biên bản
             </button>
           </EditGuard>
-          {isAdmin && (
-            <button className="prog-btn" onClick={() => setShowBBMgr(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-              Quản lý loại BB
-            </button>
-          )}
         </div>
         <div className="prog-stats">
           <span className="stat-chip stat-total">{savedRows.length} biên bản</span>
@@ -238,120 +227,6 @@ export default function ContractInProgressTab({ contractInId }) {
       )}
       </EditGuard>
 
-      {/* BB Type Manager — reuses shared component */}
-      {showBBMgr && (
-        <BBTypeManager
-          types={bbTypes}
-          onClose={() => setShowBBMgr(false)}
-          onUpdated={(updated) => setBBTypes(updated)}
-        />
-      )}
     </div>
-  )
-}
-
-// ── BB Type Manager (same as ContractProgressTab) ─────────────────────────────
-
-function BBTypeManager({ types, onClose, onUpdated }) {
-  const [list, setList]           = useState(types)
-  const [newCode, setNewCode]     = useState('')
-  const [newName, setNewName]     = useState('')
-  const [adding, setAdding]       = useState(false)
-  const [editId, setEditId]       = useState(null)
-  const [editCode, setEditCode]   = useState('')
-  const [editName, setEditName]   = useState('')
-
-  const refresh = async () => {
-    const res  = await fetch(`${API}/bb-types`)
-    const data = await res.json()
-    if (Array.isArray(data)) { setList(data); onUpdated(data) }
-  }
-
-  const handleAdd = async () => {
-    if (!newCode.trim() || !newName.trim()) return
-    setAdding(true)
-    try {
-      const res = await fetch(`${API}/bb-types`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: newCode, name: newName }),
-      })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error); return }
-      setNewCode(''); setNewName('')
-      await refresh()
-    } catch { alert('Lỗi') } finally { setAdding(false) }
-  }
-
-  const handleEdit = async (id) => {
-    const res = await fetch(`${API}/bb-types/${id}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: editCode, name: editName }),
-    })
-    const data = await res.json()
-    if (!res.ok) { alert(data.error); return }
-    setEditId(null)
-    await refresh()
-  }
-
-  const handleDelete = async (id) => {
-    if (!confirm('Xóa loại BB này?')) return
-    const res  = await fetch(`${API}/bb-types/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (!res.ok) { alert(data.error); return }
-    await refresh()
-  }
-
-  return (
-    <Modal onClose={onClose} contentClassName="bbmgr-modal" labelledBy="bbmgr-in-title">
-        <div className="bbmgr-header">
-          <h3 id="bbmgr-in-title">Quản lý loại Biên bản</h3>
-          <button className="btn-close-preview" onClick={onClose} aria-label="Đóng">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
-          </button>
-        </div>
-        <div className="bbmgr-body">
-          <table className="bbmgr-table">
-            <thead>
-              <tr>
-                <th style={{ width:90 }}>Mã</th>
-                <th>Tên đầy đủ</th>
-                <th style={{ width:80 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map(t => (
-                <tr key={t.id}>
-                  <td>{editId===t.id ? <input className="bbmgr-input" value={editCode} onChange={e=>setEditCode(e.target.value)} /> : <strong>{t.code}</strong>}</td>
-                  <td>{editId===t.id ? <input className="bbmgr-input bbmgr-input-wide" value={editName} onChange={e=>setEditName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleEdit(t.id)} /> : t.name}</td>
-                  <td>
-                    {editId===t.id ? (
-                      <div className="bbmgr-actions">
-                        <button className="bbmgr-btn bbmgr-btn-save" onClick={()=>handleEdit(t.id)}>✓</button>
-                        <button className="bbmgr-btn" onClick={()=>setEditId(null)}>✕</button>
-                      </div>
-                    ) : (
-                      <div className="bbmgr-actions">
-                        <button className="bbmgr-btn" onClick={()=>{setEditId(t.id);setEditCode(t.code);setEditName(t.name)}}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                        </button>
-                        <button className="bbmgr-btn bbmgr-btn-del" onClick={()=>handleDelete(t.id)}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              <tr className="bbmgr-add-row">
-                <td><input className="bbmgr-input" value={newCode} onChange={e=>setNewCode(e.target.value.toUpperCase())} placeholder="VD: FAT" maxLength={20} /></td>
-                <td><input className="bbmgr-input bbmgr-input-wide" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Tên đầy đủ..." onKeyDown={e=>e.key==='Enter'&&handleAdd()} /></td>
-                <td><button className="bbmgr-btn bbmgr-btn-save" onClick={handleAdd} disabled={adding}>{adding?'...':'+ Thêm'}</button></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-    </Modal>
   )
 }

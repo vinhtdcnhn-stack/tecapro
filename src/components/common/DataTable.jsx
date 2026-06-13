@@ -1,7 +1,10 @@
-export default function DataTable({ title, columns, data, emptyMessage = 'Chưa có dữ liệu.' }) {
+export default function DataTable({ title, columns, data, emptyMessage = 'Chưa có dữ liệu.', headerActions = null }) {
   return (
     <>
-      <h2 className="section-title">{title}</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+        <h2 className="section-title">{title}</h2>
+        {headerActions}
+      </div>
       <table className="user-table">
         <thead>
           <tr>

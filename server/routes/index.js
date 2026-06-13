@@ -45,11 +45,15 @@ router.post('/users/check-email', requireAdmin, authController.checkEmailExists)
 router.post('/users/check-username', requireAdmin, authController.checkUsernameExists)
 router.post('/users/check-employee-code', requireAdmin, authController.checkEmployeeCodeExists)
 
-// Department routes
+// Department routes — danh mục dùng chung: ghi chỉ admin
 router.get('/departments', authController.getAllDepartments)
+router.post('/departments', requireAdmin, authController.createDepartment)
+router.put('/departments/:id', requireAdmin, authController.updateDepartment)
 
-// Position routes
+// Position routes — danh mục dùng chung: ghi chỉ admin
 router.get('/positions', authController.getAllPositions)
+router.post('/positions', requireAdmin, authController.createPosition)
+router.put('/positions/:id', requireAdmin, authController.updatePosition)
 
 // Manager routes
 router.get('/managers', authController.getAllManagers)
