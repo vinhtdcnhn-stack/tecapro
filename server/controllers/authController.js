@@ -51,7 +51,8 @@ export async function login(req, res) {
          SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
          FROM app_user_position up JOIN position p ON p.id = up.position_id
          WHERE up.user_id = u.id
-       ), '[]') AS positions
+       ), '[]') AS positions,
+       EXISTS(SELECT 1 FROM contract_out_member m WHERE m.user_id = u.id) AS has_projects
      FROM app_user u
      LEFT JOIN department d ON d.id = u.department_id
      WHERE u.email = $1`,
@@ -100,6 +101,7 @@ export async function login(req, res) {
     positions,
     position_code:   positions[0]?.code  || null,
     position_name:   positions.map(p => p.name).join(', ') || null,
+    has_projects:    user.has_projects,
   })
 }
 
@@ -316,7 +318,8 @@ export async function getUserById(req, res) {
          SELECT json_agg(json_build_object('id', p.id, 'code', p.code, 'name', p.name) ORDER BY p.id)
          FROM app_user_position up JOIN position p ON p.id = up.position_id
          WHERE up.user_id = u.id
-       ), '[]') AS positions
+       ), '[]') AS positions,
+       EXISTS(SELECT 1 FROM contract_out_member m WHERE m.user_id = u.id) AS has_projects
      FROM app_user u
      LEFT JOIN department d ON d.id = u.department_id
      WHERE u.id = $1`,

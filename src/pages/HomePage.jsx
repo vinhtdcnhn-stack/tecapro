@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import homeHero from '../assets/home-hero.png'
 import Dashboard from './Dashboard'
 import PMDashboard from './PMDashboard'
+import AssigneeDashboard from './AssigneeDashboard'
 
 
 export default function HomePage() {
@@ -102,11 +103,11 @@ export default function HomePage() {
     )
   }
 
+  // Không tham gia dự án nào → hiển thị các công việc được giao trực tiếp cho user
+  // (tự báo "Bạn chưa có công việc được phân công" nếu không có việc nào).
   return (
-    <main className="page page--home">
-      <div className="home-hero">
-        <img className="home-hero-img" src={homeHero} alt="" />
-      </div>
+    <main className="page admin-page dash-page">
+      <AssigneeDashboard user={user} />
     </main>
   )
 }

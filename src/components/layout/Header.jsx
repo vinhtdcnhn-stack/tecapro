@@ -17,6 +17,11 @@ export default function Header({ onChangePassword }) {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // "Hợp đồng bán" chỉ hiện cho admin hoặc người đang tham gia ít nhất một dự án.
+  // Người chưa được phân công dự án nào (has_projects = false) sẽ không thấy mục này.
+  const canSeeContracts = !!user && (Number(user.role) === 1 || user.has_projects)
+  const menus = MENUS.filter(m => m.path !== '/qlda' || canSeeContracts)
+
   function isActive(menu) {
     if (menu.path === '/') return location.pathname === '/' || location.pathname === '/giaoban'
     return location.pathname.startsWith(menu.path)
@@ -51,7 +56,7 @@ export default function Header({ onChangePassword }) {
 
         {user ? (
           <nav className={`menu${mobileMenuOpen ? ' menu--open' : ''}`} aria-label="Chính">
-            {MENUS.map((m) => (
+            {menus.map((m) => (
               <button
                 key={m.label}
                 type="button"

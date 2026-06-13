@@ -262,6 +262,41 @@ export async function getPMDashboard(req, res) {
   }
 }
 
+// GET /api/pm/:userId/assigned-tasks
+// Dành cho người dùng KHÔNG tham gia dự án nào (không là thành viên HĐ): vẫn thấy
+// các công việc được giao trực tiếp cho mình (contract_task.assigned_to). Trả về
+// cùng định dạng item như getPMDashboard (source_type='task') để tái dùng bảng theo
+// dõi + ghim/nhắc/chuông ở frontend. Ghim/nhắc dùng chung pm_dashboard_tracking.
+export async function getAssignedTasks(req, res) {
+  const userId = parseInt(req.params.userId)
+  if (!userId) return res.status(400).json({ error: 'userId không hợp lệ' })
+  try {
+    const { rows } = await pool.query(
+      `SELECT t.id, t.title, t.due_date, t.contract_out_id, co.contract_no,
+              tr.pinned, tr.remind_at
+         FROM contract_task t
+         JOIN contract_out co ON co.id = t.contract_out_id
+         LEFT JOIN pm_dashboard_tracking tr
+                ON tr.user_id = $1 AND tr.source_type = 'task' AND tr.source_id = t.id
+        WHERE t.assigned_to = $1
+          AND t.status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')
+          AND COALESCE(co.is_deleted, false) = false`, [userId])
+
+    const items = rows.map(t => ({
+      source_type: 'task', source_id: t.id, side: 'Bán',
+      contract_id: t.contract_out_id, contract_no: t.contract_no,
+      due_date: iso(t.due_date),
+      title: t.title || 'Công việc', sub: 'Hạn hoàn thành', kind: 'Công việc',
+      pinned: t.pinned || false,
+      remind_at: t.remind_at ? iso(t.remind_at) : null,
+    }))
+    res.json({ items })
+  } catch (err) {
+    console.error('getAssignedTasks:', err)
+    res.status(500).json({ error: 'Không thể tải công việc được giao' })
+  }
+}
+
 // PUT /api/pm/:userId/tracking  — body: { source_type, source_id, pinned, remind_at }
 // Frontend gửi trạng thái mong muốn ĐẦY ĐỦ của dòng (cả pinned lẫn remind_at).
 export async function upsertTracking(req, res) {

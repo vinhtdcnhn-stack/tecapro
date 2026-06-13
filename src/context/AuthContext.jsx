@@ -51,6 +51,7 @@ export function AuthProvider({ children }) {
       positions:       data.positions       || [],
       position_code:   data.position_code   || null,
       position_name:   data.position_name   || null,
+      has_projects:    data.has_projects,
     })
     // Phiên được giữ bằng cookie httpOnly do server đặt — không lưu gì nhạy cảm ở client.
   }
