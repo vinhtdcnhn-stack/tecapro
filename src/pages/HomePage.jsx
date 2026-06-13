@@ -26,6 +26,10 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return
+    // PM_TEAM render PMDashboard (tự nạp /api/pm/:id/dashboard) → KHÔNG dùng
+    // contracts/customers/users. Bỏ qua các fetch này để chúng không tranh
+    // connection pool/băng thông với request dashboard, tránh làm trang chủ chờ.
+    if (hasPMPosition) return // nhánh PM render trước khi đọc `loaded` → không cần set
     let cancelled = false
     ;(async () => {
       try {
@@ -33,14 +37,16 @@ export default function HomePage() {
         const c = await fetch(`${API}/api/contracts`).then(r => r.json())
         if (cancelled) return
         setContracts(Array.isArray(c) ? c : [])
-        // Dashboard tổng quan (GD/PGD) cần thêm khách hàng + nhân sự.
-        const [cu, u] = await Promise.all([
-          fetch(`${API}/api/customers`).then(r => r.json()),
-          fetch(`${API}/api/users`).then(r => r.json()),
-        ])
-        if (!cancelled) {
-          setCustomers(Array.isArray(cu) ? cu : [])
-          setUsers(Array.isArray(u) ? u : [])
+        // Chỉ Dashboard tổng quan (GD/PGD) mới cần thêm khách hàng + nhân sự.
+        if (isDirector) {
+          const [cu, u] = await Promise.all([
+            fetch(`${API}/api/customers`).then(r => r.json()),
+            fetch(`${API}/api/users`).then(r => r.json()),
+          ])
+          if (!cancelled) {
+            setCustomers(Array.isArray(cu) ? cu : [])
+            setUsers(Array.isArray(u) ? u : [])
+          }
         }
       } catch (err) {
         console.error('Failed to load home data:', err)
@@ -49,7 +55,7 @@ export default function HomePage() {
       }
     })()
     return () => { cancelled = true }
-  }, [user])
+  }, [user, hasPMPosition, isDirector])
 
   if (!user) {
     return (
