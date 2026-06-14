@@ -290,7 +290,26 @@ export async function getAssignedTasks(req, res) {
       pinned: t.pinned || false,
       remind_at: t.remind_at ? iso(t.remind_at) : null,
     }))
-    res.json({ items })
+
+    // Việc của module KT Cơ điện được giao trực tiếp cho user (không gắn hợp đồng).
+    const dw = await pool.query(
+      `SELECT t.id, t.title, t.due_date, tr.pinned, tr.remind_at
+         FROM dept_work_task t
+         JOIN dept_work_assignment a
+           ON a.task_id = t.id AND a.is_active AND a.assignee_id = $1 AND a.accept_state <> 'rejected'
+         LEFT JOIN pm_dashboard_tracking tr
+           ON tr.user_id = $1 AND tr.source_type = 'dept_work_task' AND tr.source_id = t.id
+        WHERE t.status NOT IN ('Hoàn thành', 'Hủy')`, [userId])
+    const dwItems = dw.rows.map(t => ({
+      source_type: 'dept_work_task', source_id: t.id, side: 'Phòng',
+      contract_id: null, contract_no: null,
+      due_date: iso(t.due_date),
+      title: t.title || 'Công việc', sub: 'KT Cơ điện', kind: 'Công việc',
+      pinned: t.pinned || false,
+      remind_at: t.remind_at ? iso(t.remind_at) : null,
+    }))
+
+    res.json({ items: [...items, ...dwItems] })
   } catch (err) {
     console.error('getAssignedTasks:', err)
     res.status(500).json({ error: 'Không thể tải công việc được giao' })

@@ -35,9 +35,10 @@ export default function MobileEditSheet({
 }
 
 // 1 trường trong sheet: nhãn ở trên, control (input/select/DateInput) ở dưới, full width.
-export function Field({ label, children }) {
+// className tùy chọn để chỗ gọi mở rộng bố cục (vd span full-width trong lưới desktop).
+export function Field({ label, children, className = '' }) {
   return (
-    <label className="msheet-field">
+    <label className={`msheet-field ${className}`.trim()}>
       <span className="msheet-field-label">{label}</span>
       {children}
     </label>

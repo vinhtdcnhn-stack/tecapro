@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import tecaproLogo from '../../assets/tecapro-logo.png'
@@ -6,9 +6,13 @@ import tecaproLogo from '../../assets/tecapro-logo.png'
 const MENUS = [
   { label: 'Trang chủ',        path: '/'        },
   { label: 'Hợp đồng bán',    path: '/qlda',    desktopOnly: true },
+  {
+    label: 'Công việc',
+    children: [{ label: 'KT Cơ điện', path: '/cong-viec/kt-co-dien' }],
+  },
   { label: 'Tra cứu bảo hành', path: '/tracuu'  },
   { label: 'Giao ban tuần',    path: '/giaoban', desktopOnly: true },
-  { label: 'Quản trị hệ thống', path: '/quantri', desktopOnly: true },
+  { label: 'Hệ thống', path: '/quantri', desktopOnly: true },
 ]
 
 export default function Header({ onChangePassword }) {
@@ -16,24 +20,42 @@ export default function Header({ onChangePassword }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [openDropdown, setOpenDropdown] = useState(null)
+  const navRef = useRef(null)
+
+  // Đóng dropdown khi bấm ra ngoài thanh menu.
+  useEffect(() => {
+    if (!openDropdown) return
+    const onDocClick = (e) => { if (navRef.current && !navRef.current.contains(e.target)) setOpenDropdown(null) }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [openDropdown])
 
   // "Hợp đồng bán" chỉ hiện cho admin hoặc người đang tham gia ít nhất một dự án.
-  // Người chưa được phân công dự án nào (has_projects = false) sẽ không thấy mục này.
   const canSeeContracts = !!user && (Number(user.role) === 1 || user.has_projects)
-  const menus = MENUS.filter(m => m.path !== '/qlda' || canSeeContracts)
+  // "Công việc → KT Cơ điện" chỉ hiện cho thành viên Ban KT Cơ điện (dept 7).
+  const canSeeDeptWork = !!user && Number(user.department_id) === 7
+  const menus = MENUS.filter(m => {
+    if (m.path === '/qlda') return canSeeContracts
+    if (m.label === 'Công việc') return canSeeDeptWork
+    return true
+  })
 
   function isActive(menu) {
+    if (menu.children) return menu.children.some(c => location.pathname.startsWith(c.path))
     if (menu.path === '/') return location.pathname === '/' || location.pathname === '/giaoban'
     return location.pathname.startsWith(menu.path)
   }
 
-  function handleMenuClick(menu) {
+  function go(path) {
     setMobileMenuOpen(false)
-    if (menu.label === 'Quản trị hệ thống' && !user) {
-      navigate('/login')
-    } else {
-      navigate(menu.path)
-    }
+    setOpenDropdown(null)
+    navigate(path)
+  }
+
+  function handleMenuClick(menu) {
+    if (menu.path === '/quantri' && !user) { go('/login'); return }
+    go(menu.path)
   }
 
   function handleLogout() {
@@ -55,16 +77,42 @@ export default function Header({ onChangePassword }) {
         </button>
 
         {user ? (
-          <nav className={`menu${mobileMenuOpen ? ' menu--open' : ''}`} aria-label="Chính">
+          <nav ref={navRef} className={`menu${mobileMenuOpen ? ' menu--open' : ''}`} aria-label="Chính">
             {menus.map((m) => (
-              <button
-                key={m.label}
-                type="button"
-                className={`menu-item ${isActive(m) ? 'is-active' : ''} ${m.desktopOnly ? 'menu-item--desktop-only' : ''}`}
-                onClick={() => handleMenuClick(m)}
-              >
-                {m.label}
-              </button>
+              m.children ? (
+                <div key={m.label} className={`menu-dropdown${openDropdown === m.label ? ' open' : ''} ${m.desktopOnly ? 'menu-item--desktop-only' : ''}`}>
+                  <button
+                    type="button"
+                    className={`menu-item ${isActive(m) ? 'is-active' : ''}`}
+                    aria-haspopup="true"
+                    aria-expanded={openDropdown === m.label}
+                    onClick={() => setOpenDropdown(o => o === m.label ? null : m.label)}
+                  >
+                    {m.label} ▾
+                  </button>
+                  <div className="menu-dropdown-panel">
+                    {m.children.map(c => (
+                      <button
+                        key={c.path}
+                        type="button"
+                        className={`menu-dropdown-item ${location.pathname.startsWith(c.path) ? 'is-active' : ''}`}
+                        onClick={() => go(c.path)}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  key={m.label}
+                  type="button"
+                  className={`menu-item ${isActive(m) ? 'is-active' : ''} ${m.desktopOnly ? 'menu-item--desktop-only' : ''}`}
+                  onClick={() => handleMenuClick(m)}
+                >
+                  {m.label}
+                </button>
+              )
             ))}
           </nav>
         ) : (

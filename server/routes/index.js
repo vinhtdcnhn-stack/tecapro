@@ -21,6 +21,7 @@ import contractInGuaranteeRoutes from './contractInGuaranteeRoutes.js'
 import contractInCustomsRoutes from './contractInCustomsRoutes.js'
 import contractInLogisticsRoutes from './contractInLogisticsRoutes.js'
 import pmDashboardRoutes from './pmDashboardRoutes.js'
+import deptWorkRoutes from './deptWorkRoutes.js'
 
 const router = Router()
 
@@ -114,5 +115,8 @@ router.use('/', contractInLogisticsRoutes)
 
 // PM dashboard (trang chủ cho vị trí PM_TEAM)
 router.use('/', pmDashboardRoutes)
+
+// Quản lý công việc — Ban KT Cơ điện
+router.use('/', deptWorkRoutes)
 
 export default router

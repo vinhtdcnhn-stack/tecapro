@@ -42,6 +42,8 @@ const IN_TAB = {
 
 // Đường dẫn nhảy thẳng tới đúng trang chứa mốc việc được nhấn.
 export function targetUrl(it) {
+  // Việc module KT Cơ điện không gắn hợp đồng → về bảng công việc của phòng.
+  if (it.source_type === 'dept_work_task') return '/cong-viec/kt-co-dien/board'
   if (!it.contract_id) return null
   if (it.side === 'Nhập' && it.contract_in_id) {
     const inTab = IN_TAB[it.source_type] || 'info'

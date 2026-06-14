@@ -1,0 +1,216 @@
+/* Module Quản lý công việc — KT Cơ điện */
+
+.dw-board { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.dw-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.dw-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.dw-filter-btn {
+  border: 1px solid #d1d5db; background: #fff; color: #374151;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer; font-size: 13px;
+}
+.dw-filter-btn.active { background: #2f6b3a; color: #fff; border-color: #2f6b3a; }
+
+/* Bảng desktop */
+.dw-table-wrap { overflow-x: auto; min-width: 0; }
+.dw-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.dw-table th, .dw-table td {
+  text-align: left; padding: 10px 12px; border-bottom: 1px solid #eef0f2; vertical-align: top;
+}
+.dw-table th { font-weight: 700; color: #4b5563; background: #f9fafb; white-space: nowrap; }
+.dw-table tr.dw-overdue td { background: #fff5f5; }
+.dw-link { background: none; border: none; color: #1d4ed8; font-weight: 600; cursor: pointer; padding: 0; text-align: left; }
+.dw-sub { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.dw-actions { white-space: nowrap; display: flex; gap: 6px; }
+.dw-del-btn { background: #fee2e2; color: #b91c1c; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+
+/* Chip / badge */
+.dw-chip, .dw-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.dw-chip { background: #eef2f7; color: #475569; }
+.dw-badge-cust { background: #e0f2fe; color: #075985; }
+.dw-badge-esc { background: #fef3c7; color: #92400e; }
+
+/* Màu trạng thái / ưu tiên (cục bộ cho module) */
+.dw-board .status--waiting, .dw-card-list .status--waiting { background: #f1f5f9; color: #475569; }
+.dw-board .status--doing,   .dw-card-list .status--doing   { background: #dbeafe; color: #1e40af; }
+.dw-board .status--done,    .dw-card-list .status--done    { background: #dcfce7; color: #166534; }
+.dw-board .status--cancel,  .dw-card-list .status--cancel  { background: #f3f4f6; color: #6b7280; }
+.priority--low    { background: #f1f5f9; color: #475569; }
+.priority--normal { background: #eef2f7; color: #475569; }
+.priority--high   { background: #ffedd5; color: #9a3412; }
+.priority--urgent { background: #fee2e2; color: #b91c1c; }
+
+.dw-status-select { border: 1px solid #d1d5db; border-radius: 8px; padding: 4px 8px; font-size: 13px; font-weight: 600; }
+
+/* Thẻ mobile */
+.dw-card-list { display: flex; flex-direction: column; gap: 10px; }
+.dw-task-card {
+  border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; background: #fff;
+  cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.dw-task-card.dw-overdue { border-color: #fca5a5; background: #fff7f7; }
+.dw-card-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.dw-card-title { font-weight: 700; color: #111827; }
+.dw-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.dw-card-assignees { font-size: 13px; color: #374151; }
+
+/* Modal body desktop: lưới 2 cột (ghi đè .modal-body grid mặc định bằng specificity cao hơn).
+   Trường dài (tiêu đề/mô tả/chỉ đạo/giao cho) span hết hàng. */
+.modal-body.dw-modal-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+  align-items: start;
+}
+.dw-modal-body .dw-full { grid-column: 1 / -1; }
+.dw-modal-body textarea { min-height: 64px; resize: vertical; }
+.dw-note { font-size: 13px; color: #6b7280; background: #f9fafb; border-radius: 8px; padding: 10px; margin: 0; }
+
+/* Danh sách chọn người nhận */
+.dw-assignee-list {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 230px; overflow-y: auto;
+  border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px;
+}
+.dw-assignee-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px; border-radius: 8px;
+}
+.dw-assignee-row:hover { background: #f9fafb; }
+.dw-assignee-row.picked { background: #f0fdf4; }
+.dw-assignee-pick {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 0; cursor: pointer;
+}
+.dw-assignee-pick > span {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dw-assignee-pick input[type="checkbox"] { flex: none; width: 16px; height: 16px; }
+.dw-lead-pick {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  font-size: 12px; font-weight: 600; color: #9ca3af; cursor: pointer; white-space: nowrap;
+}
+.dw-lead-pick.on { color: #b45309; }
+
+/* ── Drawer chi tiết việc ───────────────────────────────────────────────── */
+.dw-drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  display: flex; justify-content: flex-end; z-index: 1000;
+}
+.dw-drawer-panel {
+  width: 560px; max-width: 95vw; height: 100%;
+  background: #fff; display: flex; flex-direction: column;
+  box-shadow: -8px 0 28px rgba(0,0,0,0.18);
+}
+.dw-drawer-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid #eef0f2;
+}
+.dw-drawer-header h3 { margin: 0; font-size: 18px; color: #111827; }
+.dw-drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px; min-height: 0; }
+.dw-drawer-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 12px 20px; border-top: 1px solid #eef0f2;
+}
+
+.dw-detail-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.dw-detail-grid { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; margin: 0 0 8px; font-size: 14px; }
+.dw-detail-grid dt { color: #6b7280; }
+.dw-detail-grid dd { margin: 0; color: #111827; }
+
+.dw-detail-section { margin-top: 16px; }
+.dw-detail-title { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.03em; }
+.dw-pre { white-space: pre-wrap; margin: 0; font-size: 14px; color: #1f2937; }
+.dw-esc-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px; }
+
+.dw-assignee-view { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dw-assignee-view li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.dw-lead-tag { font-size: 12px; font-weight: 700; color: #b45309; }
+.dw-accept-tag { font-size: 12px; color: #92400e; background: #fef3c7; border-radius: 999px; padding: 1px 8px; }
+
+.dw-att-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.dw-att-item { display: flex; align-items: center; gap: 8px; }
+.dw-att-name { flex: 1; min-width: 0; color: #1d4ed8; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dw-att-size { font-size: 12px; color: #9ca3af; flex: none; }
+.dw-att-del { border: none; background: #fee2e2; color: #b91c1c; border-radius: 6px; padding: 2px 8px; cursor: pointer; flex: none; }
+.dw-att-add { display: inline-block; cursor: pointer; color: #2f6b3a; font-weight: 600; font-size: 14px; }
+.dw-att-pending .dw-att-name { color: #6b7280; font-style: italic; }
+
+/* Khu hành động trong drawer (chuyển việc / đẩy cấp trên / chấp nhận) */
+.dw-action-area { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.dw-action-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dw-action-pending {
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;
+  padding: 10px 12px; font-size: 14px; color: #1e3a8a;
+}
+.dw-act-btn {
+  border: 1px solid #d1d5db; background: #fff; color: #374151;
+  padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
+}
+.dw-act-btn:hover { background: #f9fafb; }
+.dw-act-warn { border-color: #fcd34d; color: #92400e; background: #fffbeb; }
+
+/* Báo cáo vấn đề */
+.dw-issue-list { display: flex; flex-direction: column; gap: 8px; }
+.dw-issue-item {
+  border: 1px solid #fde0c7; background: #fff7ed; border-radius: 10px; padding: 10px 12px;
+}
+.dw-issue-item.dw-issue-done { border-color: #d1fae5; background: #f0fdf4; }
+.dw-issue-content { margin: 0 0 6px; font-size: 14px; }
+.dw-issue-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 12px; color: #6b7280;
+}
+.dw-issue-tag-open { color: #b45309; font-weight: 600; }
+.dw-issue-tag-done { color: #047857; font-weight: 600; }
+.dw-issue-resolve { padding: 4px 10px; font-size: 12px; }
+.dw-issue-add { margin-top: 8px; }
+.dw-issue-add textarea {
+  width: 100%; min-height: 64px; box-sizing: border-box;
+  border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; font: inherit; font-size: 14px;
+}
+.dw-issue-add-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* Nhật ký công việc + năng lực */
+.dw-log, .dw-cap { min-width: 0; }
+.dw-log-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 14px;
+}
+.dw-log-toolbar label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #374151; font-weight: 600; }
+.dw-log-toolbar select { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; }
+.dw-log-total { font-size: 14px; color: #374151; }
+.dw-log-add { margin-left: auto; }
+
+.dw-log-table, .dw-cap-table { width: 100%; }
+.dw-log-table .num, .dw-cap-table .num { text-align: right; white-space: nowrap; }
+.dw-log-edit { padding: 4px 10px; font-size: 12px; }
+
+.dw-log-form { margin-top: 16px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: #fafafa; }
+.dw-log-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dw-log-form-grid .msheet-field:nth-child(3) { grid-column: 1 / -1; }
+.dw-log-form-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.dw-log-form-spacer { flex: 1; }
+
+.dw-log-cards, .dw-cap-cards { display: flex; flex-direction: column; gap: 10px; }
+.dw-log-card, .dw-cap-card {
+  border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; background: #fff; cursor: pointer;
+}
+.dw-log-card-top, .dw-cap-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.dw-cap-card-grid { display: grid; grid-template-columns: auto auto; gap: 4px 14px; font-size: 14px; }
+.dw-cap-card-grid span { color: #6b7280; }
+.dw-cap-card-grid b { text-align: right; }
+
+.dw-util-badge { padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.dw-util-high { background: #fee2e2; color: #b91c1c; }
+.dw-util-mid { background: #dcfce7; color: #15803d; }
+.dw-util-low { background: #fef9c3; color: #a16207; }
+
+@media (max-width: 768px) {
+  .dw-drawer-panel { width: 100%; max-width: 100%; }
+  .dw-log-add { margin-left: 0; }
+}

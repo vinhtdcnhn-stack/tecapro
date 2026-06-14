@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage'
 import QldaPage from './pages/QldaPage'
 import QldaDetailPage from './pages/QldaDetailPage'
 import QuantriPage from './pages/QuantriPage'
+import DeptWorkPage from './pages/DeptWorkPage'
 import WarrantyLookupPage from './pages/WarrantyLookupPage'
 import LoginPage from './pages/LoginPage'
 import './App.css'
@@ -61,6 +62,14 @@ export default function App() {
         <Route
           path="/quantri/:section"
           element={<RequireAuth><QuantriPage /></RequireAuth>}
+        />
+        <Route
+          path="/cong-viec/kt-co-dien"
+          element={<RequireAuth><Navigate to="/cong-viec/kt-co-dien/board" replace /></RequireAuth>}
+        />
+        <Route
+          path="/cong-viec/kt-co-dien/:section"
+          element={<RequireAuth><DeptWorkPage /></RequireAuth>}
         />
       </Route>
       <Route path="/login" element={<LoginPage />} />

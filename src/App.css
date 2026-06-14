@@ -46,9 +46,42 @@
   align-items: center;
   gap: 0.25rem;
   flex: 1 1 auto;
-  overflow: hidden; /* Changed from 'auto hidden' to prevent horizontal scroll on menu */
+  overflow: visible; /* visible để panel dropdown không bị cắt; items vẫn nowrap nên không sinh scroll */
   scrollbar-width: thin;
 }
+
+/* Dropdown trong navbar (vd: Công việc → KT Cơ điện) */
+.menu-dropdown { position: relative; display: inline-flex; }
+.menu-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  background: #14532d;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 60;
+}
+.menu-dropdown.open .menu-dropdown-panel { display: flex; }
+.menu-dropdown-item {
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: left;
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.menu-dropdown-item:hover { background: rgba(255, 255, 255, 0.14); }
+.menu-dropdown-item.is-active { background: rgba(255, 255, 255, 0.2); }
 
 .topbar-branch {
   flex: 1 1 auto;
@@ -1214,6 +1247,19 @@ background:
   .menu-item--desktop-only {
     display: none;
   }
+
+  /* Dropdown trên mobile: chiếm hết hàng, panel xổ INLINE (không nổi tuyệt đối) */
+  .menu-dropdown { display: flex; flex-direction: column; width: 100%; }
+  .menu-dropdown > .menu-item { width: 100%; text-align: left; }
+  .menu-dropdown-panel {
+    position: static;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+    border: none;
+    margin: 2px 0 2px 0.75rem;
+    min-width: 0;
+  }
+  .menu-dropdown-item { padding: 0.6rem 1rem; }
 
   /* Ẩn tên người dùng trên mobile, giữ nút đăng nhập/xuất */
   .user-pill {
