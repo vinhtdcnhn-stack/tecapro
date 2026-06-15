@@ -1,0 +1,305 @@
+// Controller cấu hình loại đơn / form builder (chỉ admin).
+// Quản lý approval_form + các trường (approval_form_field), chuỗi bước duyệt
+// (approval_form_step) và người duyệt cấu hình cho từng bước (approval_form_step_approver).
+import { pool } from '../db.js'
+
+const FIELD_TYPES = new Set([
+  'text', 'textarea', 'number', 'money', 'date', 'date_range',
+  'select', 'checkbox', 'user', 'file', 'table',
+])
+const STEP_RULES = new Set(['any', 'all'])
+const APPROVER_TYPES = new Set(['user', 'position', 'department_head'])
+const APPROVER_SOURCES = new Set(['fixed', 'direct_manager', 'requester_pick'])
+
+// ── Danh sách loại đơn ────────────────────────────────────────────────────────
+export async function getForms(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT f.id, f.code, f.name, f.description, f.icon, f.is_active, f.sort_order,
+              (SELECT COUNT(*) FROM approval_form_field ff WHERE ff.form_id = f.id)::int AS field_count,
+              (SELECT COUNT(*) FROM approval_form_step fs WHERE fs.form_id = f.id)::int  AS step_count
+         FROM approval_form f
+        ORDER BY f.sort_order, f.name`
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('getForms:', err)
+    res.status(500).json({ error: 'Không thể tải danh sách loại đơn.' })
+  }
+}
+
+// ── Danh sách nhân viên để chọn người duyệt (id + tên + email để lọc) ────────
+// Cố ý lộ email phục vụ tìm kiếm khi chọn người duyệt (khác /users vốn ẩn email với non-admin).
+export async function getUserOptions(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, full_name, email FROM app_user ORDER BY full_name, id`
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('getUserOptions:', err)
+    res.status(500).json({ error: 'Không thể tải danh sách nhân viên.' })
+  }
+}
+
+// ── Danh sách loại đơn ĐANG DÙNG (mọi nhân viên, để tạo đơn) ─────────────────
+export async function getActiveForms(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, code, name, description, icon, sort_order
+         FROM approval_form WHERE is_active = true ORDER BY sort_order, name`
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('getActiveForms:', err)
+    res.status(500).json({ error: 'Không thể tải danh sách loại đơn.' })
+  }
+}
+
+// ── Sơ đồ form để render khi tạo đơn (mọi nhân viên): trường + chuỗi duyệt ────
+export async function getFormSchema(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  try {
+    const { rows: forms } = await pool.query(
+      `SELECT id, code, name, description, icon, is_active FROM approval_form WHERE id = $1`, [id]
+    )
+    if (!forms.length) return res.status(404).json({ error: 'Không tìm thấy loại đơn.' })
+    const { rows: fields } = await pool.query(
+      `SELECT field_key, label, field_type, options, is_required, sort_order, config
+         FROM approval_form_field WHERE form_id = $1 ORDER BY sort_order, id`, [id]
+    )
+    const { rows: steps } = await pool.query(
+      `SELECT id, step_order, name, rule, approver_source FROM approval_form_step WHERE form_id = $1 ORDER BY step_order, id`, [id]
+    )
+    const { rows: approvers } = await pool.query(
+      `SELECT sa.step_id, u.full_name AS approver_name
+         FROM approval_form_step_approver sa
+         JOIN approval_form_step s ON s.id = sa.step_id
+    LEFT JOIN app_user u ON u.id::text = sa.approver_ref AND sa.approver_type = 'user'
+        WHERE s.form_id = $1 ORDER BY sa.id`, [id]
+    )
+    const stepsFull = steps.map(s => ({
+      ...s, approvers: approvers.filter(a => a.step_id === s.id),
+    }))
+    res.json({ ...forms[0], fields, steps: stepsFull })
+  } catch (err) {
+    console.error('getFormSchema:', err)
+    res.status(500).json({ error: 'Không thể tải sơ đồ loại đơn.' })
+  }
+}
+
+// ── Chi tiết một loại đơn (kèm trường + bước + người duyệt) ───────────────────
+export async function getForm(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  try {
+    const { rows: forms } = await pool.query(`SELECT * FROM approval_form WHERE id = $1`, [id])
+    if (!forms.length) return res.status(404).json({ error: 'Không tìm thấy loại đơn.' })
+
+    const { rows: fields } = await pool.query(
+      `SELECT id, field_key, label, field_type, options, is_required, sort_order, config
+         FROM approval_form_field WHERE form_id = $1 ORDER BY sort_order, id`,
+      [id]
+    )
+    const { rows: steps } = await pool.query(
+      `SELECT id, step_order, name, rule, approver_source
+         FROM approval_form_step WHERE form_id = $1 ORDER BY step_order, id`,
+      [id]
+    )
+    const { rows: approvers } = await pool.query(
+      `SELECT sa.id, sa.step_id, sa.approver_type, sa.approver_ref, u.full_name AS approver_name
+         FROM approval_form_step_approver sa
+         JOIN approval_form_step s ON s.id = sa.step_id
+    LEFT JOIN app_user u ON u.id::text = sa.approver_ref AND sa.approver_type = 'user'
+        WHERE s.form_id = $1
+        ORDER BY sa.id`,
+      [id]
+    )
+    const stepsWithApprovers = steps.map(s => ({
+      ...s,
+      approvers: approvers.filter(a => a.step_id === s.id),
+    }))
+    res.json({ ...forms[0], fields, steps: stepsWithApprovers })
+  } catch (err) {
+    console.error('getForm:', err)
+    res.status(500).json({ error: 'Không thể tải loại đơn.' })
+  }
+}
+
+// ── Tạo loại đơn ──────────────────────────────────────────────────────────────
+export async function createForm(req, res) {
+  const { code, name, description, icon, sort_order } = req.body
+  if (!code?.trim() || !name?.trim()) {
+    return res.status(400).json({ error: 'Mã và tên loại đơn không được để trống.' })
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO approval_form (code, name, description, icon, sort_order, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [code.trim().toUpperCase(), name.trim(), description?.trim() || null,
+       icon?.trim() || null, Number(sort_order) || 0, req.user.id]
+    )
+    res.status(201).json(rows[0])
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Mã loại đơn đã tồn tại.' })
+    console.error('createForm:', err)
+    res.status(500).json({ error: 'Không thể tạo loại đơn.' })
+  }
+}
+
+// ── Cập nhật thông tin loại đơn ───────────────────────────────────────────────
+export async function updateForm(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  const { name, description, icon, is_active, sort_order } = req.body
+  if (!name?.trim()) return res.status(400).json({ error: 'Tên loại đơn không được để trống.' })
+  try {
+    const { rows } = await pool.query(
+      `UPDATE approval_form SET
+         name = $1, description = $2, icon = $3, is_active = $4, sort_order = $5, updated_at = now()
+       WHERE id = $6 RETURNING *`,
+      [name.trim(), description?.trim() || null, icon?.trim() || null,
+       is_active !== false, Number(sort_order) || 0, id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy loại đơn.' })
+    res.json(rows[0])
+  } catch (err) {
+    console.error('updateForm:', err)
+    res.status(500).json({ error: 'Không thể cập nhật loại đơn.' })
+  }
+}
+
+// ── Xóa loại đơn ──────────────────────────────────────────────────────────────
+export async function deleteForm(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  try {
+    const { rowCount } = await pool.query(`DELETE FROM approval_form WHERE id = $1`, [id])
+    if (!rowCount) return res.status(404).json({ error: 'Không tìm thấy loại đơn.' })
+    res.json({ success: true })
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(409).json({
+        error: 'Loại đơn đã có đơn sử dụng — không thể xóa. Hãy đặt "Ngừng dùng" thay vì xóa.',
+      })
+    }
+    console.error('deleteForm:', err)
+    res.status(500).json({ error: 'Không thể xóa loại đơn.' })
+  }
+}
+
+// ── Lưu toàn bộ danh sách trường (thay thế) ───────────────────────────────────
+export async function saveFields(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  const fields = Array.isArray(req.body?.fields) ? req.body.fields : null
+  if (!fields) return res.status(400).json({ error: 'Thiếu danh sách trường.' })
+
+  for (const f of fields) {
+    if (!f.field_key?.trim() || !f.label?.trim()) {
+      return res.status(400).json({ error: 'Mỗi trường cần khóa và nhãn.' })
+    }
+    if (!FIELD_TYPES.has(f.field_type)) {
+      return res.status(400).json({ error: `Kiểu trường không hợp lệ: ${f.field_type}` })
+    }
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rowCount } = await client.query(`SELECT 1 FROM approval_form WHERE id = $1`, [id])
+    if (!rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Không tìm thấy loại đơn.' }) }
+
+    await client.query(`DELETE FROM approval_form_field WHERE form_id = $1`, [id])
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i]
+      await client.query(
+        `INSERT INTO approval_form_field
+           (form_id, field_key, label, field_type, options, is_required, sort_order, config)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [id, f.field_key.trim(), f.label.trim(), f.field_type,
+         f.options ? JSON.stringify(f.options) : null,
+         !!f.is_required, Number(f.sort_order) || i,
+         f.config ? JSON.stringify(f.config) : null]
+      )
+    }
+    await client.query(`UPDATE approval_form SET updated_at = now() WHERE id = $1`, [id])
+    await client.query('COMMIT')
+    res.json({ success: true })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    if (err.code === '23505') return res.status(409).json({ error: 'Khóa trường bị trùng trong cùng loại đơn.' })
+    console.error('saveFields:', err)
+    res.status(500).json({ error: 'Không thể lưu các trường.' })
+  } finally {
+    client.release()
+  }
+}
+
+// ── Lưu toàn bộ chuỗi bước duyệt + người duyệt (thay thế) ─────────────────────
+export async function saveSteps(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  const steps = Array.isArray(req.body?.steps) ? req.body.steps : null
+  if (!steps) return res.status(400).json({ error: 'Thiếu danh sách bước duyệt.' })
+
+  for (const s of steps) {
+    if (!s.name?.trim()) return res.status(400).json({ error: 'Mỗi bước cần có tên.' })
+    if (s.rule && !STEP_RULES.has(s.rule)) return res.status(400).json({ error: `Quy tắc bước không hợp lệ: ${s.rule}` })
+    const source = s.approver_source || 'fixed'
+    if (!APPROVER_SOURCES.has(source)) return res.status(400).json({ error: `Nguồn người duyệt không hợp lệ: ${source}` })
+    // Chỉ nguồn 'fixed' mới cần admin chọn sẵn người duyệt.
+    if (source === 'fixed') {
+      const approvers = Array.isArray(s.approvers) ? s.approvers : []
+      if (!approvers.length) return res.status(400).json({ error: `Bước "${s.name}" (cố định) cần ít nhất một người duyệt.` })
+      for (const a of approvers) {
+        if (a.approver_type && !APPROVER_TYPES.has(a.approver_type)) {
+          return res.status(400).json({ error: `Loại người duyệt không hợp lệ: ${a.approver_type}` })
+        }
+        if (!String(a.approver_ref ?? '').trim()) {
+          return res.status(400).json({ error: `Bước "${s.name}" có người duyệt chưa chọn.` })
+        }
+      }
+    }
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rowCount } = await client.query(`SELECT 1 FROM approval_form WHERE id = $1`, [id])
+    if (!rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Không tìm thấy loại đơn.' }) }
+
+    // Xóa bước cũ (cascade tự xóa approver theo FK ON DELETE CASCADE).
+    await client.query(`DELETE FROM approval_form_step WHERE form_id = $1`, [id])
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i]
+      const source = s.approver_source || 'fixed'
+      const { rows: stepRows } = await client.query(
+        `INSERT INTO approval_form_step (form_id, step_order, name, rule, approver_source)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [id, i + 1, s.name.trim(), s.rule || 'any', source]
+      )
+      const stepId = stepRows[0].id
+      // Chỉ lưu danh sách người duyệt cố định cho nguồn 'fixed'.
+      if (source === 'fixed') {
+        for (const a of (s.approvers || [])) {
+          await client.query(
+            `INSERT INTO approval_form_step_approver (step_id, approver_type, approver_ref)
+             VALUES ($1, $2, $3)`,
+            [stepId, a.approver_type || 'user', String(a.approver_ref).trim()]
+          )
+        }
+      }
+    }
+    await client.query(`UPDATE approval_form SET updated_at = now() WHERE id = $1`, [id])
+    await client.query('COMMIT')
+    res.json({ success: true })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('saveSteps:', err)
+    res.status(500).json({ error: 'Không thể lưu chuỗi bước duyệt.' })
+  } finally {
+    client.release()
+  }
+}

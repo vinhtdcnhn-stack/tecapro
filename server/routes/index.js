@@ -22,6 +22,7 @@ import contractInCustomsRoutes from './contractInCustomsRoutes.js'
 import contractInLogisticsRoutes from './contractInLogisticsRoutes.js'
 import pmDashboardRoutes from './pmDashboardRoutes.js'
 import deptWorkRoutes from './deptWorkRoutes.js'
+import approvalRoutes from './approvalRoutes.js'
 
 const router = Router()
 
@@ -118,5 +119,8 @@ router.use('/', pmDashboardRoutes)
 
 // Quản lý công việc — Ban KT Cơ điện
 router.use('/', deptWorkRoutes)
+
+// Đề xuất / Phê duyệt (giống Base Request)
+router.use('/', approvalRoutes)
 
 export default router

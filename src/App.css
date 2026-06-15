@@ -1,3 +1,26 @@
+/* Badge "có đơn chờ tôi duyệt" trên menu Đề xuất — nhấp nháy thúc giục */
+.menu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  background: #dc2626;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 7px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6);
+  animation: menu-badge-pulse 1.4s infinite;
+}
+@keyframes menu-badge-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
 /* Top shell + Tecapro-like header */
 .shell {
   height: 100svh;
@@ -1261,9 +1284,11 @@ background:
   }
   .menu-dropdown-item { padding: 0.6rem 1rem; }
 
-  /* Ẩn tên người dùng trên mobile, giữ nút đăng nhập/xuất */
+  /* Hiện tên người dùng trên mobile (rút gọn) để biết ai đang đăng nhập */
   .user-pill {
-    display: none;
+    max-width: 120px;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.55rem;
   }
 
   /* Page */
@@ -1277,6 +1302,13 @@ background:
   }
   .admin-layout {
     flex-direction: column;
+  }
+  /* Mobile: panel nội dung tự cuộn dọc. Các tab dạng bảng có vùng cuộn riêng nên
+     không đổi; tab chỉ là danh sách thẻ (vd Năng lực) trước đây bị overflow:hidden
+     của .content-area cắt mất phần dưới — giờ cuộn được. overflow-x vẫn hidden. */
+  .admin-page .content-area {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .sidebar {
     width: 100%;

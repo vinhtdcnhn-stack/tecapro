@@ -1,15 +1,18 @@
 import { useState, useRef } from 'react'
 import { useClickOutside } from '../../hooks/useClickOutside'
 
-export default function MultiSelect({ options, selectedValues, onChange, placeholder }) {
+export default function MultiSelect({ options, selectedValues, onChange, placeholder, inlineSearch = false }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const ref = useRef(null)
-  useClickOutside(ref, () => setIsOpen(false))
+  const inputRef = useRef(null)
+  useClickOutside(ref, () => { setIsOpen(false); setSearchTerm('') })
 
-  const filteredOptions = options.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Lọc theo nhãn và (nếu có) trường `search` phụ — vd email — để gõ email cũng tìm được.
+  const filteredOptions = options.filter(opt => {
+    const t = searchTerm.toLowerCase()
+    return opt.label.toLowerCase().includes(t) || (opt.search && opt.search.toLowerCase().includes(t))
+  })
 
   function toggleOption(value) {
     if (selectedValues.includes(value)) {
@@ -17,6 +20,8 @@ export default function MultiSelect({ options, selectedValues, onChange, placeho
     } else {
       onChange([...selectedValues, value])
     }
+    // Sau khi chọn ở chế độ gõ thẳng: xóa từ khóa, giữ mở để chọn tiếp.
+    if (inlineSearch) { setSearchTerm(''); inputRef.current?.focus() }
   }
 
   function removeOption(value, e) {
@@ -28,14 +33,14 @@ export default function MultiSelect({ options, selectedValues, onChange, placeho
     <div className="multi-select-container" style={{ position: 'relative' }} ref={ref}>
       <div
         className="multi-select-trigger"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (inlineSearch ? (setIsOpen(true), inputRef.current?.focus()) : setIsOpen(!isOpen))}
         style={{
-          display: 'flex', flexWrap: 'wrap', gap: '4px',
+          display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center',
           padding: '8px 12px', border: '1px solid #d1d5db',
-          borderRadius: '6px', minHeight: '40px', cursor: 'pointer', backgroundColor: '#fff',
+          borderRadius: '6px', minHeight: '40px', cursor: 'text', backgroundColor: '#fff',
         }}
       >
-        {selectedValues.length === 0 && (
+        {!inlineSearch && selectedValues.length === 0 && (
           <span style={{ color: '#9ca3af' }}>{placeholder}</span>
         )}
         {selectedValues.map(value => {
@@ -54,6 +59,18 @@ export default function MultiSelect({ options, selectedValues, onChange, placeho
             </span>
           ) : null
         })}
+        {inlineSearch && (
+          <input
+            ref={inputRef}
+            type="text"
+            value={searchTerm}
+            placeholder={selectedValues.length === 0 ? placeholder : ''}
+            onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true) }}
+            onFocus={() => setIsOpen(true)}
+            onClick={(e) => e.stopPropagation()}
+            style={{ flex: 1, minWidth: '90px', border: 'none', outline: 'none', padding: '2px', fontSize: '14px' }}
+          />
+        )}
       </div>
 
       {isOpen && (
@@ -61,14 +78,16 @@ export default function MultiSelect({ options, selectedValues, onChange, placeho
           position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
           backgroundColor: '#fff', border: '1px solid #d1d5db', borderRadius: '6px',
           boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 100,
-          maxHeight: '200px', overflowY: 'auto',
+          maxHeight: '220px', overflowY: 'auto',
         }}>
-          <input
-            type="text" placeholder="Tìm kiếm..." value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: '100%', padding: '8px 12px', border: 'none', borderBottom: '1px solid #e5e7eb', outline: 'none' }}
-          />
+          {!inlineSearch && (
+            <input
+              type="text" placeholder="Tìm kiếm..." value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: '100%', padding: '8px 12px', border: 'none', borderBottom: '1px solid #e5e7eb', outline: 'none' }}
+            />
+          )}
           {filteredOptions.map(opt => (
             <div key={opt.value} onClick={() => toggleOption(opt.value)} style={{
               padding: '8px 12px', cursor: 'pointer',
@@ -76,6 +95,7 @@ export default function MultiSelect({ options, selectedValues, onChange, placeho
               color: selectedValues.includes(opt.value) ? 'var(--chip-text)' : '#374151',
             }}>
               {selectedValues.includes(opt.value) && '✓ '}{opt.label}
+              {opt.hint && <span style={{ color: '#9ca3af', marginLeft: 6, fontSize: 12 }}>{opt.hint}</span>}
             </div>
           ))}
           {filteredOptions.length === 0 && (

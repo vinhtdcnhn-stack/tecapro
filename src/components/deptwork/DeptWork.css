@@ -213,4 +213,20 @@
 @media (max-width: 768px) {
   .dw-drawer-panel { width: 100%; max-width: 100%; }
   .dw-log-add { margin-left: 0; }
+
+  /* Toolbar gọn cho mobile: 4 bộ lọc xếp lưới 2×2 đều nhau, nút thêm full-width. */
+  .dw-toolbar { gap: 8px; }
+  .dw-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+  }
+  .dw-filter-btn {
+    padding: 8px 6px;
+    font-size: 12px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .dw-toolbar .add-btn { width: 100%; }
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { API } from '../../config/api'
 import tecaproLogo from '../../assets/tecapro-logo.png'
 
 const MENUS = [
@@ -10,8 +11,8 @@ const MENUS = [
     label: 'Công việc',
     children: [{ label: 'KT Cơ điện', path: '/cong-viec/kt-co-dien' }],
   },
+  { label: 'Đề xuất',          path: '/de-xuat' },
   { label: 'Tra cứu bảo hành', path: '/tracuu'  },
-  { label: 'Giao ban tuần',    path: '/giaoban', desktopOnly: true },
   { label: 'Hệ thống', path: '/quantri', desktopOnly: true },
 ]
 
@@ -21,7 +22,24 @@ export default function Header({ onChangePassword }) {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState(null)
+  const [inboxCount, setInboxCount] = useState(0)
   const navRef = useRef(null)
+
+  // Số đơn đang chờ chính mình duyệt (badge trên menu "Đề xuất").
+  // Tải khi đăng nhập / đổi trang, và tự làm mới mỗi 60 giây.
+  useEffect(() => {
+    if (!user) return
+    let alive = true
+    const loadCount = () => {
+      fetch(`${API}/approvals/requests/inbox`)
+        .then(r => r.ok ? r.json() : [])
+        .then(d => { if (alive) setInboxCount(Array.isArray(d) ? d.length : 0) })
+        .catch(() => {})
+    }
+    loadCount()
+    const timer = setInterval(loadCount, 60000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [user, location.pathname])
 
   // Đóng dropdown khi bấm ra ngoài thanh menu.
   useEffect(() => {
@@ -111,6 +129,9 @@ export default function Header({ onChangePassword }) {
                   onClick={() => handleMenuClick(m)}
                 >
                   {m.label}
+                  {m.path === '/de-xuat' && inboxCount > 0 && (
+                    <span className="menu-badge" title={`${inboxCount} đơn chờ bạn duyệt`}>🔔 {inboxCount}</span>
+                  )}
                 </button>
               )
             ))}

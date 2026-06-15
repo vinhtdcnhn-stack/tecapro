@@ -88,6 +88,36 @@ Mô tả các tình huống sử dụng (use case) chính của hệ thống the
 | UC-E2 | Xem dashboard cá nhân (PM) | PM / thành viên dự án |
 | UC-E3 | Xem dashboard tổng quan | GD/PGD |
 
+### Nhóm F — Đề xuất / Phê duyệt (giống Base Request)
+
+| Mã | Use case | Tác nhân |
+|----|----------|----------|
+| UC-F1 | Cấu hình loại đơn (form builder: trường + chuỗi bước duyệt + người duyệt) | Admin |
+| UC-F2 | Tạo & gửi đơn đề xuất (chọn loại đơn, điền trường động, đính kèm) | Mọi NV |
+| UC-F3 | Duyệt / từ chối đơn ở bước tới lượt mình | Người duyệt được cấu hình |
+| UC-F4 | Theo dõi đơn của tôi / hủy đơn đang chờ | Người gửi |
+| UC-F5 | Xem hộp "Chờ tôi duyệt" + tiến trình duyệt (timeline) | Người duyệt |
+
+#### UC-F1 — Cấu hình loại đơn
+- **Tác nhân:** Admin
+- **Luồng chính:** Admin tạo loại đơn (mã, tên, icon), thêm/bớt **trường** (văn bản, số,
+  số tiền, ngày, khoảng ngày, chọn một, có/không, nhân viên, tệp) và **chuỗi bước duyệt
+  tuần tự**, mỗi bước gán một/nhiều người duyệt (quy tắc: một người duyệt là đủ / cần tất cả).
+- **Ghi chú:** Có thể "Ngừng dùng" loại đơn; không xóa được khi đã phát sinh đơn.
+
+#### UC-F2 — Tạo & gửi đơn
+- **Tác nhân:** Mọi nhân viên đã đăng nhập
+- **Luồng chính:** Chọn loại đơn → form hiển thị đúng các trường đã cấu hình → điền, lưu nháp
+  hoặc gửi duyệt. Khi gửi, hệ thống **chụp** chuỗi bước duyệt hiện hành và chuyển đơn tới người
+  duyệt bước đầu (thông báo Telegram nếu có).
+- **Ngoại lệ:** Thiếu trường bắt buộc → không gửi được.
+
+#### UC-F3 — Duyệt / từ chối
+- **Tác nhân:** Người duyệt được cấu hình cho bước hiện tại
+- **Luồng chính:** Mở đơn trong hộp "Chờ tôi duyệt", xem dữ liệu + tiến trình, nhập ý kiến,
+  Duyệt (sang bước kế hoặc hoàn tất) hoặc Từ chối (đơn bị từ chối, báo người gửi).
+- **Ngoại lệ:** Không phải người duyệt của bước hiện tại / đã xử lý → bị từ chối (403/409).
+
 ---
 
 ## 4. Mô tả chi tiết các use case chính
@@ -273,3 +303,6 @@ Mô tả các tình huống sử dụng (use case) chính của hệ thống the
 | Sửa/xóa dữ liệu trong hợp đồng | ✅ | ✅ (HĐ mình là PM) | ❌ |
 | Tra cứu serial bảo hành | ✅ | ✅ | ✅ |
 | Dashboard tổng quan | ✅ | tùy vị trí | tùy vị trí |
+| Cấu hình loại đơn (form builder) | ✅ | ❌ | ❌ |
+| Tạo & gửi đơn đề xuất | ✅ | ✅ | ✅ |
+| Duyệt/từ chối đơn | ✅ (nếu là người duyệt) | ✅ (nếu là người duyệt) | ✅ (nếu là người duyệt) |

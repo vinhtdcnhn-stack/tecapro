@@ -8,6 +8,7 @@ import QldaPage from './pages/QldaPage'
 import QldaDetailPage from './pages/QldaDetailPage'
 import QuantriPage from './pages/QuantriPage'
 import DeptWorkPage from './pages/DeptWorkPage'
+import ApprovalPage from './pages/ApprovalPage'
 import WarrantyLookupPage from './pages/WarrantyLookupPage'
 import LoginPage from './pages/LoginPage'
 import './App.css'
@@ -70,6 +71,14 @@ export default function App() {
         <Route
           path="/cong-viec/kt-co-dien/:section"
           element={<RequireAuth><DeptWorkPage /></RequireAuth>}
+        />
+        <Route
+          path="/de-xuat"
+          element={<RequireAuth><Navigate to="/de-xuat/my" replace /></RequireAuth>}
+        />
+        <Route
+          path="/de-xuat/:section"
+          element={<RequireAuth><ApprovalPage /></RequireAuth>}
         />
       </Route>
       <Route path="/login" element={<LoginPage />} />

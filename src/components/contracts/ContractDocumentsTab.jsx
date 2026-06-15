@@ -299,8 +299,8 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
                 <button className="btn-toolbar btn-icon-only" onClick={handleUploadFolder} disabled={isUploading} title={selectedFolderId ? 'Upload thư mục vào đây' : 'Upload thư mục (tạo ở cấp gốc)'}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 7h-3v3h-2v-3h-3v-2h3V8h2v3h3v2z"/></svg>
                 </button>
-                <input id="file-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} key={fileInputKey} />
-                <input id="folder-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFolderChange} key={folderInputKey} {...{ webkitdirectory: '' }} />
+                <input id="file-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} key={`file-${fileInputKey}`} />
+                <input id="folder-upload-input" type="file" multiple style={{ display: 'none' }} onChange={handleFolderChange} key={`folder-${folderInputKey}`} {...{ webkitdirectory: '' }} />
               </EditGuard>
             </div>
             <div className="toolbar-right">

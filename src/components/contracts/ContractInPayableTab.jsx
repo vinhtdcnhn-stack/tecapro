@@ -23,10 +23,7 @@ export default function ContractInPayableTab({ contractInId }) {
   useEffect(() => {
     async function loadRef() {
       try {
-        const [boqRes] = await Promise.all([
-          fetch(`${API}/contract-ins/${contractInId}/boq`),
-          fetch(`${API}/contract-ins/${contractInId}`),   // không có route riêng, dùng contract-ins list
-        ])
+        const boqRes  = await fetch(`${API}/contract-ins/${contractInId}/boq`)
         const boqData = await boqRes.json()
         const boqTotal = Array.isArray(boqData)
           ? boqData.reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
