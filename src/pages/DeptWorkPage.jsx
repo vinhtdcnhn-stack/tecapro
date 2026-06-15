@@ -9,7 +9,7 @@ import CapacityReport from '../components/deptwork/CapacityReport'
 import { canManageDeptWork } from '../components/deptwork/deptWorkUtils'
 import '../components/deptwork/DeptWork.css'
 
-const VALID = ['board', 'logs', 'capacity', 'teams']
+const VALID = ['board', 'logs', 'capacity']
 
 export default function DeptWorkPage() {
   const { user } = useAuth()
@@ -54,13 +54,7 @@ export default function DeptWorkPage() {
           {section === 'capacity' && (
             <>
               <h2 className="section-title">NĂNG LỰC</h2>
-              <CapacityReport teams={teams} canManage={canManage} />
-            </>
-          )}
-          {section === 'teams' && (
-            <>
-              <h2 className="section-title">QUẢN LÝ NHÓM</h2>
-              <p className="dash-empty">Sẽ bổ sung ở bước sau (Phase 7).</p>
+              <CapacityReport canManage={canManage} />
             </>
           )}
         </section>

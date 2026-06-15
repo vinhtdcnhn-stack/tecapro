@@ -10,10 +10,14 @@ import { DEPT_KT_CO_DIEN, userIsHeadOrDeputy } from '../middleware/deptWorkAcces
 
 const DONE = 'Hoàn thành'
 
-function parseHours(v) {
-  const n = Number(v)
-  if (!Number.isFinite(n) || n < 0) return 0
-  return Math.round(n * 10) / 10            // numeric(4,1): 1 chữ số thập phân
+// Buổi làm hợp lệ và quy đổi giờ công (mỗi buổi = 4 giờ).
+const SHIFT_KEYS = ['dem_truoc', 'sang', 'chieu', 'toi']
+const SHIFT_HOURS = 4
+
+// Chuẩn hóa danh sách buổi từ client: lọc giá trị hợp lệ, bỏ trùng, giữ thứ tự chuẩn.
+function parseShifts(v) {
+  const set = new Set(Array.isArray(v) ? v : [])
+  return SHIFT_KEYS.filter(k => set.has(k))
 }
 
 // Mặc định khoảng ngày = tháng hiện tại nếu thiếu tham số.
@@ -37,7 +41,7 @@ export async function getLogs(req, res) {
 
     const { rows } = await pool.query(
       `SELECT l.id, l.user_id, u.full_name AS user_name, l.log_date, l.task_id,
-              t.title AS task_title, l.description, l.effort_hours,
+              t.title AS task_title, l.description, l.effort_hours, l.shifts,
               l.created_at, l.updated_at
          FROM dept_work_log l
          LEFT JOIN app_user u ON u.id = l.user_id
@@ -53,18 +57,19 @@ export async function getLogs(req, res) {
   }
 }
 
-// POST /dept-work/logs  { log_date, task_id?, description, effort_hours }
-// Luôn ghi cho chính người đăng nhập.
+// POST /dept-work/logs  { log_date, task_id?, description, shifts[] }
+// Luôn ghi cho chính người đăng nhập. effort_hours = số buổi × 4 (tính ở server).
 export async function addLog(req, res) {
   const b = req.body || {}
   const description = b.description?.trim()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(b.log_date || '')) return res.status(400).json({ error: 'Ngày không hợp lệ.' })
   if (!description) return res.status(400).json({ error: 'Mô tả công việc không được để trống.' })
+  const shifts = parseShifts(b.shifts)
   try {
     const { rows } = await pool.query(
-      `INSERT INTO dept_work_log (user_id, log_date, task_id, description, effort_hours)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [req.user.id, b.log_date, b.task_id || null, description, parseHours(b.effort_hours)],
+      `INSERT INTO dept_work_log (user_id, log_date, task_id, description, shifts, effort_hours)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.user.id, b.log_date, b.task_id || null, description, shifts, shifts.length * SHIFT_HOURS],
     )
     res.status(201).json(rows[0])
   } catch (err) {
@@ -73,7 +78,7 @@ export async function addLog(req, res) {
   }
 }
 
-// PUT /dept-work/logs/:id  { log_date?, task_id?, description?, effort_hours? } — isLogOwner gác.
+// PUT /dept-work/logs/:id  { log_date?, task_id?, description?, shifts? } — isLogOwner gác.
 export async function updateLog(req, res) {
   const id = parseInt(req.params.id)
   const b = req.body || {}
@@ -84,17 +89,20 @@ export async function updateLog(req, res) {
   if (b.description !== undefined && !description) {
     return res.status(400).json({ error: 'Mô tả công việc không được để trống.' })
   }
+  // shifts gửi lên thì cập nhật cả buổi lẫn giờ công; không gửi thì giữ nguyên.
+  const shifts = b.shifts !== undefined ? parseShifts(b.shifts) : null
   try {
     const { rows } = await pool.query(
       `UPDATE dept_work_log SET
          log_date     = COALESCE($2, log_date),
          task_id      = $3,
          description  = COALESCE($4, description),
-         effort_hours = COALESCE($5, effort_hours),
+         shifts       = COALESCE($5, shifts),
+         effort_hours = COALESCE($6, effort_hours),
          updated_at   = now()
        WHERE id = $1 RETURNING *`,
       [id, b.log_date || null, b.task_id || null, description || null,
-       b.effort_hours !== undefined ? parseHours(b.effort_hours) : null],
+       shifts, shifts !== null ? shifts.length * SHIFT_HOURS : null],
     )
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy nhật ký.' })
     res.json(rows[0])
@@ -120,7 +128,8 @@ export async function deleteLog(req, res) {
 // Head/deputy/admin: tất cả (lọc theo team nếu có). Thành viên: chỉ chính mình.
 export async function getCapacity(req, res) {
   const { from, to } = range(req)
-  const teamId = parseInt(req.query.team_id) || null
+  // Nhóm presale/postsale suy từ vị trí (app_user_position), không quản lý riêng.
+  const segment = ['PRESALE', 'POSTSALE'].includes(req.query.segment) ? req.query.segment : null
   try {
     const canSeeAll = await userIsHeadOrDeputy(req.user.id, req.user.role)
     const onlyUser = canSeeAll ? null : req.user.id
@@ -132,13 +141,19 @@ export async function getCapacity(req, res) {
           WHERE extract(isodow FROM d) < 6
        ),
        roster AS (
-         SELECT m.user_id, u.full_name, m.team_id, tm.name AS team_name, m.dept_role
+         SELECT m.user_id, u.full_name, m.dept_role,
+                NULLIF(concat_ws(', ',
+                  MAX(CASE WHEN p.code = 'PRESALE'  THEN 'Presale'  END),
+                  MAX(CASE WHEN p.code = 'POSTSALE' THEN 'Postsale' END)
+                ), '') AS team_name
            FROM dept_work_member m
            JOIN app_user u ON u.id = m.user_id
-           LEFT JOIN dept_work_team tm ON tm.id = m.team_id
+           LEFT JOIN app_user_position up ON up.user_id = m.user_id
+           LEFT JOIN position p ON p.id = up.position_id AND p.code IN ('PRESALE', 'POSTSALE')
           WHERE m.department_id = $3 AND m.is_active
-            AND ($4::bigint IS NULL OR m.team_id = $4)
             AND ($5::int IS NULL OR m.user_id = $5)
+          GROUP BY m.user_id, u.full_name, m.dept_role
+         HAVING $4::text IS NULL OR bool_or(p.code = $4)
        ),
        logs AS (
          SELECT user_id,
@@ -166,7 +181,7 @@ export async function getCapacity(req, res) {
          LEFT JOIN logs l ON l.user_id = r.user_id
          LEFT JOIN done d ON d.user_id = r.user_id
         ORDER BY COALESCE(l.total_hours, 0) DESC, r.full_name`,
-      [from, to, DEPT_KT_CO_DIEN, teamId, onlyUser, DONE],
+      [from, to, DEPT_KT_CO_DIEN, segment, onlyUser, DONE],
     )
 
     const result = rows.map(r => {

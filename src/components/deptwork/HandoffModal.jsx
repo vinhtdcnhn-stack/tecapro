@@ -27,7 +27,7 @@ export default function HandoffModal({ members, excludeIds = [], onSubmit, onClo
         <select value={toUserId} onChange={e => setToUserId(e.target.value)}>
           <option value="">— Chọn người nhận —</option>
           {options.map(m => (
-            <option key={m.user_id} value={m.user_id}>{m.full_name}{m.team_name ? ` · ${m.team_name}` : ''}</option>
+            <option key={m.user_id} value={m.user_id}>{m.full_name}</option>
           ))}
         </select>
       </Field>

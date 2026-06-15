@@ -12,21 +12,21 @@ const firstOfMonthIso = () => {
 const utilClass = (u) => u >= 90 ? 'dw-util-high' : u >= 50 ? 'dw-util-mid' : 'dw-util-low'
 
 // Báo cáo năng lực theo giờ công trong khoảng ngày (head: tất cả; member: chính mình).
-export default function CapacityReport({ teams = [], canManage }) {
+export default function CapacityReport({ canManage }) {
   const isMobile = useIsMobile()
   const [from, setFrom] = useState(firstOfMonthIso())
   const [to, setTo] = useState(todayIso())
-  const [teamId, setTeamId] = useState('')
+  const [segment, setSegment] = useState('')   // '' | 'PRESALE' | 'POSTSALE' (suy từ vị trí)
   const [data, setData] = useState({ rows: [], working_days: 0 })
 
   const load = useCallback(async () => {
     try {
       const qs = new URLSearchParams({ from, to })
-      if (teamId) qs.set('team_id', teamId)
+      if (segment) qs.set('segment', segment)
       const r = await fetch(`${API}/dept-work/capacity?${qs.toString()}`)
       setData(r.ok ? await r.json() : { rows: [], working_days: 0 })
     } catch (e) { console.error('load capacity:', e) }
-  }, [from, to, teamId])
+  }, [from, to, segment])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- async: setState sau await
   useEffect(() => { load() }, [load])
@@ -40,9 +40,10 @@ export default function CapacityReport({ teams = [], canManage }) {
         <label>Đến <DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         {canManage && (
           <label>Nhóm
-            <select value={teamId} onChange={e => setTeamId(e.target.value)}>
+            <select value={segment} onChange={e => setSegment(e.target.value)}>
               <option value="">— Tất cả —</option>
-              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <option value="PRESALE">Presale</option>
+              <option value="POSTSALE">Postsale</option>
             </select>
           </label>
         )}

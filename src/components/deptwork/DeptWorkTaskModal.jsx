@@ -154,7 +154,7 @@ export default function DeptWorkTaskModal({ task, members, teams, canManage, onS
                 <div key={m.user_id} className={`dw-assignee-row${checked ? ' picked' : ''}`}>
                   <label className="dw-assignee-pick">
                     <input type="checkbox" checked={checked} onChange={() => toggleAssignee(m.user_id)} />
-                    <span>{m.full_name}{m.team_name ? ` · ${m.team_name}` : ''}</span>
+                    <span>{m.full_name}</span>
                   </label>
                   {checked && (
                     <label className={`dw-lead-pick${leadId === m.user_id ? ' on' : ''}`} title="Đặt làm nhóm trưởng">

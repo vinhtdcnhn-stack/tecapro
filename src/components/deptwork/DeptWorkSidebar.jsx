@@ -1,13 +1,11 @@
 import { NavLink } from 'react-router-dom'
 
 // Sidebar (desktop) / thanh tab ngang (mobile) cho module KT Cơ điện.
-// "Quản lý nhóm" chỉ hiện cho trưởng/phó phòng (hoặc admin).
 const BASE = '/cong-viec/kt-co-dien'
 const ITEMS = [
   { label: 'Bảng công việc', section: 'board' },
   { label: 'Nhật ký công việc', section: 'logs' },
   { label: 'Năng lực', section: 'capacity' },
-  { label: 'Quản lý nhóm', section: 'teams', manageOnly: true },
 ]
 
 export default function DeptWorkSidebar({ canManage }) {

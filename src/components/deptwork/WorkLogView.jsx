@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import DateInput from '../contracts/DateInput'
 import MobileEditSheet, { Field } from '../contracts/MobileEditSheet'
 import useIsMobile from '../contracts/useIsMobile'
@@ -10,7 +10,17 @@ const firstOfMonthIso = () => {
   const d = new Date()
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
 }
-const blankForm = () => ({ id: null, log_date: todayIso(), task_id: '', description: '', effort_hours: '' })
+
+// Buổi làm — mỗi buổi tính 4 giờ công (khớp với server).
+const SHIFTS = [
+  { key: 'dem_truoc', label: 'Đêm hôm trước' },
+  { key: 'sang', label: 'Sáng' },
+  { key: 'chieu', label: 'Chiều' },
+  { key: 'toi', label: 'Buổi tối' },
+]
+const shiftLabels = (keys) => SHIFTS.filter(s => (keys || []).includes(s.key)).map(s => s.label).join(', ')
+
+const blankForm = () => ({ id: null, log_date: todayIso(), task_id: '', description: '', shifts: [] })
 
 // Nhật ký công việc hằng ngày của một người (đầu vào tính năng lực).
 // canManage (head/deputy/admin): đổi user_id để xem nhật ký người khác.
@@ -25,6 +35,16 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
   const [saving, setSaving] = useState(false)
 
   const isOwnView = Number(viewUser) === Number(currentUser?.id)
+
+  // Danh sách người để xem: roster Ban + đảm bảo chính mình luôn có mặt
+  // (để sau khi xem người khác vẫn quay lại nhật ký của mình được).
+  const personOptions = useMemo(() => {
+    const list = [...members]
+    if (currentUser?.id && !list.some(m => Number(m.user_id) === Number(currentUser.id))) {
+      list.unshift({ user_id: currentUser.id, full_name: `${currentUser.full_name || 'Tôi'} (tôi)` })
+    }
+    return list
+  }, [members, currentUser])
 
   const load = useCallback(async () => {
     try {
@@ -45,13 +65,14 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
     const desc = form.description?.trim()
     if (!form.log_date) { alert('Vui lòng chọn ngày.'); return }
     if (!desc) { alert('Vui lòng nhập mô tả công việc.'); return }
+    if (!(form.shifts || []).length) { alert('Vui lòng chọn ít nhất một buổi làm.'); return }
     setSaving(true)
     try {
       const body = {
         log_date: form.log_date,
         task_id: form.task_id || null,
         description: desc,
-        effort_hours: form.effort_hours === '' ? 0 : Number(form.effort_hours),
+        shifts: form.shifts || [],
       }
       const res = await fetch(`${API}/dept-work/logs${form.id ? `/${form.id}` : ''}`, {
         method: form.id ? 'PUT' : 'POST',
@@ -93,9 +114,25 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
       <Field label="Mô tả công việc">
         <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Đã làm gì..." />
       </Field>
-      <Field label="Số giờ công">
-        <input type="number" min="0" step="0.5" value={form.effort_hours}
-          onChange={e => setForm(f => ({ ...f, effort_hours: e.target.value }))} placeholder="vd 4.5" />
+      <Field label="Buổi làm (mỗi buổi 4 giờ)">
+        <div className="dw-shift-picker">
+          {SHIFTS.map(s => {
+            const on = (form.shifts || []).includes(s.key)
+            return (
+              <label key={s.key} className={`dw-shift-opt${on ? ' on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={() => setForm(f => {
+                    const cur = f.shifts || []
+                    return { ...f, shifts: on ? cur.filter(k => k !== s.key) : [...cur, s.key] }
+                  })}
+                />
+                {s.label}
+              </label>
+            )
+          })}
+        </div>
       </Field>
     </>
   )
@@ -108,7 +145,7 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
         {canManage && (
           <label>Người
             <select value={viewUser} onChange={e => setViewUser(Number(e.target.value))}>
-              {members.map(m => <option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}
+              {personOptions.map(m => <option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}
             </select>
           </label>
         )}
@@ -121,8 +158,11 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
       ) : isMobile ? (
         <div className="dw-log-cards">
           {logs.map(l => (
-            <div key={l.id} className="dw-log-card" onClick={() => isOwnView && setForm({ id: l.id, log_date: l.log_date?.slice(0, 10), task_id: l.task_id || '', description: l.description, effort_hours: l.effort_hours })}>
-              <div className="dw-log-card-top"><span>{fmtDate(l.log_date)}</span><strong>{Number(l.effort_hours).toFixed(1)}h</strong></div>
+            <div key={l.id} className="dw-log-card" onClick={() => isOwnView && setForm({ id: l.id, log_date: l.log_date?.slice(0, 10), task_id: l.task_id || '', description: l.description, shifts: l.shifts || [] })}>
+              <div className="dw-log-card-top">
+                <span>{fmtDate(l.log_date)}</span>
+                <strong>{shiftLabels(l.shifts) || `${Number(l.effort_hours).toFixed(1)}h`}</strong>
+              </div>
               <p className="dw-pre">{l.description}</p>
               {l.task_title && <span className="dw-chip">{l.task_title}</span>}
             </div>
@@ -131,7 +171,7 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
       ) : (
         <table className="tracking-table dw-log-table">
           <thead>
-            <tr><th>Ngày</th><th>Mô tả</th><th>Việc liên quan</th><th className="num">Giờ</th>{isOwnView && <th></th>}</tr>
+            <tr><th>Ngày</th><th>Mô tả</th><th>Việc liên quan</th><th>Buổi</th><th className="num">Giờ</th>{isOwnView && <th></th>}</tr>
           </thead>
           <tbody>
             {logs.map(l => (
@@ -139,9 +179,10 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
                 <td>{fmtDate(l.log_date)}</td>
                 <td className="dw-pre">{l.description}</td>
                 <td>{l.task_title || '—'}</td>
+                <td>{shiftLabels(l.shifts) || '—'}</td>
                 <td className="num">{Number(l.effort_hours).toFixed(1)}</td>
                 {isOwnView && (
-                  <td><button className="dw-act-btn dw-log-edit" onClick={() => setForm({ id: l.id, log_date: l.log_date?.slice(0, 10), task_id: l.task_id || '', description: l.description, effort_hours: l.effort_hours })}>Sửa</button></td>
+                  <td><button className="dw-act-btn dw-log-edit" onClick={() => setForm({ id: l.id, log_date: l.log_date?.slice(0, 10), task_id: l.task_id || '', description: l.description, shifts: l.shifts || [] })}>Sửa</button></td>
                 )}
               </tr>
             ))}
