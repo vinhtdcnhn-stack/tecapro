@@ -66,6 +66,17 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
     if (!form.log_date) { alert('Vui lòng chọn ngày.'); return }
     if (!desc) { alert('Vui lòng nhập mô tả công việc.'); return }
     if (!(form.shifts || []).length) { alert('Vui lòng chọn ít nhất một buổi làm.'); return }
+    // Chặn trùng khung giờ: một buổi trong ngày chỉ được thuộc một nhật ký.
+    const taken = new Set(
+      logs.filter(l => l.id !== form.id && l.log_date?.slice(0, 10) === form.log_date)
+          .flatMap(l => l.shifts || []),
+    )
+    const dup = form.shifts.filter(s => taken.has(s))
+    if (dup.length) {
+      alert(`Khung giờ "${shiftLabels(dup)}" trong ngày đã có nhật ký khác. `
+        + 'Nhiều việc trong cùng một buổi phải ghi chung vào một mô tả công việc.')
+      return
+    }
     setSaving(true)
     try {
       const body = {

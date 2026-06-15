@@ -12,12 +12,30 @@ const DONE = 'Hoàn thành'
 
 // Buổi làm hợp lệ và quy đổi giờ công (mỗi buổi = 4 giờ).
 const SHIFT_KEYS = ['dem_truoc', 'sang', 'chieu', 'toi']
+const SHIFT_LABELS = { dem_truoc: 'Đêm hôm trước', sang: 'Sáng', chieu: 'Chiều', toi: 'Buổi tối' }
 const SHIFT_HOURS = 4
 
 // Chuẩn hóa danh sách buổi từ client: lọc giá trị hợp lệ, bỏ trùng, giữ thứ tự chuẩn.
 function parseShifts(v) {
   const set = new Set(Array.isArray(v) ? v : [])
   return SHIFT_KEYS.filter(k => set.has(k))
+}
+
+// Chặn ghi 2 việc khác nhau vào cùng một khung giờ trong ngày.
+// Trả về message lỗi nếu trùng, ngược lại null. excludeId: bỏ qua chính dòng đang sửa.
+async function shiftClashError(userId, logDate, shifts, excludeId = null) {
+  if (!shifts.length) return null
+  const { rows } = await pool.query(
+    `SELECT shifts FROM dept_work_log
+      WHERE user_id = $1 AND log_date = $2 AND shifts && $3::text[]
+        AND ($4::bigint IS NULL OR id <> $4)`,
+    [userId, logDate, shifts, excludeId],
+  )
+  if (!rows.length) return null
+  const taken = new Set(rows.flatMap(r => r.shifts || []))
+  const dup = shifts.filter(s => taken.has(s)).map(s => SHIFT_LABELS[s] || s)
+  return `Khung giờ "${dup.join(', ')}" trong ngày đã có nhật ký khác. `
+       + 'Nhiều việc trong cùng một buổi phải ghi chung vào một mô tả công việc.'
 }
 
 // Mặc định khoảng ngày = tháng hiện tại nếu thiếu tham số.
@@ -66,6 +84,8 @@ export async function addLog(req, res) {
   if (!description) return res.status(400).json({ error: 'Mô tả công việc không được để trống.' })
   const shifts = parseShifts(b.shifts)
   try {
+    const clash = await shiftClashError(req.user.id, b.log_date, shifts)
+    if (clash) return res.status(409).json({ error: clash })
     const { rows } = await pool.query(
       `INSERT INTO dept_work_log (user_id, log_date, task_id, description, shifts, effort_hours)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -92,6 +112,16 @@ export async function updateLog(req, res) {
   // shifts gửi lên thì cập nhật cả buổi lẫn giờ công; không gửi thì giữ nguyên.
   const shifts = b.shifts !== undefined ? parseShifts(b.shifts) : null
   try {
+    if (shifts) {
+      // Ngày hiệu lực: ưu tiên ngày mới gửi lên, không có thì lấy ngày hiện tại của dòng.
+      let logDate = b.log_date
+      if (!logDate) {
+        const cur = await pool.query('SELECT log_date FROM dept_work_log WHERE id = $1', [id])
+        logDate = cur.rows[0]?.log_date
+      }
+      const clash = await shiftClashError(req.user.id, logDate, shifts, id)
+      if (clash) return res.status(409).json({ error: clash })
+    }
     const { rows } = await pool.query(
       `UPDATE dept_work_log SET
          log_date     = COALESCE($2, log_date),
