@@ -8,6 +8,7 @@ import apiRoutes from './routes/index.js'
 import { requireAuth } from './middleware/auth.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
 import { logger } from './utils/logger.js'
+import { startReminderScheduler } from './services/reminderScheduler.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -110,4 +111,6 @@ const host = process.env.HOST || (process.env.NODE_ENV === 'production' ? '127.0
 
 app.listen(port, host, () => {
   logger.info(`[server] listening on http://${host}:${port}`)
+  // Bộ nhắc hạn Telegram hàng ngày (tự bỏ qua nếu không cấu hình bot token).
+  startReminderScheduler()
 })

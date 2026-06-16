@@ -2,7 +2,7 @@
 // Phase 3: tạo nháp / sửa nháp / gửi (snapshot chuỗi bước) / danh sách / chi tiết / hủy / xóa / inbox.
 // Phase 5 bổ sung approve/reject (file riêng: approvalDecisionController.js).
 import { pool } from '../db.js'
-import { notifyUsers } from '../services/deptWorkNotify.js'
+import { notifyAction } from '../services/notify.js'
 
 // SELECT dùng chung cho danh sách đơn (join loại đơn + người gửi).
 const LIST_SELECT = `
@@ -277,7 +277,7 @@ export async function submitRequest(req, res) {
 
     // Thông báo người duyệt bước đầu (fire-and-forget, sau commit).
     if (firstStepApprovers.length) {
-      notifyUsers(firstStepApprovers, `📋 Bạn có đơn cần duyệt: <b>${reqRow.title}</b>`)
+      notifyAction(firstStepApprovers, `Bạn có đơn cần duyệt: ${reqRow.title}`)
     }
     res.json({ success: true })
   } catch (err) {

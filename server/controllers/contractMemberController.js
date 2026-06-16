@@ -24,11 +24,24 @@ export async function insertContractMembers(client, contractId, { pm_primary_id,
     list.forEach(userId => tuples.push([contractId, userId, role, false, rank]))
   }
 
-  if (tuples.length === 0) return
+  if (tuples.length === 0) return []
 
   const placeholders = tuples.map((_, i) => `($${i * 5 + 1},$${i * 5 + 2},$${i * 5 + 3},$${i * 5 + 4},$${i * 5 + 5},NOW())`).join(',')
   await client.query(
     `INSERT INTO contract_out_member (contract_out_id, user_id, member_role, is_primary, role_rank, created_at) VALUES ${placeholders}`,
     tuples.flat()
   )
+
+  // Trả danh sách thành viên vừa chèn để controller gửi thông báo Telegram.
+  return tuples.map(([, user_id, member_role, is_primary]) => ({ user_id: Number(user_id), member_role, is_primary }))
+}
+
+// Nhãn vai trò tiếng Việt để chèn vào thông báo.
+export const MEMBER_ROLE_VN = {
+  PM: 'PM (Quản lý dự án)',
+  Sale: 'Kinh doanh',
+  Presale: 'Presale',
+  Technical: 'Kỹ thuật',
+  Accounting: 'Kế toán',
+  Follower: 'Theo dõi',
 }

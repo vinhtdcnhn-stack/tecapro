@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { TABLE_EQUIPMENT, serialExists } from './serialUtils.js'
+import { notifyAction, pmUserIds, contractLabel } from '../services/notify.js'
 
 // ═══════════════════════════════════════════════════════════════
 // EQUIPMENT
@@ -233,6 +234,13 @@ export async function createCase(req, res) {
        priority||'Bình thường', status||'Tiếp nhận', note?.trim()||null]
     )
     res.json({ ...rows[0], equipment_count: '0', activity_count: '0' })
+
+    // Case bảo hành mới → báo PM hợp đồng (việc cần xử lý 🔔). Bỏ qua người tự tạo.
+    const pms = (await pmUserIds(contractId)).filter(uid => uid !== req.user?.id)
+    if (pms.length) {
+      const label = await contractLabel(contractId)
+      notifyAction(pms, `Có case bảo hành mới cần xử lý ở HĐ ${label}: "${title.trim()}"`)
+    }
   } catch (err) {
     console.error('createCase:', err)
     res.status(500).json({ error: 'Không thể tạo case' })

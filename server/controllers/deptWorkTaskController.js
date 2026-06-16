@@ -3,7 +3,8 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
 import { DEPT_KT_CO_DIEN, userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
-import { notifyUsers, userName } from '../services/deptWorkNotify.js'
+import { userName } from '../services/deptWorkNotify.js'
+import { notifyAction } from '../services/notify.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const TASK_UPLOAD_ROOT = path.resolve(__dirname, '..', 'uploads', 'dept-work-tasks')
@@ -145,7 +146,7 @@ export async function createTask(req, res) {
     const recipients = assignees.map(a => a.user_id).filter(uid => uid !== req.user.id)
     if (recipients.length) {
       const actor = await userName(req.user.id)
-      notifyUsers(recipients, `📋 <b>${actor}</b> giao cho bạn công việc mới:\n<b>${b.title.trim()}</b>`)
+      notifyAction(recipients, `${actor} giao cho bạn công việc mới:\n${b.title.trim()}`)
     }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {})

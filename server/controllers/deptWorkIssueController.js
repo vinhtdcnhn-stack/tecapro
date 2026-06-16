@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
-import { notifyUsers, notifyHeads, userName } from '../services/deptWorkNotify.js'
+import { notifyHeads, userName } from '../services/deptWorkNotify.js'
+import { notifyAction, actionText } from '../services/notify.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Báo cáo vấn đề khi triển khai công việc (dept_work_issue).
@@ -52,9 +53,9 @@ export async function addIssue(req, res) {
     const t = await pool.query('SELECT title, created_by FROM dept_work_task WHERE id = $1', [taskId])
     const title = t.rows[0]?.title || 'công việc'
     const actor = await userName(req.user.id)
-    const msg = `⚠️ <b>${actor}</b> báo vấn đề ở công việc:\n<b>${title}</b>\n${content}`
-    notifyUsers([t.rows[0]?.created_by], msg)
-    notifyHeads(msg)
+    const msg = `${actor} báo vấn đề ở công việc:\n${title}\n${content}`
+    notifyAction([t.rows[0]?.created_by], msg)
+    notifyHeads(actionText(msg))
   } catch (err) {
     console.error('deptWork addIssue:', err)
     res.status(500).json({ error: 'Không thể gửi báo cáo vấn đề.' })

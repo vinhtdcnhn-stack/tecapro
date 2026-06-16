@@ -1,7 +1,7 @@
 // Duyệt / từ chối đơn ở BƯỚC HIỆN TẠI. Suy quyền từ req.user — chỉ người duyệt
 // đang 'pending' của bước hiện tại mới thao tác được.
 import { pool } from '../db.js'
-import { notifyUsers } from '../services/deptWorkNotify.js'
+import { notifyAction, notifyInfo } from '../services/notify.js'
 
 // Lấy bước hiện tại + dòng người duyệt của chính tôi (đã khóa hàng đơn).
 // Trả { error, code } nếu không hợp lệ, hoặc { reqRow, step, myRow }.
@@ -108,8 +108,8 @@ export async function approveRequest(req, res) {
     await client.query('COMMIT')
 
     // Thông báo (fire-and-forget, sau commit).
-    if (advanced && nextApprovers.length) notifyUsers(nextApprovers, `📋 Bạn có đơn cần duyệt: <b>${reqRow.title}</b>`)
-    if (completed) notifyUsers([reqRow.requester_id], `✅ Đơn của bạn đã được duyệt xong: <b>${reqRow.title}</b>`)
+    if (advanced && nextApprovers.length) notifyAction(nextApprovers, `Bạn có đơn cần duyệt: ${reqRow.title}`)
+    if (completed) notifyInfo([reqRow.requester_id], `Đơn của bạn đã được duyệt xong: ${reqRow.title}`)
 
     res.json({ success: true, status: completed ? 'approved' : 'pending', advanced, completed })
   } catch (err) {
@@ -146,7 +146,7 @@ export async function rejectRequest(req, res) {
     await client.query('COMMIT')
 
     const reason = comment ? `\nLý do: ${comment}` : ''
-    notifyUsers([reqRow.requester_id], `❌ Đơn của bạn bị từ chối ở bước "${step.name}": <b>${reqRow.title}</b>${reason}`)
+    notifyInfo([reqRow.requester_id], `Đơn của bạn bị từ chối ở bước "${step.name}": ${reqRow.title}${reason}`)
 
     res.json({ success: true, status: 'rejected' })
   } catch (err) {

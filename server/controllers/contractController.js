@@ -1,5 +1,22 @@
 import { pool } from '../db.js'
-import { insertContractMembers } from './contractMemberController.js'
+import { insertContractMembers, MEMBER_ROLE_VN } from './contractMemberController.js'
+import { notifyAction, notifyInfo, contractLabel } from '../services/notify.js'
+
+// Gửi thông báo Telegram cho các thành viên vừa được thêm vào hợp đồng.
+// PM → việc cần xử lý (🔔 in đậm); vai trò khác → thông tin. Bỏ qua người tự thêm mình.
+async function notifyNewMembers(contractId, members, actorId) {
+  if (!members?.length) return
+  const label = await contractLabel(contractId)
+  for (const m of members) {
+    if (!m.user_id || m.user_id === actorId) continue
+    const roleVN = MEMBER_ROLE_VN[m.member_role] || m.member_role
+    if (m.member_role === 'PM') {
+      notifyAction([m.user_id], `Bạn được phân công làm ${m.is_primary ? 'PM chủ trì' : 'PM'} hợp đồng ${label}`)
+    } else {
+      notifyInfo([m.user_id], `Bạn được thêm vào hợp đồng ${label} với vai trò: ${roleVN}`)
+    }
+  }
+}
 
 export async function getAllContracts(req, res) {
   try {
@@ -313,7 +330,7 @@ export async function createContract(req, res) {
 
       const contractId = contractResult.rows[0].id
 
-      await insertContractMembers(client, contractId, { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers })
+      const inserted = await insertContractMembers(client, contractId, { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers })
 
       await client.query('COMMIT')
 
@@ -322,6 +339,9 @@ export async function createContract(req, res) {
         id: contractId,
         contract_no: String(contract_no).trim().toUpperCase()
       })
+
+      // Báo các thành viên vừa được thêm (fire-and-forget, sau commit).
+      notifyNewMembers(contractId, inserted, req.user?.id)
     } catch (err) {
       await client.query('ROLLBACK')
       throw err
@@ -428,8 +448,16 @@ export async function updateContract(req, res) {
         parseInt(contractId)
       ])
 
+      // Ghi nhớ thành viên cũ để chỉ thông báo cho người MỚI được thêm (tránh báo lại
+      // toàn bộ mỗi lần sửa hợp đồng, vì danh sách bị xoá-rồi-chèn-lại).
+      const before = await client.query(
+        'SELECT user_id FROM contract_out_member WHERE contract_out_id = $1',
+        [parseInt(contractId)],
+      )
+      const oldIds = new Set(before.rows.map(r => Number(r.user_id)))
+
       await client.query('DELETE FROM contract_out_member WHERE contract_out_id = $1', [parseInt(contractId)])
-      await insertContractMembers(client, parseInt(contractId), { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers })
+      const inserted = await insertContractMembers(client, parseInt(contractId), { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers })
 
       await client.query('COMMIT')
 
@@ -438,6 +466,9 @@ export async function updateContract(req, res) {
         id: parseInt(contractId),
         contract_no: String(contract_no).trim().toUpperCase()
       })
+
+      // Chỉ báo những thành viên chưa từng có trong hợp đồng (fire-and-forget, sau commit).
+      notifyNewMembers(parseInt(contractId), (inserted || []).filter(m => !oldIds.has(m.user_id)), req.user?.id)
     } catch (err) {
       await client.query('ROLLBACK')
       throw err

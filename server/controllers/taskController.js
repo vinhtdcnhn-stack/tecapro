@@ -1,4 +1,5 @@
 import { pool } from '../db.js'
+import { notifyAction, notifyInfo, contractLabel, fmtDate } from '../services/notify.js'
 
 const BASE_SELECT = `
   SELECT
@@ -78,6 +79,14 @@ export async function createTask(req, res) {
     const id = rows[0].id
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     res.json(full.rows[0])
+
+    // Báo người được giao việc (việc cần xử lý → 🔔 in đậm). Không tự báo cho chính mình.
+    const assignee = Number(assigned_to) || null
+    if (assignee && assignee !== req.user?.id) {
+      const label = await contractLabel(contractId)
+      const han = due_date ? `\nHạn: ${fmtDate(due_date)}` : ''
+      notifyAction([assignee], `Bạn được giao công việc mới: "${title.trim()}" — HĐ ${label}${han}`)
+    }
   } catch (err) {
     console.error('createTask:', err)
     res.status(500).json({ error: 'Không thể tạo công việc' })
@@ -96,6 +105,13 @@ export async function updateTask(req, res) {
   }
 
   try {
+    // Đọc trạng thái cũ để phát hiện đổi người phụ trách / đổi trạng thái sau khi update.
+    const prev = await pool.query(
+      'SELECT contract_out_id, assigned_to, created_by, status FROM contract_task WHERE id = $1',
+      [id],
+    )
+    const old = prev.rows[0]
+
     await pool.query(
       // Hoàn thành: giữ thời điểm hoàn thành cũ nếu đã có (COALESCE đọc giá trị cũ của chính dòng),
       // ngược lại lấy NOW(); trạng thái khác → NULL. Tham số hoá hoàn toàn, không nội suy chuỗi.
@@ -128,6 +144,27 @@ export async function updateTask(req, res) {
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     if (full.rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy công việc' })
     res.json(full.rows[0])
+
+    // Thông báo các thay đổi liên quan tới người dùng (sau khi đã trả response).
+    if (old) {
+      const actor = req.user?.id
+      const newAssignee = Number(assigned_to) || null
+      const oldAssignee = Number(old.assigned_to) || null
+      const label = await contractLabel(old.contract_out_id)
+
+      // Đổi người phụ trách → báo người mới (việc cần xử lý 🔔). Không báo nếu tự nhận.
+      if (newAssignee && newAssignee !== oldAssignee && newAssignee !== actor) {
+        const han = due_date ? `\nHạn: ${fmtDate(due_date)}` : ''
+        notifyAction([newAssignee], `Bạn được giao công việc: "${title.trim()}" — HĐ ${label}${han}`)
+      }
+
+      // Đổi trạng thái → báo người tạo việc (thông tin). Không báo nếu chính họ đổi.
+      const newStatus = status || 'Chờ xử lý'
+      const creator = Number(old.created_by) || null
+      if (newStatus !== old.status && creator && creator !== actor) {
+        notifyInfo([creator], `Công việc "${title.trim()}" (HĐ ${label}) đã chuyển sang trạng thái: ${newStatus}`)
+      }
+    }
   } catch (err) {
     console.error('updateTask:', err)
     res.status(500).json({ error: 'Không thể cập nhật công việc' })

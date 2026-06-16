@@ -1,6 +1,7 @@
 import { pool } from '../db.js'
 import { DEPT_KT_CO_DIEN } from '../middleware/deptWorkAccess.js'
-import { notifyUsers, notifyHeads, userName } from '../services/deptWorkNotify.js'
+import { notifyHeads, userName } from '../services/deptWorkNotify.js'
+import { notifyAction, notifyInfo, actionText } from '../services/notify.js'
 
 async function taskTitle(taskId) {
   const { rows } = await pool.query('SELECT title FROM dept_work_task WHERE id = $1', [taskId])
@@ -52,7 +53,7 @@ export async function handoff(req, res) {
     res.json({ success: true })
 
     const actor = await userName(req.user.id)
-    notifyUsers([toUserId], `↪ <b>${actor}</b> muốn chuyển việc cho bạn:\n<b>${await taskTitle(task_id)}</b>\nVui lòng chấp nhận hoặc từ chối.`)
+    notifyAction([toUserId], `${actor} muốn chuyển việc cho bạn:\n${await taskTitle(task_id)}\nVui lòng chấp nhận hoặc từ chối.`)
   } catch (err) {
     console.error('deptWork handoff:', err)
     res.status(500).json({ error: 'Không thể chuyển việc.' })
@@ -90,7 +91,7 @@ export async function acceptHandoff(req, res) {
     res.json({ success: true })
 
     const actor = await userName(req.user.id)
-    notifyUsers([handoff_from, assigned_by], `✅ <b>${actor}</b> đã CHẤP NHẬN việc được chuyển:\n<b>${await taskTitle(task_id)}</b>`)
+    notifyInfo([handoff_from, assigned_by], `${actor} đã CHẤP NHẬN việc được chuyển:\n${await taskTitle(task_id)}`)
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {})
     console.error('deptWork acceptHandoff:', err)
@@ -114,7 +115,7 @@ export async function rejectHandoff(req, res) {
     if (rows.length) {
       const { task_id, handoff_from, assigned_by } = rows[0]
       const actor = await userName(req.user.id)
-      notifyUsers([handoff_from, assigned_by], `❌ <b>${actor}</b> đã TỪ CHỐI việc được chuyển:\n<b>${await taskTitle(task_id)}</b>`)
+      notifyInfo([handoff_from, assigned_by], `${actor} đã TỪ CHỐI việc được chuyển:\n${await taskTitle(task_id)}`)
     }
   } catch (err) {
     console.error('deptWork rejectHandoff:', err)
@@ -136,7 +137,7 @@ export async function escalate(req, res) {
     res.json({ success: true })
 
     const actor = await userName(req.user.id)
-    notifyHeads(`⬆ <b>${actor}</b> ĐẨY CẤP TRÊN công việc:\n<b>${await taskTitle(taskId)}</b>${note ? `\nLý do: ${note}` : ''}`)
+    notifyHeads(actionText(`${actor} ĐẨY CẤP TRÊN công việc:\n${await taskTitle(taskId)}${note ? `\nLý do: ${note}` : ''}`))
   } catch (err) {
     console.error('deptWork escalate:', err)
     res.status(500).json({ error: 'Không thể đẩy việc lên cấp trên.' })

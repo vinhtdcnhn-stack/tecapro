@@ -1,4 +1,5 @@
 import { pool } from '../db.js'
+import { notifyInfo, pmUserIds, contractLabel, fmtDate } from '../services/notify.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -154,6 +155,15 @@ export async function createPayment(req, res) {
         schedule_id ? parseInt(schedule_id) : null])
 
     res.status(201).json(rows[0])
+
+    // Báo PM hợp đồng đã ghi nhận một khoản tiền về (thông tin, không cần xử lý).
+    const pms = (await pmUserIds(contractId)).filter(uid => uid !== req.user?.id)
+    if (pms.length) {
+      const label = await contractLabel(contractId)
+      const amt = (parseFloat(amount) || 0).toLocaleString('vi-VN')
+      const ngay = payment_date ? ` ngày ${fmtDate(payment_date)}` : ''
+      notifyInfo(pms, `HĐ ${label} vừa ghi nhận thanh toán ${amt} ${currency}${ngay}.`)
+    }
   } catch (err) {
     console.error('createPayment:', err)
     res.status(500).json({ error: 'Failed to create payment' })
