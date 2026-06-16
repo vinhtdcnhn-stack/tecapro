@@ -34,6 +34,15 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
     return pmIds.includes(String(currentUser.id))
   })()
 
+  // Quyền thao tác SERIAL: canEdit (admin/PM) HOẶC là Kỹ thuật của HĐ này
+  // (member_role='Technical'). Mở cho nhập/sửa/xóa serial ở tab Nhận hàng & Quản lý serial.
+  const canEditSerial = (() => {
+    if (canEdit) return true
+    if (!currentUser || !contract) return false
+    const techIds = (contract.technical_member_ids || []).map(String)
+    return techIds.includes(String(currentUser.id))
+  })()
+
   useEffect(() => {
     const id = selectedContractId
 
@@ -142,7 +151,7 @@ default:
   }
 
   return (
-    <ContractPermProvider canEdit={canEdit}>
+    <ContractPermProvider canEdit={canEdit} canEditSerial={canEditSerial}>
       <div className="contract-management-page">
         <ContractHeader contract={contract} />
         <div className="contract-management-body">

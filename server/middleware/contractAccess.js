@@ -94,7 +94,9 @@ function toIdList(raw) {
   return out
 }
 
-function makeGuard(pick, resolverSql) {
+// roles = các member_role được phép ghi (mặc định chỉ 'PM'). Admin luôn toàn quyền.
+function makeGuard(pick, resolverSql, roles = ['PM']) {
+  const roleLabel = roles.includes('Technical') ? 'PM/Kỹ thuật của hợp đồng' : 'PM của hợp đồng'
   return async function pmGuard(req, res, next) {
     try {
       if (Number(req.user?.role) === 1) return next() // admin: toàn quyền
@@ -115,17 +117,18 @@ function makeGuard(pick, resolverSql) {
         }
       }
 
-      // User phải là PM của TẤT CẢ hợp đồng liên quan (bulk có thể chạm nhiều HĐ)
+      // User phải có 1 trong các vai trò cho phép ở TẤT CẢ hợp đồng liên quan
+      // (bulk có thể chạm nhiều HĐ).
       const distinct = [...new Set(contractIds)]
       const { rows: m } = await pool.query(
         `SELECT COUNT(DISTINCT contract_out_id)::int AS n
            FROM contract_out_member
-          WHERE user_id = $1 AND member_role = 'PM' AND contract_out_id = ANY($2::bigint[])`,
-        [req.user.id, distinct],
+          WHERE user_id = $1 AND member_role = ANY($2) AND contract_out_id = ANY($3::bigint[])`,
+        [req.user.id, roles, distinct],
       )
       if (m[0].n === distinct.length) return next()
 
-      res.status(403).json({ error: 'Chỉ PM của hợp đồng (hoặc admin) mới được sửa đổi dữ liệu này.' })
+      res.status(403).json({ error: `Chỉ ${roleLabel} (hoặc admin) mới được sửa đổi dữ liệu này.` })
     } catch (err) {
       next(err)
     }
@@ -140,3 +143,7 @@ export const pmVia = (key, param = 'id') => makeGuard(req => req.params[param], 
 
 // Bulk: body { ids: [...] } chứa id con
 export const pmViaBody = (key) => makeGuard(req => req.body?.ids, RESOLVERS[key])
+
+// Biến thể cho phép PM HOẶC Kỹ thuật (member_role='Technical') — dùng cho thao tác serial.
+export const pmOrTechVia = (key, param = 'id') => makeGuard(req => req.params[param], RESOLVERS[key], ['PM', 'Technical'])
+export const pmOrTechViaBody = (key) => makeGuard(req => req.body?.ids, RESOLVERS[key], ['PM', 'Technical'])

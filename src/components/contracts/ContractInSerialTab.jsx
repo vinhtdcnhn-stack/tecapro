@@ -105,8 +105,9 @@ export default function ContractInSerialTab({ contractInId }) {
 
   const isFiltering = search.trim() !== '' || filterItem !== '' || filterStatus !== ''
 
+  // "Thuộc máy" chỉ cho chọn MÁY CHÍNH (serial độc lập, không phải linh kiện gắn vào máy khác).
   const parentOptions = useMemo(
-    () => serials.map(s => ({ id: s.id, label: `${s.item_name} – ${s.serial_no}` })),
+    () => serials.filter(s => !s.parent_serial_id).map(s => ({ id: s.id, label: s.serial_no })),
     [serials]
   )
 
@@ -163,7 +164,7 @@ export default function ContractInSerialTab({ contractInId }) {
 
         <div style={{ flex:1 }} />
 
-        <EditGuard>
+        <EditGuard serial>
         {selected.size > 0 && (
           <>
             <span style={{ fontSize:13, fontWeight:600, color:'#b91c1c' }}>Đã chọn {selected.size}</span>
@@ -184,8 +185,8 @@ export default function ContractInSerialTab({ contractInId }) {
         </EditGuard>
       </div>
 
-      {/* Table (desktop) / Cards (mobile) — Khóa nhập/xóa khi không phải PM */}
-      <EditGuard>
+      {/* Table (desktop) / Cards (mobile) — Khóa nhập/xóa khi không phải PM/Kỹ thuật */}
+      <EditGuard serial>
       {isMobile ? (
         <InSerialMobile
           rows={filtered} val={val} setF={setF} save={save} saving={saving} del={del}

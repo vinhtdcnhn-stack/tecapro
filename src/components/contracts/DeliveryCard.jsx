@@ -5,6 +5,7 @@ import { fmtDate, statusStyle } from './deliveryUtils'
 import DeliveryItemRow from './DeliveryItemRow'
 import useIsMobile from './useIsMobile'
 import EditGuard from './EditGuard'
+import useCtrlSave from './useCtrlSave'
 
 // ── Delivery card ─────────────────────────────────────────────────────────────
 
@@ -25,6 +26,20 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
         .finally(() => setLoad(false))
     }
   }, [isExpanded, delivery.id, itemsLoaded])
+
+  // Tải lại danh mục hàng của đợt (sau khi nhập barcode có thể phát sinh chủng loại mới).
+  async function reloadItems() {
+    setLoad(true)
+    try {
+      const r = await fetch(`${API}/deliveries/${delivery.id}/items`)
+      const d = await r.json()
+      const next = Array.isArray(d) ? d : []
+      onItemCountChange(next.length - items.length)
+      setItems(next)
+      setLoaded(true)
+    } catch (e) { console.error(e) }
+    finally { setLoad(false) }
+  }
 
   async function handleAddItem(form) {
     const res  = await fetch(`${API}/deliveries/${delivery.id}/items`, {
@@ -120,6 +135,9 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
                         key={item.id}
                         idx={idx}
                         item={item}
+                        deliveryId={delivery.id}
+                        contractInId={delivery.contract_in_id}
+                        onReload={reloadItems}
                         onDelete={() => handleDeleteItem(item)}
                         onUpdateItem={(field, value) => handleUpdateItem(item, field, value)}
                         onSerialCountChange={(delta) =>
@@ -188,6 +206,9 @@ function AddItemForm({ boqItems, existingNames = [], onSave, onCancel }) {
     }
     await onSave(form)
   }
+
+  // Ctrl/Cmd + S = lưu nhanh (form chỉ mount khi đang mở nên không xung đột tab khác)
+  useCtrlSave(handleSubmit)
 
   return (
     <div style={{ background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:8, padding:'14px 16px', marginTop:8 }}>

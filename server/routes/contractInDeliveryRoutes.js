@@ -3,10 +3,10 @@ import {
   excelUploadDelivery,
   getDeliveries, createDelivery, updateDelivery, deleteDelivery,
   getDeliveryItems, createDeliveryItem, updateDeliveryItem, deleteDeliveryItem,
-  getDeliverySerials, createDeliverySerial, deleteDeliverySerial, importDeliverySerials,
+  getDeliverySerials, createDeliverySerial, deleteDeliverySerial, importDeliverySerials, saveScanBatch, getDeliveryItemExport,
   getAllDeliverySerials, getAllDeliveryItems, updateDeliverySerial, bulkDeleteDeliverySerials, replaceDeliverySerial,
 } from '../controllers/contractInDeliveryController.js'
-import { pmVia, pmViaBody } from '../middleware/contractAccess.js'
+import { pmVia, pmViaBody, pmOrTechVia, pmOrTechViaBody } from '../middleware/contractAccess.js'
 
 const router = Router()
 
@@ -22,17 +22,21 @@ router.post('/deliveries/:deliveryId/items',            pmVia('delivery', 'deliv
 router.put('/delivery-items/:id',                       pmVia('deliveryItem'), updateDeliveryItem)
 router.delete('/delivery-items/:id',                    pmVia('deliveryItem'), deleteDeliveryItem)
 
-// Serials per item (guard trước multer với route import)
-router.get('/delivery-items/:itemId/serials',           getDeliverySerials)
-router.post('/delivery-items/:itemId/serials',          pmVia('deliveryItem', 'itemId'), createDeliverySerial)
-router.post('/delivery-items/:itemId/serials/import',   pmVia('deliveryItem', 'itemId'), excelUploadDelivery.single('file'), importDeliverySerials)
-router.delete('/delivery-serials/:id',                  pmVia('deliverySerial'), deleteDeliverySerial)
+// Lưu 1 máy + thành phần theo lô (1 transaction, từ chối cả máy nếu trùng) — PM/Kỹ thuật
+router.post('/deliveries/:deliveryId/scan-batch',       pmOrTechVia('delivery', 'deliveryId'), saveScanBatch)
 
-// Consolidated serial registry (whole contract)
+// Serials per item (guard trước multer với route import) — thao tác serial: PM/Kỹ thuật
+router.get('/delivery-items/:itemId/serials',           getDeliverySerials)
+router.get('/delivery-items/:itemId/export-serials',    getDeliveryItemExport)
+router.post('/delivery-items/:itemId/serials',          pmOrTechVia('deliveryItem', 'itemId'), createDeliverySerial)
+router.post('/delivery-items/:itemId/serials/import',   pmOrTechVia('deliveryItem', 'itemId'), excelUploadDelivery.single('file'), importDeliverySerials)
+router.delete('/delivery-serials/:id',                  pmOrTechVia('deliverySerial'), deleteDeliverySerial)
+
+// Consolidated serial registry (whole contract) — thao tác serial: PM/Kỹ thuật
 router.get('/contract-ins/:contractInId/all-serials',   getAllDeliverySerials)
 router.get('/contract-ins/:contractInId/all-items',     getAllDeliveryItems)
-router.post('/delivery-serials/bulk-delete',            pmViaBody('deliverySerial'), bulkDeleteDeliverySerials)
-router.put('/delivery-serials/:id',                     pmVia('deliverySerial'), updateDeliverySerial)
-router.post('/delivery-serials/:id/replace',            pmVia('deliverySerial'), replaceDeliverySerial)
+router.post('/delivery-serials/bulk-delete',            pmOrTechViaBody('deliverySerial'), bulkDeleteDeliverySerials)
+router.put('/delivery-serials/:id',                     pmOrTechVia('deliverySerial'), updateDeliverySerial)
+router.post('/delivery-serials/:id/replace',            pmOrTechVia('deliverySerial'), replaceDeliverySerial)
 
 export default router

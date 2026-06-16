@@ -3,6 +3,17 @@ import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { TABLE_DELIVERY, serialExists, findDuplicatesInList, findExistingSerials } from './serialUtils.js'
 
+const norm = (s) => String(s ?? '').trim().toLowerCase()
+
+// Một chủng loại chỉ giữ serial THÀNH PHẦN (mọi serial đều có parent_serial_id) là
+// "linh kiện của máy" — nó vẫn nằm trong tab quản lý serial, nhưng KHÔNG hiện thành
+// dòng riêng ở đợt nhận hàng. Hiển thị ở đợt nhận khi: chưa có serial nào, HOẶC có ít
+// nhất 1 serial độc lập (máy). Đây thuần là lọc HIỂN THỊ, không đổi dữ liệu.
+const VISIBLE_ITEM = `(
+  EXISTS (SELECT 1 FROM contract_in_delivery_serial s WHERE s.delivery_item_id = di.id AND s.parent_serial_id IS NULL)
+  OR NOT EXISTS (SELECT 1 FROM contract_in_delivery_serial s WHERE s.delivery_item_id = di.id)
+)`
+
 export const excelUploadDelivery = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -19,7 +30,7 @@ export async function getDeliveries(req, res) {
     const { rows } = await pool.query(`
       SELECT
         d.*,
-        COUNT(di.id)::int                         AS item_count,
+        COUNT(di.id) FILTER (WHERE ${VISIBLE_ITEM})::int AS item_count,
         COALESCE(SUM(di.received_quantity), 0)    AS total_received
       FROM contract_in_delivery d
       LEFT JOIN contract_in_delivery_item di ON di.delivery_id = d.id
@@ -90,6 +101,7 @@ export async function getDeliveryItems(req, res) {
       FROM contract_in_delivery_item di
       LEFT JOIN contract_in_delivery_serial ds ON ds.delivery_item_id = di.id
       WHERE di.delivery_id = $1
+        AND ${VISIBLE_ITEM}
       GROUP BY di.id
       ORDER BY di.id
     `, [req.params.deliveryId])
@@ -184,6 +196,108 @@ export async function createDeliverySerial(req, res) {
   } catch (err) {
     console.error('createDeliverySerial:', err)
     res.status(500).json({ error: 'Không thể thêm serial' })
+  }
+}
+
+// POST /deliveries/:deliveryId/scan-batch — lưu 1 MÁY + các thành phần trong 1 transaction.
+// Body: { machineItemId, machineSerial, components: [{ name, serial }] }.
+// Thành phần được resolve/tạo chủng loại theo tên (trong cùng đợt) rồi nối về serial máy
+// qua parent_serial_id. Nếu BẤT KỲ serial nào trùng (trong lô hoặc đã có ở phía nhập) →
+// ROLLBACK toàn bộ, trả 409 (không lưu cả máy lẫn thành phần). Chỉ 1 lần kiểm tra trùng
+// cho cả máy nên không phải query từng serial.
+export async function saveScanBatch(req, res) {
+  const { deliveryId } = req.params
+  const { machineItemId, machineSerial, components = [] } = req.body
+  if (!machineItemId || !machineSerial?.trim())
+    return res.status(400).json({ error: 'Thiếu serial máy chính' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const allSerials = [machineSerial, ...components.map(c => c.serial)]
+    const dupInList = findDuplicatesInList(allSerials)
+    if (dupInList.length) {
+      await client.query('ROLLBACK')
+      return res.status(409).json({ error: `Serial lặp trong cùng máy: ${dupInList.join(', ')}`, duplicates: dupInList })
+    }
+    const existing = await findExistingSerials(client, TABLE_DELIVERY, allSerials)
+    if (existing.length) {
+      await client.query('ROLLBACK')
+      return res.status(409).json({ error: `Serial đã tồn tại ở phía nhập: ${existing.join(', ')}`, duplicates: existing })
+    }
+
+    // Resolve / tạo dòng chủng loại cho từng tên thành phần (trong đợt này)
+    const nameToId = {}
+    for (const c of components) {
+      const key = norm(c.name)
+      if (nameToId[key]) continue
+      const found = await client.query(
+        `SELECT id FROM contract_in_delivery_item
+           WHERE delivery_id=$1 AND lower(btrim(item_name))=lower(btrim($2)) LIMIT 1`,
+        [deliveryId, c.name]
+      )
+      nameToId[key] = found.rows[0]
+        ? found.rows[0].id
+        : (await client.query(
+            `INSERT INTO contract_in_delivery_item (delivery_id, item_name) VALUES ($1,$2) RETURNING id`,
+            [deliveryId, c.name.trim()]
+          )).rows[0].id
+    }
+
+    const mIns = await client.query(
+      `INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no, status)
+       VALUES ($1,$2,'Đang hoạt động') RETURNING id`,
+      [machineItemId, machineSerial.trim()]
+    )
+    const machineId = mIns.rows[0].id
+    for (const c of components) {
+      await client.query(
+        `INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no, parent_serial_id, status)
+         VALUES ($1,$2,$3,'Đang hoạt động')`,
+        [nameToId[norm(c.name)], c.serial.trim(), machineId]
+      )
+    }
+
+    await client.query('COMMIT')
+    res.json({ ok: true, machineSerialId: machineId, inserted: 1 + components.length })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('saveScanBatch:', err)
+    res.status(500).json({ error: 'Không thể lưu lô serial' })
+  } finally {
+    client.release()
+  }
+}
+
+// GET /delivery-items/:itemId/export-serials — dữ liệu xuất Excel theo cấu trúc
+// "máy chính + thành phần": mỗi máy (serial độc lập của chủng loại này) kèm các serial
+// thành phần (con) đã nhóm theo tên chủng loại thành phần (lấy từ item_name của con).
+export async function getDeliveryItemExport(req, res) {
+  const { itemId } = req.params
+  try {
+    const { rows: machines } = await pool.query(
+      `SELECT id, serial_no FROM contract_in_delivery_serial
+        WHERE delivery_item_id=$1 AND parent_serial_id IS NULL
+        ORDER BY id`,
+      [itemId]
+    )
+    let components = []
+    if (machines.length) {
+      const { rows } = await pool.query(
+        `SELECT ds.parent_serial_id AS machine_id, di.item_name AS type_name, ds.serial_no
+           FROM contract_in_delivery_serial ds
+           JOIN contract_in_delivery_item di ON di.id = ds.delivery_item_id
+          WHERE ds.parent_serial_id = ANY($1)
+          ORDER BY di.id, ds.id`,
+        [machines.map(m => m.id)]
+      )
+      components = rows
+    }
+    res.json({ machines, components })
+  } catch (err) {
+    console.error('getDeliveryItemExport:', err)
+    res.status(500).json({ error: 'Không thể tải dữ liệu xuất serial' })
   }
 }
 
