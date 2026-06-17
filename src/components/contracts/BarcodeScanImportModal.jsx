@@ -46,6 +46,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
   const [existing, setExisting]       = useState(() => new Set())  // serial đã có (cache)
   const [flushing, setFlushing]       = useState(false)
   const [unmatched, setUnmatched]     = useState(null)
+  const [learnedNote, setLearnedNote] = useState('')  // báo đã tự học SL từ máy đầu tiên
   const savedAnyRef = useRef(false)
   const inputRef = useRef(null)
   const cfgFileRef = useRef(null)
@@ -145,6 +146,31 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
     finally { flushingRef.current = false; setFlushing(false) }
   }
 
+  // Sau khi máy ĐẦU TIÊN lưu thành công: tự suy số lượng từng loại thành phần từ chính máy
+  // đó và ghi vào cấu hình (chỉ điền vào ô SL còn trống — tôn trọng SL người dùng đã khai).
+  // Các máy bắn sau sẽ được kiểm tra số lượng theo SL vừa học này.
+  function learnCounts(machine) {
+    // Nếu MỌI loại đã có SL (khai tay hoặc nhập từ file) → không học, không ghi lại,
+    // giữ nguyên cấu hình và kiểm tra như bình thường theo SL đã có.
+    if ((components || []).every(c => c.count !== '' && c.count != null)) return
+
+    const counts = new Map()
+    for (const c of machine.components) counts.set(c.name, (counts.get(c.name) || 0) + 1)
+    const learned = []
+    const next = components.map(c => {
+      if (c.count !== '' && c.count != null) return c   // giữ SL đã có (khai tay / nhập file)
+      const got = counts.get(c.name) || 0
+      if (got <= 0) return c                              // máy đầu không có loại này → không khóa
+      learned.push(`${c.name} ×${got}`)
+      return { ...c, count: String(got) }
+    })
+    if (!learned.length) return                           // không có gì mới để học → không ghi lại
+
+    setComponents(next)
+    saveCfg(contractInId, machineItem.item_name, { machineRule, components: next })
+    setLearnedNote(`Đã tự lưu SL thành phần từ máy đầu: ${learned.join(', ')}`)
+  }
+
   // Kiểm tra số lượng thành phần khai báo; thiếu/thừa → cảnh báo & trả false (giữ nguyên máy).
   function ensureCounts(machine) {
     const errs = checkComponentCounts(components, machine.components)
@@ -159,8 +185,10 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
     if (cls.role === 'machine') {
       if (current) {
         if (!ensureCounts(current)) return       // thiếu/thừa số lượng: giữ máy hiện tại, bỏ qua mã máy mới
+        const wasFirst = !savedAnyRef.current     // máy này là máy đầu tiên của phiên?
         const ok = await flush(current)
         if (!ok) { setCurrent(null); return }   // trùng/lỗi: clear máy hiện tại để bắn lại, bỏ qua mã vừa bắn
+        if (wasFirst) learnCounts(current)        // máy đầu lưu xong → tự học SL thành phần
       }
       setCurrent({ machineSerial: serial, components: [] })
     } else {
@@ -331,6 +359,11 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
               <span style={{ fontSize:12, fontWeight:700, color:'#16a34a' }}>✓ Đã lưu {savedCount} máy</span>
               {flushing && <span style={{ fontSize:12, color:'#2563eb' }}>Đang lưu máy…</span>}
             </div>
+            {learnedNote && (
+              <div style={{ fontSize:11, color:'#15803d', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:6, padding:'6px 10px', marginBottom:8 }}>
+                ✓ {learnedNote} — các máy sau sẽ kiểm tra theo số lượng này.
+              </div>
+            )}
 
             <div style={{ border:'1px solid #e5e7eb', borderRadius:8, padding:'12px 14px', marginBottom:14, maxHeight:'42vh', overflowY:'auto' }}>
               {!current ? (
