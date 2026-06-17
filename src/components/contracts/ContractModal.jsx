@@ -30,6 +30,7 @@ export default function ContractModal({
     sale_team: [],
     presale_team: [],
     technical_team: [],
+    import_export_team: [],
     accounting_team: [],
     followers: [],
     pm_team: []
@@ -63,6 +64,7 @@ export default function ContractModal({
           sale_team: editData.sale_member_ids || [],
           presale_team: editData.presale_member_ids || [],
           technical_team: editData.technical_member_ids || [],
+          import_export_team: editData.import_export_member_ids || [],
           accounting_team: editData.accounting_member_ids || [],
           followers: editData.follower_member_ids || [],
           pm_team: editData.pm_primary_id
@@ -96,6 +98,7 @@ export default function ContractModal({
       sale_team: [],
       presale_team: [],
       technical_team: [],
+      import_export_team: [],
       accounting_team: [],
       followers: [],
       pm_team: []
@@ -437,6 +440,19 @@ export default function ContractModal({
                   selectedValues={formData.technical_team}
                   onChange={(selected) => handleMultiSelectChange('technical_team', selected)}
                   placeholder="Chọn kỹ thuật..."
+                />
+              </div>
+            </div>
+
+            {/* Import/Export Team */}
+            <div className="form-row">
+              <div className="form-group full-width">
+                <label>Xuất nhập khẩu</label>
+                <MultiSelect
+                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  selectedValues={formData.import_export_team}
+                  onChange={(selected) => handleMultiSelectChange('import_export_team', selected)}
+                  placeholder="Chọn nhân sự xuất nhập khẩu..."
                 />
               </div>
             </div>

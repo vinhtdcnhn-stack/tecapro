@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { API } from '../../config/api'
-import { classify, ruleLabel, compLabel, loadCfg, saveCfg } from './barcodeScanUtils'
+import { classify, ruleLabel, compLabel, loadCfg, saveCfg, cfgToText, textToCfg } from './barcodeScanUtils'
 
 // ── Nhập serial hàng loạt từ máy scan barcode ──────────────────────────────────
 // Bước 1: cấu hình nhận dạng (máy chính + các loại thành phần, theo độ dài/tiền tố).
@@ -47,8 +47,40 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
   const [unmatched, setUnmatched]     = useState(null)
   const savedAnyRef = useRef(false)
   const inputRef = useRef(null)
+  const cfgFileRef = useRef(null)
 
   const cfgNow = () => ({ machineRule, components })
+
+  // ── Xuất / nhập cấu hình ra file text (chuyển cấu hình giữa các máy tính) ────────
+  function exportCfg() {
+    const text = cfgToText(machineItem.item_name, cfgNow())
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url
+    a.download = `cau-hinh-serial-${(machineItem.item_name || 'may').replace(/[^\w]+/g, '_')}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function importCfg(e) {
+    const file = e.target.files?.[0]
+    if (cfgFileRef.current) cfgFileRef.current.value = ''
+    if (!file) return
+    try {
+      const cfg = textToCfg(await file.text())
+      if (!cfg.machineRule.value && !cfg.components.length) {
+        alert('File cấu hình không đọc được quy tắc nào. Kiểm tra lại định dạng.')
+        return
+      }
+      setMachineRule(cfg.machineRule)
+      setComponents(cfg.components)
+      saveCfg(contractInId, machineItem.item_name, cfg)
+      alert(`Đã nạp cấu hình: máy + ${cfg.components.length} loại thành phần.`)
+    } catch (err) {
+      alert('Lỗi đọc file: ' + err.message)
+    }
+  }
   const refocus = () => setTimeout(() => inputRef.current?.focus(), 0)
 
   useEffect(() => { if (step === 'scan') refocus() }, [step])
@@ -206,6 +238,14 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
 
         {step === 'config' ? (
           <>
+            <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+              <button style={{ ...btnSec, padding:'6px 12px', fontSize:12 }} onClick={exportCfg}>⬇ Xuất cấu hình (.txt)</button>
+              <label style={{ ...btnSec, padding:'6px 12px', fontSize:12, cursor:'pointer', display:'inline-flex', alignItems:'center' }}>
+                ⬆ Nhập cấu hình từ file
+                <input ref={cfgFileRef} type="file" accept=".txt,text/plain" style={{ display:'none' }} onChange={importCfg} />
+              </label>
+            </div>
+
             <div style={{ marginBottom:14 }}>
               <label style={label}>Nhận dạng serial MÁY chính *</label>
               <RuleInputs rule={machineRule} onChange={setMachineRule} />

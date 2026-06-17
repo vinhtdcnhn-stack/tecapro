@@ -34,10 +34,18 @@ export async function requireAuth(req, res, next) {
     res.status(401).json({ error: 'Chưa đăng nhập hoặc phiên đã hết hạn.' })
     return
   }
-  const { rows } = await pool.query(
-    'SELECT role, token_version FROM app_user WHERE id = $1',
-    [payload.uid],
-  )
+  let rows
+  try {
+    ({ rows } = await pool.query(
+      'SELECT role, token_version FROM app_user WHERE id = $1',
+      [payload.uid],
+    ))
+  } catch (err) {
+    // Lỗi kết nối DB nhất thời (vd Connection terminated) → báo gọn, không sập tiến trình.
+    console.error('[auth] Truy vấn phiên lỗi DB:', err.message)
+    res.status(503).json({ error: 'Hệ thống tạm thời gián đoạn kết nối, vui lòng thử lại.' })
+    return
+  }
   const user = rows[0]
   if (!user || Number(payload.tv ?? 0) !== Number(user.token_version)) {
     res.status(401).json({ error: 'Phiên không còn hiệu lực. Vui lòng đăng nhập lại.' })

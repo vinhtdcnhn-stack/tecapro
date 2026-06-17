@@ -47,7 +47,8 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
     setNewSerial('')
   }
 
-  async function deleteSerial(sId) {
+  async function deleteSerial(sId, serialNo) {
+    if (!confirm(`Xóa serial "${serialNo}"?`)) return
     await fetch(`${API}/delivery-serials/${sId}`, { method: 'DELETE' })
     setSerials(prev => prev.filter(s => s.id !== sId))
     onSerialCountChange(-1)
@@ -197,7 +198,7 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
                 {serials.map(s => (
                   <span key={s.id} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', background:'#fff', border:'1px solid #93c5fd', borderRadius:99, fontSize:12, fontWeight:600, color:'#1d4ed8' }}>
                     {s.serial_no}
-                    <button onClick={() => deleteSerial(s.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'#6b7280', fontSize:14, lineHeight:1, padding:0 }}>×</button>
+                    <button onClick={() => deleteSerial(s.id, s.serial_no)} style={{ background:'none', border:'none', cursor:'pointer', color:'#6b7280', fontSize:14, lineHeight:1, padding:0 }}>×</button>
                   </span>
                 ))}
                 {serials.length === 0 && <span style={{ fontSize:12, color:'#9ca3af' }}>Chưa có serial nào.</span>}

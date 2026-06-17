@@ -51,6 +51,73 @@ export function normalizeCfg(cfg) {
   return { ...cfg, components }
 }
 
+// ── Xuất / nhập cấu hình dạng VĂN BẢN (để chuyển giữa các máy tính, người dùng đọc/sửa được) ──
+// Định dạng mỗi dòng:  <Tên> = <kiểu>:<giá trị> [ | <kiểu>:<giá trị> ... ]
+//   • kiểu = "prefix" (tiền tố) hoặc "length" (độ dài).
+//   • Dòng máy chính dùng tên đặc biệt "MÁY".
+//   • Một loại nhiều quy tắc → nối bằng " | ".
+//   • Dòng trống hoặc bắt đầu bằng "#" bị bỏ qua.
+
+function ruleToText(rule) {
+  if (!rule || rule.value === '' || rule.value == null) return ''
+  return `${rule.kind}:${rule.value}`
+}
+
+export function cfgToText(machineName, cfg) {
+  const lines = [
+    `# Cấu hình bắn serial cho máy: ${machineName}`,
+    `# Cú pháp mỗi dòng: <Tên> = <kiểu>:<giá trị> [ | <kiểu>:<giá trị> ... ]`,
+    `# kiểu = prefix (tiền tố) hoặc length (độ dài). Dòng máy chính dùng tên "MÁY".`,
+    `# Dòng trống hoặc bắt đầu bằng # sẽ bị bỏ qua.`,
+    '',
+    `MÁY = ${ruleToText(cfg?.machineRule)}`,
+  ]
+  for (const c of cfg?.components || []) {
+    const rulesTxt = (c.rules || []).map(ruleToText).filter(Boolean).join(' | ')
+    if (c.name && rulesTxt) lines.push(`${c.name} = ${rulesTxt}`)
+  }
+  return lines.join('\n') + '\n'
+}
+
+function normalizeKind(k) {
+  const s = k.trim().toLowerCase()
+  if (['prefix', 'tiền tố', 'tien to', 'tiento'].includes(s)) return 'prefix'
+  if (['length', 'độ dài', 'do dai', 'dodai', 'len'].includes(s)) return 'length'
+  return null
+}
+
+function isMachineName(name) {
+  return ['máy', 'may', 'machine', 'máy chính', 'may chinh'].includes(name.trim().toLowerCase())
+}
+
+function parseRuleToken(token) {
+  const t = token.trim()
+  const colon = t.indexOf(':')
+  if (colon < 0) return null
+  const kind = normalizeKind(t.slice(0, colon))
+  const value = t.slice(colon + 1).trim()
+  if (!kind || value === '') return null
+  return { kind, value }
+}
+
+// Phân tích văn bản → { machineRule, components }. Bỏ qua dòng không hợp lệ.
+export function textToCfg(text) {
+  const machineRule = { kind: 'length', value: '' }
+  const components = []
+  for (const raw of String(text ?? '').split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    const eq = line.indexOf('=')
+    if (eq < 0) continue
+    const name = line.slice(0, eq).trim()
+    const rules = line.slice(eq + 1).split('|').map(parseRuleToken).filter(Boolean)
+    if (!name || !rules.length) continue
+    if (isMachineName(name)) Object.assign(machineRule, rules[0]) // máy chỉ dùng 1 quy tắc
+    else components.push({ name, rules })
+  }
+  return { machineRule, components }
+}
+
 // ── localStorage: cấu hình lưu theo HĐ nhập, ánh xạ theo tên chủng loại máy ──────
 const storageKey = (contractInId) => `barcodeCfg:in:${contractInId}`
 

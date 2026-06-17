@@ -132,13 +132,15 @@ export async function getContractById(req, res) {
     const pmMembers = []
     const presaleMembers = []
     const technicalMembers = []
+    const importExportMembers = []
     const accountingMembers = []
     const followerMembers = []
-    
+
     const saleMemberIds = []
     const pmMemberIds = []
     const presaleMemberIds = []
     const technicalMemberIds = []
+    const importExportMemberIds = []
     const accountingMemberIds = []
     const followerMemberIds = []
     
@@ -174,6 +176,11 @@ export async function getContractById(req, res) {
           if (userId) technicalMemberIds.push(userId)
           break
 
+        case 'IMPORTEXPORT':
+          importExportMembers.push(fullName)
+          if (userId) importExportMemberIds.push(userId)
+          break
+
         case 'ACCOUNTANT':
         case 'ACCOUNTING':
           accountingMembers.push(fullName)
@@ -198,6 +205,8 @@ export async function getContractById(req, res) {
       presale_member_ids: presaleMemberIds,
       technical_members: technicalMembers,
       technical_member_ids: technicalMemberIds,
+      import_export_members: importExportMembers,
+      import_export_member_ids: importExportMemberIds,
       accounting_members: accountingMembers,
       accounting_member_ids: accountingMemberIds,
       follower_members: followerMembers,
@@ -259,6 +268,7 @@ export async function createContract(req, res) {
     sale_team,
     presale_team,
     technical_team,
+    import_export_team,
     accounting_team,
     followers
   } = req.body
@@ -330,7 +340,7 @@ export async function createContract(req, res) {
 
       const contractId = contractResult.rows[0].id
 
-      const inserted = await insertContractMembers(client, contractId, { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers })
+      const inserted = await insertContractMembers(client, contractId, { pm_primary_id, pm_team, sale_team, presale_team, technical_team, import_export_team, accounting_team, followers })
 
       await client.query('COMMIT')
 
@@ -384,6 +394,7 @@ export async function updateContract(req, res) {
     sale_team,
     presale_team,
     technical_team,
+    import_export_team,
     accounting_team,
     followers
   } = req.body
@@ -457,7 +468,7 @@ export async function updateContract(req, res) {
       const oldIds = new Set(before.rows.map(r => Number(r.user_id)))
 
       await client.query('DELETE FROM contract_out_member WHERE contract_out_id = $1', [parseInt(contractId)])
-      const inserted = await insertContractMembers(client, parseInt(contractId), { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers })
+      const inserted = await insertContractMembers(client, parseInt(contractId), { pm_primary_id, pm_team, sale_team, presale_team, technical_team, import_export_team, accounting_team, followers })
 
       await client.query('COMMIT')
 

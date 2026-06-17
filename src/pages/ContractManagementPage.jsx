@@ -214,6 +214,7 @@ function ContractInfoTab({ contract, onEdit }) {
     { label: 'PM chính', members: contract.pm_members || [] },
     { label: 'Presale', members: contract.presale_members || [] },
     { label: 'Kỹ thuật triển khai', members: contract.technical_members || [] },
+    { label: 'Xuất nhập khẩu', members: contract.import_export_members || [] },
     { label: 'Kế toán', members: contract.accounting_members || [] },
     { label: 'Người theo dõi', members: contract.follower_members || [] }
   ]

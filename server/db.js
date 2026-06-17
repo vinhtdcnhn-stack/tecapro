@@ -13,3 +13,10 @@ export const pool = new Pool({
   connectionTimeoutMillis: 5000,  // chờ tối đa 5s khi pool đã cạn rồi mới báo lỗi
 })
 
+// Lỗi trên client ĐANG RẢNH trong pool (vd DB rớt kết nối khi máy ngủ/DB restart)
+// được phát ở pool. Bắt buộc có listener, nếu không Node sẽ ném lỗi làm sập tiến
+// trình API. Chỉ cần log: pg tự loại client hỏng và tạo client mới ở request sau.
+pool.on('error', (err) => {
+  console.error('[db] Idle client error (pool sẽ tự hồi phục):', err.message)
+})
+

@@ -1,17 +1,18 @@
 const TEAM_ROLES = [
-  { key: 'sale_team',       role: 'Sale',       rank: 2 },
-  { key: 'presale_team',    role: 'Presale',    rank: 3 },
-  { key: 'technical_team',  role: 'Technical',  rank: 4 },
-  { key: 'accounting_team', role: 'Accounting', rank: 5 },
-  { key: 'followers',       role: 'Follower',   rank: 6 },
+  { key: 'sale_team',          role: 'Sale',         rank: 2 },
+  { key: 'presale_team',       role: 'Presale',      rank: 3 },
+  { key: 'technical_team',     role: 'Technical',    rank: 4 },
+  { key: 'import_export_team', role: 'ImportExport', rank: 5 },
+  { key: 'accounting_team',    role: 'Accounting',   rank: 6 },
+  { key: 'followers',          role: 'Follower',     rank: 7 },
 ]
 
 /**
  * Insert all team members for a contract inside an existing transaction client.
  * Uses a single bulk INSERT for all members combined.
  */
-export async function insertContractMembers(client, contractId, { pm_primary_id, pm_team, sale_team, presale_team, technical_team, accounting_team, followers }) {
-  const teams = { sale_team, presale_team, technical_team, accounting_team, followers }
+export async function insertContractMembers(client, contractId, { pm_primary_id, pm_team, sale_team, presale_team, technical_team, import_export_team, accounting_team, followers }) {
+  const teams = { sale_team, presale_team, technical_team, import_export_team, accounting_team, followers }
   const tuples = [] // [contractId, userId, role, isPrimary, rank]
 
   // PM team — first entry is primary
@@ -42,6 +43,7 @@ export const MEMBER_ROLE_VN = {
   Sale: 'Kinh doanh',
   Presale: 'Presale',
   Technical: 'Kỹ thuật',
+  ImportExport: 'Xuất nhập khẩu',
   Accounting: 'Kế toán',
   Follower: 'Theo dõi',
 }
