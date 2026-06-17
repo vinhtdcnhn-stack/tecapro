@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API } from '../../../config/api'
+import MultiSelect from '../../common/MultiSelect'
 import FieldEditor from './FieldEditor'
 import StepEditor from './StepEditor'
 
@@ -8,6 +9,7 @@ export default function FormBuilder({ formId, onBack }) {
   const [form, setForm] = useState(null)
   const [fields, setFields] = useState([])
   const [steps, setSteps] = useState([])
+  const [followers, setFollowers] = useState([])   // mảng id string
   const [userOptions, setUserOptions] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -24,6 +26,7 @@ export default function FormBuilder({ formId, onBack }) {
           name: s.name, rule: s.rule, approver_source: s.approver_source || 'fixed',
           approvers: (s.approvers || []).map(a => ({ approver_type: a.approver_type, approver_ref: String(a.approver_ref) })),
         })))
+        setFollowers((f.followers || []).map(fl => String(fl.user_id)))
       }
       setUserOptions((Array.isArray(users) ? users : []).map(u => ({
         value: String(u.id), label: u.full_name || u.email || `#${u.id}`, search: u.email || '', hint: u.email || '',
@@ -56,6 +59,11 @@ export default function FormBuilder({ formId, onBack }) {
         body: JSON.stringify({ steps }),
       })
       if (!r2.ok) throw new Error((await r2.json().catch(() => ({}))).error || 'Lưu bước duyệt thất bại.')
+      const r3 = await fetch(`${API}/approvals/forms/${formId}/followers`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_ids: followers.map(Number) }),
+      })
+      if (!r3.ok) throw new Error((await r3.json().catch(() => ({}))).error || 'Lưu người theo dõi thất bại.')
       alert('Đã lưu cấu hình loại đơn.')
     } catch (e) {
       setError(e.message)
@@ -87,6 +95,22 @@ export default function FormBuilder({ formId, onBack }) {
       {error && <p className="ab-error">{error}</p>}
       <FieldEditor fields={fields} onChange={setFields} />
       <StepEditor steps={steps} onChange={setSteps} userOptions={userOptions} />
+      <div className="ab-section">
+        <div className="ab-section-head">
+          <h3>Người theo dõi</h3>
+        </div>
+        <p className="ar-note" style={{ marginTop: 0 }}>
+          Những người này được <b>xem</b> đề xuất và <b>nhận thông báo</b> về diễn biến.
+          Người gửi không thay đổi được.
+        </p>
+        <MultiSelect
+          options={userOptions}
+          selectedValues={followers}
+          onChange={setFollowers}
+          placeholder="Gõ tên hoặc email để thêm người theo dõi…"
+          inlineSearch
+        />
+      </div>
     </div>
   )
 }

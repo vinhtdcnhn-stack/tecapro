@@ -80,6 +80,17 @@
 .ab-form-counts { font-size: 0.85rem; color: #4b5563; }
 .ab-form-card-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: auto; }
 
+/* Vùng admin (danh sách loại đơn + builder) tự cuộn dọc bên trong .content-area —
+   vốn cao cố định và overflow:hidden, nên nếu không có vùng cuộn riêng thì các
+   trường/bước phía dưới bị cắt, không kéo xuống được. */
+.approval-page .ab-builder,
+.approval-page .ab-admin-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* Builder header */
 .ab-builder-head {
   display: flex;
@@ -87,6 +98,12 @@
   gap: 1rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+  /* Giữ tiêu đề + nút "Lưu cấu hình" luôn hiển thị khi cuộn nội dung dài. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  padding-bottom: 0.6rem;
 }
 .ab-builder-head .section-title { flex: 1; }
 .ab-code { color: #9ca3af; font-weight: 400; }
@@ -253,6 +270,13 @@
 .ar-kv { display: flex; gap: 1rem; padding: 0.3rem 0; }
 .ar-k { width: 38%; color: #6b7280; }
 .ar-v { flex: 1; font-weight: 500; white-space: pre-wrap; }
+
+/* ── Người theo dõi (chip read-only) ───────────────────────────────────────── */
+.ar-followers { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ar-follower-chip {
+  display: inline-flex; align-items: center; padding: 0.15rem 0.6rem;
+  background: #eef2f7; color: #374151; border-radius: 999px; font-size: 0.85rem;
+}
 
 /* ── Drawer chi tiết đơn (trượt từ phải) ────────────────────────────────── */
 .ar-drawer-overlay {

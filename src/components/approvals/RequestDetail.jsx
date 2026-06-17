@@ -177,6 +177,18 @@ export default function RequestDetail({ requestId, currentUserId, onClose, onCha
               ))}
             </div>
 
+            {/* Người theo dõi */}
+            {(data.followers || []).length > 0 && (
+              <div className="ar-detail-section">
+                <h4 className="ar-subhead">Người theo dõi</h4>
+                <div className="ar-followers">
+                  {data.followers.map(fl => (
+                    <span key={fl.user_id} className="ar-follower-chip">{fl.full_name}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Đính kèm */}
             <div className="ar-detail-section">
               <h4 className="ar-subhead">Tệp đính kèm</h4>

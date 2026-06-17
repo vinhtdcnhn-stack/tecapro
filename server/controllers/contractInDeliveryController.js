@@ -301,6 +301,31 @@ export async function getDeliveryItemExport(req, res) {
   }
 }
 
+// GET /delivery-serials/:id/components — danh sách linh kiện (serial con) của 1 máy chính.
+// Trả về serial máy + các serial con đã gắn (parent_serial_id = :id), kèm tên chủng loại
+// linh kiện (lấy từ item_name của dòng chủng loại con). Chỉ đọc, không cần quyền ghi.
+export async function getSerialComponents(req, res) {
+  const { id } = req.params
+  try {
+    const machine = await pool.query(
+      'SELECT id, serial_no, status FROM contract_in_delivery_serial WHERE id=$1', [id]
+    )
+    if (!machine.rows[0]) return res.status(404).json({ error: 'Không tìm thấy serial' })
+    const { rows } = await pool.query(
+      `SELECT ds.id, ds.serial_no, ds.status, ds.note, di.item_name AS type_name
+         FROM contract_in_delivery_serial ds
+         JOIN contract_in_delivery_item di ON di.id = ds.delivery_item_id
+        WHERE ds.parent_serial_id = $1
+        ORDER BY di.item_name, ds.id`,
+      [id]
+    )
+    res.json({ machine: machine.rows[0], components: rows })
+  } catch (err) {
+    console.error('getSerialComponents:', err)
+    res.status(500).json({ error: 'Không thể tải linh kiện của máy' })
+  }
+}
+
 export async function deleteDeliverySerial(req, res) {
   try {
     await pool.query('DELETE FROM contract_in_delivery_serial WHERE id=$1', [req.params.id])

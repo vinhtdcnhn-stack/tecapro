@@ -82,7 +82,15 @@ export async function getFormSchema(req, res) {
     const stepsFull = steps.map(s => ({
       ...s, approvers: approvers.filter(a => a.step_id === s.id),
     }))
-    res.json({ ...forms[0], fields, steps: stepsFull })
+    // Người theo dõi (admin định sẵn) — hiển thị read-only cho người gửi.
+    const { rows: followers } = await pool.query(
+      `SELECT fl.user_id, u.full_name
+         FROM approval_form_follower fl
+         JOIN app_user u ON u.id = fl.user_id
+        WHERE fl.form_id = $1 ORDER BY u.full_name, fl.user_id`,
+      [id]
+    )
+    res.json({ ...forms[0], fields, steps: stepsFull, followers })
   } catch (err) {
     console.error('getFormSchema:', err)
     res.status(500).json({ error: 'Không thể tải sơ đồ loại đơn.' })
@@ -120,7 +128,14 @@ export async function getForm(req, res) {
       ...s,
       approvers: approvers.filter(a => a.step_id === s.id),
     }))
-    res.json({ ...forms[0], fields, steps: stepsWithApprovers })
+    const { rows: followers } = await pool.query(
+      `SELECT fl.user_id, u.full_name, u.email
+         FROM approval_form_follower fl
+         JOIN app_user u ON u.id = fl.user_id
+        WHERE fl.form_id = $1 ORDER BY u.full_name, fl.user_id`,
+      [id]
+    )
+    res.json({ ...forms[0], fields, steps: stepsWithApprovers, followers })
   } catch (err) {
     console.error('getForm:', err)
     res.status(500).json({ error: 'Không thể tải loại đơn.' })
@@ -299,6 +314,43 @@ export async function saveSteps(req, res) {
     await client.query('ROLLBACK')
     console.error('saveSteps:', err)
     res.status(500).json({ error: 'Không thể lưu chuỗi bước duyệt.' })
+  } finally {
+    client.release()
+  }
+}
+
+// ── Lưu danh sách người theo dõi của loại đơn (thay thế) ──────────────────────
+// Nhận { user_ids: [<id>, ...] }. Admin định sẵn; người gửi không sửa được.
+export async function saveFollowers(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  const raw = Array.isArray(req.body?.user_ids) ? req.body.user_ids : null
+  if (!raw) return res.status(400).json({ error: 'Thiếu danh sách người theo dõi.' })
+  // Chuẩn hóa → mảng số nguyên duy nhất.
+  const userIds = [...new Set(raw.map(x => parseInt(x, 10)).filter(Number.isInteger))]
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rowCount } = await client.query(`SELECT 1 FROM approval_form WHERE id = $1`, [id])
+    if (!rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Không tìm thấy loại đơn.' }) }
+
+    await client.query(`DELETE FROM approval_form_follower WHERE form_id = $1`, [id])
+    for (const uid of userIds) {
+      await client.query(
+        `INSERT INTO approval_form_follower (form_id, user_id) VALUES ($1, $2)
+         ON CONFLICT (form_id, user_id) DO NOTHING`,
+        [id, uid]
+      )
+    }
+    await client.query(`UPDATE approval_form SET updated_at = now() WHERE id = $1`, [id])
+    await client.query('COMMIT')
+    res.json({ success: true })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    if (err.code === '23503') return res.status(400).json({ error: 'Có người theo dõi không tồn tại.' })
+    console.error('saveFollowers:', err)
+    res.status(500).json({ error: 'Không thể lưu người theo dõi.' })
   } finally {
     client.release()
   }

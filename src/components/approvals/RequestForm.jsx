@@ -148,6 +148,17 @@ export default function RequestForm({ existing, onClose, onDone }) {
             ))}
           </div>
         )}
+
+        {schema?.followers?.length > 0 && (
+          <div className="ar-chain">
+            <div className="ab-sublabel" style={{ marginBottom: 6 }}>Người theo dõi</div>
+            <div className="ar-followers">
+              {schema.followers.map(fl => (
+                <span key={fl.user_id} className="ar-follower-chip">{fl.full_name}</span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <div className="modal-footer">
         <button type="button" className="btn btn-light" onClick={onClose}>Hủy</button>

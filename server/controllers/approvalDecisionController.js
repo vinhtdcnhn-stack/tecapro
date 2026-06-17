@@ -3,6 +3,14 @@
 import { pool } from '../db.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
 
+// Id người theo dõi (snapshot) của một đơn — để báo diễn biến.
+async function followerIds(requestId) {
+  const { rows } = await pool.query(
+    `SELECT user_id FROM approval_request_follower WHERE request_id = $1`, [requestId]
+  )
+  return rows.map(r => Number(r.user_id)).filter(Boolean)
+}
+
 // Lấy bước hiện tại + dòng người duyệt của chính tôi (đã khóa hàng đơn).
 // Trả { error, code } nếu không hợp lệ, hoặc { reqRow, step, myRow }.
 async function loadCurrent(client, id, userId) {
@@ -109,7 +117,10 @@ export async function approveRequest(req, res) {
 
     // Thông báo (fire-and-forget, sau commit).
     if (advanced && nextApprovers.length) notifyAction(nextApprovers, `Bạn có đơn cần duyệt: ${reqRow.title}`)
-    if (completed) notifyInfo([reqRow.requester_id], `Đơn của bạn đã được duyệt xong: ${reqRow.title}`)
+    if (completed) {
+      notifyInfo([reqRow.requester_id], `Đơn của bạn đã được duyệt xong: ${reqRow.title}`)
+      notifyInfo(await followerIds(id), `Đề xuất bạn theo dõi đã được duyệt xong: ${reqRow.title}`)
+    }
 
     res.json({ success: true, status: completed ? 'approved' : 'pending', advanced, completed })
   } catch (err) {
@@ -147,6 +158,7 @@ export async function rejectRequest(req, res) {
 
     const reason = comment ? `\nLý do: ${comment}` : ''
     notifyInfo([reqRow.requester_id], `Đơn của bạn bị từ chối ở bước "${step.name}": ${reqRow.title}${reason}`)
+    notifyInfo(await followerIds(id), `Đề xuất bạn theo dõi bị từ chối ở bước "${step.name}": ${reqRow.title}`)
 
     res.json({ success: true, status: 'rejected' })
   } catch (err) {

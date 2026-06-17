@@ -3,7 +3,7 @@ import {
   excelUploadDelivery,
   getDeliveries, createDelivery, updateDelivery, deleteDelivery,
   getDeliveryItems, createDeliveryItem, updateDeliveryItem, deleteDeliveryItem,
-  getDeliverySerials, createDeliverySerial, deleteDeliverySerial, importDeliverySerials, saveScanBatch, getDeliveryItemExport,
+  getDeliverySerials, createDeliverySerial, deleteDeliverySerial, importDeliverySerials, saveScanBatch, getDeliveryItemExport, getSerialComponents,
   getAllDeliverySerials, getAllDeliveryItems, updateDeliverySerial, bulkDeleteDeliverySerials, replaceDeliverySerial,
 } from '../controllers/contractInDeliveryController.js'
 import { pmVia, pmViaBody, pmOrTechVia, pmOrTechViaBody } from '../middleware/contractAccess.js'
@@ -28,6 +28,7 @@ router.post('/deliveries/:deliveryId/scan-batch',       pmOrTechVia('delivery', 
 // Serials per item (guard trước multer với route import) — thao tác serial: PM/Kỹ thuật
 router.get('/delivery-items/:itemId/serials',           getDeliverySerials)
 router.get('/delivery-items/:itemId/export-serials',    getDeliveryItemExport)
+router.get('/delivery-serials/:id/components',          getSerialComponents)
 router.post('/delivery-items/:itemId/serials',          pmOrTechVia('deliveryItem', 'itemId'), createDeliverySerial)
 router.post('/delivery-items/:itemId/serials/import',   pmOrTechVia('deliveryItem', 'itemId'), excelUploadDelivery.single('file'), importDeliverySerials)
 router.delete('/delivery-serials/:id',                  pmOrTechVia('deliverySerial'), deleteDeliverySerial)

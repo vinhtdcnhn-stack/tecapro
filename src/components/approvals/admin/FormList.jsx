@@ -63,7 +63,7 @@ export default function FormList() {
   }
 
   return (
-    <div>
+    <div className="ab-admin-page">
       <div className="ab-section-head">
         <h2 className="section-title" style={{ margin: 0 }}>LOẠI ĐƠN (CẤU HÌNH)</h2>
         <button type="button" className="btn btn-primary" onClick={openCreate}>+ Thêm loại đơn</button>

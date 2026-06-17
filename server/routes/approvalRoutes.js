@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { requireAdmin } from '../middleware/auth.js'
 import {
   getForms, getForm, createForm, updateForm, deleteForm, saveFields, saveSteps,
-  getActiveForms, getFormSchema, getUserOptions,
+  saveFollowers, getActiveForms, getFormSchema, getUserOptions,
 } from '../controllers/approvalFormController.js'
 import {
   getMyRequests, getInbox, getRequest, createRequest, updateRequest,
@@ -32,6 +32,7 @@ router.put('/approvals/forms/:id', requireAdmin, updateForm)
 router.delete('/approvals/forms/:id', requireAdmin, deleteForm)
 router.put('/approvals/forms/:id/fields', requireAdmin, saveFields)
 router.put('/approvals/forms/:id/steps', requireAdmin, saveSteps)
+router.put('/approvals/forms/:id/followers', requireAdmin, saveFollowers)
 
 // ── Đơn (mọi nhân viên) ──
 router.get('/approvals/requests/my', getMyRequests)

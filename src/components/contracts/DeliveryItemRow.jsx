@@ -5,6 +5,7 @@ import { fmtNum } from './deliveryUtils'
 import EditGuard from './EditGuard'
 import { useCanEdit } from '../../context/ContractPermContext'
 import BarcodeScanImportModal from './BarcodeScanImportModal'
+import SerialComponentsModal from './SerialComponentsModal'
 import { buildSerialMatrix } from './deliverySerialExport'
 
 // ── Delivery item row ─────────────────────────────────────────────────────────
@@ -16,6 +17,7 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
   const [serialsLoaded, setSLoaded]   = useState(false)
   const [newSerial, setNewSerial]     = useState('')
   const [showBarcode, setShowBarcode] = useState(false)
+  const [compSerial, setCompSerial]   = useState(null)   // serial đang xem linh kiện
   const importRef = useRef(null)
 
   const [editQty, setEditQty]         = useState(false)
@@ -197,7 +199,13 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
               <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
                 {serials.map(s => (
                   <span key={s.id} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', background:'#fff', border:'1px solid #93c5fd', borderRadius:99, fontSize:12, fontWeight:600, color:'#1d4ed8' }}>
-                    {s.serial_no}
+                    <span
+                      onClick={() => setCompSerial(s)}
+                      title="Xem linh kiện của máy này"
+                      style={{ cursor:'pointer', textDecoration:'underline', textDecorationStyle:'dotted', textUnderlineOffset:2 }}
+                    >
+                      {s.serial_no}
+                    </span>
                     <button onClick={() => deleteSerial(s.id, s.serial_no)} style={{ background:'none', border:'none', cursor:'pointer', color:'#6b7280', fontSize:14, lineHeight:1, padding:0 }}>×</button>
                   </span>
                 ))}
@@ -233,6 +241,14 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
           contractInId={contractInId}
           onClose={() => setShowBarcode(false)}
           onSaved={() => { setShowBarcode(false); setSLoaded(false); onReload?.() }}
+        />
+      )}
+
+      {compSerial && (
+        <SerialComponentsModal
+          serialId={compSerial.id}
+          itemName={item.item_name}
+          onClose={() => setCompSerial(null)}
         />
       )}
     </>

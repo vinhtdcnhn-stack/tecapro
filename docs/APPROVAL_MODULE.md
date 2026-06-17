@@ -75,8 +75,10 @@
 
 - [x] 9.6 Trường kiểu "Bảng" (nhập nhiều dòng): admin định nghĩa cột (config.columns = [{key,label,type}], type ∈ text/number/money/date) trong FieldEditor (TableColumnsEditor); người đề xuất nhập lưới động trong DynamicFields (TableField); chi tiết hiển thị read-only (TableValue). form_data[field_key] = mảng row object. BE: 'table' thêm vào FIELD_TYPES; required-check coi mảng rỗng = thiếu. Verify roundtrip OK (lưu cột, schema, required chặn bảng rỗng, lưu nhiều dòng). Không cần migration (dùng config jsonb sẵn có).
 - [x] 9.7 UI: chi tiết đơn đổi sang DRAWER trượt phải (ar-drawer-*, giống TaskDetailDrawer); bảng danh sách đẹp hơn; nút module gọn (.approval-page .btn* ghi đè pill to); badge menu 🔔 nhấp nháy + tự refresh 60s; bỏ menu "Giao ban tuần".
+- [x] 9.8 **Người theo dõi** (migration 048: `approval_form_follower` template + `approval_request_follower` snapshot). Admin định sẵn 1+ người theo dõi cho từng loại đơn; người gửi KHÔNG sửa được. Người theo dõi được XEM đơn + NHẬN thông báo (notifyInfo: submit "có đề xuất mới", complete "đã duyệt xong", reject "bị từ chối"). BE: `saveFollowers` (`PUT /approvals/forms/:id/followers`, admin), getForm/getFormSchema trả `followers`; submitRequest CHỤP followers + notify; getRequest mở quyền xem cho follower + trả snapshot followers; approve(complete)/reject notify followers. FE: FormBuilder mục "Người theo dõi" (MultiSelect); RequestForm hiện read-only; RequestDetail mục chip "Người theo dõi". Verify E2E 10/10 PASS (save→getForm→schema→submit→snapshot→follower xem 200→outsider 403). **Đã áp migration 048 local; CÒN NỢ áp VPS.**
 
 ## Việc còn nợ / mở rộng tương lai
+- **Áp migration 048 lên VPS** (người theo dõi) khi deploy.
 - **Áp migration 045 lên VPS** (cùng 044) khi deploy. (Kiểu "Bảng" KHÔNG cần migration.)
 - **Áp migration 044 lên VPS** khi deploy (`server/migrations/044_approval_module.sql`).
 - **Test thao tác trên trình duyệt** toàn luồng (admin cấu hình → NV gửi → duyệt nhiều bước → từ chối → đính kèm) — BE đã verify E2E qua script, FE đã lint+build nhưng chưa click thực tế.

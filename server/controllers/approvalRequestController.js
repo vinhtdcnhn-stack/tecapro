@@ -2,7 +2,7 @@
 // Phase 3: tạo nháp / sửa nháp / gửi (snapshot chuỗi bước) / danh sách / chi tiết / hủy / xóa / inbox.
 // Phase 5 bổ sung approve/reject (file riêng: approvalDecisionController.js).
 import { pool } from '../db.js'
-import { notifyAction } from '../services/notify.js'
+import { notifyAction, notifyInfo } from '../services/notify.js'
 
 // SELECT dùng chung cho danh sách đơn (join loại đơn + người gửi).
 const LIST_SELECT = `
@@ -67,13 +67,20 @@ export async function getRequest(req, res) {
     const reqRow = rows[0]
     reqRow.form_data = (await pool.query(`SELECT form_data FROM approval_request WHERE id = $1`, [id])).rows[0].form_data
 
-    // Quyền xem: người gửi, hoặc là người duyệt ở bất kỳ bước nào, hoặc admin.
+    // Quyền xem: người gửi, người duyệt ở bất kỳ bước nào, người theo dõi, hoặc admin.
     let allowed = Number(req.user.role) === 1 || reqRow.requester_id === req.user.id
     if (!allowed) {
       const { rowCount } = await pool.query(
         `SELECT 1 FROM approval_request_step s
            JOIN approval_request_step_approver sa ON sa.step_id = s.id
           WHERE s.request_id = $1 AND sa.approver_id = $2 LIMIT 1`,
+        [id, req.user.id]
+      )
+      allowed = rowCount > 0
+    }
+    if (!allowed) {
+      const { rowCount } = await pool.query(
+        `SELECT 1 FROM approval_request_follower WHERE request_id = $1 AND user_id = $2 LIMIT 1`,
         [id, req.user.id]
       )
       allowed = rowCount > 0
@@ -102,6 +109,14 @@ export async function getRequest(req, res) {
       [id]
     )
     const stepsFull = steps.map(s => ({ ...s, approvers: approvers.filter(a => a.step_id === s.id) }))
+    // Người theo dõi (snapshot lúc gửi).
+    const { rows: followers } = await pool.query(
+      `SELECT fl.user_id, u.full_name
+         FROM approval_request_follower fl
+         JOIN app_user u ON u.id = fl.user_id
+        WHERE fl.request_id = $1 ORDER BY u.full_name, fl.user_id`,
+      [id]
+    )
     // Đính kèm.
     const { rows: attachments } = await pool.query(
       `SELECT id, file_name, file_path, file_size, mime_type, created_at
@@ -116,7 +131,7 @@ export async function getRequest(req, res) {
         WHERE e.request_id = $1 ORDER BY e.id`,
       [id]
     )
-    res.json({ ...reqRow, fields, steps: stepsFull, attachments, events })
+    res.json({ ...reqRow, fields, steps: stepsFull, followers, attachments, events })
   } catch (err) {
     console.error('getRequest:', err)
     res.status(500).json({ error: 'Không thể tải chi tiết đơn.' })
@@ -264,6 +279,19 @@ export async function submitRequest(req, res) {
       }
     }
 
+    // CHỤP người theo dõi từ cấu hình loại đơn (admin định sẵn; người gửi không sửa).
+    const { rows: cfgFollowers } = await client.query(
+      `SELECT user_id FROM approval_form_follower WHERE form_id = $1`, [reqRow.form_id]
+    )
+    const followerIds = [...new Set(cfgFollowers.map(f => Number(f.user_id)).filter(Boolean))]
+    for (const uid of followerIds) {
+      await client.query(
+        `INSERT INTO approval_request_follower (request_id, user_id) VALUES ($1, $2)
+         ON CONFLICT (request_id, user_id) DO NOTHING`,
+        [id, uid]
+      )
+    }
+
     await client.query(
       `UPDATE approval_request SET status = 'pending', current_step = $1, submitted_at = now(), updated_at = now()
         WHERE id = $2`,
@@ -278,6 +306,10 @@ export async function submitRequest(req, res) {
     // Thông báo người duyệt bước đầu (fire-and-forget, sau commit).
     if (firstStepApprovers.length) {
       notifyAction(firstStepApprovers, `Bạn có đơn cần duyệt: ${reqRow.title}`)
+    }
+    // Báo người theo dõi có đơn mới (chỉ để nắm thông tin).
+    if (followerIds.length) {
+      notifyInfo(followerIds, `Có đề xuất mới bạn đang theo dõi: ${reqRow.title}`)
     }
     res.json({ success: true })
   } catch (err) {
