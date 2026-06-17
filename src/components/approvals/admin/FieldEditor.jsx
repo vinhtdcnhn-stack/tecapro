@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { FIELD_TYPES, TABLE_COLUMN_TYPES, CURRENCIES } from '../approvalUtils'
 
 // Bỏ dấu tiếng Việt + chuẩn hóa thành field_key (a-z0-9_).
@@ -76,11 +77,9 @@ export default function FieldEditor({ fields, onChange }) {
             </div>
           </div>
           {f.field_type === 'select' && (
-            <input
-              className="ab-input ab-grow ab-suboption"
-              placeholder="Các lựa chọn, phân tách bằng dấu phẩy (vd: Có, Không, Tùy)"
-              value={Array.isArray(f.options) ? f.options.join(', ') : (f.options || '')}
-              onChange={e => update(i, { options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+            <OptionsInput
+              value={f.options}
+              onChange={opts => update(i, { options: opts })}
             />
           )}
           {f.field_type === 'money' && (
@@ -101,6 +100,36 @@ export default function FieldEditor({ fields, onChange }) {
         </div>
       ))}
     </div>
+  )
+}
+
+// Ô nhập các lựa chọn cho trường "Chọn một". Giữ chuỗi thô tại chỗ để không bị
+// trim/split lại sau mỗi phím — nếu không, dấu cách cuối chuỗi bị nuốt và người
+// dùng không gõ được lựa chọn nhiều từ (vd: "buổi sáng"). Vẫn đẩy mảng đã chuẩn
+// hóa (trim + bỏ rỗng) lên cha để lưu.
+function OptionsInput({ value, onChange }) {
+  const toText = v => (Array.isArray(v) ? v.join(', ') : (v || ''))
+  const [text, setText] = useState(() => toText(value))
+  // Đồng bộ lại khi options đổi từ bên ngoài (tải form, đổi thứ tự trường) bằng
+  // cách điều chỉnh state ngay trong render — không ghi đè khi đang gõ (so với
+  // chính chuỗi local đã chuẩn hóa). Xem react.dev "storing info from prev renders".
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    const localParsed = text.split(',').map(s => s.trim()).filter(Boolean).join(', ')
+    if (toText(value) !== localParsed) setText(toText(value))
+  }
+  function handle(e) {
+    setText(e.target.value)
+    onChange(e.target.value.split(',').map(s => s.trim()).filter(Boolean))
+  }
+  return (
+    <input
+      className="ab-input ab-grow ab-suboption"
+      placeholder="Các lựa chọn, phân tách bằng dấu phẩy (vd: Có, Không, Tùy)"
+      value={text}
+      onChange={handle}
+    />
   )
 }
 
