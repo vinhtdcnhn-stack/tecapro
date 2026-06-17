@@ -107,7 +107,7 @@ case 'contract-debt':
       case 'contract-tasks':
         return <ContractTaskTab contractId={contractId} currentUser={currentUser} />
       case 'purchase-contract-info':
-        return <ContractInTab contractId={contractId} initialContractInId={initialInId} initialTab={initialInTab} />
+        return <ContractInTab contractId={contractId} initialContractInId={initialInId} initialTab={initialInTab} currentUser={currentUser} contract={contract} />
 default:
         return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} />
     }

@@ -4,23 +4,23 @@ import {
   initWarrantiesFromDelivery, bulkUpdateWarrantyStart,
   getWarrantyClaims, createWarrantyClaim, updateWarrantyClaim, deleteWarrantyClaim,
 } from '../controllers/supplierWarrantyController.js'
-import { pmVia } from '../middleware/contractAccess.js'
+import { ownerOfContractIn, ownerVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
-const pmOfContractIn = pmVia('contractIn', 'contractInId')
+const ownerOfCI = ownerOfContractIn('contractInId')
 
-// Ghi yêu cầu PM của HĐ bán cha
+// Ghi yêu cầu là người tạo HĐ nhập (hoặc admin)
 router.get('/contract-ins/:contractInId/supplier-warranty',               getSupplierWarranties)
-router.post('/contract-ins/:contractInId/supplier-warranty',              pmOfContractIn, createSupplierWarranty)
-router.post('/contract-ins/:contractInId/supplier-warranty/init',         pmOfContractIn, initWarrantiesFromDelivery)
-router.post('/contract-ins/:contractInId/supplier-warranty/bulk-update',  pmOfContractIn, bulkUpdateWarrantyStart)
-router.put('/supplier-warranty/:id',                                      pmVia('supplierWarranty'), updateSupplierWarranty)
-router.delete('/supplier-warranty/:id',                                   pmVia('supplierWarranty'), deleteSupplierWarranty)
+router.post('/contract-ins/:contractInId/supplier-warranty',              ownerOfCI, createSupplierWarranty)
+router.post('/contract-ins/:contractInId/supplier-warranty/init',         ownerOfCI, initWarrantiesFromDelivery)
+router.post('/contract-ins/:contractInId/supplier-warranty/bulk-update',  ownerOfCI, bulkUpdateWarrantyStart)
+router.put('/supplier-warranty/:id',                                      ownerVia('supplierWarranty'), updateSupplierWarranty)
+router.delete('/supplier-warranty/:id',                                   ownerVia('supplierWarranty'), deleteSupplierWarranty)
 
 router.get('/contract-ins/:contractInId/warranty-claims',                 getWarrantyClaims)
-router.post('/contract-ins/:contractInId/warranty-claims',                pmOfContractIn, createWarrantyClaim)
-router.put('/warranty-claims/:id',                                        pmVia('warrantyClaim'), updateWarrantyClaim)
-router.delete('/warranty-claims/:id',                                     pmVia('warrantyClaim'), deleteWarrantyClaim)
+router.post('/contract-ins/:contractInId/warranty-claims',                ownerOfCI, createWarrantyClaim)
+router.put('/warranty-claims/:id',                                        ownerVia('warrantyClaim'), updateWarrantyClaim)
+router.delete('/warranty-claims/:id',                                     ownerVia('warrantyClaim'), deleteWarrantyClaim)
 
 export default router

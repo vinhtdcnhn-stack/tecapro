@@ -37,14 +37,14 @@ export async function createContractIn(req, res) {
   try {
     const { rows } = await pool.query(
       `INSERT INTO contract_in
-         (contract_out_id, contract_no, goods_type, contract_date, supplier_id, amount, currency_code, exchange_rate, purchase_type, status, note)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         (contract_out_id, contract_no, goods_type, contract_date, supplier_id, amount, currency_code, exchange_rate, purchase_type, status, note, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING id`,
       [contractOutId, contract_no?.trim()||null, goods_type?.trim()||null,
        contract_date||null, supplier_id||null,
        parseFloat(amount)||0, currency_code||'VND',
        exchange_rate ? parseFloat(exchange_rate) : null,
-       purchase_type||'Trong nước', status||'Active', note?.trim()||null]
+       purchase_type||'Trong nước', status||'Active', note?.trim()||null, req.user?.id || null]
     )
     const full = await pool.query(`${BASE_SELECT} WHERE ci.id = $1`, [rows[0].id])
     res.json(full.rows[0])

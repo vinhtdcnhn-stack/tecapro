@@ -2,7 +2,7 @@ import { Router } from 'express'
 import * as c from '../controllers/warrantyController.js'
 import * as imp from '../controllers/warrantyImportController.js'
 import * as lookup from '../controllers/warrantyLookupController.js'
-import { pmFromParam, pmVia, pmViaBody } from '../middleware/contractAccess.js'
+import { pmFromParam, pmVia, pmViaBody, ownerOrTechVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
@@ -24,7 +24,7 @@ router.post('/contracts/:id/serials/import', pmFromParam('id'), imp.importCompon
 router.put('/serials/bulk-warranty',   pmViaBody('serial'), c.bulkWarrantySerials)
 router.post('/serials/bulk-delete',    pmViaBody('serial'), c.bulkDeleteSerials)
 router.post('/serials/:id/replace',    pmVia('serial'), lookup.replaceSerial)
-router.post('/delivery-serials/:id/replace', pmVia('deliverySerial'), lookup.replaceDeliverySerial)
+router.post('/delivery-serials/:id/replace', ownerOrTechVia('deliverySerial'), lookup.replaceDeliverySerial)
 router.put('/serials/:id',             pmVia('serial'), c.updateSerial)
 router.delete('/serials/:id',          pmVia('serial'), c.deleteSerial)
 

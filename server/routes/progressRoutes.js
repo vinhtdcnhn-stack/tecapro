@@ -4,7 +4,7 @@ import {
   getProgress, createProgress, updateProgress, deleteProgress,
   getProgressIn, createProgressIn, updateProgressIn, deleteProgressIn,
 } from '../controllers/progressController.js'
-import { pmFromParam, pmVia } from '../middleware/contractAccess.js'
+import { pmFromParam, pmVia, ownerOfContractIn, ownerVia } from '../middleware/contractAccess.js'
 import { requireAdmin } from '../middleware/auth.js'
 
 const router = Router()
@@ -21,10 +21,10 @@ router.post('/contracts/:contractId/progress',    pmFromParam(), createProgress)
 router.put('/progress/:id',                       pmVia('progress'), updateProgress)
 router.delete('/progress/:id',                    pmVia('progress'), deleteProgress)
 
-// Progress per contract_in (reuses same bb-types)
+// Progress per contract_in — ghi yêu cầu là người tạo HĐ nhập (hoặc admin)
 router.get('/contract-ins/:contractInId/progress',    getProgressIn)
-router.post('/contract-ins/:contractInId/progress',   pmVia('contractIn', 'contractInId'), createProgressIn)
-router.put('/progress-in/:id',                        pmVia('progressIn'), updateProgressIn)
-router.delete('/progress-in/:id',                     pmVia('progressIn'), deleteProgressIn)
+router.post('/contract-ins/:contractInId/progress',   ownerOfContractIn('contractInId'), createProgressIn)
+router.put('/progress-in/:id',                        ownerVia('progressIn'), updateProgressIn)
+router.delete('/progress-in/:id',                     ownerVia('progressIn'), deleteProgressIn)
 
 export default router

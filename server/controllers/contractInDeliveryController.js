@@ -395,7 +395,11 @@ export async function getSerialComponents(req, res) {
 
 export async function deleteDeliverySerial(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_delivery_serial WHERE id=$1', [req.params.id])
+    // Xóa máy thì xóa luôn linh kiện thuộc máy đó (serial con: parent_serial_id = id).
+    await pool.query(
+      'DELETE FROM contract_in_delivery_serial WHERE id=$1 OR parent_serial_id=$1',
+      [req.params.id]
+    )
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa serial' })
@@ -474,8 +478,9 @@ export async function bulkDeleteDeliverySerials(req, res) {
   const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : []
   if (!ids.length) return res.status(400).json({ error: 'No ids provided' })
   try {
+    // Xóa máy nào thì xóa luôn linh kiện con của máy đó (parent_serial_id ∈ ids).
     const { rowCount } = await pool.query(
-      'DELETE FROM contract_in_delivery_serial WHERE id = ANY($1::int[])', [ids]
+      'DELETE FROM contract_in_delivery_serial WHERE id = ANY($1::int[]) OR parent_serial_id = ANY($1::int[])', [ids]
     )
     res.json({ success: true, count: rowCount })
   } catch (err) {

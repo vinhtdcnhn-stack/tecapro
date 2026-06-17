@@ -4,11 +4,11 @@ import { API } from '../../config/api'
 import { thStyle, tdStyle, fmtDate, fmtNum, statusCfg } from './contractInUtils'
 import ContractInDetail from './ContractInDetail'
 import ContractInFormModal from './ContractInFormModal'
-import EditGuard from './EditGuard'
+import { ContractPermProvider } from '../../context/ContractPermContext'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function ContractInTab({ contractId, initialContractInId, initialTab }) {
+export default function ContractInTab({ contractId, initialContractInId, initialTab, currentUser, contract }) {
   const [items, setItems]           = useState([])
   const [suppliers, setSuppliers]   = useState([])
   const [loading, setLoading]       = useState(true)
@@ -16,6 +16,19 @@ export default function ContractInTab({ contractId, initialContractInId, initial
   const [addModalOpen, setAddModal] = useState(false)
   const [search, setSearch]         = useState('')
   const [autoOpened, setAutoOpened] = useState(false)
+
+  // Phân quyền HĐ nhập (khớp chốt chặn server-side):
+  //   - TẠO: admin / PM / Xuất nhập khẩu của HĐ bán.
+  //   - GHI một HĐ nhập: admin HOẶC là người tạo (created_by) HĐ nhập đó.
+  //   - Serial: thêm Kỹ thuật của HĐ bán.
+  const isAdmin   = Number(currentUser?.role) === 1
+  const myId      = currentUser ? String(currentUser.id) : null
+  const memberIds = (key) => (contract?.[key] || []).map(String)
+  const isPmMember = !!myId && memberIds('pm_member_ids').includes(myId)
+  const isImportExportMember = !!myId && memberIds('import_export_member_ids').includes(myId)
+  const isTechnicalMember    = !!myId && memberIds('technical_member_ids').includes(myId)
+  const canCreate   = isAdmin || isPmMember || isImportExportMember
+  const canEditItem = (item) => isAdmin || (!!myId && String(item?.created_by) === myId)
 
   const load = useCallback(async () => {
     try {
@@ -67,16 +80,20 @@ export default function ContractInTab({ contractId, initialContractInId, initial
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
 
   // ── Detail view ──────────────────────────────────────────────────────────────
+  // Quyền GHI tính theo TỪNG HĐ nhập (người tạo) → override context PM ở ngoài.
   if (selectedItem) {
+    const canEditThis = canEditItem(selectedItem)
     return (
-      <ContractInDetail
-        item={selectedItem}
-        suppliers={suppliers}
-        initialTab={initialTab}
-        onBack={() => setSelected(null)}
-        onUpdate={handleItemUpdated}
-        onDelete={handleDelete}
-      />
+      <ContractPermProvider canEdit={canEditThis} canEditSerial={canEditThis || isTechnicalMember}>
+        <ContractInDetail
+          item={selectedItem}
+          suppliers={suppliers}
+          initialTab={initialTab}
+          onBack={() => setSelected(null)}
+          onUpdate={handleItemUpdated}
+          onDelete={handleDelete}
+        />
+      </ContractPermProvider>
     )
   }
 
@@ -106,14 +123,14 @@ export default function ContractInTab({ contractId, initialContractInId, initial
       </div>
 
       <div className="flex items-center justify-between mb-4" style={{ gap: 12 }}>
-        <EditGuard>
+        {canCreate ? (
           <button className="btn-primary" onClick={() => setAddModal(true)}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Thêm HĐ nhập
           </button>
-        </EditGuard>
+        ) : <span />}
         <input type="text" className="search-input"
           placeholder="🔍 Tìm số HĐ, loại hàng hóa, nhà cung cấp..."
           value={search} onChange={e => setSearch(e.target.value)} />

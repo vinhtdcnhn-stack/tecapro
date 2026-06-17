@@ -12,22 +12,22 @@ import {
   reorderPurchaseBOQ,
   bulkDeletePurchaseBOQItems,
 } from '../controllers/contractInBOQController.js'
-import { pmVia, pmViaBody } from '../middleware/contractAccess.js'
+import { ownerOfContractIn, ownerVia, ownerViaBody } from '../middleware/contractAccess.js'
 
 const router = Router()
 
-const pmOfContractIn = pmVia('contractIn', 'contractInId')
+const ownerOfCI = ownerOfContractIn('contractInId')
 
-// Ghi yêu cầu PM của HĐ bán cha
+// Ghi yêu cầu là người tạo HĐ nhập (hoặc admin)
 router.get('/purchase-boq/template',                                    downloadPurchaseBOQTemplate)
 router.get('/contract-ins/:contractInId/boq',                           getPurchaseBOQ)
-router.post('/contract-ins/:contractInId/boq',                          pmOfContractIn, createPurchaseBOQItem)
-router.post('/contract-ins/:contractInId/boq/after/:refId',             pmOfContractIn, insertPurchaseBOQAfter)
-router.post('/contract-ins/:contractInId/boq/import',    pmOfContractIn, excelUploadIn.single('file'), importPurchaseBOQPreview)
-router.post('/contract-ins/:contractInId/boq/save-import',              pmOfContractIn, saveImportedPurchaseBOQ)
-router.post('/contract-ins/:contractInId/boq/reorder',                  pmOfContractIn, reorderPurchaseBOQ)
-router.post('/purchase-boq/bulk-delete',                                pmViaBody('inBoq'), bulkDeletePurchaseBOQItems)
-router.put('/purchase-boq/:id',                                         pmVia('inBoq'), updatePurchaseBOQItem)
-router.delete('/purchase-boq/:id',                                      pmVia('inBoq'), deletePurchaseBOQItem)
+router.post('/contract-ins/:contractInId/boq',                          ownerOfCI, createPurchaseBOQItem)
+router.post('/contract-ins/:contractInId/boq/after/:refId',             ownerOfCI, insertPurchaseBOQAfter)
+router.post('/contract-ins/:contractInId/boq/import',    ownerOfCI, excelUploadIn.single('file'), importPurchaseBOQPreview)
+router.post('/contract-ins/:contractInId/boq/save-import',              ownerOfCI, saveImportedPurchaseBOQ)
+router.post('/contract-ins/:contractInId/boq/reorder',                  ownerOfCI, reorderPurchaseBOQ)
+router.post('/purchase-boq/bulk-delete',                                ownerViaBody('inBoq'), bulkDeletePurchaseBOQItems)
+router.put('/purchase-boq/:id',                                         ownerVia('inBoq'), updatePurchaseBOQItem)
+router.delete('/purchase-boq/:id',                                      ownerVia('inBoq'), deletePurchaseBOQItem)
 
 export default router
