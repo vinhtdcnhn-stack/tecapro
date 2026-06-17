@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { API } from '../../config/api'
-import { classify, ruleLabel, compLabel, loadCfg, saveCfg, cfgToText, textToCfg } from './barcodeScanUtils'
+import { classify, ruleLabel, compLabel, checkComponentCounts, loadCfg, saveCfg, cfgToText, textToCfg } from './barcodeScanUtils'
 import { useBarcodeScanner } from './useBarcodeScanner'
 
 // ── Nhập serial hàng loạt từ máy scan barcode ──────────────────────────────────
@@ -98,7 +98,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
   }, [contractInId])
 
   // ── Cấu hình ──────────────────────────────────────────────────────────────
-  const addComp    = () => setComponents(prev => [...prev, { name:'', rules:[{ kind:'prefix', value:'' }] }])
+  const addComp    = () => setComponents(prev => [...prev, { name:'', rules:[{ kind:'prefix', value:'' }], count:'' }])
   const setComp    = (i, v) => setComponents(prev => prev.map((c, idx) => idx === i ? v : c))
   const removeComp = (i) => setComponents(prev => prev.filter((_, idx) => idx !== i))
   const addRule    = (ci) => setComponents(prev => prev.map((c, idx) => idx === ci ? { ...c, rules: [...c.rules, { kind:'prefix', value:'' }] } : c))
@@ -108,7 +108,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
   function goScan() {
     if (machineRule.value === '') { alert('Hãy nhập quy tắc nhận dạng cho máy chính.'); return }
     const comps = components
-      .map(c => ({ name: c.name.trim(), rules: c.rules.filter(r => r.value !== '') }))
+      .map(c => ({ name: c.name.trim(), rules: c.rules.filter(r => r.value !== ''), count: c.count }))
       .filter(c => c.name && c.rules.length)
     setComponents(comps)
     saveCfg(contractInId, machineItem.item_name, { machineRule, components: comps })
@@ -145,11 +145,20 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
     finally { flushingRef.current = false; setFlushing(false) }
   }
 
+  // Kiểm tra số lượng thành phần khai báo; thiếu/thừa → cảnh báo & trả false (giữ nguyên máy).
+  function ensureCounts(machine) {
+    const errs = checkComponentCounts(components, machine.components)
+    if (!errs.length) return true
+    alert(`Máy "${machine.machineSerial}" số lượng thành phần chưa khớp khai báo, không thể lưu:\n• ${errs.join('\n• ')}\n\nHãy bổ sung/bớt thành phần cho đúng rồi thử lại.`)
+    return false
+  }
+
   // ── Nhận 1 serial đã phân loại ──────────────────────────────────────────────
   async function acceptSerial(serial, cls) {
     if (!cls) { setUnmatched(serial); return }
     if (cls.role === 'machine') {
       if (current) {
+        if (!ensureCounts(current)) return       // thiếu/thừa số lượng: giữ máy hiện tại, bỏ qua mã máy mới
         const ok = await flush(current)
         if (!ok) { setCurrent(null); return }   // trùng/lỗi: clear máy hiện tại để bắn lại, bỏ qua mã vừa bắn
       }
@@ -199,7 +208,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
       // Tên đã có → THÊM quy tắc (1 loại nhiều tiền tố); chưa có → tạo loại mới.
       nextComps = components.some(c => norm(c.name) === norm(name))
         ? components.map(c => norm(c.name) === norm(name) ? { ...c, rules: [...c.rules, rule] } : c)
-        : [...components, { name, rules: [rule] }]
+        : [...components, { name, rules: [rule], count: '' }]
     }
     setMachineRule(nextMachine); setComponents(nextComps)
     saveCfg(contractInId, machineItem.item_name, { machineRule: nextMachine, components: nextComps })
@@ -214,6 +223,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
 
   async function finish() {
     if (current) {
+      if (!ensureCounts(current)) return       // thiếu/thừa số lượng: giữ máy & modal mở
       const ok = await flush(current)
       if (!ok) { setCurrent(null); return }   // trùng/lỗi: clear để bắn lại, giữ modal mở
       setCurrent(null)
@@ -261,9 +271,12 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
               <RuleInputs rule={machineRule} onChange={setMachineRule} />
             </div>
 
-            <div style={{ marginBottom:8, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ marginBottom:4, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <label style={{ ...label, margin:0 }}>Các loại thành phần</label>
               <button style={{ ...btnSec, padding:'5px 12px' }} onClick={addComp}>+ Thêm loại</button>
+            </div>
+            <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>
+              Ô <strong>SL</strong> = số lượng cần cho mỗi máy (vd RAM = 4). Bắn thiếu/thừa sẽ bị chặn lưu. Để trống = không kiểm tra.
             </div>
             {components.length === 0 && (
               <div style={{ fontSize:12, color:'#9ca3af', marginBottom:10 }}>
@@ -275,6 +288,9 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
                 <div style={{ display:'flex', gap:6, marginBottom:8, alignItems:'center' }}>
                   <input style={{ ...field, flex:1 }} value={c.name}
                     onChange={e => setComp(i, { ...c, name: e.target.value })} placeholder="Tên loại (Mainboard, HDD…)" />
+                  <input style={{ ...field, flex:'0 0 64px', textAlign:'center' }} type="number" min="0"
+                    value={c.count ?? ''} onChange={e => setComp(i, { ...c, count: e.target.value })}
+                    placeholder="SL" title="Số lượng cần cho mỗi máy (để trống = không kiểm tra)" />
                   <button style={{ ...btnSec, padding:'8px 10px', color:'#b91c1c' }} onClick={() => removeComp(i)}>✕</button>
                 </div>
                 {c.rules.map((r, j) => (
@@ -302,7 +318,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
                 placeholder="Đưa con trỏ vào đây rồi bắn…" autoFocus />
               <div style={{ fontSize:11, color:'#6b7280', marginTop:5 }}>
                 Máy: {ruleLabel(machineRule)}
-                {components.map((c, i) => <span key={i}> · {c.name}: {compLabel(c)}</span>)}
+                {components.map((c, i) => <span key={i}> · {c.name}: {compLabel(c)}{(c.count !== '' && c.count != null) ? ` (×${c.count})` : ''}</span>)}
                 <button style={{ ...btnSec, padding:'2px 8px', marginLeft:8, fontSize:11 }} onClick={() => setStep('config')}>Sửa cấu hình</button>
               </div>
               <div style={{ fontSize:11, color:'#9ca3af', marginTop:4 }}>
@@ -325,9 +341,13 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
                   <div style={{ fontSize:14, fontWeight:700, color:'#1d4ed8', marginBottom:8 }}>🖥 {current.machineSerial}</div>
                   {current.components.length === 0 ? (
                     <div style={{ fontSize:12, color:'#9ca3af', paddingLeft:18 }}>Chưa bắn thành phần nào cho máy này.</div>
-                  ) : groupedCurrent().map(([name, serials]) => (
+                  ) : groupedCurrent().map(([name, serials]) => {
+                    const want = components.find(c => c.name === name)?.count
+                    const hasWant = want !== '' && want != null
+                    const mismatch = hasWant && serials.length !== Number(want)
+                    return (
                     <div key={name} style={{ marginBottom:8, paddingLeft:12 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'#374151' }}>{name} <span style={{ color:'#9ca3af', fontWeight:500 }}>· {serials.length} serial</span></div>
+                      <div style={{ fontSize:12, fontWeight:700, color:'#374151' }}>{name} <span style={{ color: mismatch ? '#dc2626' : '#9ca3af', fontWeight:500 }}>· {serials.length}{hasWant ? `/${want}` : ''} serial{mismatch ? ' ⚠' : ''}</span></div>
                       {serials.map(s => (
                         <div key={s} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#4b5563', paddingLeft:14, marginTop:2 }}>
                           ↳ {s}
@@ -335,7 +355,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
                         </div>
                       ))}
                     </div>
-                  ))}
+                  )})}
                 </>
               )}
             </div>
