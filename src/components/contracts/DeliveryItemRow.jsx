@@ -66,9 +66,10 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
     const data = await res.json()
     if (!res.ok) { alert(data.error || 'Lỗi'); return }
     setSerials(prev => [...prev, ...data.items])
-    onSerialCountChange(data.imported)
     setSLoaded(true)
-    alert(`Import thành công ${data.imported} serial!`)
+    onReload?.()   // thành phần đi vào chủng loại khác + đồng bộ số đếm chuẩn từ server
+    const compCount = (data.imported || 0) - (data.machines || 0)
+    alert(`Import thành công ${data.machines} máy${compCount ? ` + ${compCount} serial thành phần` : ''}!`)
   }
 
   // Xuất serial của chủng loại này ra Excel: cột đầu serial máy chính, các cột sau serial thành phần.
@@ -168,8 +169,17 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
                 <button
                   onClick={async () => {
                     const XLSX = await import('xlsx')
-                    const ws = XLSX.utils.aoa_to_sheet([['Serial'], ['MM001'], ['MM002'], ['MM003']])
-                    ws['!cols'] = [{ wch: 20 }]
+                    // Mẫu cấu trúc "máy chính + thành phần": cột đầu = serial máy, các
+                    // cột sau = từng loại thành phần. Thành phần có nhiều serial cho 1
+                    // máy → các serial dư xuống dòng dưới, cột máy để trống.
+                    const aoa = [
+                      [`${item.item_name || 'Serial máy'}`, 'Mainboard', 'RAM'],
+                      ['MAY001', 'MB001', 'RAM001'],
+                      ['',       '',      'RAM002'],
+                      ['MAY002', 'MB002', 'RAM003'],
+                    ]
+                    const ws = XLSX.utils.aoa_to_sheet(aoa)
+                    ws['!cols'] = aoa[0].map(() => ({ wch: 24 }))
                     const wb = XLSX.utils.book_new()
                     XLSX.utils.book_append_sheet(wb, ws, 'Serial')
                     XLSX.writeFile(wb, 'mau_serial.xlsx')
@@ -227,7 +237,9 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
               </div>
               </EditGuard>
               <div style={{ fontSize:11, color:'#6b7280', marginTop:5 }}>
-                Mẫu Excel import: cột A = Serial (dòng 1 là tiêu đề, từ dòng 2 là dữ liệu)
+                Mẫu Excel import: <strong>cột đầu = serial máy</strong>, các cột sau = serial thành phần
+                (tiêu đề cột = tên loại linh kiện, vd Mainboard, RAM…). Một loại có nhiều serial cho cùng
+                1 máy thì viết xuống các dòng dưới, để trống cột máy. File chỉ 1 cột serial vẫn nhập được như cũ.
               </div>
             </div>
           </td>

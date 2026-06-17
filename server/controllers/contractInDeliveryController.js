@@ -2,6 +2,7 @@ import { pool } from '../db.js'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { TABLE_DELIVERY, serialExists, findDuplicatesInList, findExistingSerials } from './serialUtils.js'
+import { parseSerialMatrix } from '../utils/serialMatrix.js'
 
 const norm = (s) => String(s ?? '').trim().toLowerCase()
 
@@ -522,42 +523,89 @@ export async function replaceDeliverySerial(req, res) {
   }
 }
 
-// Import serials from Excel (1 column: serial numbers)
+// Import serial từ Excel theo cấu trúc "máy chính + thành phần":
+//   • Cột đầu  = serial MÁY (chủng loại :itemId). Ô trống = dòng nối của máy trên.
+//   • Các cột sau = từng LOẠI thành phần (tiêu đề = tên chủng loại); thành phần
+//     được resolve/tạo chủng loại theo tên TRONG ĐỢT rồi nối về máy qua
+//     parent_serial_id (giống saveScanBatch, nhưng hàng loạt nhiều máy).
+// File 1 cột (chỉ serial máy) vẫn chạy như cũ — không có cột thành phần thì mỗi
+// dòng chỉ tạo 1 serial máy. Bất kỳ serial nào trùng (trong file hoặc đã có ở phía
+// nhập) → ROLLBACK toàn bộ, không lưu gì.
 export async function importDeliverySerials(req, res) {
   const { itemId } = req.params
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
   try {
     const wb  = XLSX.read(req.file.buffer, { type: 'buffer' })
     const ws  = wb.Sheets[wb.SheetNames[0]]
-    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
 
-    const serials = []
-    for (let i = 1; i < raw.length; i++) {
-      const sn = String(raw[i][0] || '').trim()
-      if (sn) serials.push(sn)
+    const { machines, error } = parseSerialMatrix(aoa)
+    if (error) return res.status(400).json({ error })
+
+    // Gom toàn bộ serial (máy + thành phần) để kiểm tra trùng 1 lần.
+    const allSerials = []
+    for (const m of machines) {
+      allSerials.push(m.serial)
+      for (const c of m.components) allSerials.push(c.serial)
     }
-    if (!serials.length) return res.status(400).json({ error: 'Không tìm thấy serial trong file' })
 
-    const dupInFile = findDuplicatesInList(serials)
+    const dupInFile = findDuplicatesInList(allSerials)
     if (dupInFile.length)
       return res.status(400).json({ error: `File có serial bị lặp: ${dupInFile.join(', ')}`, duplicates: dupInFile })
-    const existing = await findExistingSerials(pool, TABLE_DELIVERY, serials)
+    const existing = await findExistingSerials(pool, TABLE_DELIVERY, allSerials)
     if (existing.length)
       return res.status(409).json({ error: `Các serial sau đã tồn tại ở phía nhập: ${existing.join(', ')}`, duplicates: existing })
+
+    // Cần deliveryId để resolve/tạo dòng chủng loại cho thành phần theo tên.
+    const di = await pool.query('SELECT delivery_id FROM contract_in_delivery_item WHERE id=$1', [itemId])
+    if (!di.rows[0]) return res.status(404).json({ error: 'Không tìm thấy chủng loại.' })
+    const deliveryId = di.rows[0].delivery_id
 
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
-      const inserted = []
-      for (const sn of serials) {
-        const { rows } = await client.query(
-          'INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no) VALUES ($1,$2) RETURNING *',
-          [itemId, sn]
-        )
-        inserted.push(rows[0])
+
+      // Resolve / tạo dòng chủng loại cho từng tên thành phần (trong đợt này).
+      const nameToId = {}
+      for (const m of machines) {
+        for (const c of m.components) {
+          const key = norm(c.name)
+          if (nameToId[key]) continue
+          const found = await client.query(
+            `SELECT id FROM contract_in_delivery_item
+               WHERE delivery_id=$1 AND lower(btrim(item_name))=lower(btrim($2)) LIMIT 1`,
+            [deliveryId, c.name]
+          )
+          nameToId[key] = found.rows[0]
+            ? found.rows[0].id
+            : (await client.query(
+                `INSERT INTO contract_in_delivery_item (delivery_id, item_name) VALUES ($1,$2) RETURNING id`,
+                [deliveryId, c.name.trim()]
+              )).rows[0].id
+        }
       }
+
+      // Mỗi máy: chèn serial máy (parent NULL) rồi các serial thành phần (parent = máy).
+      const insertedMachines = []
+      for (const m of machines) {
+        const mIns = await client.query(
+          `INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no, status)
+           VALUES ($1,$2,'Đang hoạt động') RETURNING *`,
+          [itemId, m.serial]
+        )
+        const machineRow = mIns.rows[0]
+        insertedMachines.push(machineRow)
+        for (const c of m.components) {
+          await client.query(
+            `INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no, parent_serial_id, status)
+             VALUES ($1,$2,$3,'Đang hoạt động')`,
+            [nameToId[norm(c.name)], c.serial, machineRow.id]
+          )
+        }
+      }
+
       await client.query('COMMIT')
-      res.json({ imported: inserted.length, items: inserted })
+      res.json({ imported: allSerials.length, machines: insertedMachines.length, items: insertedMachines })
     } catch (err) {
       await client.query('ROLLBACK')
       throw err
