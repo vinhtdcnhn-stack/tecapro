@@ -163,3 +163,33 @@ export function saveCfg(contractInId, machineName, cfg) {
     localStorage.setItem(storageKey(contractInId), JSON.stringify(all))
   } catch { /* bỏ qua nếu localStorage không khả dụng */ }
 }
+
+// ── Bắn THIẾT BỊ LẺ (máy độc lập) ──────────────────────────────────────────────
+// Khác luồng máy+thành phần: KHÔNG có máy cha, chỉ có danh sách CHỦNG LOẠI, mỗi loại
+// một bộ quy tắc (rules). Mỗi serial khớp một loại → lưu thành serial độc lập.
+// Cấu hình lưu theo HĐ nhập: { types: [{ name, rules: [Rule, ...] }] }.
+
+// Phân loại serial vào 1 chủng loại: khớp BẤT KỲ quy tắc nào của loại; trả tên hoặc null.
+export function classifyType(serial, types) {
+  for (const t of types || []) if (matchComponent(serial, t)) return t.name
+  return null
+}
+
+const standaloneKey = (contractInId) => `barcodeCfg:in-standalone:${contractInId}`
+
+export function loadStandaloneCfg(contractInId) {
+  try {
+    const cfg = JSON.parse(localStorage.getItem(standaloneKey(contractInId)) || 'null')
+    if (!cfg) return null
+    const types = (cfg.types || []).map(t => ({
+      name: t.name,
+      rules: t.rules ? t.rules : [{ kind: t.kind, value: t.value }],   // chuẩn hóa cấu hình cũ
+    }))
+    return { types }
+  } catch { return null }
+}
+
+export function saveStandaloneCfg(contractInId, cfg) {
+  try { localStorage.setItem(standaloneKey(contractInId), JSON.stringify(cfg)) }
+  catch { /* bỏ qua nếu localStorage không khả dụng */ }
+}

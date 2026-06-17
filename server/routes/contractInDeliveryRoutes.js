@@ -3,7 +3,7 @@ import {
   excelUploadDelivery,
   getDeliveries, createDelivery, updateDelivery, deleteDelivery,
   getDeliveryItems, createDeliveryItem, updateDeliveryItem, deleteDeliveryItem,
-  getDeliverySerials, createDeliverySerial, deleteDeliverySerial, importDeliverySerials, saveScanBatch, getDeliveryItemExport, getSerialComponents,
+  getDeliverySerials, createDeliverySerial, deleteDeliverySerial, importDeliverySerials, saveScanBatch, saveScanStandalone, getDeliveryItemExport, getSerialComponents,
   getAllDeliverySerials, getAllDeliveryItems, updateDeliverySerial, bulkDeleteDeliverySerials, replaceDeliverySerial,
 } from '../controllers/contractInDeliveryController.js'
 import { pmVia, pmOrTechVia, pmOrTechViaBody } from '../middleware/contractAccess.js'
@@ -24,6 +24,8 @@ router.delete('/delivery-items/:id',                    pmVia('deliveryItem'), d
 
 // Lưu 1 máy + thành phần theo lô (1 transaction, từ chối cả máy nếu trùng) — PM/Kỹ thuật
 router.post('/deliveries/:deliveryId/scan-batch',       pmOrTechVia('delivery', 'deliveryId'), saveScanBatch)
+// Lưu 1 thiết bị lẻ (máy độc lập) khi bắn barcode ở màn quản lý serial — PM/Kỹ thuật
+router.post('/deliveries/:deliveryId/scan-standalone',  pmOrTechVia('delivery', 'deliveryId'), saveScanStandalone)
 
 // Serials per item (guard trước multer với route import) — thao tác serial: PM/Kỹ thuật
 router.get('/delivery-items/:itemId/serials',           getDeliverySerials)

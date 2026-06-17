@@ -6,6 +6,7 @@ import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import InSerialMobile from './InSerialMobile'
 import { AddComponentModal, ImportSerialModal, ReplaceSerialModal } from './ContractInSerialModals'
+import BarcodeScanStandaloneModal from './BarcodeScanStandaloneModal'
 import EditGuard from './EditGuard'
 
 // ── Quản lý serial tập trung cho hợp đồng NHẬP ─────────────────────────────────
@@ -28,6 +29,7 @@ export default function ContractInSerialTab({ contractInId }) {
 
   const [showAdd, setShowAdd]       = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showBarcode, setShowBarcode] = useState(false)
   const [replaceFor, setReplaceFor] = useState(null)
 
   const load = useCallback(async () => {
@@ -174,6 +176,10 @@ export default function ContractInSerialTab({ contractInId }) {
             </button>
           </>
         )}
+        <button onClick={() => setShowBarcode(true)}
+          style={{ padding:'8px 14px', background:'#eef2ff', color:'#4338ca', border:'1px solid #c7d2fe', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>
+          📷 Nhập từ barcode
+        </button>
         <button onClick={() => setShowImport(true)}
           style={{ padding:'8px 14px', background:'#e0f2fe', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>
           Import Excel
@@ -243,6 +249,10 @@ export default function ContractInSerialTab({ contractInId }) {
       {showImport && (
         <ImportSerialModal items={items}
           onClose={() => setShowImport(false)} onSaved={() => { setShowImport(false); load() }} />
+      )}
+      {showBarcode && (
+        <BarcodeScanStandaloneModal contractInId={contractInId}
+          onClose={() => setShowBarcode(false)} onSaved={() => { setShowBarcode(false); load() }} />
       )}
       {replaceFor && (
         <ReplaceSerialModal serial={replaceFor}

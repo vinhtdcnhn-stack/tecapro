@@ -270,6 +270,44 @@ export async function saveScanBatch(req, res) {
   }
 }
 
+// POST /deliveries/:deliveryId/scan-standalone — lưu 1 THIẾT BỊ LẺ (máy độc lập).
+// Body: { name, serial }. name = tên chủng loại (được resolve/tạo trong đợt này),
+// serial lưu với parent_serial_id = NULL (không gắn vào máy nào). Trùng (đã có ở phía
+// nhập) → 409, không tạo gì. Lưu từng serial ngay khi bắn để phản hồi & chặn trùng tức thì.
+export async function saveScanStandalone(req, res) {
+  const { deliveryId } = req.params
+  const { name, serial } = req.body
+  if (!name?.trim() || !serial?.trim())
+    return res.status(400).json({ error: 'Thiếu tên chủng loại hoặc serial' })
+  try {
+    if (await serialExists(pool, TABLE_DELIVERY, serial))
+      return res.status(409).json({ error: `Serial "${serial.trim()}" đã tồn tại ở phía nhập.`, duplicate: serial.trim() })
+
+    // Resolve / tạo dòng chủng loại theo tên (trong đợt này)
+    const found = await pool.query(
+      `SELECT id FROM contract_in_delivery_item
+         WHERE delivery_id=$1 AND lower(btrim(item_name))=lower(btrim($2)) LIMIT 1`,
+      [deliveryId, name]
+    )
+    const itemId = found.rows[0]
+      ? found.rows[0].id
+      : (await pool.query(
+          `INSERT INTO contract_in_delivery_item (delivery_id, item_name) VALUES ($1,$2) RETURNING id`,
+          [deliveryId, name.trim()]
+        )).rows[0].id
+
+    const ins = await pool.query(
+      `INSERT INTO contract_in_delivery_serial (delivery_item_id, serial_no, status)
+       VALUES ($1,$2,'Đang hoạt động') RETURNING *`,
+      [itemId, serial.trim()]
+    )
+    res.json({ ok: true, serial: ins.rows[0] })
+  } catch (err) {
+    console.error('saveScanStandalone:', err)
+    res.status(500).json({ error: 'Không thể lưu serial' })
+  }
+}
+
 // GET /delivery-items/:itemId/export-serials — dữ liệu xuất Excel theo cấu trúc
 // "máy chính + thành phần": mỗi máy (serial độc lập của chủng loại này) kèm các serial
 // thành phần (con) đã nhóm theo tên chủng loại thành phần (lấy từ item_name của con).
