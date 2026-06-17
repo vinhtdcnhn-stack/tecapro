@@ -14,6 +14,32 @@ const VISIBLE_ITEM = `(
   OR NOT EXISTS (SELECT 1 FROM contract_in_delivery_serial s WHERE s.delivery_item_id = di.id)
 )`
 
+// Chủng loại có TRONG BẢNG GIÁ MUA (contract_in_boq) của hợp đồng: hoặc đã liên kết
+// trực tiếp qua boq_item_id, hoặc trùng tên (không phân biệt hoa/thường) với 1 dòng BOQ.
+const IN_BOQ = `(
+  di.boq_item_id IS NOT NULL
+  OR EXISTS (
+    SELECT 1 FROM contract_in_boq b
+    JOIN contract_in_delivery d2 ON d2.contract_in_id = b.contract_in_id
+    WHERE d2.id = di.delivery_id
+      AND lower(btrim(b.item_name)) = lower(btrim(di.item_name))
+  )
+)`
+
+// Hợp đồng (chứa đợt của di) có khai BẢNG GIÁ MUA hay chưa.
+const CONTRACT_HAS_BOQ = `EXISTS (
+  SELECT 1 FROM contract_in_boq b
+  JOIN contract_in_delivery d3 ON d3.contract_in_id = b.contract_in_id
+  WHERE d3.id = di.delivery_id
+)`
+
+// Lọc HIỂN THỊ ở tab Nhận hàng: chỉ hiện chủng loại có trong bảng giá mua. Nếu hợp đồng
+// CHƯA khai bảng giá mua thì quay lại quy tắc cũ (VISIBLE_ITEM) để không làm trống tab.
+const SHOW_ITEM = `(
+  ${IN_BOQ}
+  OR (NOT ${CONTRACT_HAS_BOQ} AND ${VISIBLE_ITEM})
+)`
+
 export const excelUploadDelivery = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -30,7 +56,7 @@ export async function getDeliveries(req, res) {
     const { rows } = await pool.query(`
       SELECT
         d.*,
-        COUNT(di.id) FILTER (WHERE ${VISIBLE_ITEM})::int AS item_count,
+        COUNT(di.id) FILTER (WHERE ${SHOW_ITEM})::int AS item_count,
         COALESCE(SUM(di.received_quantity), 0)    AS total_received
       FROM contract_in_delivery d
       LEFT JOIN contract_in_delivery_item di ON di.delivery_id = d.id
@@ -97,11 +123,11 @@ export async function getDeliveryItems(req, res) {
     const { rows } = await pool.query(`
       SELECT
         di.*,
-        COUNT(ds.id)::int AS serial_count
+        COUNT(ds.id) FILTER (WHERE ds.parent_serial_id IS NULL)::int AS serial_count
       FROM contract_in_delivery_item di
       LEFT JOIN contract_in_delivery_serial ds ON ds.delivery_item_id = di.id
       WHERE di.delivery_id = $1
-        AND ${VISIBLE_ITEM}
+        AND ${SHOW_ITEM}
       GROUP BY di.id
       ORDER BY di.id
     `, [req.params.deliveryId])
@@ -170,8 +196,10 @@ export async function deleteDeliveryItem(req, res) {
 
 export async function getDeliverySerials(req, res) {
   try {
+    // Tab Nhận hàng chỉ liệt kê serial ĐỘC LẬP (máy) của chủng loại; serial thành phần
+    // (parent_serial_id != NULL) hiện dưới máy cha, không tính/liệt kê lại ở đây.
     const { rows } = await pool.query(
-      'SELECT * FROM contract_in_delivery_serial WHERE delivery_item_id=$1 ORDER BY serial_no',
+      'SELECT * FROM contract_in_delivery_serial WHERE delivery_item_id=$1 AND parent_serial_id IS NULL ORDER BY serial_no',
       [req.params.itemId]
     )
     res.json(rows)
