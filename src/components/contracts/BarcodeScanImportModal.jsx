@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { API } from '../../config/api'
 import { classify, ruleLabel, compLabel, loadCfg, saveCfg, cfgToText, textToCfg } from './barcodeScanUtils'
+import { useBarcodeScanner } from './useBarcodeScanner'
 
 // ── Nhập serial hàng loạt từ máy scan barcode ──────────────────────────────────
 // Bước 1: cấu hình nhận dạng (máy chính + các loại thành phần, theo độ dài/tiền tố).
@@ -48,6 +49,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
   const savedAnyRef = useRef(false)
   const inputRef = useRef(null)
   const cfgFileRef = useRef(null)
+  const flushingRef = useRef(false)
 
   const cfgNow = () => ({ machineRule, components })
 
@@ -115,6 +117,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
 
   // ── Lưu 1 máy vào DB (transaction phía server) ──────────────────────────────
   async function flush(machine) {
+    flushingRef.current = true
     setFlushing(true)
     try {
       const res  = await fetch(`${API}/deliveries/${deliveryId}/scan-batch`, {
@@ -139,7 +142,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
       })
       return true
     } catch (e) { alert('Lỗi lưu: ' + e.message); return false }
-    finally { setFlushing(false) }
+    finally { flushingRef.current = false; setFlushing(false) }
   }
 
   // ── Nhận 1 serial đã phân loại ──────────────────────────────────────────────
@@ -157,12 +160,12 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
     }
   }
 
-  async function onScanKey(e) {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
-    const serial = e.target.value.trim()
-    e.target.value = ''
+  // Xử lý 1 serial đã commit (dùng chung cho máy scan qua hook lẫn dán/gõ tay + Enter).
+  async function processSerial(raw) {
+    const serial = String(raw || '').trim()
+    setBufferExternal('')
     if (!serial) return
+    if (flushingRef.current) return   // đang lưu máy: bỏ qua, tránh lưu chồng
     if (existing.has(norm(serial))) {
       alert(`Serial "${serial}" đã tồn tại trong hệ thống — không thể nhập trùng.`); refocus(); return
     }
@@ -172,6 +175,13 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
     await acceptSerial(serial, classify(serial, cfgNow()))
     refocus()
   }
+
+  // Hook bắt phím ở cấp window khi đang ở bước "bắn" — nuốt mọi phím đuôi/điều khiển
+  // của máy scan để không lọt xuống Windows (mở app khác).
+  const { buffer, setBufferExternal } = useBarcodeScanner({
+    active: step === 'scan',
+    onSerial: processSerial,
+  })
 
   const removeCurrentComp = (serial) =>
     setCurrent(prev => prev ? { ...prev, components: prev.components.filter(c => c.serial !== serial) } : prev)
@@ -287,12 +297,16 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
           <>
             <div style={{ marginBottom:12 }}>
               <label style={label}>Bắn serial (máy scan tự xuống dòng sau mỗi mã)</label>
-              <input ref={inputRef} style={{ ...field, width:'100%' }} onKeyDown={onScanKey}
-                placeholder="Đưa con trỏ vào đây rồi bắn…" autoFocus disabled={flushing} />
+              <input ref={inputRef} style={{ ...field, width:'100%' }} value={buffer}
+                onChange={e => setBufferExternal(e.target.value)}
+                placeholder="Đưa con trỏ vào đây rồi bắn…" autoFocus />
               <div style={{ fontSize:11, color:'#6b7280', marginTop:5 }}>
                 Máy: {ruleLabel(machineRule)}
                 {components.map((c, i) => <span key={i}> · {c.name}: {compLabel(c)}</span>)}
                 <button style={{ ...btnSec, padding:'2px 8px', marginLeft:8, fontSize:11 }} onClick={() => setStep('config')}>Sửa cấu hình</button>
+              </div>
+              <div style={{ fontSize:11, color:'#9ca3af', marginTop:4 }}>
+                Mẹo: cấu hình máy scan để hậu tố (suffix) chỉ là một phím Enter và tắt chế độ phát phím chức năng.
               </div>
             </div>
 
