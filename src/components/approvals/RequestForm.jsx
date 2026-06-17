@@ -12,6 +12,7 @@ export default function RequestForm({ existing, onClose, onDone }) {
   const [users, setUsers] = useState([])
   const [formId, setFormId] = useState(existing?.form_id ? String(existing.form_id) : '')
   const [schema, setSchema] = useState(null)
+  const [preview, setPreview] = useState(null)  // chuỗi duyệt RÚT GỌN cho người đang đăng nhập
   const [title, setTitle] = useState(existing?.title || '')
   const [values, setValues] = useState(existing?.form_data || {})
   const [picked, setPicked] = useState({})   // { [stepId]: [userId,...] } cho bước "người gửi tự chọn"
@@ -31,14 +32,16 @@ export default function RequestForm({ existing, onClose, onDone }) {
     fetch(`${API}/approvals/user-options`).then(r => r.ok ? r.json() : []).then(d => setUsers(Array.isArray(d) ? d : []))
   }, [isEdit])
 
-  // Tải sơ đồ form khi đã chọn loại đơn.
+  // Tải sơ đồ form + chuỗi duyệt rút gọn cho chính mình khi đã chọn loại đơn.
   useEffect(() => {
     if (!formId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset sơ đồ khi bỏ chọn loại đơn
       setSchema(null)
+      setPreview(null)
       return
     }
     fetch(`${API}/approvals/forms/${formId}/schema`).then(r => r.ok ? r.json() : null).then(setSchema)
+    fetch(`${API}/approvals/forms/${formId}/preview-chain`).then(r => r.ok ? r.json() : null).then(setPreview)
   }, [formId])
 
   function setValue(key, val) { setValues(v => ({ ...v, [key]: val })) }
@@ -49,7 +52,7 @@ export default function RequestForm({ existing, onClose, onDone }) {
     if (!title.trim()) { setError('Hãy nhập tiêu đề.'); return }
     // Khi gửi: bước "người gửi tự chọn" phải có người duyệt.
     if (submit) {
-      const missing = (schema?.steps || []).filter(s => s.approver_source === 'requester_pick' && !(picked[s.id]?.length))
+      const missing = (preview?.steps || []).filter(s => s.approver_source === 'requester_pick' && !(picked[s.step_id]?.length))
       if (missing.length) { setError(`Hãy chọn người duyệt cho bước: ${missing.map(s => s.name).join(', ')}`); return }
     }
     setBusy(true)
@@ -123,22 +126,30 @@ export default function RequestForm({ existing, onClose, onDone }) {
           />
         )}
 
-        {schema?.steps?.length > 0 && (
+        {preview && (
           <div className="ar-chain">
-            <div className="ab-sublabel" style={{ marginBottom: 6 }}>Quy trình duyệt</div>
-            {schema.steps.map((s, i) => (
-              <div key={s.id || i} className="ar-chain-step">
+            <div className="ab-sublabel" style={{ marginBottom: 6 }}>Quy trình duyệt áp dụng cho bạn</div>
+            {preview.autoApproved && (
+              <p className="ar-note" style={{ marginTop: 0 }}>
+                Không có cấp nào cần duyệt với chức danh của bạn — đơn sẽ <b>được duyệt ngay</b> khi gửi.
+              </p>
+            )}
+            {preview.steps?.map((s, i) => (
+              <div key={s.step_id || i} className="ar-chain-step">
                 <b>{i + 1}. {s.name}</b>
-                {s.approver_source === 'fixed' && (
-                  <span className="ar-note"> — {s.approvers?.map(a => a.approver_name).filter(Boolean).join(', ') || '(chưa cấu hình)'}</span>
+                {s.approver_source === 'direct_manager' && (
+                  <span className="ar-note"> — Quản lý trực tiếp của bạn{s.approvers?.length ? `: ${s.approvers.map(a => a.full_name).join(', ')}` : ''}</span>
                 )}
-                {s.approver_source === 'direct_manager' && <span className="ar-note"> — Quản lý trực tiếp của bạn</span>}
+                {s.approver_source === 'fixed' && (
+                  <span className="ar-note"> — {s.approvers?.map(a => a.full_name).filter(Boolean).join(', ') || '(chưa cấu hình)'}</span>
+                )}
+                {s.unresolved && <span className="ar-note" style={{ color: '#b91c1c' }}> — chưa gán quản lý trực tiếp, không gửi được</span>}
                 {s.approver_source === 'requester_pick' && (
                   <div style={{ marginTop: 4 }}>
                     <MultiSelect
                       options={userOptions}
-                      selectedValues={picked[s.id] || []}
-                      onChange={ids => setPicked(p => ({ ...p, [s.id]: ids }))}
+                      selectedValues={picked[s.step_id] || []}
+                      onChange={ids => setPicked(p => ({ ...p, [s.step_id]: ids }))}
                       placeholder="Gõ tên hoặc email để tìm…"
                       inlineSearch
                     />
@@ -146,6 +157,11 @@ export default function RequestForm({ existing, onClose, onDone }) {
                 )}
               </div>
             ))}
+            {preview.skipped?.length > 0 && (
+              <p className="ar-note" style={{ marginTop: 6 }}>
+                Bỏ qua với chức danh của bạn: {preview.skipped.map(s => s.name).join(', ')}
+              </p>
+            )}
           </div>
         )}
 

@@ -6,7 +6,7 @@ import {
 } from '../controllers/approvalFormController.js'
 import {
   getMyRequests, getInbox, getUpcoming, getFollowing, getAllRequests, getRequest, createRequest, updateRequest,
-  submitRequest, cancelRequest, deleteRequest,
+  submitRequest, cancelRequest, deleteRequest, previewChain,
 } from '../controllers/approvalRequestController.js'
 import { approveRequest, rejectRequest } from '../controllers/approvalDecisionController.js'
 import { adminDeleteRequest, adminRestoreRequest } from '../controllers/approvalAdminController.js'
@@ -24,6 +24,7 @@ router.get('/approvals/user-options', getUserOptions)
 // ── Loại đơn cho người tạo đơn (mọi nhân viên) ──
 router.get('/approvals/form-options', getActiveForms)
 router.get('/approvals/forms/:id/schema', getFormSchema)
+router.get('/approvals/forms/:id/preview-chain', previewChain)
 
 // ── Form builder (admin) ──
 router.get('/approvals/forms', requireAdmin, getForms)

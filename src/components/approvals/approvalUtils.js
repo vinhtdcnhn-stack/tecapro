@@ -49,6 +49,13 @@ export const APPROVER_SOURCES = {
   requester_pick: 'Người gửi tự chọn',
 }
 
+// Điều kiện áp dụng bước theo chức danh người gửi (bước không hợp điều kiện sẽ bị bỏ lúc gửi).
+export const CONDITION_MODES = {
+  always: 'Luôn áp dụng',
+  include: 'Chỉ các chức danh…',
+  exclude: 'Trừ các chức danh…',
+}
+
 // Người dùng hiện tại có quyền quản trị form builder không (chỉ admin).
 export function canManageForms(user) {
   return Number(user?.role) === 1

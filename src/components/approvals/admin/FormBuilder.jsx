@@ -13,6 +13,7 @@ export default function FormBuilder({ formId, onBack }) {
   const [departments, setDepartments] = useState([]) // mảng id string (phòng ban được dùng)
   const [userOptions, setUserOptions] = useState([])
   const [deptOptions, setDeptOptions] = useState([])
+  const [positionOptions, setPositionOptions] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -21,13 +22,16 @@ export default function FormBuilder({ formId, onBack }) {
       fetch(`${API}/approvals/forms/${formId}`).then(r => r.ok ? r.json() : null),
       fetch(`${API}/approvals/user-options`).then(r => r.ok ? r.json() : []),
       fetch(`${API}/departments`).then(r => r.ok ? r.json() : []),
-    ]).then(([f, users, depts]) => {
+      fetch(`${API}/positions`).then(r => r.ok ? r.json() : []),
+    ]).then(([f, users, depts, positions]) => {
       if (f) {
         setForm(f)
         setFields(f.fields || [])
         setSteps((f.steps || []).map(s => ({
           name: s.name, rule: s.rule, approver_source: s.approver_source || 'fixed',
           approvers: (s.approvers || []).map(a => ({ approver_type: a.approver_type, approver_ref: String(a.approver_ref) })),
+          condition_mode: s.condition_mode || 'always',
+          condition_positions: (Array.isArray(s.condition_positions) ? s.condition_positions : []).map(String),
         })))
         setFollowers((f.followers || []).map(fl => String(fl.user_id)))
         setDepartments((f.departments || []).map(d => String(d.department_id)))
@@ -37,6 +41,9 @@ export default function FormBuilder({ formId, onBack }) {
       })))
       setDeptOptions((Array.isArray(depts) ? depts : []).map(d => ({
         value: String(d.id), label: d.name || `#${d.id}`, search: d.code || '', hint: d.code || '',
+      })))
+      setPositionOptions((Array.isArray(positions) ? positions : []).map(p => ({
+        value: String(p.id), label: p.name || `#${p.id}`, search: p.code || '', hint: p.code || '',
       })))
     }).catch(() => setError('Không tải được cấu hình loại đơn.'))
   }, [formId])
@@ -106,7 +113,7 @@ export default function FormBuilder({ formId, onBack }) {
       </div>
       {error && <p className="ab-error">{error}</p>}
       <FieldEditor fields={fields} onChange={setFields} />
-      <StepEditor steps={steps} onChange={setSteps} userOptions={userOptions} />
+      <StepEditor steps={steps} onChange={setSteps} userOptions={userOptions} positionOptions={positionOptions} />
       <div className="ab-section">
         <div className="ab-section-head">
           <h3>Phòng ban được dùng</h3>

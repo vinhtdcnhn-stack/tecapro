@@ -10,6 +10,7 @@ const FIELD_TYPES = new Set([
 const STEP_RULES = new Set(['any', 'all'])
 const APPROVER_TYPES = new Set(['user', 'position', 'department_head'])
 const APPROVER_SOURCES = new Set(['fixed', 'direct_manager', 'requester_pick'])
+const CONDITION_MODES = new Set(['always', 'include', 'exclude'])
 
 // ── Danh sách loại đơn ────────────────────────────────────────────────────────
 export async function getForms(req, res) {
@@ -83,7 +84,8 @@ export async function getFormSchema(req, res) {
          FROM approval_form_field WHERE form_id = $1 ORDER BY sort_order, id`, [id]
     )
     const { rows: steps } = await pool.query(
-      `SELECT id, step_order, name, rule, approver_source FROM approval_form_step WHERE form_id = $1 ORDER BY step_order, id`, [id]
+      `SELECT id, step_order, name, rule, approver_source, condition_mode, condition_positions
+         FROM approval_form_step WHERE form_id = $1 ORDER BY step_order, id`, [id]
     )
     const { rows: approvers } = await pool.query(
       `SELECT sa.step_id, u.full_name AS approver_name
@@ -124,7 +126,7 @@ export async function getForm(req, res) {
       [id]
     )
     const { rows: steps } = await pool.query(
-      `SELECT id, step_order, name, rule, approver_source
+      `SELECT id, step_order, name, rule, approver_source, condition_mode, condition_positions
          FROM approval_form_step WHERE form_id = $1 ORDER BY step_order, id`,
       [id]
     )
@@ -326,6 +328,13 @@ export async function saveSteps(req, res) {
     if (s.rule && !STEP_RULES.has(s.rule)) return res.status(400).json({ error: `Quy tắc bước không hợp lệ: ${s.rule}` })
     const source = s.approver_source || 'fixed'
     if (!APPROVER_SOURCES.has(source)) return res.status(400).json({ error: `Nguồn người duyệt không hợp lệ: ${source}` })
+    // Điều kiện áp dụng bước theo chức danh người gửi.
+    const condMode = s.condition_mode || 'always'
+    if (!CONDITION_MODES.has(condMode)) return res.status(400).json({ error: `Điều kiện bước không hợp lệ: ${condMode}` })
+    if (condMode !== 'always') {
+      const pos = Array.isArray(s.condition_positions) ? s.condition_positions.map(Number).filter(Number.isInteger) : []
+      if (!pos.length) return res.status(400).json({ error: `Bước "${s.name}" có điều kiện theo chức danh nhưng chưa chọn chức danh nào.` })
+    }
     // Chỉ nguồn 'fixed' mới cần admin chọn sẵn người duyệt.
     if (source === 'fixed') {
       const approvers = Array.isArray(s.approvers) ? s.approvers : []
@@ -352,10 +361,14 @@ export async function saveSteps(req, res) {
     for (let i = 0; i < steps.length; i++) {
       const s = steps[i]
       const source = s.approver_source || 'fixed'
+      const condMode = s.condition_mode || 'always'
+      const condPositions = condMode === 'always'
+        ? []
+        : [...new Set((Array.isArray(s.condition_positions) ? s.condition_positions : []).map(Number).filter(Number.isInteger))]
       const { rows: stepRows } = await client.query(
-        `INSERT INTO approval_form_step (form_id, step_order, name, rule, approver_source)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [id, i + 1, s.name.trim(), s.rule || 'any', source]
+        `INSERT INTO approval_form_step (form_id, step_order, name, rule, approver_source, condition_mode, condition_positions)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [id, i + 1, s.name.trim(), s.rule || 'any', source, condMode, JSON.stringify(condPositions)]
       )
       const stepId = stepRows[0].id
       // Chỉ lưu danh sách người duyệt cố định cho nguồn 'fixed'.

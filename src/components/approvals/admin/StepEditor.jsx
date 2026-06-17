@@ -1,15 +1,15 @@
 import MultiSelect from '../../common/MultiSelect'
-import { STEP_RULES, APPROVER_SOURCES } from '../approvalUtils'
+import { STEP_RULES, APPROVER_SOURCES, CONDITION_MODES } from '../approvalUtils'
 
-// Trình sửa chuỗi bước duyệt (controlled). Mỗi bước: tên, quy tắc, danh sách người duyệt.
-// userOptions: [{ value: '<userId>', label: '<tên>' }]. Hiện chỉ hỗ trợ người duyệt kiểu 'user'.
-export default function StepEditor({ steps, onChange, userOptions }) {
+// Trình sửa chuỗi bước duyệt (controlled). Mỗi bước: tên, quy tắc, người duyệt, điều kiện chức danh.
+// userOptions/positionOptions: [{ value: '<id>', label: '<tên>' }]. Hiện chỉ hỗ trợ người duyệt kiểu 'user'.
+export default function StepEditor({ steps, onChange, userOptions, positionOptions = [] }) {
   function update(i, patch) {
     onChange(steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s)))
   }
   function addStep() {
     // Tự đặt tên mặc định để khỏi phải gõ; admin có thể sửa lại.
-    onChange([...steps, { name: `Cấp duyệt ${steps.length + 1}`, rule: 'any', approver_source: 'fixed', approvers: [] }])
+    onChange([...steps, { name: `Cấp duyệt ${steps.length + 1}`, rule: 'any', approver_source: 'fixed', approvers: [], condition_mode: 'always', condition_positions: [] }])
   }
   function removeStep(i) { onChange(steps.filter((_, idx) => idx !== i)) }
   function move(i, dir) {
@@ -74,6 +74,32 @@ export default function StepEditor({ steps, onChange, userOptions }) {
           {(s.approver_source) === 'requester_pick' && (
             <p className="ar-note ab-step-approvers">⤷ <b>Người gửi</b> sẽ chọn người duyệt ở bước này khi lập đề xuất.</p>
           )}
+          <div className="ab-step-approvers">
+            <label className="ab-sublabel">Áp dụng bước theo chức danh người gửi</label>
+            <select
+              className="ab-input"
+              value={s.condition_mode || 'always'}
+              onChange={e => update(i, { condition_mode: e.target.value, ...(e.target.value === 'always' ? { condition_positions: [] } : {}) })}
+            >
+              {Object.entries(CONDITION_MODES).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+            </select>
+            {(s.condition_mode && s.condition_mode !== 'always') && (
+              <div style={{ marginTop: 6 }}>
+                <MultiSelect
+                  options={positionOptions}
+                  selectedValues={s.condition_positions || []}
+                  onChange={ids => update(i, { condition_positions: ids })}
+                  placeholder="Chọn chức danh áp dụng/loại trừ…"
+                  inlineSearch
+                />
+                <p className="ar-note" style={{ marginTop: 4 }}>
+                  {s.condition_mode === 'include'
+                    ? 'Bước này CHỈ áp dụng khi người gửi có một trong các chức danh trên (ngược lại bỏ bước).'
+                    : 'Bước này KHÔNG áp dụng khi người gửi có một trong các chức danh trên (sẽ bỏ bước).'}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       ))}
     </div>

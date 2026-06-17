@@ -306,65 +306,36 @@ export async function submitRequest(req, res) {
       return res.status(400).json({ error: `Thiếu trường bắt buộc: ${missing.map(m => m.label).join(', ')}` })
     }
 
-    // Lấy chuỗi bước + người duyệt từ cấu hình.
-    const { rows: cfgSteps } = await client.query(
-      `SELECT id, step_order, name, rule, approver_source FROM approval_form_step WHERE form_id = $1 ORDER BY step_order`,
-      [reqRow.form_id]
-    )
-    if (!cfgSteps.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Loại đơn chưa cấu hình bước duyệt.' }) }
+    // Rút gọn chuỗi bước cho người gửi — DÙNG CHUNG logic với preview (một nguồn sự thật).
+    const inputs = await fetchChainInputs(client, reqRow.form_id, req.user.id)
+    if (!inputs.cfgSteps.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Loại đơn chưa cấu hình bước duyệt.' }) }
+    const chain = buildChain(inputs, req.body?.stepApprovers || {}, req.user.id)
 
-    const { rows: cfgApprovers } = await client.query(
-      `SELECT sa.step_id, sa.approver_type, sa.approver_ref
-         FROM approval_form_step_approver sa
-         JOIN approval_form_step s ON s.id = sa.step_id
-        WHERE s.form_id = $1`,
-      [reqRow.form_id]
-    )
+    // Chặn bước không phân giải được người duyệt (chưa có quản lý trực tiếp / chưa chọn người).
+    const bad = chain.steps.find(s => s.unresolved || s.pendingPick)
+    if (bad) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({
+        error: bad.unresolved
+          ? `Bước "${bad.name}" cần quản lý trực tiếp, nhưng tài khoản của bạn chưa được gán quản lý.`
+          : `Bạn cần chọn người duyệt cho bước "${bad.name}".`,
+      })
+    }
 
-    // Quản lý trực tiếp của người gửi (cho nguồn 'direct_manager').
-    const managerId = (await client.query(`SELECT manager_id FROM app_user WHERE id = $1`, [req.user.id])).rows[0]?.manager_id || null
-    // Người duyệt do người gửi tự chọn, map theo id bước cấu hình (cho nguồn 'requester_pick').
-    const picked = req.body?.stepApprovers || {}
-
-    // Chụp snapshot từng bước (đánh lại step_order liên tục 1..n).
+    // Chụp snapshot các bước giữ lại (step_order liên tục 1..n).
     let firstStepOrder = null
     let firstStepApprovers = []
-    for (let i = 0; i < cfgSteps.length; i++) {
-      const cs = cfgSteps[i]
+    for (let i = 0; i < chain.steps.length; i++) {
+      const st = chain.steps[i]
       const order = i + 1
-      const source = cs.approver_source || 'fixed'
-      if (firstStepOrder === null) firstStepOrder = order
-
-      // Phân giải người duyệt theo nguồn.
-      let approverIds = []
-      if (source === 'fixed') {
-        approverIds = resolveApprovers(cfgApprovers.filter(a => a.step_id === cs.id))
-      } else if (source === 'direct_manager') {
-        if (!managerId) {
-          await client.query('ROLLBACK')
-          return res.status(400).json({ error: `Bước "${cs.name}" cần quản lý trực tiếp, nhưng tài khoản của bạn chưa được gán quản lý.` })
-        }
-        approverIds = [managerId]
-      } else if (source === 'requester_pick') {
-        approverIds = normalizeIds(picked[cs.id] || picked[String(cs.id)])
-        if (!approverIds.length) {
-          await client.query('ROLLBACK')
-          return res.status(400).json({ error: `Bạn cần chọn người duyệt cho bước "${cs.name}".` })
-        }
-      }
-      if (!approverIds.length) {
-        await client.query('ROLLBACK')
-        return res.status(400).json({ error: `Bước "${cs.name}" chưa có người duyệt hợp lệ.` })
-      }
-
       const { rows: stepRows } = await client.query(
         `INSERT INTO approval_request_step (request_id, step_order, name, rule, status, approver_source)
          VALUES ($1, $2, $3, $4, 'pending', $5) RETURNING id`,
-        [id, order, cs.name, cs.rule, source]
+        [id, order, st.name, st.rule, st.approver_source]
       )
       const stepId = stepRows[0].id
-      if (i === 0) firstStepApprovers = approverIds
-      for (const uid of approverIds) {
+      if (i === 0) { firstStepOrder = order; firstStepApprovers = st.approverIds }
+      for (const uid of st.approverIds) {
         await client.query(
           `INSERT INTO approval_request_step_approver (step_id, approver_id, decision)
            VALUES ($1, $2, 'pending')`,
@@ -372,6 +343,9 @@ export async function submitRequest(req, res) {
         )
       }
     }
+
+    // Không còn bước nào (người gửi là cấp cao nhất, mọi bước bị bỏ/dedup) → auto-duyệt.
+    const autoApproved = chain.steps.length === 0
 
     // CHỤP người theo dõi từ cấu hình loại đơn (admin định sẵn; người gửi không sửa).
     const { rows: cfgFollowers } = await client.query(
@@ -386,26 +360,48 @@ export async function submitRequest(req, res) {
       )
     }
 
-    await client.query(
-      `UPDATE approval_request SET status = 'pending', current_step = $1, submitted_at = now(), updated_at = now()
-        WHERE id = $2`,
-      [firstStepOrder, id]
-    )
+    if (autoApproved) {
+      await client.query(
+        `UPDATE approval_request SET status = 'approved', current_step = NULL,
+                submitted_at = now(), completed_at = now(), updated_at = now()
+          WHERE id = $1`,
+        [id]
+      )
+    } else {
+      await client.query(
+        `UPDATE approval_request SET status = 'pending', current_step = $1, submitted_at = now(), updated_at = now()
+          WHERE id = $2`,
+        [firstStepOrder, id]
+      )
+    }
     await client.query(
       `INSERT INTO approval_request_event (request_id, actor_id, event_type) VALUES ($1, $2, 'submitted')`,
       [id, req.user.id]
     )
+    if (autoApproved) {
+      await client.query(
+        `INSERT INTO approval_request_event (request_id, actor_id, event_type, detail)
+         VALUES ($1, $2, 'completed', $3)`,
+        [id, req.user.id, JSON.stringify({ note: 'Tự duyệt: không có bước duyệt nào áp dụng cho người gửi.' })]
+      )
+    }
     await client.query('COMMIT')
 
-    // Thông báo người duyệt bước đầu (fire-and-forget, sau commit).
-    if (firstStepApprovers.length) {
-      notifyAction(firstStepApprovers, `Bạn có đơn cần duyệt: ${reqRow.title}`)
+    if (autoApproved) {
+      // Không còn ai phải duyệt → báo người gửi + follower là đơn đã xong.
+      notifyInfo([req.user.id], `Đơn của bạn đã được duyệt xong: ${reqRow.title}`)
+      if (followerIds.length) notifyInfo(followerIds, `Đề xuất bạn theo dõi đã được duyệt xong: ${reqRow.title}`)
+    } else {
+      // Thông báo người duyệt bước đầu (fire-and-forget, sau commit).
+      if (firstStepApprovers.length) {
+        notifyAction(firstStepApprovers, `Bạn có đơn cần duyệt: ${reqRow.title}`)
+      }
+      // Báo người theo dõi có đơn mới (chỉ để nắm thông tin).
+      if (followerIds.length) {
+        notifyInfo(followerIds, `Có đề xuất mới bạn đang theo dõi: ${reqRow.title}`)
+      }
     }
-    // Báo người theo dõi có đơn mới (chỉ để nắm thông tin).
-    if (followerIds.length) {
-      notifyInfo(followerIds, `Có đề xuất mới bạn đang theo dõi: ${reqRow.title}`)
-    }
-    res.json({ success: true })
+    res.json({ success: true, status: autoApproved ? 'approved' : 'pending' })
   } catch (err) {
     await client.query('ROLLBACK')
     console.error('submitRequest:', err)
@@ -424,6 +420,120 @@ function normalizeIds(arr) {
     if (Number.isInteger(n) && !out.includes(n)) out.push(n)
   }
   return out
+}
+
+// Lấy dữ liệu cần để rút gọn chuỗi duyệt cho một người gửi (dùng được với pool lẫn client).
+async function fetchChainInputs(db, formId, userId) {
+  const { rows: cfgSteps } = await db.query(
+    `SELECT id, step_order, name, rule, approver_source, condition_mode, condition_positions
+       FROM approval_form_step WHERE form_id = $1 ORDER BY step_order`,
+    [formId]
+  )
+  const { rows: cfgApprovers } = await db.query(
+    `SELECT sa.step_id, sa.approver_type, sa.approver_ref
+       FROM approval_form_step_approver sa
+       JOIN approval_form_step s ON s.id = sa.step_id
+      WHERE s.form_id = $1`,
+    [formId]
+  )
+  const managerId = (await db.query(`SELECT manager_id FROM app_user WHERE id = $1`, [userId])).rows[0]?.manager_id || null
+  const { rows: posRows } = await db.query(
+    `SELECT position_id FROM app_user_position WHERE user_id = $1
+     UNION SELECT position_id FROM app_user WHERE id = $1 AND position_id IS NOT NULL`,
+    [userId]
+  )
+  const myPositions = new Set(posRows.map(r => Number(r.position_id)).filter(Boolean))
+  return { cfgSteps, cfgApprovers, managerId, myPositions }
+}
+
+// Rút gọn chuỗi bước cho một người gửi (THUẦN, không đụng DB). Trả:
+//   steps:   các bước CÓ áp dụng (đã đánh thứ tự ngầm theo mảng), mỗi bước có approverIds đã
+//            bỏ chính người gửi + dedup người ở bước trước; cờ unresolved (thiếu QL trực tiếp)
+//            / pendingPick (bước "người gửi tự chọn" chưa chọn).
+//   skipped: các bước bị bỏ, kèm lý do ('condition' | 'dedup').
+// submit và preview cùng gọi hàm này → hành vi khớp nhau.
+function buildChain({ cfgSteps, cfgApprovers, managerId, myPositions }, picked = {}, requesterId) {
+  const steps = []
+  const skipped = []
+  const seen = new Set()
+  for (const cs of cfgSteps) {
+    const source = cs.approver_source || 'fixed'
+    if (!stepApplies(cs, myPositions)) { skipped.push({ name: cs.name, reason: 'condition' }); continue }
+
+    let raw = []
+    let unresolved = false
+    let pendingPick = false
+    if (source === 'fixed') {
+      raw = resolveApprovers(cfgApprovers.filter(a => a.step_id === cs.id))
+    } else if (source === 'direct_manager') {
+      if (managerId) raw = [Number(managerId)]; else unresolved = true
+    } else if (source === 'requester_pick') {
+      raw = normalizeIds(picked[cs.id] || picked[String(cs.id)])
+      if (!raw.length) pendingPick = true
+    }
+
+    if (unresolved || pendingPick) {
+      steps.push({ cfgId: cs.id, name: cs.name, rule: cs.rule, approver_source: source, approverIds: [], unresolved, pendingPick })
+      continue
+    }
+
+    // Bỏ chính người gửi + người đã xuất hiện ở bước giữ trước (dedup). Rỗng → bỏ bước.
+    const approverIds = raw.filter(uid => Number(uid) !== Number(requesterId) && !seen.has(Number(uid)))
+    if (!approverIds.length) { skipped.push({ name: cs.name, reason: 'dedup' }); continue }
+
+    approverIds.forEach(uid => seen.add(Number(uid)))
+    steps.push({ cfgId: cs.id, name: cs.name, rule: cs.rule, approver_source: source, approverIds, unresolved: false, pendingPick: false })
+  }
+  return { steps, skipped }
+}
+
+// GET /approvals/forms/:id/preview-chain — chuỗi duyệt RÚT GỌN cho người đang đăng nhập.
+// Dùng đúng buildChain như submit nên hiển thị khớp với lúc gửi thật.
+export async function previewChain(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  try {
+    const { rowCount } = await pool.query(`SELECT 1 FROM approval_form WHERE id = $1 AND is_active = true`, [id])
+    if (!rowCount) return res.status(404).json({ error: 'Không tìm thấy loại đơn.' })
+
+    const inputs = await fetchChainInputs(pool, id, req.user.id)
+    const chain = buildChain(inputs, {}, req.user.id)
+
+    // Đổi id người duyệt → tên để hiển thị.
+    const allIds = [...new Set(chain.steps.flatMap(s => s.approverIds))]
+    let nameById = {}
+    if (allIds.length) {
+      const { rows } = await pool.query(`SELECT id, full_name FROM app_user WHERE id = ANY($1)`, [allIds])
+      nameById = Object.fromEntries(rows.map(r => [r.id, r.full_name]))
+    }
+    const steps = chain.steps.map((s, i) => ({
+      order: i + 1,
+      step_id: s.cfgId,
+      name: s.name,
+      approver_source: s.approver_source,
+      approvers: s.approverIds.map(uid => ({ id: uid, full_name: nameById[uid] || `#${uid}` })),
+      unresolved: s.unresolved,
+      pendingPick: s.pendingPick,
+    }))
+    res.json({ steps, skipped: chain.skipped, autoApproved: chain.steps.length === 0 })
+  } catch (err) {
+    console.error('previewChain:', err)
+    res.status(500).json({ error: 'Không thể tính trước quy trình duyệt.' })
+  }
+}
+
+// Bước có áp dụng cho người gửi không, theo điều kiện chức danh:
+//   'always'  → luôn áp dụng
+//   'include' → chỉ khi người gửi có ≥1 chức danh trong condition_positions
+//   'exclude' → áp dụng trừ khi người gửi có chức danh trong condition_positions
+function stepApplies(cs, myPositions) {
+  const mode = cs.condition_mode || 'always'
+  if (mode === 'always') return true
+  const raw = cs.condition_positions
+  const list = Array.isArray(raw) ? raw.map(Number).filter(Boolean) : []
+  if (!list.length) return true // không cấu hình chức danh → coi như luôn áp dụng
+  const hit = list.some(pid => myPositions.has(pid))
+  return mode === 'include' ? hit : !hit
 }
 
 // MVP: chỉ phân giải người duyệt kiểu 'user' (ref = id). 'position'/'department_head' để mở rộng sau.
