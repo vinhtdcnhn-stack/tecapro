@@ -10,7 +10,9 @@ export default function FormBuilder({ formId, onBack }) {
   const [fields, setFields] = useState([])
   const [steps, setSteps] = useState([])
   const [followers, setFollowers] = useState([])   // mảng id string
+  const [departments, setDepartments] = useState([]) // mảng id string (phòng ban được dùng)
   const [userOptions, setUserOptions] = useState([])
+  const [deptOptions, setDeptOptions] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -18,7 +20,8 @@ export default function FormBuilder({ formId, onBack }) {
     Promise.all([
       fetch(`${API}/approvals/forms/${formId}`).then(r => r.ok ? r.json() : null),
       fetch(`${API}/approvals/user-options`).then(r => r.ok ? r.json() : []),
-    ]).then(([f, users]) => {
+      fetch(`${API}/departments`).then(r => r.ok ? r.json() : []),
+    ]).then(([f, users, depts]) => {
       if (f) {
         setForm(f)
         setFields(f.fields || [])
@@ -27,9 +30,13 @@ export default function FormBuilder({ formId, onBack }) {
           approvers: (s.approvers || []).map(a => ({ approver_type: a.approver_type, approver_ref: String(a.approver_ref) })),
         })))
         setFollowers((f.followers || []).map(fl => String(fl.user_id)))
+        setDepartments((f.departments || []).map(d => String(d.department_id)))
       }
       setUserOptions((Array.isArray(users) ? users : []).map(u => ({
         value: String(u.id), label: u.full_name || u.email || `#${u.id}`, search: u.email || '', hint: u.email || '',
+      })))
+      setDeptOptions((Array.isArray(depts) ? depts : []).map(d => ({
+        value: String(d.id), label: d.name || `#${d.id}`, search: d.code || '', hint: d.code || '',
       })))
     }).catch(() => setError('Không tải được cấu hình loại đơn.'))
   }, [formId])
@@ -64,6 +71,11 @@ export default function FormBuilder({ formId, onBack }) {
         body: JSON.stringify({ user_ids: followers.map(Number) }),
       })
       if (!r3.ok) throw new Error((await r3.json().catch(() => ({}))).error || 'Lưu người theo dõi thất bại.')
+      const r4 = await fetch(`${API}/approvals/forms/${formId}/departments`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ department_ids: departments.map(Number) }),
+      })
+      if (!r4.ok) throw new Error((await r4.json().catch(() => ({}))).error || 'Lưu phòng ban áp dụng thất bại.')
       alert('Đã lưu cấu hình loại đơn.')
     } catch (e) {
       setError(e.message)
@@ -95,6 +107,22 @@ export default function FormBuilder({ formId, onBack }) {
       {error && <p className="ab-error">{error}</p>}
       <FieldEditor fields={fields} onChange={setFields} />
       <StepEditor steps={steps} onChange={setSteps} userOptions={userOptions} />
+      <div className="ab-section">
+        <div className="ab-section-head">
+          <h3>Phòng ban được dùng</h3>
+        </div>
+        <p className="ar-note" style={{ marginTop: 0 }}>
+          Chỉ nhân sự thuộc các phòng ban được chọn mới <b>tạo được</b> loại đơn này.
+          <b> Để trống = áp dụng cho mọi phòng ban.</b>
+        </p>
+        <MultiSelect
+          options={deptOptions}
+          selectedValues={departments}
+          onChange={setDepartments}
+          placeholder="Gõ tên hoặc mã phòng ban để giới hạn…"
+          inlineSearch
+        />
+      </div>
       <div className="ab-section">
         <div className="ab-section-head">
           <h3>Người theo dõi</h3>

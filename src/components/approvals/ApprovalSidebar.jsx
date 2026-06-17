@@ -6,6 +6,9 @@ const BASE = '/de-xuat'
 const ITEMS = [
   { label: 'Đơn của tôi', section: 'my' },
   { label: 'Chờ tôi duyệt', section: 'inbox' },
+  { label: 'Sắp đến lượt tôi', section: 'upcoming' },
+  { label: 'Tôi theo dõi', section: 'following' },
+  { label: 'Tất cả đề xuất', section: 'all', adminOnly: true },
   { label: 'Loại đơn', section: 'forms', adminOnly: true },
 ]
 

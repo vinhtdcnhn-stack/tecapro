@@ -42,12 +42,25 @@ export async function getUserOptions(req, res) {
   }
 }
 
-// ── Danh sách loại đơn ĐANG DÙNG (mọi nhân viên, để tạo đơn) ─────────────────
+// ── Danh sách loại đơn ĐANG DÙNG mà NGƯỜI DÙNG HIỆN TẠI được phép tạo ─────────
+// Lọc theo phòng ban: loại đơn không giới hạn (không có dòng approval_form_department)
+// hiện cho mọi người; loại đơn có giới hạn chỉ hiện với nhân sự thuộc phòng ban đó.
+// Admin xem được tất cả (để cấu hình/kiểm thử).
 export async function getActiveForms(req, res) {
+  const isAdmin = Number(req.user.role) === 1
   try {
     const { rows } = await pool.query(
-      `SELECT id, code, name, description, icon, sort_order
-         FROM approval_form WHERE is_active = true ORDER BY sort_order, name`
+      `SELECT f.id, f.code, f.name, f.description, f.icon, f.sort_order
+         FROM approval_form f
+        WHERE f.is_active = true
+          AND ( $2::boolean
+             OR NOT EXISTS (SELECT 1 FROM approval_form_department d WHERE d.form_id = f.id)
+             OR EXISTS (
+                  SELECT 1 FROM approval_form_department d
+                    JOIN app_user u ON u.id = $1
+                   WHERE d.form_id = f.id AND d.department_id = u.department_id) )
+        ORDER BY f.sort_order, f.name`,
+      [req.user.id, isAdmin]
     )
     res.json(rows)
   } catch (err) {
@@ -135,10 +148,59 @@ export async function getForm(req, res) {
         WHERE fl.form_id = $1 ORDER BY u.full_name, fl.user_id`,
       [id]
     )
-    res.json({ ...forms[0], fields, steps: stepsWithApprovers, followers })
+    const { rows: departments } = await pool.query(
+      `SELECT fd.department_id, d.code, d.name
+         FROM approval_form_department fd
+         JOIN department d ON d.id = fd.department_id
+        WHERE fd.form_id = $1 ORDER BY d.id`,
+      [id]
+    )
+    res.json({ ...forms[0], fields, steps: stepsWithApprovers, followers, departments })
   } catch (err) {
     console.error('getForm:', err)
     res.status(500).json({ error: 'Không thể tải loại đơn.' })
+  }
+}
+
+// ── Xuất dữ liệu đơn theo loại + khoảng thời gian (admin) ─────────────────────
+// Trả JSON { form, fields, rows }; frontend tự dựng file Excel (đồng bộ toàn app).
+// Lọc theo created_at (luôn có, gồm cả nháp). from/to là 'yyyy-mm-dd', bao trọn ngày "to".
+export async function exportRequests(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  const { from, to } = req.query
+  const DATE = /^\d{4}-\d{2}-\d{2}$/
+  if (!DATE.test(from || '') || !DATE.test(to || '')) {
+    return res.status(400).json({ error: 'Khoảng thời gian không hợp lệ.' })
+  }
+  try {
+    const { rows: forms } = await pool.query(
+      `SELECT id, code, name FROM approval_form WHERE id = $1`, [id]
+    )
+    if (!forms.length) return res.status(404).json({ error: 'Không tìm thấy loại đơn.' })
+
+    const { rows: fields } = await pool.query(
+      `SELECT field_key, label, field_type, config
+         FROM approval_form_field WHERE form_id = $1 ORDER BY sort_order, id`, [id]
+    )
+    const { rows } = await pool.query(
+      `SELECT r.id, r.title, r.status, r.current_step, r.form_data,
+              r.created_at, r.submitted_at, r.completed_at,
+              u.full_name AS requester_name,
+              (SELECT name FROM approval_request_step s
+                WHERE s.request_id = r.id AND s.step_order = r.current_step LIMIT 1) AS current_step_name
+         FROM approval_request r
+    LEFT JOIN app_user u ON u.id = r.requester_id
+        WHERE r.form_id = $1
+          AND r.created_at >= $2::date
+          AND r.created_at < ($3::date + interval '1 day')
+        ORDER BY r.created_at`,
+      [id, from, to]
+    )
+    res.json({ form: forms[0], fields, rows })
+  } catch (err) {
+    console.error('exportRequests:', err)
+    res.status(500).json({ error: 'Không thể xuất dữ liệu đơn.' })
   }
 }
 
@@ -351,6 +413,42 @@ export async function saveFollowers(req, res) {
     if (err.code === '23503') return res.status(400).json({ error: 'Có người theo dõi không tồn tại.' })
     console.error('saveFollowers:', err)
     res.status(500).json({ error: 'Không thể lưu người theo dõi.' })
+  } finally {
+    client.release()
+  }
+}
+
+// ── Lưu danh sách PHÒNG BAN được dùng loại đơn (thay thế) ─────────────────────
+// Nhận { department_ids: [<id>, ...] }. Rỗng = áp dụng cho mọi phòng ban.
+export async function saveDepartments(req, res) {
+  const id = parseInt(req.params.id, 10)
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ.' })
+  const raw = Array.isArray(req.body?.department_ids) ? req.body.department_ids : null
+  if (!raw) return res.status(400).json({ error: 'Thiếu danh sách phòng ban.' })
+  const deptIds = [...new Set(raw.map(x => parseInt(x, 10)).filter(Number.isInteger))]
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { rowCount } = await client.query(`SELECT 1 FROM approval_form WHERE id = $1`, [id])
+    if (!rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Không tìm thấy loại đơn.' }) }
+
+    await client.query(`DELETE FROM approval_form_department WHERE form_id = $1`, [id])
+    for (const did of deptIds) {
+      await client.query(
+        `INSERT INTO approval_form_department (form_id, department_id) VALUES ($1, $2)
+         ON CONFLICT (form_id, department_id) DO NOTHING`,
+        [id, did]
+      )
+    }
+    await client.query(`UPDATE approval_form SET updated_at = now() WHERE id = $1`, [id])
+    await client.query('COMMIT')
+    res.json({ success: true })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    if (err.code === '23503') return res.status(400).json({ error: 'Có phòng ban không tồn tại.' })
+    console.error('saveDepartments:', err)
+    res.status(500).json({ error: 'Không thể lưu phòng ban áp dụng.' })
   } finally {
     client.release()
   }

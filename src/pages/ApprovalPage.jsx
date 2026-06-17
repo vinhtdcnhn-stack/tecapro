@@ -4,10 +4,13 @@ import ApprovalSidebar from '../components/approvals/ApprovalSidebar'
 import FormList from '../components/approvals/admin/FormList'
 import RequestList from '../components/approvals/RequestList'
 import Inbox from '../components/approvals/Inbox'
+import RequestBrowseList from '../components/approvals/RequestBrowseList'
+import AllRequests from '../components/approvals/admin/AllRequests'
 import { canManageForms } from '../components/approvals/approvalUtils'
 import '../components/approvals/Approval.css'
 
-const VALID = ['my', 'inbox', 'forms']
+const VALID = ['my', 'inbox', 'upcoming', 'following', 'all', 'forms']
+const ADMIN_ONLY = ['all', 'forms']
 
 export default function ApprovalPage() {
   const { user } = useAuth()
@@ -19,7 +22,7 @@ export default function ApprovalPage() {
 
   const canManage = canManageForms(user)
   // Chặn truy cập section quản trị nếu không phải admin.
-  if (section === 'forms' && !canManage) return <Navigate to="/de-xuat/my" replace />
+  if (ADMIN_ONLY.includes(section) && !canManage) return <Navigate to="/de-xuat/my" replace />
 
   return (
     <main className="page admin-page approval-page">
@@ -28,6 +31,25 @@ export default function ApprovalPage() {
         <section className="content-area">
           {section === 'my' && <RequestList />}
           {section === 'inbox' && <Inbox />}
+          {section === 'upcoming' && (
+            <RequestBrowseList
+              title="SẮP ĐẾN LƯỢT TÔI"
+              endpoint="/approvals/requests/upcoming"
+              emptyText="Không có đơn nào sắp đến lượt bạn duyệt."
+              dateField="submitted_at"
+              dateLabel="Ngày gửi"
+            />
+          )}
+          {section === 'following' && (
+            <RequestBrowseList
+              title="TÔI THEO DÕI"
+              endpoint="/approvals/requests/following"
+              emptyText="Bạn không theo dõi đơn nào."
+              dateField="created_at"
+              dateLabel="Ngày tạo"
+            />
+          )}
+          {section === 'all' && <AllRequests />}
           {section === 'forms' && <FormList />}
         </section>
       </div>

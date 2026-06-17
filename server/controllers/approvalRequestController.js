@@ -8,14 +8,17 @@ import { notifyAction, notifyInfo } from '../services/notify.js'
 const LIST_SELECT = `
   SELECT r.id, r.form_id, r.requester_id, r.title, r.status, r.current_step,
          r.submitted_at, r.completed_at, r.created_at, r.updated_at,
+         r.deleted_at, r.deleted_by, r.deleted_reason,
          f.name AS form_name, f.icon AS form_icon, f.code AS form_code,
          u.full_name AS requester_name,
+         du.full_name AS deleted_by_name,
          (SELECT name FROM approval_request_step s
            WHERE s.request_id = r.id AND s.step_order = r.current_step LIMIT 1) AS current_step_name,
          (SELECT COUNT(*) FROM approval_request_attachment a WHERE a.request_id = r.id)::int AS attachment_count
     FROM approval_request r
     JOIN approval_form f ON f.id = r.form_id
     LEFT JOIN app_user u ON u.id = r.requester_id
+    LEFT JOIN app_user du ON du.id = r.deleted_by
 `
 
 // ── Đơn của tôi ───────────────────────────────────────────────────────────────
@@ -32,12 +35,43 @@ export async function getMyRequests(req, res) {
   }
 }
 
+// ── Admin: TẤT CẢ đề xuất (đã gửi), kèm phòng ban người gửi, gồm cả đơn đã xóa ─
+// Phục vụ tab quản trị để tìm & xử lý (xóa/khôi phục) bất kỳ đơn nào. Bỏ qua nháp
+// (nháp là riêng tư của người tạo). Lọc chi tiết để frontend tự làm phía client.
+export async function getAllRequests(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.form_id, r.requester_id, r.title, r.status, r.current_step,
+              r.submitted_at, r.completed_at, r.created_at, r.updated_at,
+              r.deleted_at, r.deleted_by, r.deleted_reason,
+              f.name AS form_name, f.icon AS form_icon, f.code AS form_code,
+              u.full_name AS requester_name,
+              dept.name AS requester_dept,
+              du.full_name AS deleted_by_name,
+              (SELECT name FROM approval_request_step s
+                WHERE s.request_id = r.id AND s.step_order = r.current_step LIMIT 1) AS current_step_name
+         FROM approval_request r
+         JOIN approval_form f ON f.id = r.form_id
+    LEFT JOIN app_user u ON u.id = r.requester_id
+    LEFT JOIN department dept ON dept.id = u.department_id
+    LEFT JOIN app_user du ON du.id = r.deleted_by
+        WHERE r.status <> 'draft'
+        ORDER BY r.created_at DESC`
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('getAllRequests:', err)
+    res.status(500).json({ error: 'Không thể tải danh sách đề xuất.' })
+  }
+}
+
 // ── Đơn đang chờ CHÍNH TÔI duyệt (bước hiện tại) ─────────────────────────────
 export async function getInbox(req, res) {
   try {
     const { rows } = await pool.query(
       `${LIST_SELECT}
         WHERE r.status = 'pending'
+          AND r.deleted_at IS NULL
           AND EXISTS (
             SELECT 1 FROM approval_request_step s
               JOIN approval_request_step_approver sa ON sa.step_id = s.id
@@ -54,6 +88,49 @@ export async function getInbox(req, res) {
   } catch (err) {
     console.error('getInbox:', err)
     res.status(500).json({ error: 'Không thể tải danh sách chờ duyệt.' })
+  }
+}
+
+// ── Đơn SẮP đến lượt tôi (tôi là người duyệt ở một bước SAU bước hiện tại) ────
+export async function getUpcoming(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `${LIST_SELECT}
+        WHERE r.status = 'pending'
+          AND r.deleted_at IS NULL
+          AND EXISTS (
+            SELECT 1 FROM approval_request_step s
+              JOIN approval_request_step_approver sa ON sa.step_id = s.id
+             WHERE s.request_id = r.id
+               AND s.step_order > r.current_step
+               AND sa.approver_id = $1
+          )
+        ORDER BY r.submitted_at ASC`,
+      [req.user.id]
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('getUpcoming:', err)
+    res.status(500).json({ error: 'Không thể tải danh sách đơn sắp đến lượt.' })
+  }
+}
+
+// ── Đơn TÔI THEO DÕI (là follower, mọi trạng thái) ───────────────────────────
+export async function getFollowing(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `${LIST_SELECT}
+        WHERE EXISTS (
+          SELECT 1 FROM approval_request_follower fl
+           WHERE fl.request_id = r.id AND fl.user_id = $1
+        )
+        ORDER BY r.created_at DESC`,
+      [req.user.id]
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('getFollowing:', err)
+    res.status(500).json({ error: 'Không thể tải danh sách đơn theo dõi.' })
   }
 }
 
@@ -150,6 +227,23 @@ export async function createRequest(req, res) {
     )
     if (!forms.length) return res.status(400).json({ error: 'Loại đơn không tồn tại hoặc đã ngừng dùng.' })
 
+    // Chặn theo phòng ban: loại đơn có giới hạn chỉ cho nhân sự thuộc phòng ban đó tạo.
+    // (Admin được bỏ qua giới hạn để cấu hình/kiểm thử.)
+    if (Number(req.user.role) !== 1) {
+      const { rows: allowed } = await pool.query(
+        `SELECT 1 FROM approval_form f
+          WHERE f.id = $1
+            AND ( NOT EXISTS (SELECT 1 FROM approval_form_department d WHERE d.form_id = f.id)
+               OR EXISTS (
+                    SELECT 1 FROM approval_form_department d
+                      JOIN app_user u ON u.id = $2
+                     WHERE d.form_id = f.id AND d.department_id = u.department_id) )
+          LIMIT 1`,
+        [formId, req.user.id]
+      )
+      if (!allowed.length) return res.status(403).json({ error: 'Phòng ban của bạn không được phép dùng loại đơn này.' })
+    }
+
     const { rows } = await pool.query(
       `INSERT INTO approval_request (form_id, requester_id, title, status, form_data)
        VALUES ($1, $2, $3, 'draft', $4) RETURNING id`,
@@ -171,7 +265,7 @@ export async function updateRequest(req, res) {
   try {
     const { rows } = await pool.query(
       `UPDATE approval_request SET title = $1, form_data = $2, updated_at = now()
-        WHERE id = $3 AND requester_id = $4 AND status = 'draft' RETURNING id`,
+        WHERE id = $3 AND requester_id = $4 AND status = 'draft' AND deleted_at IS NULL RETURNING id`,
       [title.trim(), JSON.stringify(form_data || {}), id, req.user.id]
     )
     if (!rows.length) return res.status(403).json({ error: 'Chỉ sửa được đơn nháp của chính bạn.' })
@@ -191,7 +285,7 @@ export async function submitRequest(req, res) {
     await client.query('BEGIN')
     const { rows: reqs } = await client.query(
       `SELECT id, form_id, title, form_data FROM approval_request
-        WHERE id = $1 AND requester_id = $2 AND status = 'draft' FOR UPDATE`,
+        WHERE id = $1 AND requester_id = $2 AND status = 'draft' AND deleted_at IS NULL FOR UPDATE`,
       [id, req.user.id]
     )
     if (!reqs.length) { await client.query('ROLLBACK'); return res.status(403).json({ error: 'Chỉ gửi được đơn nháp của chính bạn.' }) }
@@ -351,7 +445,7 @@ export async function cancelRequest(req, res) {
   try {
     const { rows } = await pool.query(
       `UPDATE approval_request SET status = 'cancelled', completed_at = now(), updated_at = now()
-        WHERE id = $1 AND requester_id = $2 AND status = 'pending' RETURNING id`,
+        WHERE id = $1 AND requester_id = $2 AND status = 'pending' AND deleted_at IS NULL RETURNING id`,
       [id, req.user.id]
     )
     if (!rows.length) return res.status(403).json({ error: 'Chỉ hủy được đơn đang chờ duyệt của chính bạn.' })

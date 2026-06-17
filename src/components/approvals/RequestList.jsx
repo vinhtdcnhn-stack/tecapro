@@ -6,6 +6,7 @@ import MobileEditSheet from '../contracts/MobileEditSheet'
 import RequestForm from './RequestForm'
 import RequestDetail from './RequestDetail'
 import { statusInfo } from './approvalUtils'
+import FormTypeFilter, { useFormTypeFilter } from './FormTypeFilter'
 
 const fmt = (s) => (s ? new Date(s).toLocaleDateString('vi-VN') : '')
 
@@ -39,6 +40,7 @@ export default function RequestList() {
   const [sheet, setSheet] = useState(null)        // đơn đang mở sheet (mobile)
   const [detailId, setDetailId] = useState(null)  // đơn đang xem chi tiết
   const [busy, setBusy] = useState(false)
+  const { formId, setFormId, options, filtered } = useFormTypeFilter(rows)
 
   const load = useCallback(() => {
     fetch(`${API}/approvals/requests/my`)
@@ -76,23 +78,27 @@ export default function RequestList() {
     <div>
       <div className="ab-section-head">
         <h2 className="section-title" style={{ margin: 0 }}>ĐƠN CỦA TÔI</h2>
-        <button type="button" className="btn btn-primary" onClick={openCreate}>+ Tạo đơn</button>
+        <div className="ar-head-tools">
+          <FormTypeFilter value={formId} onChange={setFormId} options={options} />
+          <button type="button" className="btn btn-primary" onClick={openCreate}>+ Tạo đơn</button>
+        </div>
       </div>
 
       {rows.length === 0 && <p className="approval-empty">Bạn chưa có đơn nào.</p>}
+      {rows.length > 0 && filtered.length === 0 && <p className="approval-empty">Không có đơn nào thuộc loại đã chọn.</p>}
 
       {/* Desktop: bảng */}
-      {!isMobile && rows.length > 0 && (
+      {!isMobile && filtered.length > 0 && (
         <table className="data-table ar-table">
           <thead>
             <tr><th>Loại đơn</th><th>Tiêu đề</th><th>Trạng thái</th><th>Bước hiện tại</th><th>Ngày tạo</th><th>Hành động</th></tr>
           </thead>
           <tbody>
-            {rows.map(r => (
+            {filtered.map(r => (
               <tr key={r.id}>
                 <td>{r.form_icon ? `${r.form_icon} ` : ''}{r.form_name}</td>
-                <td><button className="ar-link" onClick={() => setDetailId(r.id)}>{r.title}</button></td>
-                <td><StatusBadge s={r.status} /></td>
+                <td><button className={`ar-link${r.deleted_at ? ' ar-deleted' : ''}`} onClick={() => setDetailId(r.id)}>{r.title}</button></td>
+                <td><StatusBadge s={r.status} />{r.deleted_at && <span className="status-badge status-cancelled" style={{ marginLeft: 4 }}>Đã xóa</span>}</td>
                 <td>{r.status === 'pending' ? (r.current_step_name || '') : ''}</td>
                 <td>{fmt(r.created_at)}</td>
                 <td className="ar-actions"><ActionButtons r={r} busy={busy} onAct={act} onEdit={openEdit} /></td>
@@ -103,10 +109,10 @@ export default function RequestList() {
       )}
 
       {/* Mobile: thẻ → mở sheet */}
-      {isMobile && rows.map(r => (
+      {isMobile && filtered.map(r => (
         <div key={r.id} className="ar-card" onClick={() => setSheet(r)}>
           <div className="ar-card-top">
-            <span className="ar-card-title">{r.form_icon ? `${r.form_icon} ` : ''}{r.title}</span>
+            <span className={`ar-card-title${r.deleted_at ? ' ar-deleted' : ''}`}>{r.form_icon ? `${r.form_icon} ` : ''}{r.title}</span>
             <StatusBadge s={r.status} />
           </div>
           <div className="ar-card-meta">

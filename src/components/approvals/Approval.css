@@ -48,6 +48,27 @@
   gap: 1rem;
   margin-bottom: 0.75rem;
 }
+/* Cụm công cụ bên phải tiêu đề (bộ lọc + nút tạo). */
+.ar-head-tools { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+/* Bộ lọc theo loại đơn. */
+.ar-filter { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #4b5563; white-space: nowrap; }
+.ar-filter select { width: auto; min-width: 150px; }
+/* Thanh lọc nhiều chiều (tab Tất cả đề xuất). */
+.ar-filter-bar { display: flex; align-items: center; gap: 0.75rem 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.ar-filter-bar .ar-search { width: auto; min-width: 220px; flex: 1; }
+
+/* Đề xuất đã bị xóa mềm: gạch ngang + mờ để tránh nhầm lẫn. */
+.ar-deleted { text-decoration: line-through; color: #9ca3af !important; }
+.ar-deleted-banner {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+.ar-deleted-reason { margin-top: 0.25rem; color: #7f1d1d; }
 .ab-error {
   color: #b91c1c;
   background: #fef2f2;
@@ -78,7 +99,8 @@
 .ab-form-name { font-weight: 600; }
 .ab-form-code { font-size: 0.8rem; color: #6b7280; }
 .ab-form-counts { font-size: 0.85rem; color: #4b5563; }
-.ab-form-card-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: auto; }
+.ab-form-card-actions { display: flex; gap: 0.3rem; flex-wrap: nowrap; margin-top: auto; }
+.ab-form-card-actions .btn-sm { padding: 5px 9px; white-space: nowrap; }
 
 /* Vùng admin (danh sách loại đơn + builder) tự cuộn dọc bên trong .content-area —
    vốn cao cố định và overflow:hidden, nên nếu không có vùng cuộn riêng thì các
@@ -134,6 +156,12 @@
 .ab-sublabel, .ab-flabel { display: block; font-size: 0.85rem; color: #4b5563; }
 .ab-flabel { margin-bottom: 0.75rem; }
 .ab-flabel-row { display: flex; gap: 1rem; }
+
+/* Modal xuất Excel: xếp dọc 1 cột (ghi đè lưới 2 cột mặc định của .modal-body),
+   để hàng "Từ ngày / Đến ngày" chiếm hết bề ngang và ô ngày hiện đủ dd/mm/yyyy. */
+.modal-body.ab-export-body { display: block; }
+.ab-export-body .ab-flabel-row .date-input-wrap { width: 100%; }
+.ab-export-body .ab-flabel-row .date-input-text { width: 100%; min-width: 0; }
 
 /* Bảng chọn emoji cho loại đơn */
 .ab-icon-picker { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem; }

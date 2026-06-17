@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../../config/api'
 import Modal from '../../common/Modal'
 import FormBuilder from './FormBuilder'
+import FormExportModal from './FormExportModal'
 
 const EMPTY = { code: '', name: '', icon: '', description: '', sort_order: 0, is_active: true }
 
@@ -13,6 +14,7 @@ export default function FormList() {
   const [forms, setForms] = useState([])
   const [builderId, setBuilderId] = useState(null)
   const [modal, setModal] = useState(null) // { mode:'create'|'edit', data }
+  const [exportForm, setExportForm] = useState(null) // loại đơn đang mở modal xuất Excel
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -85,11 +87,16 @@ export default function FormList() {
             <div className="ab-form-card-actions">
               <button type="button" className="btn btn-sm btn-primary" onClick={() => setBuilderId(f.id)}>Cấu hình</button>
               <button type="button" className="btn btn-sm" onClick={() => openEdit(f)}>Sửa</button>
+              <button type="button" className="btn btn-sm" onClick={() => setExportForm(f)}>Xuất Excel</button>
               <button type="button" className="btn btn-sm btn-danger" onClick={() => remove(f)}>Xóa</button>
             </div>
           </div>
         ))}
       </div>
+
+      {exportForm && (
+        <FormExportModal form={exportForm} onClose={() => setExportForm(null)} />
+      )}
 
       {modal && (
         <Modal isOpen onClose={() => setModal(null)} labelledBy="ab-form-modal-title" width="480px">

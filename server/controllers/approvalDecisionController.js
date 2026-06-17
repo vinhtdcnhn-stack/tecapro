@@ -15,11 +15,12 @@ async function followerIds(requestId) {
 // Trả { error, code } nếu không hợp lệ, hoặc { reqRow, step, myRow }.
 async function loadCurrent(client, id, userId) {
   const { rows: reqs } = await client.query(
-    `SELECT id, requester_id, title, status, current_step FROM approval_request WHERE id = $1 FOR UPDATE`,
+    `SELECT id, requester_id, title, status, current_step, deleted_at FROM approval_request WHERE id = $1 FOR UPDATE`,
     [id]
   )
   if (!reqs.length) return { code: 404, error: 'Không tìm thấy đơn.' }
   const reqRow = reqs[0]
+  if (reqRow.deleted_at) return { code: 409, error: 'Đơn đã bị xóa.' }
   if (reqRow.status !== 'pending') return { code: 409, error: 'Đơn không ở trạng thái chờ duyệt.' }
 
   const { rows: steps } = await client.query(

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API, API_BASE } from '../../config/api'
 import Modal from '../common/Modal'
+import { useAuth } from '../../context/AuthContext'
 import { isoToDisplay } from '../contracts/DateInput'
 import { statusInfo, fmtMoney } from './approvalUtils'
 
@@ -53,6 +54,8 @@ function TableValue({ field, rows }) {
 
 // Chi tiết đơn: dữ liệu, chuỗi duyệt (timeline), và nút Duyệt/Từ chối nếu tới lượt tôi.
 export default function RequestDetail({ requestId, currentUserId, onClose, onChanged }) {
+  const { user } = useAuth()
+  const isAdmin = Number(user?.role) === 1
   const [data, setData] = useState(null)
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
@@ -66,13 +69,14 @@ export default function RequestDetail({ requestId, currentUserId, onClose, onCha
   }, [requestId])
   useEffect(() => { load() }, [load])
 
+  const deleted = !!data?.deleted_at
   // Tôi có phải người duyệt đang chờ ở bước hiện tại không?
-  const canDecide = !!data && data.status === 'pending' && (data.steps || []).some(s =>
+  const canDecide = !!data && !deleted && data.status === 'pending' && (data.steps || []).some(s =>
     s.step_order === data.current_step && s.status === 'pending' &&
     (s.approvers || []).some(a => a.approver_id === currentUserId && a.decision === 'pending')
   )
-  // Người gửi được đính kèm khi đơn còn nháp/chờ duyệt.
-  const canAttach = !!data && data.requester_id === currentUserId && ['draft', 'pending'].includes(data.status)
+  // Người gửi được đính kèm khi đơn còn nháp/chờ duyệt (và chưa bị xóa).
+  const canAttach = !!data && !deleted && data.requester_id === currentUserId && ['draft', 'pending'].includes(data.status)
 
   async function onUpload(e) {
     const file = e.target.files?.[0]
@@ -117,6 +121,39 @@ export default function RequestDetail({ requestId, currentUserId, onClose, onCha
     }
   }
 
+  async function adminDelete() {
+    const reason = window.prompt('Nhập lý do xóa đề xuất này (sẽ lưu vào lịch sử và gửi cho người tạo):')
+    if (reason == null) return
+    if (!reason.trim()) { alert('Cần nhập lý do xóa.'); return }
+    setBusy(true); setError('')
+    try {
+      const r = await fetch(`${API}/approvals/requests/${requestId}/admin-delete`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason.trim() }),
+      })
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Không thể xóa đơn.')
+      onChanged?.(); load()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function adminRestore() {
+    if (!confirm('Khôi phục đề xuất này?')) return
+    setBusy(true); setError('')
+    try {
+      const r = await fetch(`${API}/approvals/requests/${requestId}/restore`, { method: 'POST' })
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Không thể khôi phục.')
+      onChanged?.(); load()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const sInfo = data ? statusInfo(data.status) : null
 
   return (
@@ -133,8 +170,16 @@ export default function RequestDetail({ requestId, currentUserId, onClose, onCha
             <div className="ar-detail-head">
               <span>{data.form_icon ? `${data.form_icon} ` : ''}{data.form_name}</span>
               <span className={`status-badge ${sInfo.cls}`}>{sInfo.label}</span>
+              {deleted && <span className="status-badge status-cancelled">Đã xóa</span>}
               <span className="ar-note">Người gửi: {data.requester_name} · {fmtDT(data.submitted_at || data.created_at)}</span>
             </div>
+
+            {deleted && (
+              <div className="ar-deleted-banner">
+                <b>Đề xuất đã bị xóa</b> bởi {data.deleted_by_name || 'quản trị'} · {fmtDT(data.deleted_at)}
+                {data.deleted_reason && <div className="ar-deleted-reason">Lý do: {data.deleted_reason}</div>}
+              </div>
+            )}
 
             {/* Dữ liệu đơn */}
             {(data.fields || []).length > 0 && (
@@ -227,6 +272,12 @@ export default function RequestDetail({ requestId, currentUserId, onClose, onCha
       </div>
       <div className="ar-drawer-footer">
         <button type="button" className="btn btn-light" onClick={onClose}>Đóng</button>
+        {isAdmin && data && !deleted && (
+          <button type="button" className="btn btn-danger" disabled={busy} onClick={adminDelete}>Xóa đề xuất</button>
+        )}
+        {isAdmin && deleted && (
+          <button type="button" className="btn" disabled={busy} onClick={adminRestore}>Khôi phục</button>
+        )}
         {canDecide && (
           <>
             <button type="button" className="btn btn-danger" disabled={busy} onClick={() => decide('reject')}>Từ chối</button>
