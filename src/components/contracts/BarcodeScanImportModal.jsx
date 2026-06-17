@@ -386,7 +386,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
 function UnmatchedDialog({ serial, onCancel, onConfirm }) {
   const [role, setRole] = useState('component')
   const [name, setName] = useState('')
-  const [rule, setRule] = useState({ kind:'prefix', value: serial.slice(0, 2) })
+  const [rule, setRule] = useState({ kind:'prefix', value: serial.slice(0, 6) })
 
   return (
     <div style={{ ...overlay, zIndex:1100 }} onClick={onCancel}>
