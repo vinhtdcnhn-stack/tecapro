@@ -6,7 +6,7 @@ import {
   getDeliverySerials, createDeliverySerial, deleteDeliverySerial, importDeliverySerials, saveScanBatch, getDeliveryItemExport, getSerialComponents,
   getAllDeliverySerials, getAllDeliveryItems, updateDeliverySerial, bulkDeleteDeliverySerials, replaceDeliverySerial,
 } from '../controllers/contractInDeliveryController.js'
-import { pmVia, pmViaBody, pmOrTechVia, pmOrTechViaBody } from '../middleware/contractAccess.js'
+import { pmVia, pmOrTechVia, pmOrTechViaBody } from '../middleware/contractAccess.js'
 
 const router = Router()
 

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import * as XLSX from 'xlsx'
 import { API } from '../../../config/api'
 import Modal from '../../common/Modal'
 import DateInput, { isoToDisplay } from '../../contracts/DateInput'
@@ -69,6 +68,7 @@ export default function FormExportModal({ form, onClose }) {
         ])
       }
 
+      const XLSX = await import('xlsx')
       const ws = XLSX.utils.aoa_to_sheet(aoa)
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, (form.code || 'Đơn').slice(0, 31))
