@@ -26,7 +26,7 @@ export async function adminDeleteRequest(req, res) {
     )
     await client.query(
       `INSERT INTO approval_request_event (request_id, actor_id, event_type, detail) VALUES ($1, $2, 'admin_deleted', $3)`,
-      [id, req.user.id, reason]
+      [id, req.user.id, JSON.stringify({ reason })]
     )
     await client.query('COMMIT')
 
