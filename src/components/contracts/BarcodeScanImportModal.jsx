@@ -187,8 +187,9 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
 
   // Hook bắt phím ở cấp window khi đang ở bước "bắn" — nuốt mọi phím đuôi/điều khiển
   // của máy scan để không lọt xuống Windows (mở app khác).
+  // Tạm dừng bắt phím khi hộp thoại "không khớp" đang mở để người dùng gõ được vào form.
   const { buffer, setBufferExternal } = useBarcodeScanner({
-    active: step === 'scan',
+    active: step === 'scan' && !unmatched,
     onSerial: processSerial,
   })
 
