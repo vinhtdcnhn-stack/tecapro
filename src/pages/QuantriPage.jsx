@@ -20,6 +20,7 @@ export default function QuantriPage() {
 
   const [users, setUsers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState('')
   const [departments, setDepartments] = useState([])
   const [positions, setPositions] = useState([])
   const [managers, setManagers] = useState([])
@@ -194,17 +195,29 @@ export default function QuantriPage() {
                 {user?.role == 1 && (
                   <button className="add-btn" onClick={() => setShowAddModal(true)}>Thêm người dùng</button>
                 )}
-                <div style={{ flex: 1, maxWidth: '300px' }}>
-                  <input
-                    type="text"
-                    placeholder="🔍 Tìm kiếm (Tên, Email, SĐT...)"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px' }}
-                  />
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <select
+                    value={departmentFilter}
+                    onChange={(e) => setDepartmentFilter(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px', minWidth: '180px' }}
+                  >
+                    <option value="">Tất cả phòng ban</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                  <div style={{ maxWidth: '300px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Tìm kiếm (Tên, Email, SĐT...)"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px' }}
+                    />
+                  </div>
                 </div>
               </div>
-              <UserTable users={users} searchTerm={searchTerm} userRole={user?.role} onEdit={(u) => { setEditingUserId(u.id); setShowEditModal(true) }} />
+              <UserTable users={users} searchTerm={searchTerm} departmentFilter={departmentFilter} userRole={user?.role} onEdit={(u) => { setEditingUserId(u.id); setShowEditModal(true) }} />
               <UserModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleSaveUser} departments={departments} positions={positions} managers={managers} checkEmailExists={checkEmailExists} checkUsernameExists={checkUsernameExists} checkEmployeeCodeExists={checkEmployeeCodeExists} />
               <UserModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setEditingUserId(null) }} onSave={handleSaveUser} user={users.find(u => u.id === editingUserId)} departments={departments} positions={positions} managers={managers} checkEmailExists={checkEmailExists} checkUsernameExists={checkUsernameExists} checkEmployeeCodeExists={checkEmployeeCodeExists} />
             </>

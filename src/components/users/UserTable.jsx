@@ -1,5 +1,6 @@
-export default function UserTable({ users, searchTerm, userRole, onEdit }) {
+export default function UserTable({ users, searchTerm, departmentFilter, userRole, onEdit }) {
   const filteredUsers = users.filter(u => {
+    if (departmentFilter && String(u.department_id) !== String(departmentFilter)) return false
     const term = (searchTerm || '').toLowerCase();
     return (
       u.full_name?.toLowerCase().includes(term) ||
