@@ -249,6 +249,17 @@
 .wty-form-group input.err { border-color: #dc2626; }
 .wty-form-err { font-size: 11px; color: #dc2626; }
 
+/* Ô ngày gộp inline (mốc gốc + số tháng + ngày kết quả) — kiểu như tab Tiến độ */
+.wty-datecell { display: flex; flex-direction: column; gap: 5px; }
+.wty-datecell .wty-dc-row { display: flex; align-items: center; gap: 6px; }
+.wty-datecell .wty-dc-days { width: 72px; flex: 0 0 auto; text-align: center; }
+.wty-datecell .wty-dc-unit { font-size: 12px; color: #94a3b8; }
+.wty-datecell .wty-dc-resolved {
+  font-size: 13px; font-weight: 600; color: #334155;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.wty-datecell .wty-dc-resolved.empty { color: #cbd5e1; }
+
 .wty-modal-btn { padding: 8px 18px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
 .wty-modal-btn.cancel { background: #f3f4f6; color: #374151; }
 .wty-modal-btn.cancel:hover { background: #e5e7eb; }

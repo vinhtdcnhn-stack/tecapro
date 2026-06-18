@@ -162,10 +162,10 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
     else filteredIds.forEach(id => n.add(id))
     return n
   })
-  async function applyBulk({ warranty_from, warranty_to }) {
+  async function applyBulk(payload) {
     const res = await fetch(`${API}/serials/bulk-warranty`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: [...selected], warranty_from, warranty_to }),
+      body: JSON.stringify({ ids: [...selected], ...payload }),
     })
     const data = await res.json()
     if (!res.ok) { alert(data.error); return }
@@ -379,7 +379,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
         <ComponentModal equipment={equipment} serials={all} onClose={() => setShowAdd(false)} onSave={addComponent} />
       )}
       {showBulk && (
-        <WarrantyBulkDateModal count={selected.size} onClose={() => setShowBulk(false)} onApply={applyBulk} />
+        <WarrantyBulkDateModal contractId={contractId} count={selected.size} onClose={() => setShowBulk(false)} onApply={applyBulk} />
       )}
       {replaceFor && (
         <ReplaceSerialModal

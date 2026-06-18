@@ -1,10 +1,27 @@
 import { useState } from 'react'
 import Modal from '../common/Modal'
-import DateInput from './DateInput'
+import DateInput, { isoToDisplay } from './DateInput'
+import useBienBanOptions from './useBienBanOptions'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const pad = (n) => String(n).padStart(2, '0')
+
+// Cộng N tháng vào ngày ISO 'yyyy-mm-dd' (kẹp ngày về cuối tháng nếu tràn, vd 31/1 +1 tháng).
+function addMonths(iso, months) {
+  const m = String(iso || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  const n = parseInt(months, 10)
+  if (!m || !Number.isFinite(n)) return ''
+  const y = +m[1], mo = +m[2], d = +m[3]
+  const dt = new Date(y, mo - 1 + n, 1)
+  const lastDay = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()
+  dt.setDate(Math.min(d, lastDay))
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
+}
 
 // ── Equipment Form Modal ──────────────────────────────────────────────────────
 
-export default function EquipmentModal({ item, onSave, onClose }) {
+export default function EquipmentModal({ contractId, item, onSave, onClose }) {
   const isEdit = !!item
   const [form, setForm] = useState({
     name: item?.name||'', brand: item?.brand||'', model: item?.model||'',
@@ -16,14 +33,54 @@ export default function EquipmentModal({ item, onSave, onClose }) {
   const [saving, setSaving] = useState(false)
   const [err, setErr]       = useState('')
 
+  // Nguồn "BH từ": '' = nhập ngày trực tiếp, còn lại = id biên bản (lấy ngày thực tế của BB).
+  const [fromSource, setFromSource] = useState(item?.warranty_bb_id != null ? String(item.warranty_bb_id) : '')
+  // Cách nhập "BH đến": 'manual' = nhập ngày, 'months' = số tháng cộng từ BH từ.
+  const [toMode, setToMode] = useState(item?.warranty_months != null ? 'months' : 'manual')
+  // Số tháng bảo hành — tự cộng vào BH từ ra BH đến.
+  const [months, setMonths] = useState(item?.warranty_months != null ? String(item.warranty_months) : '')
+  // Danh sách biên bản (tab Tiến độ) để chọn làm mốc BH từ.
+  const bbList = useBienBanOptions(contractId)
+
+  const s = f => setForm(p=>({...p,...f}))
+
+  // Đổi BH từ → nếu đang tính BH đến theo số tháng thì cập nhật lại ngày kết quả.
+  function setFrom(iso) {
+    setForm(p => ({
+      ...p, warranty_from: iso,
+      ...(toMode === 'months' && months ? { warranty_to: addMonths(iso, months) } : {}),
+    }))
+  }
+
+  function handleFromSource(val) {
+    setFromSource(val)
+    if (val) {
+      const bb = bbList.find(b => b.id === val)
+      if (bb) setFrom(bb.date)
+    }
+  }
+
+  function handleToMode(val) {
+    setToMode(val)
+    if (val === 'months' && months && form.warranty_from) s({ warranty_to: addMonths(form.warranty_from, months) })
+  }
+
+  function handleMonths(val) {
+    setMonths(val)
+    if (val && form.warranty_from) s({ warranty_to: addMonths(form.warranty_from, val) })
+  }
+
   async function handleSubmit() {
     if (!form.name.trim()) { setErr('Tên thiết bị không được để trống'); return }
     setSaving(true)
-    await onSave(form, isEdit)
+    // Lưu kèm nguồn tính BH để mở lại sửa còn đủ thông tin (biên bản + số tháng).
+    await onSave({
+      ...form,
+      warranty_bb_id: fromSource || null,
+      warranty_months: toMode === 'months' && months !== '' ? parseInt(months, 10) : null,
+    }, isEdit)
     setSaving(false)
   }
-
-  const s = f => setForm(p=>({...p,...f}))
 
   return (
     <Modal
@@ -67,11 +124,36 @@ export default function EquipmentModal({ item, onSave, onClose }) {
           <div className="wty-form-row">
             <div className="wty-form-group">
               <label>Bảo hành từ</label>
-              <DateInput value={form.warranty_from} onChange={e=>s({warranty_from:e.target.value})} />
+              <div className="wty-datecell">
+                <select value={fromSource} onChange={e => handleFromSource(e.target.value)}>
+                  <option value="">Nhập ngày</option>
+                  {bbList.map(b => <option key={b.id} value={b.id}>BB: {b.label}</option>)}
+                </select>
+                {fromSource
+                  ? <span className={`wty-dc-resolved${form.warranty_from ? '' : ' empty'}`}>→ {isoToDisplay(form.warranty_from) || '—'}</span>
+                  : <DateInput value={form.warranty_from} onChange={e=>setFrom(e.target.value)} />}
+              </div>
             </div>
             <div className="wty-form-group">
               <label>Bảo hành đến</label>
-              <DateInput value={form.warranty_to} onChange={e=>s({warranty_to:e.target.value})} />
+              <div className="wty-datecell">
+                <select value={toMode} onChange={e => handleToMode(e.target.value)}>
+                  <option value="manual">Nhập ngày</option>
+                  <option value="months">Theo số tháng</option>
+                </select>
+                {toMode === 'months' ? (
+                  <>
+                    <div className="wty-dc-row">
+                      <input className="wty-dc-days" type="number" min="0" step="1"
+                        value={months} onChange={e=>handleMonths(e.target.value)} placeholder="0" />
+                      <span className="wty-dc-unit">tháng kể từ BH từ</span>
+                    </div>
+                    <span className={`wty-dc-resolved${form.warranty_to ? '' : ' empty'}`}>→ {isoToDisplay(form.warranty_to) || '—'}</span>
+                  </>
+                ) : (
+                  <DateInput value={form.warranty_to} onChange={e=>s({warranty_to:e.target.value})} />
+                )}
+              </div>
             </div>
           </div>
           <div className="wty-form-row">

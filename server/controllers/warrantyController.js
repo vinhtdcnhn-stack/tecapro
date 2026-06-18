@@ -30,19 +30,28 @@ export async function getEquipment(req, res) {
   }
 }
 
+// Chuẩn hóa số nguyên tùy chọn (id biên bản, số tháng) → int | null.
+const intOrNull = (v) => {
+  const n = parseInt(v, 10)
+  return Number.isFinite(n) ? n : null
+}
+
 export async function createEquipment(req, res) {
   const contractId = parseInt(req.params.id)
-  const { name, brand, model, quantity, location, warranty_from, warranty_to, has_serial, note } = req.body
+  const { name, brand, model, quantity, location, warranty_from, warranty_to,
+          has_serial, note, warranty_bb_id, warranty_months } = req.body
   if (!name?.trim()) return res.status(400).json({ error: 'Tên thiết bị không được để trống' })
   try {
     const { rows } = await pool.query(
       `INSERT INTO contract_equipment
-         (contract_out_id, name, brand, model, quantity, location, warranty_from, warranty_to, has_serial, note)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         (contract_out_id, name, brand, model, quantity, location, warranty_from, warranty_to,
+          has_serial, note, warranty_bb_id, warranty_months)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [contractId, name.trim(), brand?.trim()||null, model?.trim()||null,
        parseFloat(quantity)||1, location?.trim()||null,
-       warranty_from||null, warranty_to||null, has_serial||false, note?.trim()||null]
+       warranty_from||null, warranty_to||null, has_serial||false, note?.trim()||null,
+       intOrNull(warranty_bb_id), intOrNull(warranty_months)]
     )
     res.json({ ...rows[0], serials: [] })
   } catch (err) {
@@ -53,17 +62,20 @@ export async function createEquipment(req, res) {
 
 export async function updateEquipment(req, res) {
   const id = parseInt(req.params.id)
-  const { name, brand, model, quantity, location, warranty_from, warranty_to, has_serial, note } = req.body
+  const { name, brand, model, quantity, location, warranty_from, warranty_to,
+          has_serial, note, warranty_bb_id, warranty_months } = req.body
   if (!name?.trim()) return res.status(400).json({ error: 'Tên thiết bị không được để trống' })
   try {
     const { rows } = await pool.query(
       `UPDATE contract_equipment SET
          name=$1, brand=$2, model=$3, quantity=$4, location=$5,
-         warranty_from=$6, warranty_to=$7, has_serial=$8, note=$9, updated_at=NOW()
-       WHERE id=$10 RETURNING *`,
+         warranty_from=$6, warranty_to=$7, has_serial=$8, note=$9,
+         warranty_bb_id=$10, warranty_months=$11, updated_at=NOW()
+       WHERE id=$12 RETURNING *`,
       [name.trim(), brand?.trim()||null, model?.trim()||null,
        parseFloat(quantity)||1, location?.trim()||null,
-       warranty_from||null, warranty_to||null, has_serial||false, note?.trim()||null, id]
+       warranty_from||null, warranty_to||null, has_serial||false, note?.trim()||null,
+       intOrNull(warranty_bb_id), intOrNull(warranty_months), id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy thiết bị' })
     const serials = await pool.query('SELECT * FROM equipment_serial WHERE equipment_id=$1 ORDER BY serial_no', [id])
@@ -169,16 +181,45 @@ export async function bulkDeleteSerials(req, res) {
 }
 
 // Sửa bảo hành HÀNG LOẠT (1 truy vấn). Để trống trường nào thì giữ nguyên trường đó.
-// Body: { ids:[...], warranty_from?, warranty_to? }
+// Body: { ids:[...], warranty_from?, warranty_to?, warranty_months?, warranty_bb_id? }
+//   - warranty_months: cộng từ BH từ (mới nếu có trong cùng thao tác, không thì BH từ hiện có của từng dòng).
+//   - warranty_bb_id / warranty_months chỉ lưu cho bảng thiết bị (equipment_serial không có cột này).
 async function bulkWarranty(table, req, res) {
-  const { ids, warranty_from, warranty_to } = req.body
+  const { ids, warranty_from, warranty_to, warranty_months, warranty_bb_id } = req.body
   if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Chưa chọn dòng nào' })
+  const isEquip = table === 'contract_equipment'
   const sets = [], params = []
   let i = 1
-  if (warranty_from) { sets.push(`warranty_from=$${i++}`); params.push(warranty_from) }
-  if (warranty_to)   { sets.push(`warranty_to=$${i++}`);   params.push(warranty_to) }
+
+  // BH từ — mặc định giữ cột hiện có; nếu có giá trị mới thì cập nhật và dùng làm mốc cho số tháng.
+  let fromExpr = 'warranty_from'
+  if (warranty_from) {
+    params.push(warranty_from)
+    fromExpr = `$${i++}`
+    sets.push(`warranty_from=${fromExpr}`)
+  }
+
+  // BH đến — ưu tiên số tháng (cộng từ mốc BH từ), nếu không thì nhận ngày trực tiếp.
+  const months = parseInt(warranty_months, 10)
+  if (Number.isFinite(months)) {
+    params.push(months)
+    sets.push(`warranty_to = (${fromExpr})::date + ($${i++} * INTERVAL '1 month')`)
+    if (isEquip) { params.push(months); sets.push(`warranty_months=$${i++}`) }
+  } else if (warranty_to) {
+    params.push(warranty_to)
+    sets.push(`warranty_to=$${i++}`)
+    if (isEquip) sets.push('warranty_months=NULL')
+  }
+
+  // Mốc biên bản — chỉ khi đang đặt lại BH từ (id biên bản, hoặc null để xóa mốc cũ).
+  if (isEquip && warranty_from && warranty_bb_id !== undefined) {
+    const bb = parseInt(warranty_bb_id, 10)
+    params.push(Number.isFinite(bb) ? bb : null)
+    sets.push(`warranty_bb_id=$${i++}`)
+  }
+
   if (sets.length === 0) return res.status(400).json({ error: 'Chưa nhập ngày để cập nhật' })
-  if (table === 'contract_equipment') sets.push('updated_at=NOW()')
+  if (isEquip) sets.push('updated_at=NOW()')
   params.push(ids.map(Number))
   try {
     const { rowCount } = await pool.query(
