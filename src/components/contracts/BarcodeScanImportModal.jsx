@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { API } from '../../config/api'
 import { classify, ruleLabel, compLabel, checkComponentCounts, loadCfg, saveCfg, cfgToText, textToCfg } from './barcodeScanUtils'
 import { useBarcodeScanner } from './useBarcodeScanner'
+import useIsMobile from './useIsMobile'
+import ComboInput from './ComboInput'
 
 // ── Nhập serial hàng loạt từ máy scan barcode ──────────────────────────────────
 // Bước 1: cấu hình nhận dạng (máy chính + các loại thành phần, theo độ dài/tiền tố).
@@ -10,7 +12,8 @@ import { useBarcodeScanner } from './useBarcodeScanner'
 // DB (1 transaction/máy), rồi hiển thị lại từ đầu cho máy mới. Trùng khi lưu → từ chối
 // CẢ máy lẫn thành phần (không query từng serial). Mã không khớp → hộp thoại xử lý.
 
-const overlay = { position:'fixed', inset:0, background:'rgba(0,0,0,.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:16 }
+// zIndex 1200 để nổi trên cả bottom-sheet (msheet-overlay z-index 1100) khi mở lồng từ sheet serial.
+const overlay = { position:'fixed', inset:0, background:'rgba(0,0,0,.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1200, padding:16 }
 const box     = { background:'#fff', borderRadius:12, width:'92vw', maxWidth:560, maxHeight:'88vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(0,0,0,.2)', padding:'20px 22px' }
 const label   = { fontSize:12, fontWeight:600, color:'#374151', marginBottom:4, display:'block' }
 const field   = { padding:'8px 10px', border:'1px solid #d1d5db', borderRadius:7, fontSize:13, fontFamily:'inherit', boxSizing:'border-box', outline:'none' }
@@ -28,7 +31,7 @@ function RuleInputs({ rule, onChange }) {
         <option value="prefix">Tiền tố</option>
         <option value="length">Độ dài</option>
       </select>
-      <input style={{ ...field, flex:1 }}
+      <input style={{ ...field, flex:1, minWidth:0 }}
         value={rule.value}
         onChange={e => onChange({ ...rule, value: e.target.value })}
         placeholder={rule.kind === 'length' ? 'Số ký tự (vd 12)' : 'Ký tự đầu (vd WD)'}
@@ -38,6 +41,7 @@ function RuleInputs({ rule, onChange }) {
 }
 
 export default function BarcodeScanImportModal({ machineItem, deliveryId, contractInId, onClose, onSaved }) {
+  const isMobile = useIsMobile()
   const saved = loadCfg(contractInId, machineItem.item_name)
   const [step, setStep] = useState('config')
   const [machineRule, setMachineRule] = useState(saved?.machineRule || { kind:'length', value:'' })
@@ -48,6 +52,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
   const [flushing, setFlushing]       = useState(false)
   const [unmatched, setUnmatched]     = useState(null)
   const [learnedNote, setLearnedNote] = useState('')  // báo đã tự học SL từ máy đầu tiên
+  const [allItems, setAllItems]       = useState([])  // chủng loại của HĐ (gợi ý tên thành phần)
   const savedAnyRef = useRef(false)
   const inputRef = useRef(null)
   const cfgFileRef = useRef(null)
@@ -98,6 +103,23 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
       .catch(() => {})
     return () => { cancelled = true }
   }, [contractInId])
+
+  // Nạp mọi chủng loại của HĐ (kể cả loại chỉ là linh kiện) để gợi ý tên thành phần.
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/contract-ins/${contractInId}/all-items`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled && Array.isArray(d)) setAllItems(d) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [contractInId])
+
+  // Chủng loại đã có trong đợt nhận này (gợi ý), bỏ chính máy chính & trùng.
+  const batchItemNames = [...new Set(
+    allItems
+      .filter(it => String(it.delivery_id) === String(deliveryId) && it.item_name !== machineItem.item_name)
+      .map(it => it.item_name).filter(Boolean)
+  )]
 
   // ── Cấu hình ──────────────────────────────────────────────────────────────
   const addComp    = () => setComponents(prev => [...prev, { name:'', rules:[{ kind:'prefix', value:'' }], count:'' }])
@@ -278,9 +300,16 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
 
   const curCount = current ? 1 + current.components.length : 0
 
+  // Mobile: full màn hình cho dễ thao tác (bắn barcode, cấu hình nhiều dòng).
+  // boxSizing border-box để padding không đẩy nội dung tràn ngang ra ngoài 100vw.
+  const overlayStyle = isMobile ? { ...overlay, padding:0 } : overlay
+  const boxStyle = isMobile
+    ? { ...box, width:'100vw', maxWidth:'none', height:'100dvh', maxHeight:'none', borderRadius:0, padding:'16px 14px', boxSizing:'border-box' }
+    : box
+
   return createPortal(
-    <div style={overlay} onClick={cancel}>
-      <div style={box} onClick={e => e.stopPropagation()}>
+    <div style={overlayStyle} onClick={cancel}>
+      <div style={boxStyle} onClick={e => e.stopPropagation()}>
         <h3 style={{ margin:'0 0 4px', fontSize:16, fontWeight:700, color:'#111827' }}>Nhập serial từ barcode</h3>
         <p style={{ margin:'0 0 16px', fontSize:13, color:'#6b7280' }}>
           Máy chính: <strong style={{ color:'#111827' }}>{machineItem.item_name}</strong>
@@ -316,16 +345,17 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
             {components.map((c, i) => (
               <div key={i} style={{ border:'1px solid #e5e7eb', borderRadius:8, padding:'10px 12px', marginBottom:8 }}>
                 <div style={{ display:'flex', gap:6, marginBottom:8, alignItems:'center' }}>
-                  <input style={{ ...field, flex:1 }} value={c.name}
-                    onChange={e => setComp(i, { ...c, name: e.target.value })} placeholder="Tên loại (Mainboard, HDD…)" />
-                  <input style={{ ...field, flex:'0 0 64px', textAlign:'center' }} type="number" min="0"
+                  <ComboInput value={c.name} onChange={v => setComp(i, { ...c, name: v })}
+                    options={batchItemNames} placeholder="Chọn loại đã có hoặc gõ mới (Mainboard, HDD…)"
+                    wrapStyle={{ flex:1, minWidth:0 }} inputStyle={{ ...field, width:'100%', boxSizing:'border-box' }} />
+                  <input style={{ ...field, flex:'0 0 56px', minWidth:0, textAlign:'center' }} type="number" min="0"
                     value={c.count ?? ''} onChange={e => setComp(i, { ...c, count: e.target.value })}
                     placeholder="SL" title="Số lượng cần cho mỗi máy (để trống = không kiểm tra)" />
                   <button style={{ ...btnSec, padding:'8px 10px', color:'#b91c1c' }} onClick={() => removeComp(i)}>✕</button>
                 </div>
                 {c.rules.map((r, j) => (
                   <div key={j} style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center' }}>
-                    <div style={{ flex:1 }}><RuleInputs rule={r} onChange={v => setRule(i, j, v)} /></div>
+                    <div style={{ flex:1, minWidth:0 }}><RuleInputs rule={r} onChange={v => setRule(i, j, v)} /></div>
                     <button style={{ ...btnSec, padding:'8px 10px', color:'#b91c1c' }}
                       onClick={() => removeRule(i, j)} disabled={c.rules.length === 1}>✕</button>
                   </div>
@@ -408,7 +438,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
         )}
 
         {unmatched && (
-          <UnmatchedDialog serial={unmatched}
+          <UnmatchedDialog serial={unmatched} typeNames={batchItemNames}
             onCancel={() => { setUnmatched(null); refocus() }}
             onConfirm={applyRecognition} />
         )}
@@ -419,7 +449,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
 }
 
 // ── Hộp thoại khi serial không khớp định dạng nào ──────────────────────────────
-function UnmatchedDialog({ serial, onCancel, onConfirm }) {
+function UnmatchedDialog({ serial, typeNames = [], onCancel, onConfirm }) {
   const [role, setRole] = useState('component')
   const [name, setName] = useState('')
   const [rule, setRule] = useState({ kind:'prefix', value: serial.slice(0, 6) })
@@ -441,7 +471,9 @@ function UnmatchedDialog({ serial, onCancel, onConfirm }) {
         {role === 'component' && (
           <div style={{ marginBottom:12 }}>
             <label style={label}>Tên chủng loại thành phần *</label>
-            <input style={{ ...field, width:'100%' }} value={name} onChange={e => setName(e.target.value)} placeholder="vd Mainboard" autoFocus />
+            <ComboInput value={name} onChange={setName} options={[...new Set(typeNames)]} autoFocus
+              placeholder="Chọn loại đã có hoặc gõ mới (vd Mainboard)"
+              wrapStyle={{ width:'100%' }} inputStyle={{ ...field, width:'100%', boxSizing:'border-box' }} />
           </div>
         )}
         <div style={{ marginBottom:16 }}>

@@ -78,6 +78,19 @@
 }
 .mcard-add:active { background: #dcfce7; }
 
+/* Chip serial trong thẻ hàng của đợt nhận (mở sheet serial) */
+.dlc-serial-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 12px; border: 1px solid; border-radius: 99px;
+  font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+
+/* Dòng thông tin chỉ-đọc trong sheet sửa */
+.msheet-readonly {
+  font-size: 13px; color: #6b7280;
+  background: #f9fafb; border: 1px solid #eef2f7; border-radius: 8px; padding: 8px 10px;
+}
+
 .mcards-total {
   display: flex; justify-content: space-between; gap: 10px;
   padding: 10px 14px; margin-top: 4px;

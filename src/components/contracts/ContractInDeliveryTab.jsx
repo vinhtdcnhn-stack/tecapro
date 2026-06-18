@@ -68,7 +68,7 @@ export default function ContractInDeliveryTab({ contractInId }) {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
 
   return (
-    <div style={{ padding: isMobile ? '14px 14px' : '20px 24px', display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
+    <div style={{ padding: isMobile ? '12px 6px' : '20px 24px', display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
 
       {/* Summary — ẩn trên mobile */}
       {!isMobile && (

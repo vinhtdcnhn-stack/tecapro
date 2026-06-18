@@ -163,7 +163,7 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
 
       {/* Tab content */}
       <div style={{
-        flex: 1, minHeight: 0, minWidth: 0, padding: '24px',
+        flex: 1, minHeight: 0, minWidth: 0, padding: isMobile ? '10px 4px' : '24px',
         ...(activeTab === 'documents'
           ? { overflow: 'hidden', display: 'flex', flexDirection: 'column' }
           : { overflowY: 'auto', overflowX: 'hidden' }),

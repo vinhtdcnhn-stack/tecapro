@@ -599,6 +599,43 @@ background:
   padding: 8px 0;
 }
 
+/* Mobile: nút thêm hợp đồng rút gọn thành icon (cạnh tiêu đề) */
+.clp-add-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; padding: 0; flex-shrink: 0;
+}
+
+/* Mobile: danh sách hợp đồng dạng thẻ */
+.clp-card-list {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 2px 2px 12px;
+}
+.clp-card-empty {
+  padding: 40px 16px; text-align: center; color: #9ca3af;
+  border: 1px solid #e5e7eb; border-radius: 10px; background: #fff;
+}
+.clp-card {
+  width: 100%; text-align: left; cursor: pointer;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.clp-card:active { background: #f9fafb; }
+.clp-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.clp-card-no { font-size: 15px; font-weight: 700; color: #111827; }
+.clp-card-jv {
+  display: inline-block; margin-left: 6px; padding: 1px 7px;
+  font-size: 10px; font-weight: 700; line-height: 1.6; border-radius: 999px;
+  color: #c2410c; background: #ffedd5; border: 1px solid #fed7aa; white-space: nowrap;
+}
+.clp-card-project { font-size: 13px; font-weight: 600; color: #374151; }
+.clp-card-rows { display: flex; flex-direction: column; gap: 3px; }
+.clp-card-rows > div { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.clp-card-rows > div > span:first-child { color: #9ca3af; flex-shrink: 0; }
+.clp-card-rows > div > span:last-child { color: #1f2937; text-align: right; }
+.clp-card-money { font-weight: 600; font-variant-numeric: tabular-nums; }
+
 .content-scrollable {
   flex: 1;
   overflow: hidden;

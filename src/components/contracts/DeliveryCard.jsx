@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { API } from '../../config/api'
 import { fmtDate, statusStyle } from './deliveryUtils'
 import DeliveryItemRow from './DeliveryItemRow'
+import DeliveryItemsMobile from './DeliveryItemsMobile'
 import useIsMobile from './useIsMobile'
 import EditGuard from './EditGuard'
 import useCtrlSave from './useCtrlSave'
@@ -60,14 +61,24 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
   }
 
   async function handleUpdateItem(item, field, value) {
-    const updated = { ...item, [field]: value }
+    return handleUpdateItemFields(item, { [field]: value })
+  }
+
+  // Cập nhật nhiều trường trong 1 PUT (dùng cho sheet sửa trên mobile).
+  async function handleUpdateItemFields(item, fields) {
     const res = await fetch(`${API}/delivery-items/${item.id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updated),
+      body: JSON.stringify({ ...item, ...fields }),
     })
     const data = await res.json()
     if (!res.ok) { alert(data.error); return }
     setItems(prev => prev.map(x => x.id === item.id ? { ...x, ...data } : x))
+  }
+
+  function handleSerialCountChange(itemId, delta) {
+    setItems(prev => prev.map(x => x.id === itemId
+      ? { ...x, serial_count: (parseInt(x.serial_count) || 0) + delta }
+      : x))
   }
 
   const ss = statusStyle(delivery.status)
@@ -77,7 +88,7 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
     <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, overflow:'hidden' }}>
       {/* Batch header */}
       <div
-        style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap:12, padding:'13px 18px', background:'#f9fafb', borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none', cursor:'pointer', flexWrap: isMobile ? 'wrap' : 'nowrap' }}
+        style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 8 : 12, padding: isMobile ? '12px 10px' : '13px 18px', background:'#f9fafb', borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none', cursor:'pointer', flexWrap: isMobile ? 'wrap' : 'nowrap' }}
         onClick={onToggle}
       >
         <span style={{ color:'#9ca3af', fontSize:11, transition:'transform .2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display:'inline-block', marginTop: isMobile ? 4 : 0 }}>▶</span>
@@ -98,23 +109,50 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
 
         <div style={{ display:'flex', gap:6 }} onClick={e => e.stopPropagation()}>
           <EditGuard>
-            <button onClick={onEdit}
-              style={{ padding:'4px 10px', borderRadius:5, border:'1px solid #e5e7eb', background:'#fff', color:'#374151', cursor:'pointer', fontSize:12, fontWeight:500 }}>
-              Sửa
-            </button>
-            <button onClick={onDelete}
-              style={{ padding:'4px 10px', borderRadius:5, border:'none', background:'#fee2e2', color:'#b91c1c', cursor:'pointer', fontSize:12, fontWeight:500 }}>
-              Xóa
-            </button>
+            {isMobile ? (
+              <>
+                <button onClick={onEdit} title="Sửa" aria-label="Sửa"
+                  style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:30, height:30, borderRadius:6, border:'1px solid #e5e7eb', background:'#fff', color:'#374151', cursor:'pointer' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.46a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
+                <button onClick={onDelete} title="Xóa" aria-label="Xóa"
+                  style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:30, height:30, borderRadius:6, border:'none', background:'#fee2e2', color:'#b91c1c', cursor:'pointer' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={onEdit}
+                  style={{ padding:'4px 10px', borderRadius:5, border:'1px solid #e5e7eb', background:'#fff', color:'#374151', cursor:'pointer', fontSize:12, fontWeight:500 }}>
+                  Sửa
+                </button>
+                <button onClick={onDelete}
+                  style={{ padding:'4px 10px', borderRadius:5, border:'none', background:'#fee2e2', color:'#b91c1c', cursor:'pointer', fontSize:12, fontWeight:500 }}>
+                  Xóa
+                </button>
+              </>
+            )}
           </EditGuard>
         </div>
       </div>
 
       {/* Expanded: items */}
       {isExpanded && (
-        <div style={{ padding:'16px 20px' }}>
+        <div style={{ padding: isMobile ? '10px 8px' : '16px 20px' }}>
           {loadingItems ? (
             <div style={{ textAlign:'center', color:'#9ca3af', padding:20 }}>Đang tải...</div>
+          ) : isMobile ? (
+            <DeliveryItemsMobile
+              items={items}
+              boqItems={boqItems}
+              deliveryId={delivery.id}
+              contractInId={delivery.contract_in_id}
+              onAddItem={handleAddItem}
+              onDeleteItem={handleDeleteItem}
+              onUpdateItemFields={handleUpdateItemFields}
+              onSerialCountChange={handleSerialCountChange}
+              onReload={reloadItems}
+            />
           ) : (
             <>
               {/* Items table */}

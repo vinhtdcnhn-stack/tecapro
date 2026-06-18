@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { API } from '../../config/api'
 import { compLabel, classifyType, loadStandaloneCfg, saveStandaloneCfg } from './barcodeScanUtils'
 import { useBarcodeScanner } from './useBarcodeScanner'
+import useIsMobile from './useIsMobile'
+import ComboInput from './ComboInput'
 
 // ── Nhập THIẾT BỊ LẺ (máy độc lập) từ máy scan barcode ─────────────────────────
 // Bước 1: chọn ĐỢT NHẬN (lấy từ tab Nhận hàng) + cấu hình nhận dạng từng CHỦNG LOẠI
@@ -33,7 +35,7 @@ function RuleInputs({ rule, onChange }) {
         <option value="prefix">Tiền tố</option>
         <option value="length">Độ dài</option>
       </select>
-      <input style={{ ...field, flex:1 }}
+      <input style={{ ...field, flex:1, minWidth:0 }}
         value={rule.value}
         onChange={e => onChange({ ...rule, value: e.target.value })}
         placeholder={rule.kind === 'length' ? 'Số ký tự (vd 12)' : 'Ký tự đầu (vd VN0)'}
@@ -43,6 +45,7 @@ function RuleInputs({ rule, onChange }) {
 }
 
 export default function BarcodeScanStandaloneModal({ contractInId, onClose, onSaved }) {
+  const isMobile = useIsMobile()
   const saved = loadStandaloneCfg(contractInId)
   const [step, setStep]       = useState('config')
   const [types, setTypes]     = useState(saved?.types || [])
@@ -52,6 +55,7 @@ export default function BarcodeScanStandaloneModal({ contractInId, onClose, onSa
   const [flushing, setFlushing]     = useState(false)
   const [unmatched, setUnmatched]   = useState(null)
   const [msg, setMsg]               = useState(null)  // { kind:'err'|'warn', text }
+  const [allItems, setAllItems]     = useState([])    // mọi chủng loại của HĐ (gồm cả loại chỉ là linh kiện)
   const savedAnyRef  = useRef(false)
   const existingRef  = useRef(new Set())
   const chainRef     = useRef(Promise.resolve())      // serialize lưu từng serial khi bắn nhanh
@@ -78,6 +82,22 @@ export default function BarcodeScanStandaloneModal({ contractInId, onClose, onSa
       .catch(() => {})
     return () => { cancelled = true }
   }, [contractInId])
+
+  // Nạp mọi chủng loại của HĐ (kể cả loại chỉ xuất hiện như linh kiện, vd GPU/HDD)
+  // để gợi ý theo đợt khi khai báo serial lạ.
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/contract-ins/${contractInId}/all-items`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled && Array.isArray(d)) setAllItems(d) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [contractInId])
+
+  // Chủng loại đã có trong đợt nhận đang chọn (không trùng).
+  const batchItemNames = [...new Set(
+    allItems.filter(it => String(it.delivery_id) === String(deliveryId)).map(it => it.item_name).filter(Boolean)
+  )]
 
   // ── Cấu hình chủng loại ─────────────────────────────────────────────────────
   const addType    = () => setTypes(prev => [...prev, { name:'', rules:[{ kind:'prefix', value:'' }] }])
@@ -173,9 +193,15 @@ export default function BarcodeScanStandaloneModal({ contractInId, onClose, onSa
     return [...map.entries()]
   }
 
+  // Mobile: full màn hình; boxSizing border-box để padding không đẩy nội dung tràn ngang.
+  const overlayStyle = isMobile ? { ...overlay, padding:0 } : overlay
+  const boxStyle = isMobile
+    ? { ...box, width:'100vw', maxWidth:'none', height:'100dvh', maxHeight:'none', borderRadius:0, padding:'16px 14px', boxSizing:'border-box' }
+    : box
+
   return (
-    <div style={overlay} onClick={closeModal}>
-      <div style={box} onClick={e => e.stopPropagation()}>
+    <div style={overlayStyle} onClick={closeModal}>
+      <div style={boxStyle} onClick={e => e.stopPropagation()}>
         <h3 style={{ margin:'0 0 4px', fontSize:16, fontWeight:700, color:'#111827' }}>Nhập thiết bị lẻ từ barcode</h3>
         <p style={{ margin:'0 0 16px', fontSize:13, color:'#6b7280' }}>
           Mỗi serial bắn được sẽ lưu thành <strong style={{ color:'#111827' }}>máy độc lập</strong> (không gắn máy cha).
@@ -211,13 +237,14 @@ export default function BarcodeScanStandaloneModal({ contractInId, onClose, onSa
             {types.map((t, i) => (
               <div key={i} style={{ border:'1px solid #e5e7eb', borderRadius:8, padding:'10px 12px', marginBottom:8 }}>
                 <div style={{ display:'flex', gap:6, marginBottom:8, alignItems:'center' }}>
-                  <input style={{ ...field, flex:1 }} value={t.name}
-                    onChange={e => setType(i, { ...t, name: e.target.value })} placeholder="Tên chủng loại (GPU, HDD, PC…)" />
+                  <ComboInput value={t.name} onChange={v => setType(i, { ...t, name: v })}
+                    options={batchItemNames} placeholder="Chọn loại đã có hoặc gõ mới (GPU, HDD, PC…)"
+                    wrapStyle={{ flex:1, minWidth:0 }} inputStyle={{ ...field, width:'100%', boxSizing:'border-box' }} />
                   <button style={{ ...btnSec, padding:'8px 10px', color:'#b91c1c' }} onClick={() => removeType(i)}>✕</button>
                 </div>
                 {t.rules.map((r, j) => (
                   <div key={j} style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center' }}>
-                    <div style={{ flex:1 }}><RuleInputs rule={r} onChange={v => setRule(i, j, v)} /></div>
+                    <div style={{ flex:1, minWidth:0 }}><RuleInputs rule={r} onChange={v => setRule(i, j, v)} /></div>
                     <button style={{ ...btnSec, padding:'8px 10px', color:'#b91c1c' }}
                       onClick={() => removeRule(i, j)} disabled={t.rules.length === 1}>✕</button>
                   </div>
@@ -288,6 +315,7 @@ export default function BarcodeScanStandaloneModal({ contractInId, onClose, onSa
 
         {unmatched && (
           <UnmatchedDialog serial={unmatched}
+            typeNames={batchItemNames}
             onCancel={() => { setUnmatched(null); refocus() }}
             onConfirm={applyRecognition} />
         )}
@@ -297,9 +325,11 @@ export default function BarcodeScanStandaloneModal({ contractInId, onClose, onSa
 }
 
 // ── Hộp thoại khi serial không khớp chủng loại nào ─────────────────────────────
-function UnmatchedDialog({ serial, onCancel, onConfirm }) {
+function UnmatchedDialog({ serial, typeNames = [], onCancel, onConfirm }) {
   const [name, setName] = useState('')
-  const [rule, setRule] = useState({ kind:'prefix', value: serial.slice(0, 3) })
+  const [rule, setRule] = useState({ kind:'prefix', value: serial.slice(0, 6) })
+  // Gợi ý các chủng loại đã có trong phiên bắn (vẫn cho gõ tay tên mới).
+  const suggestions = [...new Set(typeNames)]
 
   return (
     <div style={{ ...overlay, zIndex:1100 }} onClick={onCancel}>
@@ -310,7 +340,9 @@ function UnmatchedDialog({ serial, onCancel, onConfirm }) {
         </p>
         <div style={{ marginBottom:12 }}>
           <label style={label}>Tên chủng loại *</label>
-          <input style={{ ...field, width:'100%' }} value={name} onChange={e => setName(e.target.value)} placeholder="vd GPU, HDD, PC…" autoFocus />
+          <ComboInput value={name} onChange={setName} options={suggestions} autoFocus
+            placeholder="Chọn loại đã có hoặc gõ mới (GPU, HDD, PC…)"
+            wrapStyle={{ width:'100%' }} inputStyle={{ ...field, width:'100%', boxSizing:'border-box' }} />
         </div>
         <div style={{ marginBottom:16 }}>
           <label style={label}>Quy tắc nhận dạng cho mã này</label>

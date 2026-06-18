@@ -5,7 +5,8 @@ import { API } from '../../config/api'
 // Modal hiển thị chi tiết linh kiện (serial con) của một máy chính khi click vào serial.
 // Nhóm linh kiện theo tên chủng loại (RAM, HDD…). Chỉ đọc.
 
-const overlay = { position:'fixed', inset:0, background:'rgba(0,0,0,.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:16 }
+// zIndex 1200 để nổi trên cả bottom-sheet (msheet-overlay z-index 1100) khi mở lồng từ sheet serial.
+const overlay = { position:'fixed', inset:0, background:'rgba(0,0,0,.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1200, padding:16 }
 const box     = { background:'#fff', borderRadius:12, width:'92vw', maxWidth:480, maxHeight:'85vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(0,0,0,.2)', padding:'20px 22px' }
 
 export default function SerialComponentsModal({ serialId, itemName, onClose }) {

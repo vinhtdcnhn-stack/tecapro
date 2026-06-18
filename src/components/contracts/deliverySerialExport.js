@@ -36,3 +36,37 @@ export function buildSerialMatrix(machineColName, machines, components) {
   }
   return aoa
 }
+
+// Xuất serial của một chủng loại ra Excel (máy chính + thành phần). Dùng chung cho
+// desktop (nút Excel trong dòng) và mobile (nút trong sheet serial).
+export async function exportItemSerials(API, item) {
+  try {
+    const res  = await fetch(`${API}/delivery-items/${item.id}/export-serials`)
+    const data = await res.json()
+    if (!res.ok) { alert(data.error || 'Không thể xuất serial'); return }
+    if (!data.machines?.length) { alert('Chưa có serial máy để xuất.'); return }
+    const aoa = buildSerialMatrix(item.item_name, data.machines, data.components || [])
+    const XLSX = await import('xlsx')
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!cols'] = aoa[0].map(() => ({ wch: 26 }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, (item.item_name || 'Serial').slice(0, 31))
+    XLSX.writeFile(wb, `serial_${(item.item_name || 'export').replace(/[^\w]+/g, '_')}.xlsx`)
+  } catch (e) { alert('Lỗi xuất: ' + e.message) }
+}
+
+// Tải file Excel mẫu import serial (cột đầu = serial máy, các cột sau = serial thành phần).
+export async function downloadSerialTemplate(item) {
+  const XLSX = await import('xlsx')
+  const aoa = [
+    [`${item.item_name || 'Serial máy'}`, 'Mainboard', 'RAM'],
+    ['MAY001', 'MB001', 'RAM001'],
+    ['',       '',      'RAM002'],
+    ['MAY002', 'MB002', 'RAM003'],
+  ]
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!cols'] = aoa[0].map(() => ({ wch: 24 }))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Serial')
+  XLSX.writeFile(wb, 'mau_serial.xlsx')
+}

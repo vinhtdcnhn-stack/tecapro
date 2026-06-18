@@ -80,7 +80,14 @@ export default function RequestList() {
         <h2 className="section-title" style={{ margin: 0 }}>ĐƠN CỦA TÔI</h2>
         <div className="ar-head-tools">
           <FormTypeFilter value={formId} onChange={setFormId} options={options} />
-          <button type="button" className="btn btn-primary" onClick={openCreate}>+ Tạo đơn</button>
+          {isMobile ? (
+            <button type="button" className="btn btn-primary ar-create-icon" onClick={openCreate}
+              title="Tạo đơn" aria-label="Tạo đơn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary" onClick={openCreate}>+ Tạo đơn</button>
+          )}
         </div>
       </div>
 

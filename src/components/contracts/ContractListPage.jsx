@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { API_BASE } from '../../config/api'
 import ContractModal from './ContractModal'
 import DateInput from './DateInput'
+import useIsMobile from './useIsMobile'
 
 // Mặc định lọc theo ngày ký: từ 1/1 đến 31/12 năm hiện tại
 const currentYear = new Date().getFullYear()
@@ -33,6 +34,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   // Modal state for adding contract
   const [showAddContractModal, setShowAddContractModal] = useState(false)
   
+  const isMobile = useIsMobile()
   const isPM = currentUser?.positions?.some(p => p.code === 'PM_TEAM')
            || currentUser?.position_code === 'PM_TEAM'
   
@@ -137,11 +139,20 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     <div className="contract-list-root">
       {/* Header Page */}
       <div className="page-header">
-        <h1 className="page-title">HỢP ĐỒNG BÁN</h1>
-        <p className="page-subtitle">Quản lý danh sách hợp đồng đầu ra của công ty</p>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="page-title" style={{ margin: 0 }}>HỢP ĐỒNG BÁN</h1>
+          {isMobile && isPM && (
+            <button className="btn-primary clp-add-icon" onClick={() => setShowAddContractModal(true)}
+              title="Thêm hợp đồng" aria-label="Thêm hợp đồng">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            </button>
+          )}
+        </div>
+        {!isMobile && <p className="page-subtitle">Quản lý danh sách hợp đồng đầu ra của công ty</p>}
       </div>
 
-      {/* Card Thống kê */}
+      {/* Card Thống kê — ẩn trên mobile */}
+      {!isMobile && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="stat-card">
           <p className="stat-label">Tổng hợp đồng</p>
@@ -160,21 +171,30 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           <p className="stat-value money">{formatCurrency(stats.totalValue)} ₫</p>
         </div>
       </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        {isPM && (
+        {isPM && !isMobile && (
           <button className="btn-primary" onClick={() => setShowAddContractModal(true)}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             Thêm hợp đồng
           </button>
         )}
 
-        {/* Lọc theo ngày ký */}
+        {/* Lọc theo ngày ký — mobile dùng icon thay nhãn chữ */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-sm text-gray-600 whitespace-nowrap">Ngày ký từ:</span>
+          {isMobile ? (
+            <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Ngày ký từ"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          ) : (
+            <span className="text-sm text-gray-600 whitespace-nowrap">Ngày ký từ:</span>
+          )}
           <DateInput value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ width: 130 }} className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm" />
-          <span className="text-sm text-gray-600">đến</span>
+          {isMobile ? (
+            <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="đến"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+          ) : (
+            <span className="text-sm text-gray-600">đến</span>
+          )}
           <DateInput value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ width: 130 }} className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm" />
           {(dateFrom !== defaultDateFrom || dateTo !== defaultDateTo) && (
             <button onClick={() => { setDateFrom(defaultDateFrom); setDateTo(defaultDateTo) }} className="text-base text-tecapro-600 hover:text-tecapro-700 leading-none px-1" title="Đặt lại về năm hiện tại (1/1 – 31/12)">↺</button>
@@ -212,12 +232,43 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
         </div>
       )}
 
-      {/* Result Count */}
+      {/* Result Count — ẩn trên mobile */}
+      {!isMobile && (
       <div className="mb-2 text-sm text-gray-500">
         Hiển thị: <span className="font-medium text-gray-700">{filteredAndSortedContracts.length}</span> / {dateFilteredContracts.length} hợp đồng
       </div>
+      )}
 
-      {/* TABLE CARD - SCROLL CONTAINER */}
+      {/* Mobile: danh sách thẻ */}
+      {isMobile ? (
+        <div className="clp-card-list">
+          {filteredAndSortedContracts.length === 0 ? (
+            <div className="clp-card-empty">Không tìm thấy kết quả nào phù hợp.</div>
+          ) : filteredAndSortedContracts.map((c) => {
+            const jv = !!c.is_joint_venture
+            return (
+              <button key={c.id} type="button" className="clp-card" style={jv ? { background: '#fff7ed' } : undefined}
+                onClick={() => onManage && onManage(c)}>
+                <div className="clp-card-top">
+                  <span className="clp-card-no">
+                    {c.contract_no || '-'}
+                    {jv && <span className="clp-card-jv">Liên danh</span>}
+                  </span>
+                  {getStatusBadge(c.status)}
+                </div>
+                {c.project_name && <div className="clp-card-project">{c.project_name}</div>}
+                <div className="clp-card-rows">
+                  <div><span>Chủ đầu tư</span><span>{c.customer_name || '-'}</span></div>
+                  <div><span>Ngày ký</span><span>{formatDate(c.contract_date)}</span></div>
+                  <div><span>Sau VAT</span><span className="clp-card-money">{formatCurrency(toVnd(c.amount_after_vat, c))} ₫</span></div>
+                  <div><span>PM chính</span><span>{c.pm_name || '-'}</span></div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+      /* TABLE CARD - SCROLL CONTAINER */
       <div className="table-container">
         <div
           className="table-wrapper"
@@ -329,6 +380,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           </table>
         </div>
       </div>
+      )}
 
       {/* Modal Thêm hợp đồng */}
       {showAddContractModal && (
