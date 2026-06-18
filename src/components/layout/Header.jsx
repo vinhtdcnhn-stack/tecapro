@@ -6,7 +6,7 @@ import tecaproLogo from '../../assets/tecapro-logo.png'
 
 const MENUS = [
   { label: 'Trang chủ',        path: '/'        },
-  { label: 'Hợp đồng bán',    path: '/qlda',    desktopOnly: true },
+  { label: 'Hợp đồng bán',    path: '/qlda'    },
   {
     label: 'Công việc',
     children: [{ label: 'KT Cơ điện', path: '/cong-viec/kt-co-dien' }],
