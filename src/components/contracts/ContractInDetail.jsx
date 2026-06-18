@@ -12,6 +12,7 @@ import ContractInCustomsTab from './ContractInCustomsTab'
 import ContractInLogisticsTab from './ContractInLogisticsTab'
 import ContractInInfoTab from './ContractInInfoTab'
 import useIsMobile from './useIsMobile'
+import { CinHeaderSlotContext } from './cinHeaderSlot'
 import { SUB_TABS, fmtNum, statusCfg } from './contractInUtils'
 
 // ── Detail view ───────────────────────────────────────────────────────────────
@@ -20,10 +21,13 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
   const [activeTab, setActiveTab] = useState(
     initialTab && SUB_TABS.some(t => t.key === initialTab) ? initialTab : 'info'
   )
+  const [tabMenuOpen, setTabMenuOpen] = useState(false)
+  const [headerSlot, setHeaderSlot] = useState(null)
   const sc = statusCfg[item.status] || { label: item.status, cls: '' }
   const isMobile = useIsMobile()
 
   return (
+    <CinHeaderSlotContext.Provider value={headerSlot}>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
       {/* Header card */}
       <div style={{
@@ -43,6 +47,22 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
             Danh sách
+          </button>
+        )}
+
+        {/* Mobile: nút mở danh sách tab — đặt bên TRÁI số HĐ */}
+        {isMobile && (
+          <button
+            className="cin-tab-fab"
+            onClick={() => setTabMenuOpen(true)}
+            aria-label="Chọn tab hợp đồng nhập"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            <span>Tab</span>
           </button>
         )}
 
@@ -81,7 +101,40 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
           </div>
           )}
         </div>
+
+        {/* Mobile: slot thao tác của tab đang mở (vd nút "Thêm đợt nhận hàng") */}
+        {isMobile && (
+          <div ref={setHeaderSlot} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} />
+        )}
       </div>
+
+      {/* Mobile: drawer chọn tab */}
+      {isMobile && tabMenuOpen && (
+        <>
+          <div className="cin-tab-backdrop" onClick={() => setTabMenuOpen(false)} />
+          <div className="cin-tab-drawer">
+            <div className="cin-tab-drawer-header">
+              <span>Chọn tab</span>
+              <button className="cin-tab-drawer-close" onClick={() => setTabMenuOpen(false)} aria-label="Đóng">×</button>
+            </div>
+            <button
+              className="cin-tab-drawer-item cin-tab-drawer-back"
+              onClick={() => { setTabMenuOpen(false); onBack() }}
+            >
+              ← Danh sách HĐ nhập
+            </button>
+            {SUB_TABS.map(t => (
+              <button
+                key={t.key}
+                className={`cin-tab-drawer-item ${activeTab === t.key ? 'active' : ''}`}
+                onClick={() => { setActiveTab(t.key); setTabMenuOpen(false) }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Sub-tab bar — ẩn trên mobile (vào từ trang chủ là đúng tab cần xem) */}
       {!isMobile && (
@@ -150,6 +203,7 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
         )}
       </div>
     </div>
+    </CinHeaderSlotContext.Provider>
   )
 }
 

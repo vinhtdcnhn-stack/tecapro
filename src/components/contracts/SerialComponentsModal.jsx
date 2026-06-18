@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { API } from '../../config/api'
 
 // Modal hiển thị chi tiết linh kiện (serial con) của một máy chính khi click vào serial.
@@ -38,7 +39,7 @@ export default function SerialComponentsModal({ serialId, itemName, onClose }) {
 
   const total = data?.components?.length || 0
 
-  return (
+  return createPortal(
     <div style={overlay} onClick={onClose}>
       <div style={box} onClick={e => e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, marginBottom:4 }}>
@@ -79,6 +80,7 @@ export default function SerialComponentsModal({ serialId, itemName, onClose }) {
           </div>
         ))}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -1,4 +1,4 @@
-export default function ContractSidebar({ activeMenu, onMenuChange }) {
+export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen = false, onClose }) {
   const menuItems = [
     {
       category: 'I. Hợp đồng bán',
@@ -21,24 +21,36 @@ export default function ContractSidebar({ activeMenu, onMenuChange }) {
     }
   ]
 
+  const handleSelect = (id) => {
+    onMenuChange(id)
+    if (onClose) onClose()
+  }
+
   return (
-    <div className="contract-sidebar">
-      {menuItems.map((section, sectionIndex) => (
-        <div key={sectionIndex} className="contract-sidebar-section">
-          <div className="contract-sidebar-category">{section.category}</div>
-          <div className="contract-sidebar-items">
-            {section.items.map((item) => (
-              <button
-                key={item.id}
-                className={`contract-sidebar-item ${activeMenu === item.id ? 'active' : ''}`}
-                onClick={() => onMenuChange(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+    <>
+      {mobileOpen && <div className="contract-sidebar-backdrop" onClick={onClose} />}
+      <div className={`contract-sidebar ${mobileOpen ? 'contract-sidebar--open' : ''}`}>
+        <div className="contract-sidebar-mobile-header">
+          <span>Chọn mục</span>
+          <button className="contract-sidebar-close" onClick={onClose} aria-label="Đóng">×</button>
         </div>
-      ))}
-    </div>
+        {menuItems.map((section, sectionIndex) => (
+          <div key={sectionIndex} className="contract-sidebar-section">
+            <div className="contract-sidebar-category">{section.category}</div>
+            <div className="contract-sidebar-items">
+              {section.items.map((item) => (
+                <button
+                  key={item.id}
+                  className={`contract-sidebar-item ${activeMenu === item.id ? 'active' : ''}`}
+                  onClick={() => handleSelect(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   )
 }

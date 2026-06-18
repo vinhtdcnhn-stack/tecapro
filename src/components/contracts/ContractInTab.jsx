@@ -4,6 +4,8 @@ import { API } from '../../config/api'
 import { thStyle, tdStyle, fmtDate, fmtNum, statusCfg } from './contractInUtils'
 import ContractInDetail from './ContractInDetail'
 import ContractInFormModal from './ContractInFormModal'
+import ContractInCard from './ContractInCard'
+import useIsMobile from './useIsMobile'
 import { ContractPermProvider } from '../../context/ContractPermContext'
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -16,6 +18,7 @@ export default function ContractInTab({ contractId, initialContractInId, initial
   const [addModalOpen, setAddModal] = useState(false)
   const [search, setSearch]         = useState('')
   const [autoOpened, setAutoOpened] = useState(false)
+  const isMobile                    = useIsMobile()
 
   // Phân quyền HĐ nhập (khớp chốt chặn server-side):
   //   - TẠO: admin / PM / Xuất nhập khẩu của HĐ bán.
@@ -110,36 +113,68 @@ export default function ContractInTab({ contractId, initialContractInId, initial
 
   return (
     <div style={{ padding: '20px 24px', minWidth: 0 }}>
-      <div className="page-header">
-        <h1 className="page-title">HỢP ĐỒNG NHẬP</h1>
-        <p className="page-subtitle">Danh sách hợp đồng đầu vào thuộc hợp đồng bán này</p>
+      <div className="page-header" style={isMobile ? { marginBottom: 12 } : undefined}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <h1 className="page-title" style={{ margin: 0 }}>HỢP ĐỒNG NHẬP</h1>
+          {isMobile && canCreate && (
+            <button
+              className="btn-primary"
+              onClick={() => setAddModal(true)}
+              title="Thêm HĐ nhập"
+              aria-label="Thêm HĐ nhập"
+              style={{ padding: '8px 10px', flexShrink: 0 }}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {!isMobile && <p className="page-subtitle">Danh sách hợp đồng đầu vào thuộc hợp đồng bán này</p>}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="stat-card"><p className="stat-label">Tổng HĐ nhập</p><p className="stat-value">{items.length}</p></div>
-        <div className="stat-card"><p className="stat-label">Đang thực hiện</p><p className="stat-value text-green-600">{active}</p></div>
-        <div className="stat-card"><p className="stat-label">Hoàn thành</p><p className="stat-value text-blue-600">{completed}</p></div>
-        <div className="stat-card"><p className="stat-label">Tổng giá trị (VNĐ)</p><p className="stat-value money">{fmtNum(totalAmount)} ₫</p></div>
-      </div>
+      {!isMobile && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="stat-card"><p className="stat-label">Tổng HĐ nhập</p><p className="stat-value">{items.length}</p></div>
+          <div className="stat-card"><p className="stat-label">Đang thực hiện</p><p className="stat-value text-green-600">{active}</p></div>
+          <div className="stat-card"><p className="stat-label">Hoàn thành</p><p className="stat-value text-blue-600">{completed}</p></div>
+          <div className="stat-card"><p className="stat-label">Tổng giá trị (VNĐ)</p><p className="stat-value money">{fmtNum(totalAmount)} ₫</p></div>
+        </div>
+      )}
 
-      <div className="flex items-center justify-between mb-4" style={{ gap: 12 }}>
-        {canCreate ? (
-          <button className="btn-primary" onClick={() => setAddModal(true)}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Thêm HĐ nhập
-          </button>
-        ) : <span />}
-        <input type="text" className="search-input"
-          placeholder="🔍 Tìm số HĐ, loại hàng hóa, nhà cung cấp..."
-          value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
+      {!isMobile && (
+        <div className="flex items-center justify-between mb-4" style={{ gap: 12 }}>
+          {canCreate ? (
+            <button className="btn-primary" onClick={() => setAddModal(true)}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Thêm HĐ nhập
+            </button>
+          ) : <span />}
+          <input type="text" className="search-input"
+            placeholder="🔍 Tìm số HĐ, loại hàng hóa, nhà cung cấp..."
+            value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+      )}
 
-      <div className="mb-2 text-sm text-gray-500">
-        Hiển thị: <span className="font-medium text-gray-700">{filtered.length}</span> / {items.length} hợp đồng nhập
-      </div>
+      {!isMobile && (
+        <div className="mb-2 text-sm text-gray-500">
+          Hiển thị: <span className="font-medium text-gray-700">{filtered.length}</span> / {items.length} hợp đồng nhập
+        </div>
+      )}
 
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#9ca3af', border: '1px solid #e5e7eb', borderRadius: 10 }}>
+              Chưa có hợp đồng nhập nào.{canCreate && ' Nhấn "Thêm HĐ nhập" để tạo mới.'}
+            </div>
+          ) : filtered.map(c => (
+            <ContractInCard key={c.id} item={c} onOpen={() => setSelected(c)} />
+          ))}
+        </div>
+      ) : (
       <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e5e7eb' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead style={{ background: '#f9fafb' }}>
@@ -200,6 +235,7 @@ export default function ContractInTab({ contractId, initialContractInId, initial
           </tbody>
         </table>
       </div>
+      )}
 
       {addModalOpen && (
         <ContractInFormModal

@@ -961,6 +961,110 @@ background:
   overflow-y: auto;
 }
 
+/* Gợi ý bấm vào header để mở menu — ẩn trên desktop */
+.contract-header-tap-hint { display: none; }
+
+/* Header trong drawer (chỉ hiện trên mobile) */
+.contract-sidebar-mobile-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 12px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+  font-weight: 700;
+  color: #374151;
+}
+.contract-sidebar-close {
+  border: none;
+  background: transparent;
+  font-size: 26px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0 6px;
+}
+.contract-sidebar-backdrop { display: none; }
+
+/* Nút + drawer chọn tab trong chi tiết Hợp đồng nhập (chỉ mobile) */
+.cin-tab-fab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border: 1px solid #d1fae5;
+  background: #ecfdf5;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #166534;
+  cursor: pointer;
+}
+.cin-tab-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1099;
+}
+.cin-tab-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 1100;
+  width: 78%;
+  max-width: 300px;
+  height: 100svh;
+  background: #fff;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.12);
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cin-tab-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 12px;
+  margin-bottom: 6px;
+  border-bottom: 2px solid #e5e7eb;
+  font-weight: 700;
+  color: #374151;
+}
+.cin-tab-drawer-close {
+  border: none;
+  background: transparent;
+  font-size: 26px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0 6px;
+}
+.cin-tab-drawer-item {
+  text-align: left;
+  padding: 11px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 500;
+  cursor: pointer;
+}
+.cin-tab-drawer-item.active {
+  background: linear-gradient(135deg, #166534, #15803d);
+  color: #fff;
+  font-weight: 600;
+}
+.cin-tab-drawer-back {
+  color: #166534;
+  font-weight: 600;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 4px;
+}
+
 .contract-sidebar-section {
   margin-bottom: 20px;
 }
@@ -1328,8 +1432,38 @@ background:
     flex-direction: column;
     min-height: auto;
   }
-  /* Mobile: ẩn hẳn sidebar (vào từ trang chủ là đúng tab cần sửa) */
-  .contract-sidebar { display: none; }
+  /* Mobile: sidebar trở thành drawer trượt từ trái, mở bằng cách bấm vào header HĐ */
+  .contract-header--clickable { cursor: pointer; }
+  .contract-header-tap-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #166534;
+  }
+  .contract-sidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1100;
+    width: 82%;
+    max-width: 320px;
+    height: 100svh;
+    max-height: none;
+    border-radius: 0 16px 16px 0;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+  }
+  .contract-sidebar--open { transform: translateX(0); }
+  .contract-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1099;
+  }
+  .contract-sidebar-mobile-header { display: flex; }
   .contract-management-content {
     padding: 16px;
   }

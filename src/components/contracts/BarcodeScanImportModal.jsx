@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { API } from '../../config/api'
 import { classify, ruleLabel, compLabel, checkComponentCounts, loadCfg, saveCfg, cfgToText, textToCfg } from './barcodeScanUtils'
 import { useBarcodeScanner } from './useBarcodeScanner'
@@ -277,7 +278,7 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
 
   const curCount = current ? 1 + current.components.length : 0
 
-  return (
+  return createPortal(
     <div style={overlay} onClick={cancel}>
       <div style={box} onClick={e => e.stopPropagation()}>
         <h3 style={{ margin:'0 0 4px', fontSize:16, fontWeight:700, color:'#111827' }}>Nhập serial từ barcode</h3>
@@ -412,7 +413,8 @@ export default function BarcodeScanImportModal({ machineItem, deliveryId, contra
             onConfirm={applyRecognition} />
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

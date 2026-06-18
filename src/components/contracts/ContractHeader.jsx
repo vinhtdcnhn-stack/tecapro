@@ -6,7 +6,7 @@ const fmtSignedDate = (d) => {
   return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`
 }
 
-export default function ContractHeader({ contract }) {
+export default function ContractHeader({ contract, onTitleClick }) {
   // "Đang tải" = chưa có contract; không cần state/effect riêng (trước đây setLoading trong effect).
   if (!contract) {
     return (
@@ -17,7 +17,13 @@ export default function ContractHeader({ contract }) {
   }
 
   return (
-    <div className="contract-header">
+    <div
+      className="contract-header contract-header--clickable"
+      onClick={onTitleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (onTitleClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onTitleClick() } }}
+    >
       {/* Dòng đầu: Tên dự án và Số hợp đồng + ngày ký - Căn giữa */}
       <div className="contract-header-title">
         <h1>{contract.project_name || '-'}</h1>
@@ -27,6 +33,8 @@ export default function ContractHeader({ contract }) {
             <span className="contract-signed-date"> · Ký ngày {fmtSignedDate(contract.contract_date)}</span>
           )}
         </p>
+        {/* Gợi ý bấm để mở menu — chỉ hiện trên mobile */}
+        <span className="contract-header-tap-hint">☰ Bấm để chọn mục</span>
       </div>
     </div>
   )

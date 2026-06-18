@@ -17,6 +17,7 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
   const contractId = selectedContractId // dẫn xuất thẳng từ prop (trước đây mirror qua state + setContractId)
   const [contract, setContract] = useState(null)
   const [activeMenu, setActiveMenu] = useState(initialMenu || 'contract-info')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   
   // Edit modal state
@@ -153,9 +154,14 @@ default:
   return (
     <ContractPermProvider canEdit={canEdit} canEditSerial={canEditSerial}>
       <div className="contract-management-page">
-        <ContractHeader contract={contract} />
+        <ContractHeader contract={contract} onTitleClick={() => setMobileNavOpen(true)} />
         <div className="contract-management-body">
-          <ContractSidebar activeMenu={activeMenu} onMenuChange={setActiveMenu} />
+          <ContractSidebar
+            activeMenu={activeMenu}
+            onMenuChange={setActiveMenu}
+            mobileOpen={mobileNavOpen}
+            onClose={() => setMobileNavOpen(false)}
+          />
           <div className="contract-management-content">
             {renderContent()}
           </div>

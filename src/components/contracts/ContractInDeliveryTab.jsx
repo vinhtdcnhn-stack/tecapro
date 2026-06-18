@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 import { API } from '../../config/api'
 import { fmtDate, fmtNum } from './deliveryUtils'
@@ -6,6 +7,7 @@ import DeliveryCard from './DeliveryCard'
 import BatchModal from './DeliveryBatchModal'
 import useIsMobile from './useIsMobile'
 import EditGuard from './EditGuard'
+import { useCinHeaderSlot } from './cinHeaderSlot'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -61,6 +63,7 @@ export default function ContractInDeliveryTab({ contractInId }) {
   const received      = deliveries.filter(d => d.status === 'Đã nhận đủ').length
   const totalReceived = deliveries.reduce((s, d) => s + parseFloat(d.total_received || 0), 0)
   const isMobile = useIsMobile()
+  const headerSlot = useCinHeaderSlot()
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Đang tải...</div>
 
@@ -83,18 +86,34 @@ export default function ContractInDeliveryTab({ contractInId }) {
       </div>
       )}
 
-      {/* Toolbar */}
-      <div style={{ display:'flex', justifyContent:'flex-end' }}>
-        <EditGuard>
-          <button
-            onClick={() => { setEditBatch(null); setAddBatch(true) }}
-            style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 16px', background:'#16a34a', color:'#fff', border:'none', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600 }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Thêm đợt nhận hàng
-          </button>
-        </EditGuard>
-      </div>
+      {/* Toolbar — desktop: nút đầy đủ; mobile: icon đẩy lên slot header */}
+      {isMobile ? (
+        headerSlot && createPortal(
+          <EditGuard>
+            <button
+              onClick={() => { setEditBatch(null); setAddBatch(true) }}
+              title="Thêm đợt nhận hàng"
+              aria-label="Thêm đợt nhận hàng"
+              style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:38, height:38, background:'#16a34a', color:'#fff', border:'none', borderRadius:9, cursor:'pointer' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+          </EditGuard>,
+          headerSlot,
+        )
+      ) : (
+        <div style={{ display:'flex', justifyContent:'flex-end' }}>
+          <EditGuard>
+            <button
+              onClick={() => { setEditBatch(null); setAddBatch(true) }}
+              style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 16px', background:'#16a34a', color:'#fff', border:'none', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Thêm đợt nhận hàng
+            </button>
+          </EditGuard>
+        </div>
+      )}
 
       {/* Delivery list */}
       {deliveries.length === 0 ? (
