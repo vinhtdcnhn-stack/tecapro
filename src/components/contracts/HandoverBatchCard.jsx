@@ -5,6 +5,9 @@ import { fmtDate, warrantyStatus } from './warrantyUtils'
 import { parseEquipmentRows } from './warrantyImportUtils'
 import EquipmentModal from './WarrantyEquipmentModal'
 import WarrantyBulkDateModal from './WarrantyBulkDateModal'
+import SerialComponentsModal from './SerialComponentsModal'
+import HandoverSerialExportModal from './HandoverSerialExportModal'
+import { buildBatchSerialData } from './handoverSerialExport'
 import EditGuard from './EditGuard'
 
 // Thiết bị linh-kiện (mọi serial đều có parent_serial_id) không hiện ở tab bàn giao.
@@ -22,6 +25,7 @@ export default function HandoverBatchCard({
   const [importing, setImporting] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [showBulk, setShowBulk] = useState(false)
+  const [showExport, setShowExport] = useState(false)   // modal chọn linh kiện để xuất serial
   const [expanded, setExpanded] = useState(new Set())   // equipment_id đang mở serial
 
   // Thiết bị CHA của đợt này
@@ -178,16 +182,20 @@ export default function HandoverBatchCard({
           {delivery.delivery_date && <span className="hbatch-date">· Giao {fmtDate(delivery.delivery_date)}</span>}
           <span className="hbatch-count">· {batchAll.length} thiết bị</span>
         </div>
-        <EditGuard>
-          <div className="wty-actions" onClick={e => e.stopPropagation()}>
+        <div className="wty-actions" onClick={e => e.stopPropagation()} style={{ alignItems: 'center' }}>
+          <button className="wty-btn wty-btn-blue" onClick={() => setShowExport(true)} title="Xuất serial bàn giao của đợt này ra Excel">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Export serial bàn giao
+          </button>
+          <EditGuard>
             <button className="wty-act edit" onClick={onEdit} title="Sửa đợt">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.46a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
             </button>
             <button className="wty-act delete" onClick={onDelete} title="Xóa đợt">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
             </button>
-          </div>
-        </EditGuard>
+          </EditGuard>
+        </div>
       </div>
 
       {isExpanded && (
@@ -350,13 +358,23 @@ export default function HandoverBatchCard({
       {showBulk && (
         <WarrantyBulkDateModal contractId={contractId} count={selected.size} onClose={() => setShowBulk(false)} onApply={applyBulk} />
       )}
+      {showExport && (
+        <HandoverSerialExportModal
+          batchName={delivery.batch_name || 'Đợt giao hàng'}
+          sheetData={buildBatchSerialData(equipment, delivery.id)}
+          onClose={() => setShowExport(false)}
+        />
+      )}
     </div>
   )
 }
 
 // ── Inline serial manager ─────────────────────────────────────────────────────
+// Serial hiển thị gọn dạng chip (như phía nhập). Click số serial → xem linh kiện con
+// + trạng thái của máy đó trong SerialComponentsModal.
 function SerialInlineManager({ equipment, onAddSerial, onDeleteSerial }) {
   const [newSN, setNewSN] = useState('')
+  const [compSerial, setCompSerial] = useState(null)   // serial đang xem linh kiện
   function submit() {
     if (!newSN.trim()) return
     onAddSerial(newSN.trim()); setNewSN('')
@@ -364,23 +382,41 @@ function SerialInlineManager({ equipment, onAddSerial, onDeleteSerial }) {
   return (
     <div className="wty-expand-inner">
       <EditGuard>
-        <div className="wty-serial-list">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {equipment.serials?.map(s => (
-            <div key={s.id} className="wty-serial-row">
-              <span className="sn">{s.serial_no}</span>
-              <span className="ss">{s.status}</span>
-              <button className="wty-act delete" style={{ width: 24, height: 24 }} onClick={() => onDeleteSerial(s.id)} title="Xóa serial">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-              </button>
-            </div>
+            <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', background: '#fff', border: '1px solid #86efac', borderRadius: 99, fontSize: 12, fontWeight: 600, color: '#15803d' }}>
+              <span
+                onClick={() => setCompSerial(s)}
+                title="Xem linh kiện của máy này"
+                style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }}
+              >
+                {s.serial_no}
+              </span>
+              {s.status && s.status !== 'Đang hoạt động' && (
+                <span style={{ fontSize: 10, color: '#b45309', background: '#fef3c7', borderRadius: 4, padding: '0 5px' }}>{s.status}</span>
+              )}
+              <button onClick={() => onDeleteSerial(s.id)} title="Xóa serial" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
+            </span>
           ))}
-          <div className="wty-serial-add-row">
-            <input placeholder="Nhập số serial mới..." value={newSN}
-              onChange={e => setNewSN(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} />
-            <button className="wty-btn wty-btn-primary" style={{ padding: '5px 12px', fontSize: 12 }} onClick={submit}>+ Thêm</button>
-          </div>
+          {(!equipment.serials || equipment.serials.length === 0) && (
+            <span style={{ fontSize: 12, color: '#9ca3af' }}>Chưa có serial nào.</span>
+          )}
+        </div>
+        <div className="wty-serial-add-row">
+          <input placeholder="Nhập số serial mới..." value={newSN}
+            onChange={e => setNewSN(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} />
+          <button className="wty-btn wty-btn-primary" style={{ padding: '5px 12px', fontSize: 12 }} onClick={submit}>+ Thêm</button>
         </div>
       </EditGuard>
+
+      {compSerial && (
+        <SerialComponentsModal
+          serialId={compSerial.id}
+          itemName={equipment.name}
+          side="out"
+          onClose={() => setCompSerial(null)}
+        />
+      )}
     </div>
   )
 }

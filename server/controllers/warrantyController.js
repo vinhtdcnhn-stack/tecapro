@@ -140,6 +140,32 @@ export async function getSerials(req, res) {
   }
 }
 
+// GET /serials/:id/components — linh kiện (serial con) của một serial MÁY phía bán.
+// Linh kiện = equipment_serial có parent_serial_id = serial máy; type_name = tên loại
+// thiết bị linh kiện (contract_equipment.name). Trả { machine, components } khớp định
+// dạng của getSerialComponents phía nhập để dùng chung SerialComponentsModal.
+export async function getSerialComponents(req, res) {
+  const id = parseInt(req.params.id)
+  try {
+    const machine = await pool.query(
+      'SELECT id, serial_no, status FROM equipment_serial WHERE id=$1', [id]
+    )
+    if (!machine.rows[0]) return res.status(404).json({ error: 'Không tìm thấy serial' })
+    const { rows } = await pool.query(
+      `SELECT s.id, s.serial_no, s.status, s.note, e.name AS type_name
+         FROM equipment_serial s
+         JOIN contract_equipment e ON e.id = s.equipment_id
+        WHERE s.parent_serial_id = $1
+        ORDER BY e.name, s.id`,
+      [id]
+    )
+    res.json({ machine: machine.rows[0], components: rows })
+  } catch (err) {
+    console.error('getSerialComponents:', err)
+    res.status(500).json({ error: 'Không thể tải linh kiện của máy' })
+  }
+}
+
 export async function createSerial(req, res) {
   const equipmentId = parseInt(req.params.id)
   const { serial_no, status, note, warranty_from, warranty_to, parent_serial_id } = req.body

@@ -30,6 +30,7 @@ router.post('/serials/check-import',   c.checkImportSerials)
 
 // Serials
 router.get('/equipment/:id/serials',   c.getSerials)
+router.get('/serials/:id/components',   c.getSerialComponents)
 router.post('/equipment/:id/serials',  pmVia('equipment'), c.createSerial)
 router.post('/contracts/:id/serials/import', pmFromParam('id'), imp.importComponentSerials)
 router.put('/serials/bulk-warranty',   pmViaBody('serial'), c.bulkWarrantySerials)

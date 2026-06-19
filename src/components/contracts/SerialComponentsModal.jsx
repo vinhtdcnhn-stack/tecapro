@@ -9,14 +9,17 @@ import { API } from '../../config/api'
 const overlay = { position:'fixed', inset:0, background:'rgba(0,0,0,.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1200, padding:16 }
 const box     = { background:'#fff', borderRadius:12, width:'92vw', maxWidth:480, maxHeight:'85vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(0,0,0,.2)', padding:'20px 22px' }
 
-export default function SerialComponentsModal({ serialId, itemName, onClose }) {
+// side: 'in' (nhập, mặc định) dùng /delivery-serials/:id/components;
+//       'out' (bán) dùng /serials/:id/components. Response cùng định dạng.
+export default function SerialComponentsModal({ serialId, itemName, side = 'in', onClose }) {
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
 
   useEffect(() => {
     let cancelled = false
-    fetch(`${API}/delivery-serials/${serialId}/components`)
+    const path = side === 'out' ? `serials/${serialId}/components` : `delivery-serials/${serialId}/components`
+    fetch(`${API}/${path}`)
       .then(async r => {
         const d = await r.json()
         if (!r.ok) throw new Error(d.error || 'Lỗi tải linh kiện')
@@ -26,7 +29,7 @@ export default function SerialComponentsModal({ serialId, itemName, onClose }) {
       .catch(e => { if (!cancelled) setError(e.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [serialId])
+  }, [serialId, side])
 
   // Nhóm theo tên chủng loại linh kiện → [ [type_name, [comp...]] ]
   const grouped = () => {
