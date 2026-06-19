@@ -52,10 +52,23 @@ export default function ContractInDeliveryTab({ contractInId }) {
   }
 
   async function handleDeleteBatch(d) {
+    if (d.locked) { alert('Đợt đã khóa. Mở khóa trước khi xóa.'); return }
     if (!confirm(`Xóa đợt nhận "${d.batch_name || fmtDate(d.receive_date)}"? Tất cả hàng hóa và serial sẽ bị xóa.`)) return
-    await fetch(`${API}/deliveries/${d.id}`, { method: 'DELETE' })
+    const res = await fetch(`${API}/deliveries/${d.id}`, { method: 'DELETE' })
+    if (!res.ok) { const e = await res.json().catch(() => ({})); alert(e.error || 'Không thể xóa'); return }
     setDeliveries(prev => prev.filter(x => x.id !== d.id))
     if (expandedId === d.id) setExpandedId(null)
+  }
+
+  // Khóa/mở khóa đợt nhận (chỉ người tạo HĐ + admin — backend gác bằng ownerVia).
+  async function handleToggleLock(d) {
+    const res = await fetch(`${API}/deliveries/${d.id}/lock`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locked: !d.locked }),
+    })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error || 'Không thể đổi trạng thái khóa'); return }
+    setDeliveries(prev => prev.map(x => x.id === d.id ? { ...x, ...data } : x))
   }
 
   // Stats
@@ -129,6 +142,7 @@ export default function ContractInDeliveryTab({ contractInId }) {
           onToggle={() => setExpandedId(prev => prev === delivery.id ? null : delivery.id)}
           onEdit={() => { setEditBatch(delivery); setAddBatch(true) }}
           onDelete={() => handleDeleteBatch(delivery)}
+          onToggleLock={() => handleToggleLock(delivery)}
           onItemCountChange={(delta) =>
             setDeliveries(prev => prev.map(d => d.id === delivery.id
               ? { ...d, item_count: (parseInt(d.item_count)||0) + delta }

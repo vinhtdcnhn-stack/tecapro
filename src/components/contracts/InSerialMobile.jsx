@@ -15,18 +15,22 @@ export default function InSerialMobile({ rows, val, setF, save, saving, del, onR
   return (
     <div className="mcards">
       {rows.length === 0 && <div className="mcard" style={{ cursor: 'default', color: '#9ca3af' }}>Không có serial khớp.</div>}
-      {rows.map((row, i) => (
-        <div key={row.id} className="mcard" onClick={() => setEditingId(row.id)}>
-          <div className="mcard-head">
-            <span className="mcard-title">{i + 1}. {row.item_name}{row.unit ? ` · ${row.unit}` : ''}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', whiteSpace: 'nowrap' }}>{row.status || '—'}</span>
+      {rows.map((row, i) => {
+        const locked = !!row.batch_locked
+        return (
+          <div key={row.id} className="mcard" style={locked ? { cursor: 'default' } : undefined}
+            onClick={() => { if (!locked) setEditingId(row.id) }}>
+            <div className="mcard-head">
+              <span className="mcard-title">{i + 1}. {row.item_name}{row.unit ? ` · ${row.unit}` : ''}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', whiteSpace: 'nowrap' }}>{row.status || '—'}</span>
+            </div>
+            <div className="mcard-meta">
+              <span><strong>SN:</strong> {row.serial_no}</span>
+              <span>{locked && '🔒 '}{row.batch_name || '—'}{row.receive_date ? ` · ${fmtDate(row.receive_date)}` : ''}</span>
+            </div>
           </div>
-          <div className="mcard-meta">
-            <span><strong>SN:</strong> {row.serial_no}</span>
-            <span>{row.batch_name || '—'}{row.receive_date ? ` · ${fmtDate(row.receive_date)}` : ''}</span>
-          </div>
-        </div>
-      ))}
+        )
+      })}
 
       {editing && (
         <MobileEditSheet

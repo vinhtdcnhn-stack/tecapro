@@ -18,7 +18,7 @@ export default function SerialMobile({
   const editing = rows.find(r => String(r.id) === String(editingId)) || null
 
   const parentOptions = editing
-    ? allSerials.filter(s => String(s.id) !== String(editing.id)).map(s => ({ id: s.id, label: `${s.eqName} – ${s.serial_no}` }))
+    ? allSerials.filter(s => String(s.id) !== String(editing.id)).map(s => ({ id: s.id, label: s.serial_no }))
     : []
 
   const onSave = () => { if (editing) save(editing); setEditingId(null) }

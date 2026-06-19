@@ -1,199 +1,10 @@
 import { pool } from '../db.js'
-import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { TABLE_DELIVERY, serialExists, findDuplicatesInList, findExistingSerials } from './serialUtils.js'
 import { parseSerialMatrix } from '../utils/serialMatrix.js'
+import { norm } from './contractInDeliveryShared.js'
 
-const norm = (s) => String(s ?? '').trim().toLowerCase()
-
-// Một chủng loại chỉ giữ serial THÀNH PHẦN (mọi serial đều có parent_serial_id) là
-// "linh kiện của máy" — nó vẫn nằm trong tab quản lý serial, nhưng KHÔNG hiện thành
-// dòng riêng ở đợt nhận hàng. Hiển thị ở đợt nhận khi: chưa có serial nào, HOẶC có ít
-// nhất 1 serial độc lập (máy). Đây thuần là lọc HIỂN THỊ, không đổi dữ liệu.
-const VISIBLE_ITEM = `(
-  EXISTS (SELECT 1 FROM contract_in_delivery_serial s WHERE s.delivery_item_id = di.id AND s.parent_serial_id IS NULL)
-  OR NOT EXISTS (SELECT 1 FROM contract_in_delivery_serial s WHERE s.delivery_item_id = di.id)
-)`
-
-// Chủng loại có TRONG BẢNG GIÁ MUA (contract_in_boq) của hợp đồng: hoặc đã liên kết
-// trực tiếp qua boq_item_id, hoặc trùng tên (không phân biệt hoa/thường) với 1 dòng BOQ.
-const IN_BOQ = `(
-  di.boq_item_id IS NOT NULL
-  OR EXISTS (
-    SELECT 1 FROM contract_in_boq b
-    JOIN contract_in_delivery d2 ON d2.contract_in_id = b.contract_in_id
-    WHERE d2.id = di.delivery_id
-      AND lower(btrim(b.item_name)) = lower(btrim(di.item_name))
-  )
-)`
-
-// Hợp đồng (chứa đợt của di) có khai BẢNG GIÁ MUA hay chưa.
-const CONTRACT_HAS_BOQ = `EXISTS (
-  SELECT 1 FROM contract_in_boq b
-  JOIN contract_in_delivery d3 ON d3.contract_in_id = b.contract_in_id
-  WHERE d3.id = di.delivery_id
-)`
-
-// Lọc HIỂN THỊ ở tab Nhận hàng: chỉ hiện chủng loại có trong bảng giá mua. Nếu hợp đồng
-// CHƯA khai bảng giá mua thì quay lại quy tắc cũ (VISIBLE_ITEM) để không làm trống tab.
-const SHOW_ITEM = `(
-  ${IN_BOQ}
-  OR (NOT ${CONTRACT_HAS_BOQ} AND ${VISIBLE_ITEM})
-)`
-
-export const excelUploadDelivery = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const ok = /\.(xlsx|xls)$/i.test(file.originalname)
-    cb(ok ? null : new Error('Chỉ chấp nhận .xlsx/.xls'), ok)
-  }
-})
-
-// ── Delivery batches ──────────────────────────────────────────────────────────
-
-export async function getDeliveries(req, res) {
-  try {
-    const { rows } = await pool.query(`
-      SELECT
-        d.*,
-        COUNT(di.id) FILTER (WHERE ${SHOW_ITEM})::int AS item_count,
-        COALESCE(SUM(di.received_quantity), 0)    AS total_received
-      FROM contract_in_delivery d
-      LEFT JOIN contract_in_delivery_item di ON di.delivery_id = d.id
-      WHERE d.contract_in_id = $1
-      GROUP BY d.id
-      ORDER BY d.receive_date DESC, d.id DESC
-    `, [req.params.contractInId])
-    res.json(rows)
-  } catch (err) {
-    console.error('getDeliveries:', err)
-    res.status(500).json({ error: 'Không thể tải danh sách đợt nhận hàng' })
-  }
-}
-
-export async function createDelivery(req, res) {
-  const { contractInId } = req.params
-  const { batch_name, receive_date, warehouse, status, note } = req.body
-  try {
-    const { rows } = await pool.query(`
-      INSERT INTO contract_in_delivery
-        (contract_in_id, batch_name, receive_date, warehouse, status, note)
-      VALUES ($1,$2,$3,$4,$5,$6)
-      RETURNING *, 0 AS item_count, 0 AS total_received
-    `, [contractInId, batch_name?.trim()||null, receive_date||null,
-        warehouse?.trim()||null, status||'Chờ nhận', note?.trim()||null])
-    res.json(rows[0])
-  } catch (err) {
-    console.error('createDelivery:', err)
-    res.status(500).json({ error: 'Không thể tạo đợt nhận hàng' })
-  }
-}
-
-export async function updateDelivery(req, res) {
-  const { id } = req.params
-  const { batch_name, receive_date, warehouse, status, note } = req.body
-  try {
-    const { rows } = await pool.query(`
-      UPDATE contract_in_delivery SET
-        batch_name=$1, receive_date=$2, warehouse=$3, status=$4, note=$5, updated_at=NOW()
-      WHERE id=$6 RETURNING *
-    `, [batch_name?.trim()||null, receive_date||null,
-        warehouse?.trim()||null, status||'Chờ nhận', note?.trim()||null, id])
-    if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy đợt nhận' })
-    res.json(rows[0])
-  } catch (err) {
-    console.error('updateDelivery:', err)
-    res.status(500).json({ error: 'Không thể cập nhật đợt nhận hàng' })
-  }
-}
-
-export async function deleteDelivery(req, res) {
-  try {
-    await pool.query('DELETE FROM contract_in_delivery WHERE id=$1', [req.params.id])
-    res.json({ success: true })
-  } catch (err) {
-    res.status(500).json({ error: 'Không thể xóa đợt nhận hàng' })
-  }
-}
-
-// ── Delivery items ────────────────────────────────────────────────────────────
-
-export async function getDeliveryItems(req, res) {
-  try {
-    const { rows } = await pool.query(`
-      SELECT
-        di.*,
-        COUNT(ds.id) FILTER (WHERE ds.parent_serial_id IS NULL)::int AS serial_count
-      FROM contract_in_delivery_item di
-      LEFT JOIN contract_in_delivery_serial ds ON ds.delivery_item_id = di.id
-      WHERE di.delivery_id = $1
-        AND ${SHOW_ITEM}
-      GROUP BY di.id
-      ORDER BY di.id
-    `, [req.params.deliveryId])
-    res.json(rows)
-  } catch (err) {
-    res.status(500).json({ error: 'Không thể tải danh mục hàng' })
-  }
-}
-
-export async function createDeliveryItem(req, res) {
-  const { deliveryId } = req.params
-  const { boq_item_id, item_name, unit, ordered_quantity, received_quantity, note } = req.body
-  if (!item_name?.trim()) return res.status(400).json({ error: 'Tên hàng hóa không được để trống' })
-  try {
-    // Trong cùng 1 đợt nhận, chủng loại hàng hóa không được trùng (không phân biệt hoa/thường).
-    const dup = await pool.query(
-      `SELECT 1 FROM contract_in_delivery_item
-         WHERE delivery_id=$1 AND lower(btrim(item_name))=lower(btrim($2)) LIMIT 1`,
-      [deliveryId, item_name]
-    )
-    if (dup.rows.length)
-      return res.status(409).json({ error: `Chủng loại "${item_name.trim()}" đã có trong đợt nhận này. Mỗi chủng loại chỉ thêm một dòng.` })
-
-    const { rows } = await pool.query(`
-      INSERT INTO contract_in_delivery_item
-        (delivery_id, boq_item_id, item_name, unit, ordered_quantity, received_quantity, note)
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
-      RETURNING *, 0 AS serial_count
-    `, [deliveryId, boq_item_id||null, item_name.trim(), unit?.trim()||'',
-        parseFloat(ordered_quantity)||0, parseFloat(received_quantity)||0, note?.trim()||null])
-    res.json(rows[0])
-  } catch (err) {
-    console.error('createDeliveryItem:', err)
-    res.status(500).json({ error: 'Không thể thêm hàng hóa' })
-  }
-}
-
-export async function updateDeliveryItem(req, res) {
-  const { id } = req.params
-  const { item_name, unit, ordered_quantity, received_quantity, note } = req.body
-  try {
-    const { rows } = await pool.query(`
-      UPDATE contract_in_delivery_item SET
-        item_name=$1, unit=$2, ordered_quantity=$3, received_quantity=$4, note=$5
-      WHERE id=$6 RETURNING *
-    `, [item_name?.trim()||'', unit?.trim()||'',
-        parseFloat(ordered_quantity)||0, parseFloat(received_quantity)||0,
-        note?.trim()||null, id])
-    if (!rows[0]) return res.status(404).json({ error: 'Not found' })
-    res.json(rows[0])
-  } catch (err) {
-    res.status(500).json({ error: 'Không thể cập nhật hàng hóa' })
-  }
-}
-
-export async function deleteDeliveryItem(req, res) {
-  try {
-    await pool.query('DELETE FROM contract_in_delivery_item WHERE id=$1', [req.params.id])
-    res.json({ success: true })
-  } catch (err) {
-    res.status(500).json({ error: 'Không thể xóa hàng hóa' })
-  }
-}
-
-// ── Serials ───────────────────────────────────────────────────────────────────
+// ── Serial của đợt nhận hàng ───────────────────────────────────────────────────
 
 export async function getDeliverySerials(req, res) {
   try {
@@ -417,7 +228,7 @@ export async function getAllDeliverySerials(req, res) {
         ds.id, ds.serial_no, ds.note, ds.status, ds.parent_serial_id,
         ds.replaced_by_serial_id, ds.replaced_at, ds.delivery_item_id,
         di.item_name, di.unit,
-        d.id AS delivery_id, d.batch_name, d.receive_date
+        d.id AS delivery_id, d.batch_name, d.receive_date, d.locked AS batch_locked
       FROM contract_in_delivery_serial ds
       JOIN contract_in_delivery_item di ON di.id = ds.delivery_item_id
       JOIN contract_in_delivery       d  ON d.id  = di.delivery_id
@@ -436,7 +247,7 @@ export async function getAllDeliverySerials(req, res) {
 export async function getAllDeliveryItems(req, res) {
   try {
     const { rows } = await pool.query(`
-      SELECT di.id, di.item_name, di.unit, d.id AS delivery_id, d.batch_name, d.receive_date
+      SELECT di.id, di.item_name, di.unit, d.id AS delivery_id, d.batch_name, d.receive_date, d.locked AS batch_locked
       FROM contract_in_delivery_item di
       JOIN contract_in_delivery d ON d.id = di.delivery_id
       WHERE d.contract_in_id = $1

@@ -9,8 +9,8 @@ import { exportItemSerials } from './deliverySerialExport'
 
 // ── Delivery item row ─────────────────────────────────────────────────────────
 
-export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, onDelete, onUpdateItem, onSerialCountChange, onReload }) {
-  const canEdit = useCanEdit()
+export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, locked = false, onDelete, onUpdateItem, onSerialCountChange, onReload }) {
+  const canEdit = useCanEdit() && !locked
   const [showSerials, setShowSerials] = useState(false)
 
   const [editQty, setEditQty]         = useState(false)
@@ -85,9 +85,11 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
         </td>
         <td style={{ padding:'8px 10px', color:'#9ca3af', fontSize:12 }}>{item.note||'—'}</td>
         <td style={{ padding:'8px 10px', textAlign:'center' }}>
-          <EditGuard>
-            <button onClick={onDelete} style={{ background:'#fee2e2', color:'#b91c1c', border:'none', borderRadius:5, cursor:'pointer', padding:'3px 8px', fontSize:11, fontWeight:600 }}>Xóa</button>
-          </EditGuard>
+          {!locked && (
+            <EditGuard>
+              <button onClick={onDelete} style={{ background:'#fee2e2', color:'#b91c1c', border:'none', borderRadius:5, cursor:'pointer', padding:'3px 8px', fontSize:11, fontWeight:600 }}>Xóa</button>
+            </EditGuard>
+          )}
         </td>
       </tr>
 
@@ -99,6 +101,7 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, o
               item={item}
               deliveryId={deliveryId}
               contractInId={contractInId}
+              locked={locked}
               onSerialCountChange={onSerialCountChange}
               onReload={onReload}
             />

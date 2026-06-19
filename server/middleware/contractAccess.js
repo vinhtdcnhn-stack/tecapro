@@ -28,6 +28,7 @@ const RESOLVERS = {
   guarantee:         `SELECT contract_out_id FROM contract_guarantee WHERE id = ANY($1::bigint[])`,
   task:              `SELECT contract_out_id FROM contract_task WHERE id = ANY($1::bigint[])`,
   equipment:         `SELECT contract_out_id FROM contract_equipment WHERE id = ANY($1::bigint[])`,
+  outDelivery:       `SELECT contract_out_id FROM contract_out_delivery WHERE id = ANY($1::bigint[])`,
   warrantyCase:      `SELECT contract_out_id FROM warranty_case WHERE id = ANY($1::bigint[])`,
 
   taskAttachment: `SELECT t.contract_out_id FROM contract_task_attachment a
@@ -209,6 +210,38 @@ export const ownerOrTechViaBody = (key) => makeOwnerGuard(req => req.body?.ids, 
 
 // Tạo HĐ nhập: URL chứa thẳng id HĐ bán; cho PM hoặc ImportExport của HĐ bán (hoặc admin).
 export const canCreateContractIn = makeGuard(req => req.params.id, null, ['PM', 'ImportExport'])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KHÓA đợt nhận hàng: khi contract_in_delivery.locked = true thì CHẶN mọi thao tác
+// ghi nội dung của đợt — với TẤT CẢ (kể cả admin). Chỉ route mở/khóa (setDeliveryLock)
+// mới đổi được trạng thái. Đặt guard này SAU guard quyền, TRƯỚC controller.
+// ─────────────────────────────────────────────────────────────────────────────
+const LOCK_RESOLVERS = {
+  delivery:       `SELECT locked FROM contract_in_delivery WHERE id = ANY($1::bigint[])`,
+  deliveryItem:   `SELECT d.locked FROM contract_in_delivery_item it
+                     JOIN contract_in_delivery d ON d.id = it.delivery_id WHERE it.id = ANY($1::bigint[])`,
+  deliverySerial: `SELECT d.locked FROM contract_in_delivery_serial s
+                     JOIN contract_in_delivery_item it ON it.id = s.delivery_item_id
+                     JOIN contract_in_delivery d ON d.id = it.delivery_id WHERE s.id = ANY($1::bigint[])`,
+}
+
+function makeLockGuard(pick, resolverSql) {
+  return async function lockGuard(req, res, next) {
+    try {
+      const ids = toIdList(pick(req))
+      if (!ids) { res.status(400).json({ error: 'Tham số id không hợp lệ.' }); return }
+      const { rows } = await pool.query(resolverSql, [ids])
+      if (rows.some(r => r.locked)) {
+        res.status(403).json({ error: 'Đợt nhận đã bị khóa. Mở khóa trước khi sửa.' })
+        return
+      }
+      next()
+    } catch (err) { next(err) }
+  }
+}
+
+export const blockIfLockedVia = (key, param = 'id') => makeLockGuard(req => req.params[param], LOCK_RESOLVERS[key])
+export const blockIfLockedViaBody = (key) => makeLockGuard(req => req.body?.ids, LOCK_RESOLVERS[key])
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tài liệu (folder/file) dùng chung cho cả HĐ bán lẫn HĐ nhập → phân nhánh:

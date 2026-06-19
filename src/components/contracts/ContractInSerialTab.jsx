@@ -113,9 +113,13 @@ export default function ContractInSerialTab({ contractInId }) {
     [serials]
   )
 
+  // Chủng loại thuộc đợt CHƯA khóa — chỉ những đợt này mới cho thêm hàng/serial.
+  const unlockedItems = useMemo(() => items.filter(i => !i.batch_locked), [items])
+
   // ── Selection ─────────────────────────────────────────────────────────────────
+  // Không cho chọn serial thuộc đợt đã khóa (xóa hàng loạt sẽ bị backend chặn).
   const toggle = (id) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const visibleIds = filtered.map(s => s.id)
+  const visibleIds = filtered.filter(s => !s.batch_locked).map(s => s.id)
   const allSel = visibleIds.length > 0 && visibleIds.every(id => selected.has(id))
   const toggleAll = () => setSelected(prev => {
     if (allSel) { const n = new Set(prev); visibleIds.forEach(id => n.delete(id)); return n }
@@ -243,11 +247,11 @@ export default function ContractInSerialTab({ contractInId }) {
       </EditGuard>
 
       {showAdd && (
-        <AddComponentModal items={items} parentOptions={parentOptions}
+        <AddComponentModal items={unlockedItems} parentOptions={parentOptions}
           onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); load() }} />
       )}
       {showImport && (
-        <ImportSerialModal items={items}
+        <ImportSerialModal items={unlockedItems}
           onClose={() => setShowImport(false)} onSaved={() => { setShowImport(false); load() }} />
       )}
       {showBarcode && (

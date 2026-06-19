@@ -1,11 +1,14 @@
 import { pool } from '../db.js'
 import { TABLE_EQUIPMENT, findDuplicatesInList, findExistingSerials } from './serialUtils.js'
+import { pullImportComponents, makeFindOrCreateEquipment } from './importComponentSync.js'
 
 // Import thiết bị từ Excel (nhận parsed JSON từ frontend)
-// Body: Array of { name, brand, model, quantity, location, warranty_from, warranty_to, serials[] }
+// Body: { delivery_id, items: [{ name, brand, model, quantity, location, warranty_from, warranty_to, serials[] }] }
+// (Vẫn chấp nhận body là mảng item thuần — khi đó delivery_id = null.)
 export async function importEquipment(req, res) {
   const contractId = parseInt(req.params.id)
-  const items = req.body
+  const items = Array.isArray(req.body) ? req.body : req.body?.items
+  const deliveryId = Array.isArray(req.body) ? null : (parseInt(req.body?.delivery_id, 10) || null)
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Không có dữ liệu để import' })
@@ -40,32 +43,40 @@ export async function importEquipment(req, res) {
   let imported = 0
   try {
     await client.query('BEGIN')
+    // Gom serial máy vừa tạo để kéo linh kiện đi kèm từ phía nhập (kế thừa hạn của máy).
+    const machines = []
     for (const item of items) {
       const hasSerial = item.serials && item.serials.length > 0
       const { rows } = await client.query(
         `INSERT INTO contract_equipment
-           (contract_out_id, name, brand, model, quantity, location, warranty_from, warranty_to, has_serial)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           (contract_out_id, name, brand, model, quantity, location, warranty_from, warranty_to, has_serial, delivery_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          RETURNING id`,
         [contractId, item.name?.trim(), item.brand?.trim()||null, item.model?.trim()||null,
          parseFloat(item.quantity)||1, item.location?.trim()||null,
-         item.warranty_from||null, item.warranty_to||null, hasSerial]
+         item.warranty_from||null, item.warranty_to||null, hasSerial, deliveryId]
       )
       const equipmentId = rows[0].id
       if (hasSerial) {
         for (const sn of item.serials) {
           if (sn?.trim()) {
-            await client.query(
-              'INSERT INTO equipment_serial (equipment_id, serial_no) VALUES ($1, $2)',
+            const ins = await client.query(
+              'INSERT INTO equipment_serial (equipment_id, serial_no) VALUES ($1, $2) RETURNING id',
               [equipmentId, sn.trim()]
             )
+            machines.push({
+              serialId: ins.rows[0].id, serialNo: sn.trim(),
+              warrantyFrom: item.warranty_from||null, warrantyTo: item.warranty_to||null,
+              location: item.location?.trim()||null, deliveryId,
+            })
           }
         }
       }
       imported++
     }
+    const pulled = await pullImportComponents(client, contractId, machines)
     await client.query('COMMIT')
-    res.json({ success: true, imported })
+    res.json({ success: true, imported, pulled_components: pulled.added })
   } catch (err) {
     await client.query('ROLLBACK')
     console.error('importEquipment:', err)
@@ -107,26 +118,7 @@ export async function importComponentSerials(req, res) {
        WHERE e.contract_out_id = $1`, [contractId])
     existing.rows.forEach(r => snMap.set(r.serial_no, r.id))
 
-    const eqCache = new Map()
-    async function findOrCreateEquipment(name, brand, model) {
-      const key = `${name}||${brand||''}||${model||''}`
-      if (eqCache.has(key)) return eqCache.get(key)
-      const found = await client.query(
-        `SELECT id FROM contract_equipment
-          WHERE contract_out_id=$1 AND name=$2
-            AND COALESCE(brand,'')=COALESCE($3,'') AND COALESCE(model,'')=COALESCE($4,'') LIMIT 1`,
-        [contractId, name, brand, model])
-      let id = found.rows[0]?.id
-      if (!id) {
-        const ins = await client.query(
-          `INSERT INTO contract_equipment (contract_out_id, name, brand, model, quantity, has_serial)
-           VALUES ($1,$2,$3,$4,1,true) RETURNING id`,
-          [contractId, name, brand, model])
-        id = ins.rows[0].id
-      }
-      eqCache.set(key, id)
-      return id
-    }
+    const findOrCreateEquipment = makeFindOrCreateEquipment(client, contractId)
 
     const pendingParents = []
     for (const it of items) {

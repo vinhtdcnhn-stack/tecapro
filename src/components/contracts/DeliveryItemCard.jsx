@@ -8,9 +8,9 @@ import { useCanEdit } from '../../context/ContractPermContext'
 
 // ── Thẻ một chủng loại hàng (mobile) ──────────────────────────────────────────
 export default function DeliveryItemCard({
-  idx, item, deliveryId, contractInId, onDelete, onSaveFields, onSerialCountChange, onReload,
+  idx, item, deliveryId, contractInId, locked = false, onDelete, onSaveFields, onSerialCountChange, onReload,
 }) {
-  const canEdit = useCanEdit()
+  const canEdit = useCanEdit() && !locked
   const [editing, setEditing] = useState(false)
   const [showSerials, setShowSerials] = useState(false)
   const [form, setForm] = useState({ received_quantity: item.received_quantity, note: item.note || '' })
@@ -88,6 +88,7 @@ export default function DeliveryItemCard({
             item={item}
             deliveryId={deliveryId}
             contractInId={contractInId}
+            locked={locked}
             onSerialCountChange={onSerialCountChange}
             onReload={onReload}
           />

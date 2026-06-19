@@ -1,6 +1,32 @@
 import { pool } from '../db.js'
-import { TABLE_EQUIPMENT, serialExists } from './serialUtils.js'
+import { TABLE_EQUIPMENT, TABLE_DELIVERY, serialExists, findExistingSerials } from './serialUtils.js'
+import { pullImportComponents } from './importComponentSync.js'
 import { notifyAction, pmUserIds, contractLabel } from '../services/notify.js'
+
+// POST /serials/check-import — kiểm tra danh sách serial có trong hệ thống NHẬP chưa
+// (contract_in_delivery_serial, đối chiếu toàn hệ thống, không phân biệt hoa/thường).
+// Trả { missing, missing_count }: các serial CHƯA có ở phía nhập (đã loại trùng).
+export async function checkImportSerials(req, res) {
+  const raw = Array.isArray(req.body?.serials) ? req.body.serials : []
+  const cleaned = raw.map(s => String(s ?? '').trim()).filter(Boolean)
+  if (!cleaned.length) return res.json({ missing: [], missing_count: 0 })
+  try {
+    const present = await findExistingSerials(pool, TABLE_DELIVERY, cleaned)
+    const presentSet = new Set(present.map(s => s.trim().toLowerCase()))
+    const seen = new Set()
+    const missing = []
+    for (const s of cleaned) {
+      const k = s.toLowerCase()
+      if (seen.has(k)) continue
+      seen.add(k)
+      if (!presentSet.has(k)) missing.push(s)
+    }
+    res.json({ missing, missing_count: missing.length })
+  } catch (err) {
+    console.error('checkImportSerials:', err)
+    res.status(500).json({ error: 'Không thể kiểm tra serial trong hệ thống nhập' })
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // EQUIPMENT
@@ -39,19 +65,19 @@ const intOrNull = (v) => {
 export async function createEquipment(req, res) {
   const contractId = parseInt(req.params.id)
   const { name, brand, model, quantity, location, warranty_from, warranty_to,
-          has_serial, note, warranty_bb_id, warranty_months } = req.body
+          has_serial, note, warranty_bb_id, warranty_months, delivery_id } = req.body
   if (!name?.trim()) return res.status(400).json({ error: 'Tên thiết bị không được để trống' })
   try {
     const { rows } = await pool.query(
       `INSERT INTO contract_equipment
          (contract_out_id, name, brand, model, quantity, location, warranty_from, warranty_to,
-          has_serial, note, warranty_bb_id, warranty_months)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+          has_serial, note, warranty_bb_id, warranty_months, delivery_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [contractId, name.trim(), brand?.trim()||null, model?.trim()||null,
        parseFloat(quantity)||1, location?.trim()||null,
        warranty_from||null, warranty_to||null, has_serial||false, note?.trim()||null,
-       intOrNull(warranty_bb_id), intOrNull(warranty_months)]
+       intOrNull(warranty_bb_id), intOrNull(warranty_months), intOrNull(delivery_id)]
     )
     res.json({ ...rows[0], serials: [] })
   } catch (err) {
@@ -118,20 +144,50 @@ export async function createSerial(req, res) {
   const equipmentId = parseInt(req.params.id)
   const { serial_no, status, note, warranty_from, warranty_to, parent_serial_id } = req.body
   if (!serial_no?.trim()) return res.status(400).json({ error: 'Số serial không được để trống' })
+
+  const client = await pool.connect()
   try {
-    if (await serialExists(pool, TABLE_EQUIPMENT, serial_no))
+    await client.query('BEGIN')
+    if (await serialExists(client, TABLE_EQUIPMENT, serial_no)) {
+      await client.query('ROLLBACK')
       return res.status(409).json({ error: `Serial "${serial_no.trim()}" đã tồn tại ở phía bán ra.` })
-    const { rows } = await pool.query(
+    }
+    // Lấy hợp đồng + hạn BH của thiết bị để: (1) biết contract khi kéo linh kiện,
+    // (2) tính hạn hiệu lực của máy mà linh kiện sẽ kế thừa.
+    const eq = await client.query(
+      'SELECT contract_out_id, warranty_from, warranty_to, location, delivery_id FROM contract_equipment WHERE id=$1', [equipmentId])
+    if (!eq.rows[0]) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Không tìm thấy thiết bị' })
+    }
+    const contractId = eq.rows[0].contract_out_id
+
+    const { rows } = await client.query(
       `INSERT INTO equipment_serial (equipment_id, serial_no, status, note, warranty_from, warranty_to, parent_serial_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [equipmentId, serial_no.trim(), status||'Đang hoạt động', note?.trim()||null,
        warranty_from||null, warranty_to||null, parent_serial_id||null]
     )
-    await pool.query('UPDATE contract_equipment SET has_serial=true, updated_at=NOW() WHERE id=$1', [equipmentId])
-    res.json(rows[0])
+    const saved = rows[0]
+    await client.query('UPDATE contract_equipment SET has_serial=true, updated_at=NOW() WHERE id=$1', [equipmentId])
+
+    // Tự kéo linh kiện đi kèm từ phía nhập. Hạn linh kiện kế thừa hạn hiệu lực của máy
+    // (hạn riêng serial nếu có, không thì hạn của thiết bị).
+    const effFrom = saved.warranty_from || eq.rows[0].warranty_from
+    const effTo   = saved.warranty_to   || eq.rows[0].warranty_to
+    const pulled = await pullImportComponents(client, contractId, [{
+      serialId: saved.id, serialNo: saved.serial_no, warrantyFrom: effFrom, warrantyTo: effTo,
+      location: eq.rows[0].location, deliveryId: eq.rows[0].delivery_id,
+    }])
+
+    await client.query('COMMIT')
+    res.json({ ...saved, pulled_components: pulled.added })
   } catch (err) {
+    await client.query('ROLLBACK')
     console.error('createSerial:', err)
     res.status(500).json({ error: 'Không thể thêm serial' })
+  } finally {
+    client.release()
   }
 }
 

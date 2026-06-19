@@ -8,7 +8,7 @@ import { exportItemSerials, downloadSerialTemplate } from './deliverySerialExpor
 
 // ── Panel quản lý serial của một chủng loại hàng ──────────────────────────────
 // Dùng chung cho desktop (mở trong dòng bảng) và mobile (mở trong sheet riêng).
-export default function DeliveryItemSerials({ item, deliveryId, contractInId, onSerialCountChange, onReload }) {
+export default function DeliveryItemSerials({ item, deliveryId, contractInId, locked = false, onSerialCountChange, onReload }) {
   const [serials, setSerials]       = useState([])
   const [serialsLoaded, setSLoaded] = useState(false)
   const [newSerial, setNewSerial]   = useState('')
@@ -80,19 +80,21 @@ export default function DeliveryItemSerials({ item, deliveryId, contractInId, on
             Xuất Excel
           </button>
         )}
-        <EditGuard serial>
-          <label style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#e0f2fe', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-            Import Excel
-            <input ref={importRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={importSerials} />
-          </label>
-          <button
-            onClick={() => setShowBarcode(true)}
-            style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#f3e8ff', color:'#7e22ce', border:'1px solid #e9d5ff', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm3 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4z"/></svg>
-            Nhập từ barcode
-          </button>
-        </EditGuard>
+        {!locked && (
+          <EditGuard serial>
+            <label style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#e0f2fe', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+              Import Excel
+              <input ref={importRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={importSerials} />
+            </label>
+            <button
+              onClick={() => setShowBarcode(true)}
+              style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#f3e8ff', color:'#7e22ce', border:'1px solid #e9d5ff', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm3 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4z"/></svg>
+              Nhập từ barcode
+            </button>
+          </EditGuard>
+        )}
       </div>
 
       {/* Serial list */}
@@ -107,25 +109,27 @@ export default function DeliveryItemSerials({ item, deliveryId, contractInId, on
             >
               {s.serial_no}
             </span>
-            <button onClick={() => deleteSerial(s.id, s.serial_no)} style={{ background:'none', border:'none', cursor:'pointer', color:'#6b7280', fontSize:14, lineHeight:1, padding:0 }}>×</button>
+            {!locked && <button onClick={() => deleteSerial(s.id, s.serial_no)} style={{ background:'none', border:'none', cursor:'pointer', color:'#6b7280', fontSize:14, lineHeight:1, padding:0 }}>×</button>}
           </span>
         ))}
         {serials.length === 0 && <span style={{ fontSize:12, color:'#9ca3af' }}>Chưa có serial nào.</span>}
       </div>
 
-      {/* Add serial inline */}
-      <div style={{ display:'flex', gap:6 }}>
-        <input
-          type="text" value={newSerial}
-          onChange={e => setNewSerial(e.target.value)}
-          onKeyDown={e => e.key==='Enter' && addSerial()}
-          placeholder="Nhập serial rồi Enter..."
-          style={{ flex:1, maxWidth:260, padding:'5px 10px', border:'1px solid #93c5fd', borderRadius:5, fontSize:12, outline:'none' }}
-        />
-        <button onClick={addSerial} style={{ padding:'5px 12px', background:'#2563eb', color:'#fff', border:'none', borderRadius:5, cursor:'pointer', fontSize:12, fontWeight:600 }}>
-          + Thêm
-        </button>
-      </div>
+      {/* Add serial inline — ẩn khi đã khóa */}
+      {!locked && (
+        <div style={{ display:'flex', gap:6 }}>
+          <input
+            type="text" value={newSerial}
+            onChange={e => setNewSerial(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && addSerial()}
+            placeholder="Nhập serial rồi Enter..."
+            style={{ flex:1, maxWidth:260, padding:'5px 10px', border:'1px solid #93c5fd', borderRadius:5, fontSize:12, outline:'none' }}
+          />
+          <button onClick={addSerial} style={{ padding:'5px 12px', background:'#2563eb', color:'#fff', border:'none', borderRadius:5, cursor:'pointer', fontSize:12, fontWeight:600 }}>
+            + Thêm
+          </button>
+        </div>
+      )}
       </EditGuard>
       <div style={{ fontSize:11, color:'#6b7280', marginTop:5 }}>
         Mẫu Excel import: <strong>cột đầu = serial máy</strong>, các cột sau = serial thành phần

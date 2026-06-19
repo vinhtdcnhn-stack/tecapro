@@ -10,7 +10,8 @@ import useCtrlSave from './useCtrlSave'
 
 // ── Delivery card ─────────────────────────────────────────────────────────────
 
-export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle, onEdit, onDelete, onItemCountChange }) {
+export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle, onEdit, onDelete, onToggleLock, onItemCountChange }) {
+  const locked = !!delivery.locked
   const [items, setItems]       = useState([])
   const [loadingItems, setLoad] = useState(false)
   const [itemsLoaded, setLoaded]= useState(false)
@@ -105,11 +106,22 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
           </div>
         </div>
 
-        <span style={{ ...ss, padding:'2px 10px', borderRadius:99, fontSize:11, fontWeight:600 }}>{delivery.status}</span>
+        {locked
+          ? <span style={{ padding:'2px 10px', borderRadius:99, fontSize:11, fontWeight:700, background:'#fef3c7', color:'#92400e', border:'1px solid #fde68a' }}>🔒 Đã khóa</span>
+          : <span style={{ ...ss, padding:'2px 10px', borderRadius:99, fontSize:11, fontWeight:600 }}>{delivery.status}</span>}
 
-        <div style={{ display:'flex', gap:6 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', gap:6, alignItems:'center' }} onClick={e => e.stopPropagation()}>
           <EditGuard>
-            {isMobile ? (
+            {/* Nút khóa/mở khóa — luôn dùng được (để còn mở khóa); chỉ owner/admin thấy */}
+            <button onClick={onToggleLock} title={locked ? 'Mở khóa đợt' : 'Khóa đợt'}
+              style={{ padding: isMobile ? 0 : '4px 10px', width: isMobile ? 30 : 'auto', height: isMobile ? 30 : 'auto', display:'inline-flex', alignItems:'center', justifyContent:'center', gap:4, borderRadius:5, border:'1px solid #e5e7eb', background: locked ? '#fffbeb' : '#fff', color:'#374151', cursor:'pointer', fontSize:12, fontWeight:500 }}>
+              {locked
+                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 10 0h-2a3 3 0 0 0-6 0v2z"/></svg>
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h9V6a3 3 0 0 0-6 0H7a5 5 0 0 1 10 0v2z"/></svg>}
+              {!isMobile && (locked ? 'Mở khóa' : 'Khóa')}
+            </button>
+            {/* Sửa/Xóa đợt — ẩn khi đã khóa */}
+            {!locked && (isMobile ? (
               <>
                 <button onClick={onEdit} title="Sửa" aria-label="Sửa"
                   style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:30, height:30, borderRadius:6, border:'1px solid #e5e7eb', background:'#fff', color:'#374151', cursor:'pointer' }}>
@@ -131,7 +143,7 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
                   Xóa
                 </button>
               </>
-            )}
+            ))}
           </EditGuard>
         </div>
       </div>
@@ -147,6 +159,7 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
               boqItems={boqItems}
               deliveryId={delivery.id}
               contractInId={delivery.contract_in_id}
+              locked={locked}
               onAddItem={handleAddItem}
               onDeleteItem={handleDeleteItem}
               onUpdateItemFields={handleUpdateItemFields}
@@ -175,6 +188,7 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
                         item={item}
                         deliveryId={delivery.id}
                         contractInId={delivery.contract_in_id}
+                        locked={locked}
                         onReload={reloadItems}
                         onDelete={() => handleDeleteItem(item)}
                         onUpdateItem={(field, value) => handleUpdateItem(item, field, value)}
@@ -189,8 +203,12 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
                 </table>
               </div>
 
-              {/* Add item */}
-              {addItemForm ? (
+              {/* Add item — ẩn khi đã khóa */}
+              {locked ? (
+                <div style={{ fontSize:12, color:'#92400e', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:6, padding:'8px 12px' }}>
+                  🔒 Đợt đã khóa — mở khóa để thêm/sửa hàng hóa.
+                </div>
+              ) : addItemForm ? (
                 <AddItemForm
                   boqItems={boqItems}
                   existingNames={items.map(i => i.item_name)}

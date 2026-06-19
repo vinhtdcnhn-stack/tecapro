@@ -6,7 +6,7 @@ import EditGuard from './EditGuard'
 
 // ── Danh sách hàng của đợt nhận (mobile): thẻ + sheet ─────────────────────────
 export default function DeliveryItemsMobile({
-  items, boqItems, deliveryId, contractInId,
+  items, boqItems, deliveryId, contractInId, locked = false,
   onAddItem, onDeleteItem, onUpdateItemFields, onSerialCountChange, onReload,
 }) {
   const [adding, setAdding] = useState(false)
@@ -26,6 +26,7 @@ export default function DeliveryItemsMobile({
           item={item}
           deliveryId={deliveryId}
           contractInId={contractInId}
+          locked={locked}
           onDelete={() => onDeleteItem(item)}
           onSaveFields={(fields) => onUpdateItemFields(item, fields)}
           onSerialCountChange={(delta) => onSerialCountChange(item.id, delta)}
@@ -33,11 +34,17 @@ export default function DeliveryItemsMobile({
         />
       ))}
 
-      <EditGuard>
-        <button className="mcard-add" onClick={() => setAdding(true)}>+ Thêm hàng</button>
-      </EditGuard>
+      {locked ? (
+        <div style={{ fontSize:12, color:'#92400e', background:'#fffbeb', border:'1px solid #fde68a', borderRadius:6, padding:'8px 12px' }}>
+          🔒 Đợt đã khóa — mở khóa để thêm/sửa hàng hóa.
+        </div>
+      ) : (
+        <EditGuard>
+          <button className="mcard-add" onClick={() => setAdding(true)}>+ Thêm hàng</button>
+        </EditGuard>
+      )}
 
-      {adding && (
+      {adding && !locked && (
         <AddItemSheet
           boqItems={boqItems}
           existingNames={items.map(i => i.item_name)}

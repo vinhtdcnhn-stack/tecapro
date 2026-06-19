@@ -12,6 +12,7 @@ import { ActivitiesSubTab } from './WarrantyDisplaySubTabs'
 export default function ContractWarrantyTab({ contractId }) {
   const [subTab, setSubTab]       = useState('equipment')
   const [equipment, setEquipment] = useState([])
+  const [deliveries, setDeliveries] = useState([])
   const [cases, setCases]         = useState([])
   const [allActivities, setAllAct]= useState([])
   const [loading, setLoading]     = useState(true)
@@ -20,6 +21,12 @@ export default function ContractWarrantyTab({ contractId }) {
     const res = await fetch(`${API}/contracts/${contractId}/equipment`)
     const d   = await res.json()
     setEquipment(Array.isArray(d) ? d : [])
+  }, [contractId])
+
+  const loadDeliveries = useCallback(async () => {
+    const res = await fetch(`${API}/contracts/${contractId}/deliveries`)
+    const d   = await res.json()
+    setDeliveries(Array.isArray(d) ? d : [])
   }, [contractId])
 
   const loadCases = useCallback(async () => {
@@ -37,9 +44,9 @@ export default function ContractWarrantyTab({ contractId }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- bật cờ loading rồi chạy các loader async (Promise.all)
     setLoading(true)
-    Promise.all([loadEquipment(), loadCases(), loadAllActivities()])
+    Promise.all([loadEquipment(), loadDeliveries(), loadCases(), loadAllActivities()])
       .finally(() => setLoading(false))
-  }, [loadEquipment, loadCases, loadAllActivities])
+  }, [loadEquipment, loadDeliveries, loadCases, loadAllActivities])
 
   const SUBTABS = [
     { key: 'equipment', label: 'Thiết bị bàn giao' },
@@ -67,6 +74,8 @@ export default function ContractWarrantyTab({ contractId }) {
             equipment={equipment}
             setEquipment={setEquipment}
             reload={loadEquipment}
+            deliveries={deliveries}
+            reloadDeliveries={loadDeliveries}
           />
         )}
         {subTab === 'serials' && (
@@ -75,6 +84,7 @@ export default function ContractWarrantyTab({ contractId }) {
             equipment={equipment}
             setEquipment={setEquipment}
             reload={loadEquipment}
+            deliveries={deliveries}
           />
         )}
         {subTab === 'cases' && (

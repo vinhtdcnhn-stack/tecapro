@@ -357,3 +357,19 @@
 }
 .wty-table th input[type="checkbox"],
 .wty-table td input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
+
+/* ── Đợt giao hàng (card) ─────────────────────────────────────────────── */
+.hbatch-list { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.hbatch-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; min-width: 0; }
+.hbatch-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px; cursor: pointer; user-select: none; background: #f9fafb;
+  border-bottom: 1px solid transparent;
+}
+.hbatch-card:has(.hbatch-body) .hbatch-head { border-bottom-color: #e5e7eb; }
+.hbatch-head:hover { background: #f3f4f6; }
+.hbatch-head-main { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #111827; min-width: 0; flex-wrap: wrap; }
+.hbatch-caret { color: #6b7280; font-size: 12px; width: 12px; }
+.hbatch-date { color: #6b7280; font-size: 12px; font-weight: 500; }
+.hbatch-count { color: #2563eb; font-size: 12px; font-weight: 600; }
+.hbatch-body { padding: 12px 16px; min-width: 0; }

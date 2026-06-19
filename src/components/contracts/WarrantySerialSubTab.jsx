@@ -14,11 +14,13 @@ const INACTIVE_STATUSES = ['Đã thay thế', 'Ngừng sử dụng']
 
 // ── Quản lý Serial: mỗi serial 1 dòng, có bảo hành riêng + gắn máy cha (tùy chọn) ──
 
-export default function WarrantySerialSubTab({ contractId, equipment, setEquipment, reload }) {
+export default function WarrantySerialSubTab({ contractId, equipment, setEquipment, reload, deliveries = [] }) {
   const [edits, setEdits]   = useState({})   // { [serialId]: { field: value } }
   const [saving, setSaving] = useState({})   // { [serialId]: true }
   const [search, setSearch] = useState('')
   const [filterEq, setFilterEq] = useState('')   // equipment_id lọc theo loại
+  const [filterDelivery, setFilterDelivery] = useState('')   // delivery_id lọc theo đợt
+  const batchName = new Map(deliveries.map(d => [String(d.id), d.batch_name || '(chưa đặt tên)']))
   const [showAdd, setShowAdd] = useState(false)
   const [importPreview, setImportPreview] = useState(null)
   const [importing, setImporting] = useState(false)
@@ -32,11 +34,12 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
 
   const parentLabel = (id) => {
     const p = all.find(s => String(s.id) === String(id))
-    return p ? `${p.eqName} – ${p.serial_no}` : '—'
+    return p ? p.serial_no : '—'
   }
 
   const filtered = all.filter(s => {
     if (filterEq && String(s.equipment_id) !== String(filterEq)) return false
+    if (filterDelivery && String(s.delivery_id) !== String(filterDelivery)) return false
     const t = search.trim().toLowerCase()
     if (!t) return true
     return [s.serial_no, s.eqName, s.brand, s.model].some(v => v?.toLowerCase().includes(t))
@@ -82,8 +85,21 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
     ))
   }
 
+  // Trả về các serial CHƯA có trong hệ thống nhập (để cảnh báo trước khi lưu).
+  async function missingInImport(serialList) {
+    try {
+      const res = await fetch(`${API}/serials/check-import`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serials: serialList }),
+      })
+      const data = await res.json()
+      return res.ok ? (data.missing || []) : []
+    } catch { return [] }
+  }
+
   // Thêm 1 linh kiện (tự tạo loại nếu chưa có) qua endpoint import
   async function addComponent(form) {
+    const missing = await missingInImport([form.serial_no])
+    if (missing.length && !confirm(`Serial "${form.serial_no}" chưa có trong hệ thống nhập.\nVẫn tiếp tục cập nhật?`)) return
     const res = await fetch(`${API}/contracts/${contractId}/serials/import`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([form]),
     })
@@ -138,6 +154,12 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
 
   async function confirmImport() {
     if (!importPreview?.length) return
+    // Cảnh báo các serial chưa có trong hệ thống nhập trước khi cập nhật.
+    const allSerials = importPreview.map(it => it.serial_no).filter(Boolean)
+    if (allSerials.length) {
+      const missing = await missingInImport(allSerials)
+      if (missing.length && !confirm(`Có ${missing.length} serial chưa có trong hệ thống nhập.\nVẫn tiếp tục cập nhật?`)) return
+    }
     setImporting(true)
     try {
       const res = await fetch(`${API}/contracts/${contractId}/serials/import`, {
@@ -197,6 +219,10 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
         <input className="wty-search" placeholder="🔍 Tìm serial, thiết bị, hãng, model..."
           value={search} onChange={e => setSearch(e.target.value)} />
         <div className="wty-toolbar-right">
+          <select className="wty-search" style={{ minWidth: 160 }} value={filterDelivery} onChange={e => setFilterDelivery(e.target.value)}>
+            <option value="">— Tất cả đợt giao —</option>
+            {deliveries.map(d => <option key={d.id} value={d.id}>{d.batch_name || '(chưa đặt tên)'}</option>)}
+          </select>
           <select className="wty-search" style={{ minWidth: 180 }} value={filterEq} onChange={e => setFilterEq(e.target.value)}>
             <option value="">— Tất cả loại thiết bị —</option>
             {equipment.map(eq => <option key={eq.id} value={eq.id}>{eq.name}</option>)}
@@ -281,6 +307,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
                 <th style={{ width: 32 }}><input type="checkbox" checked={allChecked} onChange={toggleAll} title="Chọn tất cả (theo bộ lọc)" /></th>
                 <th style={{ width: 36 }}>#</th>
                 <th>Loại thiết bị</th>
+                <th style={{ width: 130 }}>Đợt giao</th>
                 <th>Serial</th>
                 <th>Hãng / Model</th>
                 <th style={{ width: 140 }}>BH từ</th>
@@ -292,7 +319,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan="10" className="wty-empty">
+                <tr><td colSpan="11" className="wty-empty">
                   Chưa có serial nào. Nhấn <strong>Thêm linh kiện</strong> hoặc <strong>Import Excel</strong>.
                 </td></tr>
               ) : filtered.map((row, idx) => {
@@ -305,6 +332,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
                     </td>
                     <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>{idx + 1}</td>
                     <td><strong>{row.eqName}</strong></td>
+                    <td style={{ fontSize: 12, color: '#6b7280' }}>{batchName.get(String(row.delivery_id)) || '—'}</td>
                     <td>
                       <input className="ser-inp" value={val(row, 'serial_no')}
                         onChange={e => setF(row.id, 'serial_no', e.target.value)} />
@@ -343,7 +371,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
                         onChange={e => setF(row.id, 'parent_serial_id', e.target.value)}>
                         <option value="">— Rời / chưa rõ —</option>
                         {all.filter(o => o.id !== row.id)
-                            .map(o => <option key={o.id} value={o.id}>{o.eqName} – {o.serial_no}</option>)}
+                            .map(o => <option key={o.id} value={o.id}>{o.serial_no}</option>)}
                       </select>
                     </td>
                     <td>

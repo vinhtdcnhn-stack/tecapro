@@ -70,8 +70,9 @@ export default function BarcodeScanStandaloneModal({ contractInId, onClose, onSa
     fetch(`${API}/contract-ins/${contractInId}/deliveries`)
       .then(r => r.json())
       .then(d => { if (!cancelled && Array.isArray(d)) {
-        setDeliveries(d)
-        setDeliveryId(prev => prev || (d[0]?.id ?? ''))
+        const open = d.filter(x => !x.locked)   // đợt đã khóa không cho gán serial
+        setDeliveries(open)
+        setDeliveryId(prev => prev || (open[0]?.id ?? ''))
       } })
       .catch(() => {})
     fetch(`${API}/contract-ins/${contractInId}/all-serials`)

@@ -16,11 +16,12 @@ export default function ContractInSerialRow({ row, idx, selected, onToggleSelect
   const sc = statusColor(status)
   const isDirty = dirty(row.id)
   const inactive = INACTIVE.includes(row.status)
+  const locked = !!row.batch_locked   // serial thuộc đợt đã khóa → chỉ đọc
 
   return (
     <tr style={{ background: selected ? '#eff6ff' : isDirty ? '#fffbeb' : 'transparent', opacity: inactive ? 0.65 : 1 }}>
       <td style={{ ...cell, textAlign:'center' }}>
-        <input type="checkbox" checked={selected} onChange={() => onToggleSelect(row.id)} style={{ cursor:'pointer', accentColor:'#2563eb' }} />
+        <input type="checkbox" checked={selected} disabled={locked} onChange={() => onToggleSelect(row.id)} style={{ cursor: locked ? 'not-allowed' : 'pointer', accentColor:'#2563eb' }} />
       </td>
       <td style={{ ...cell, textAlign:'center', color:'#9ca3af', fontSize:12 }}>{idx + 1}</td>
 
@@ -30,19 +31,19 @@ export default function ContractInSerialRow({ row, idx, selected, onToggleSelect
       </td>
 
       <td style={cell}>
-        <input style={input} value={val(row, 'serial_no')} onChange={e => setF(row.id, 'serial_no', e.target.value)} />
+        <input style={input} value={val(row, 'serial_no')} disabled={locked} onChange={e => setF(row.id, 'serial_no', e.target.value)} />
       </td>
 
       <td style={{ ...cell, color:'#6b7280', fontSize:12, whiteSpace:'nowrap' }}>
-        {row.batch_name || '—'}
+        {locked && <span title="Đợt đã khóa">🔒 </span>}{row.batch_name || '—'}
         <div style={{ color:'#9ca3af', fontSize:11 }}>{fmtDate(row.receive_date)}</div>
       </td>
 
       <td style={cell}>
         <select
-          value={status}
+          value={status} disabled={locked}
           onChange={e => setF(row.id, 'status', e.target.value)}
-          style={{ ...input, background:sc.bg, borderColor:sc.bd, color:sc.fg, fontWeight:600, cursor:'pointer' }}
+          style={{ ...input, background:sc.bg, borderColor:sc.bd, color:sc.fg, fontWeight:600, cursor: locked ? 'not-allowed' : 'pointer' }}
         >
           {SERIAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -50,9 +51,9 @@ export default function ContractInSerialRow({ row, idx, selected, onToggleSelect
 
       <td style={cell}>
         <select
-          value={val(row, 'parent_serial_id') || ''}
+          value={val(row, 'parent_serial_id') || ''} disabled={locked}
           onChange={e => setF(row.id, 'parent_serial_id', e.target.value)}
-          style={{ ...input, cursor:'pointer' }}
+          style={{ ...input, cursor: locked ? 'not-allowed' : 'pointer' }}
         >
           <option value="">— Máy độc lập —</option>
           {parentOptions.filter(p => p.id !== row.id).map(p => (
@@ -62,26 +63,30 @@ export default function ContractInSerialRow({ row, idx, selected, onToggleSelect
       </td>
 
       <td style={cell}>
-        <input style={input} value={val(row, 'note')} onChange={e => setF(row.id, 'note', e.target.value)} placeholder="—" />
+        <input style={input} value={val(row, 'note')} disabled={locked} onChange={e => setF(row.id, 'note', e.target.value)} placeholder="—" />
       </td>
 
       <td style={{ ...cell, textAlign:'center', whiteSpace:'nowrap' }}>
-        <div style={{ display:'inline-flex', gap:4 }}>
-          {isDirty && (
-            <button onClick={() => onSave(row)} disabled={saving} title="Lưu"
-              style={{ padding:'3px 8px', background:'#16a34a', color:'#fff', border:'none', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
-              {saving ? '…' : 'Lưu'}
+        {locked ? (
+          <span style={{ fontSize:11, color:'#92400e' }} title="Đợt đã khóa — mở khóa để sửa">🔒 Đã khóa</span>
+        ) : (
+          <div style={{ display:'inline-flex', gap:4 }}>
+            {isDirty && (
+              <button onClick={() => onSave(row)} disabled={saving} title="Lưu"
+                style={{ padding:'3px 8px', background:'#16a34a', color:'#fff', border:'none', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
+                {saving ? '…' : 'Lưu'}
+              </button>
+            )}
+            <button onClick={() => onReplace(row)} title="Thay thế serial"
+              style={{ padding:'3px 8px', background:'#fef3c7', color:'#b45309', border:'1px solid #fde68a', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
+              ↻
             </button>
-          )}
-          <button onClick={() => onReplace(row)} title="Thay thế serial"
-            style={{ padding:'3px 8px', background:'#fef3c7', color:'#b45309', border:'1px solid #fde68a', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
-            ↻
-          </button>
-          <button onClick={() => onDelete(row)} title="Xóa"
-            style={{ padding:'3px 8px', background:'#fee2e2', color:'#b91c1c', border:'none', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
-            Xóa
-          </button>
-        </div>
+            <button onClick={() => onDelete(row)} title="Xóa"
+              style={{ padding:'3px 8px', background:'#fee2e2', color:'#b91c1c', border:'none', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
+              Xóa
+            </button>
+          </div>
+        )}
       </td>
     </tr>
   )

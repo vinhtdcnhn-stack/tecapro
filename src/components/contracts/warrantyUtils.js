@@ -52,7 +52,7 @@ export function flattenSerials(equipment) {
     for (const s of (eq.serials || [])) {
       const eff = effWarranty(s, eq)
       out.push({ ...s, equipment_id: eq.id, eqName: eq.name, brand: eq.brand, model: eq.model,
-                 effFrom: eff.from, effTo: eff.to })
+                 delivery_id: eq.delivery_id, effFrom: eff.from, effTo: eff.to })
     }
   }
   return out

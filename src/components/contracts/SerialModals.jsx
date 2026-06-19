@@ -58,7 +58,7 @@ export function ComponentModal({ equipment, serials, onClose, onSave }) {
             <div className="wty-form-group full"><label>Thuộc máy (tùy chọn)</label>
               <select value={f.parent_serial_id} onChange={e => set('parent_serial_id', e.target.value)}>
                 <option value="">— Rời / chưa rõ —</option>
-                {serials.map(o => <option key={o.id} value={o.id}>{o.eqName} – {o.serial_no}</option>)}
+                {serials.map(o => <option key={o.id} value={o.id}>{o.serial_no}</option>)}
               </select>
             </div>
           </div>
