@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import './ContractTaskTab.css'
 
 import { API } from '../../config/api'
-import { isOverdue } from './taskUtils'
+import { isOverdue, groupByDept } from './taskUtils'
 import DeptGroup from './TaskDeptGroup'
 import TaskModal from './TaskModal'
+import TaskGantt from './TaskGantt'
 import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -14,7 +15,9 @@ export default function ContractTaskTab({ contractId, currentUser }) {
   const [loading, setLoading]     = useState(true)
   const [departments, setDepts]   = useState([])
   const [users, setUsers]         = useState([])
+  const [milestones, setMilestones] = useState([])  // mốc tiến độ HĐ (cho Gantt)
   const [filter, setFilter]       = useState('all')
+  const [view, setView]           = useState('list')  // 'list' | 'gantt'
   const [modalOpen, setModalOpen] = useState(false)
   const [editTask, setEditTask]   = useState(null)  // null = create mode
   const [collapsed, setCollapsed] = useState({})    // dept.id → bool
@@ -22,15 +25,17 @@ export default function ContractTaskTab({ contractId, currentUser }) {
   // ── Load data ───────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     try {
-      const [tRes, dRes, uRes] = await Promise.all([
+      const [tRes, dRes, uRes, pRes] = await Promise.all([
         fetch(`${API}/contracts/${contractId}/tasks`),
         fetch(`${API}/departments`),
         fetch(`${API}/users`),
+        fetch(`${API}/contracts/${contractId}/progress`),
       ])
-      const [tData, dData, uData] = await Promise.all([tRes.json(), dRes.json(), uRes.json()])
+      const [tData, dData, uData, pData] = await Promise.all([tRes.json(), dRes.json(), uRes.json(), pRes.json()])
       setTasks(Array.isArray(tData) ? tData : [])
       setDepts(Array.isArray(dData) ? dData : [])
       setUsers(Array.isArray(uData) ? uData : [])
+      setMilestones(Array.isArray(pData) ? pData : [])
     } catch (e) { console.error('load tasks:', e) }
     finally { setLoading(false) }
   }, [contractId])
@@ -50,11 +55,7 @@ export default function ContractTaskTab({ contractId, currentUser }) {
   // ── Group by department ────────────────────────────────────────────────────
   const groups = groupByDept(filtered)
 
-  // ── Summary counts ──────────────────────────────────────────────────────────
-  const total   = tasks.length
-  const waiting = tasks.filter(t => t.status === 'Chờ xử lý').length
-  const doing   = tasks.filter(t => t.status === 'Đang thực hiện').length
-  const done    = tasks.filter(t => t.status === 'Hoàn thành').length
+  // ── Overdue count (cho nhãn bộ lọc) ──────────────────────────────────────────
   const overdue = tasks.filter(isOverdue).length
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -108,9 +109,11 @@ export default function ContractTaskTab({ contractId, currentUser }) {
           department_id: task.department_id,
           assigned_to:   task.assigned_to,
           priority:      task.priority,
+          start_date:    task.start_date,
           due_date:      task.due_date,
           status:        newStatus,
           note:          task.note,
+          dependencies:  task.dependencies || [],
         }),
       })
       const data = await res.json()
@@ -127,35 +130,6 @@ export default function ContractTaskTab({ contractId, currentUser }) {
 
   return (
     <div className="task-tab">
-      {/* Summary */}
-      <div className="task-summary">
-        <div className="task-card task-card--total">
-          <div className="task-card-label">Tổng công việc</div>
-          <div className="task-card-value">{total}</div>
-          <div className="task-card-sub">trong hợp đồng này</div>
-        </div>
-        <div className="task-card task-card--waiting">
-          <div className="task-card-label">Chờ xử lý</div>
-          <div className="task-card-value">{waiting}</div>
-          <div className="task-card-sub">chưa bắt đầu</div>
-        </div>
-        <div className="task-card task-card--doing">
-          <div className="task-card-label">Đang thực hiện</div>
-          <div className="task-card-value">{doing}</div>
-          <div className="task-card-sub">công việc</div>
-        </div>
-        <div className="task-card task-card--done">
-          <div className="task-card-label">Hoàn thành</div>
-          <div className="task-card-value">{done}</div>
-          <div className="task-card-sub">{total > 0 ? `${Math.round(done/total*100)}%` : '0%'} tiến độ</div>
-        </div>
-        <div className="task-card task-card--overdue">
-          <div className="task-card-label">Quá hạn</div>
-          <div className="task-card-value">{overdue}</div>
-          <div className="task-card-sub">{overdue > 0 ? 'Cần xử lý ngay' : 'Không có'}</div>
-        </div>
-      </div>
-
       {/* Toolbar */}
       <div className="task-toolbar">
         <div className="task-filters">
@@ -175,16 +149,24 @@ export default function ContractTaskTab({ contractId, currentUser }) {
             </button>
           ))}
         </div>
-        <EditGuard>
-          <button className="task-add-btn" onClick={openCreate}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            Thêm công việc
-          </button>
-        </EditGuard>
+        <div className="task-toolbar-right">
+          <div className="task-view-seg">
+            <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>Danh sách</button>
+            <button className={view === 'gantt' ? 'active' : ''} onClick={() => setView('gantt')}>Gantt</button>
+          </div>
+          <EditGuard>
+            <button className="task-add-btn" onClick={openCreate}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              Thêm công việc
+            </button>
+          </EditGuard>
+        </div>
       </div>
 
-      {/* Groups */}
-      {filtered.length === 0 ? (
+      {/* Nội dung: Danh sách hoặc Gantt */}
+      {view === 'gantt' ? (
+        <TaskGantt tasks={filtered} milestones={milestones} onEdit={openEdit} />
+      ) : filtered.length === 0 ? (
         <div className="task-empty">
           {filter === 'all'
             ? 'Chưa có công việc nào. Nhấn Thêm công việc để bắt đầu.'
@@ -208,6 +190,8 @@ export default function ContractTaskTab({ contractId, currentUser }) {
           task={editTask}
           departments={departments}
           users={users}
+          allTasks={tasks}
+          milestones={milestones}
           currentUser={currentUser}
           onSave={handleSave}
           onClose={handleModalClose}
@@ -215,24 +199,4 @@ export default function ContractTaskTab({ contractId, currentUser }) {
       )}
     </div>
   )
-}
-
-// ── Group tasks by department ─────────────────────────────────────────────────
-
-function groupByDept(tasks) {
-  const map = new Map()
-
-  // Ensure "Chưa phân phòng" group exists last
-  for (const t of tasks) {
-    const key  = t.department_id ?? 'none'
-    const name = t.department_name ?? 'Chưa phân phòng ban'
-    if (!map.has(key)) map.set(key, { key, name, tasks: [] })
-    map.get(key).tasks.push(t)
-  }
-
-  return [...map.values()].sort((a, b) => {
-    if (a.key === 'none') return 1
-    if (b.key === 'none') return -1
-    return 0
-  })
 }

@@ -14,7 +14,9 @@ const BASE_SELECT = `
     t.created_by,
     cb.full_name AS created_by_name,
     t.priority,
+    t.start_date,
     t.due_date,
+    t.duration_days,
     t.status,
     t.note,
     t.completed_at,
@@ -22,12 +24,45 @@ const BASE_SELECT = `
     t.updated_at,
     (SELECT COUNT(*) FROM contract_task_attachment WHERE task_id = t.id)::int AS attachment_count,
     (SELECT json_agg(json_build_object('id', a.id, 'file_name', a.file_name, 'file_path', a.file_path) ORDER BY a.created_at)
-     FROM contract_task_attachment a WHERE a.task_id = t.id) AS attachments
+     FROM contract_task_attachment a WHERE a.task_id = t.id) AS attachments,
+    COALESCE((SELECT json_agg(json_build_object(
+        'id', dep.id, 'dep_type', dep.dep_type,
+        'dep_task_id', dep.dep_task_id, 'dep_progress_id', dep.dep_progress_id,
+        'offset_days', dep.offset_days) ORDER BY dep.id)
+     FROM contract_task_dependency dep WHERE dep.task_id = t.id), '[]') AS dependencies
   FROM contract_task t
   LEFT JOIN department d  ON d.id  = t.department_id
   LEFT JOIN app_user   u  ON u.id  = t.assigned_to
   LEFT JOIN app_user   cb ON cb.id = t.created_by
 `
+
+// Ghi lại toàn bộ phụ thuộc của 1 công việc (xoá hết rồi chèn lại) trong cùng transaction.
+// deps: [{ dep_type:'task'|'milestone', dep_task_id?, dep_progress_id?, offset_days? }].
+// Bỏ qua bản ghi không hợp lệ và phụ thuộc vào chính nó.
+async function replaceDependencies(client, taskId, deps) {
+  await client.query('DELETE FROM contract_task_dependency WHERE task_id = $1', [taskId])
+  if (!Array.isArray(deps) || deps.length === 0) return
+  for (const d of deps) {
+    const offset = parseInt(d?.offset_days, 10) || 0
+    if (d?.dep_type === 'task') {
+      const depTaskId = parseInt(d.dep_task_id, 10)
+      if (!Number.isFinite(depTaskId) || depTaskId === taskId) continue
+      await client.query(
+        `INSERT INTO contract_task_dependency (task_id, dep_type, dep_task_id, offset_days)
+         VALUES ($1,'task',$2,$3)`,
+        [taskId, depTaskId, offset]
+      )
+    } else if (d?.dep_type === 'milestone') {
+      const depProgressId = parseInt(d.dep_progress_id, 10)
+      if (!Number.isFinite(depProgressId)) continue
+      await client.query(
+        `INSERT INTO contract_task_dependency (task_id, dep_type, dep_progress_id, offset_days)
+         VALUES ($1,'milestone',$2,$3)`,
+        [taskId, depProgressId, offset]
+      )
+    }
+  }
+}
 
 export async function getTasks(req, res) {
   const contractId = parseInt(req.params.id)
@@ -49,19 +84,23 @@ export async function createTask(req, res) {
   const contractId = parseInt(req.params.id)
   const {
     title, description, department_id, assigned_to,
-    created_by, priority, due_date, status, note
+    created_by, priority, start_date, due_date, duration_days, status, completed_at, note, dependencies
   } = req.body
 
   if (!title?.trim()) {
     return res.status(400).json({ error: 'Tên công việc không được để trống' })
   }
 
+  const client = await pool.connect()
   try {
-    const { rows } = await pool.query(
+    await client.query('BEGIN')
+    const { rows } = await client.query(
       `INSERT INTO contract_task
         (contract_out_id, title, description, department_id, assigned_to,
-         created_by, priority, due_date, status, note, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
+         created_by, priority, start_date, due_date, duration_days, status, completed_at, note, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+               CASE WHEN $11::varchar = 'Hoàn thành' THEN COALESCE($12::date, NOW()) ELSE NULL END,
+               $13,NOW(),NOW())
        RETURNING id`,
       [
         contractId,
@@ -71,12 +110,17 @@ export async function createTask(req, res) {
         assigned_to   || null,
         created_by    || null,
         priority      || 'Bình thường',
+        start_date    || null,
         due_date      || null,
+        duration_days ?? null,
         status        || 'Chờ xử lý',
+        completed_at  || null,
         note?.trim()  || null,
       ]
     )
     const id = rows[0].id
+    await replaceDependencies(client, id, dependencies)
+    await client.query('COMMIT')
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     res.json(full.rows[0])
 
@@ -88,8 +132,11 @@ export async function createTask(req, res) {
       notifyAction([assignee], `Bạn được giao công việc mới: "${title.trim()}" — HĐ ${label}${han}`)
     }
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
     console.error('createTask:', err)
     res.status(500).json({ error: 'Không thể tạo công việc' })
+  } finally {
+    client.release()
   }
 }
 
@@ -97,50 +144,62 @@ export async function updateTask(req, res) {
   const id = parseInt(req.params.id)
   const {
     title, description, department_id, assigned_to,
-    priority, due_date, status, note
+    priority, start_date, due_date, duration_days, status, completed_at, note, dependencies
   } = req.body
 
   if (!title?.trim()) {
     return res.status(400).json({ error: 'Tên công việc không được để trống' })
   }
 
+  const client = await pool.connect()
   try {
+    await client.query('BEGIN')
     // Đọc trạng thái cũ để phát hiện đổi người phụ trách / đổi trạng thái sau khi update.
-    const prev = await pool.query(
+    const prev = await client.query(
       'SELECT contract_out_id, assigned_to, created_by, status FROM contract_task WHERE id = $1',
       [id],
     )
     const old = prev.rows[0]
 
-    await pool.query(
+    await client.query(
       // Hoàn thành: giữ thời điểm hoàn thành cũ nếu đã có (COALESCE đọc giá trị cũ của chính dòng),
       // ngược lại lấy NOW(); trạng thái khác → NULL. Tham số hoá hoàn toàn, không nội suy chuỗi.
-      // $7 phải ép ::varchar trong CASE: nếu để trần, Postgres suy ra `text` ở phép so sánh
-      // literal nhưng `varchar` ở `status = $7` → lỗi 42P08 "inconsistent types deduced".
+      // $8 phải ép ::varchar trong CASE: nếu để trần, Postgres suy ra `text` ở phép so sánh
+      // literal nhưng `varchar` ở `status = $8` → lỗi 42P08 "inconsistent types deduced".
       `UPDATE contract_task SET
         title         = $1,
         description   = $2,
         department_id = $3,
         assigned_to   = $4,
-        priority      = $5,
-        due_date      = $6,
-        status        = $7,
-        note          = $8,
-        completed_at  = CASE WHEN $7::varchar = 'Hoàn thành' THEN COALESCE(completed_at, NOW()) ELSE NULL END,
-        updated_at    = NOW()
-       WHERE id = $9`,
+        priority        = $5,
+        start_date      = $6,
+        due_date        = $7,
+        duration_days   = $8,
+        status          = $9,
+        note            = $10,
+        completed_at    = CASE WHEN $9::varchar = 'Hoàn thành'
+                               THEN COALESCE($11::date, completed_at, NOW()) ELSE NULL END,
+        updated_at      = NOW()
+       WHERE id = $12`,
       [
         title.trim(),
         description?.trim() || null,
         department_id || null,
         assigned_to   || null,
         priority      || 'Bình thường',
+        start_date    || null,
         due_date      || null,
+        duration_days ?? null,
         status        || 'Chờ xử lý',
         note?.trim()  || null,
+        completed_at  || null,
         id,
       ]
     )
+    // Chỉ thay bộ phụ thuộc khi client gửi lên (tránh xoá nhầm khi caller không quan tâm).
+    if (dependencies !== undefined) await replaceDependencies(client, id, dependencies)
+    await client.query('COMMIT')
+
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     if (full.rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy công việc' })
     res.json(full.rows[0])
@@ -166,8 +225,11 @@ export async function updateTask(req, res) {
       }
     }
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
     console.error('updateTask:', err)
     res.status(500).json({ error: 'Không thể cập nhật công việc' })
+  } finally {
+    client.release()
   }
 }
 
