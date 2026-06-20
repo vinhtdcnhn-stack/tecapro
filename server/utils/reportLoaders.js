@@ -1,7 +1,15 @@
 import { pool } from '../db.js'
+import {
+  loadContractsAsOf, loadReceivablesAsOf, loadPayablesAsOf,
+  loadInvoicedByContractAsOf, revenueOfYearAsOf,
+} from './reportLoaders.asof.js'
 
 // Bộ nạp dữ liệu + helper dùng chung cho các báo cáo tài chính (kế toán). Tính trên
 // giá trị NGUYÊN TỆ; quy VND bằng exchange_rate khi cần gộp nhiều loại tiền.
+//
+// Tham số `pit` (point-in-time): khi request có asOf rõ ràng, các loader uỷ quyền sang
+// bản "as-of" (reportLoaders.asof.js) để dựng số liệu từ record_history (giá trị đúng
+// tại thời điểm quá khứ). Mặc định pit=false → đọc bảng live như cũ (không đổi hành vi).
 
 const pad = (n) => String(n).padStart(2, '0')
 
@@ -22,7 +30,8 @@ export const toVnd = (amount, rate, currency) => {
 
 // Khoản phải thu + ngữ cảnh HĐ + tổng đã thu (theo schedule_id).
 // asOf (tùy chọn): chỉ cộng tiền đã thu có ngày ≤ asOf (xem dashboard tại 1 thời điểm quá khứ).
-export async function loadReceivables(db = pool, { asOf } = {}) {
+export async function loadReceivables(db = pool, { asOf, pit } = {}) {
+  if (pit && asOf) return loadReceivablesAsOf({ asOf }, db)
   const { rows } = await db.query(`
     SELECT r.id, r.contract_out_id, r.description, r.amount, r.currency_code, r.exchange_rate,
            r.due_date, r.due_offset_days, r.due_base_bb_type_id, r.due_base_anchor, r.sort_order,
@@ -60,7 +69,8 @@ export async function loadPaymentsByContract(db = pool, { asOf } = {}) {
 
 // Hợp đồng bán + khách hàng (chưa xóa). Lọc tùy chọn theo ngày ký (contract_date)
 // trong khoảng [from, to] — dùng cho bộ chọn khoảng thời gian ở dashboard điều hành.
-export async function loadContracts(db = pool, { from, to, asOf } = {}) {
+export async function loadContracts(db = pool, { from, to, asOf, pit } = {}) {
+  if (pit && asOf) return loadContractsAsOf({ from, to, asOf }, db)
   const cond = ['COALESCE(c.is_deleted, false) = false']
   const params = []
   if (from) { params.push(from); cond.push(`c.contract_date >= $${params.length}`) }
@@ -78,7 +88,8 @@ export async function loadContracts(db = pool, { from, to, asOf } = {}) {
 }
 
 // Đợt phải trả NCC + ngữ cảnh hợp đồng nhập + NCC.
-export async function loadPayables(db = pool) {
+export async function loadPayables(db = pool, { asOf, pit } = {}) {
+  if (pit && asOf) return loadPayablesAsOf(asOf, db)
   const { rows } = await db.query(`
     SELECT pa.id, pa.contract_in_id, pa.description, pa.amount, pa.currency_code, pa.exchange_rate,
            pa.amount_vnd, pa.due_date,
@@ -104,7 +115,8 @@ export async function loadPaymentsByContractIn(db = pool, { asOf } = {}) {
 
 // Map(contract_out_id(string) → tổng đã xuất hóa đơn quy VND).
 // asOf (tùy chọn): chỉ tính hóa đơn xuất ngày ≤ asOf.
-export async function loadInvoicedByContract(db = pool, { asOf } = {}) {
+export async function loadInvoicedByContract(db = pool, { asOf, pit } = {}) {
+  if (pit && asOf) return loadInvoicedByContractAsOf(asOf, db)
   const { rows } = await db.query(`
     SELECT i.contract_out_id,
            SUM(CASE WHEN i.currency_code = 'VND' THEN it.amount_after_vat
@@ -120,7 +132,8 @@ export async function loadInvoicedByContract(db = pool, { asOf } = {}) {
 
 // Doanh thu đã xuất hóa đơn của 1 năm (quy VND) — theo ngày xuất.
 // asOf (tùy chọn): chỉ cộng hóa đơn xuất ngày ≤ asOf (lũy kế tới thời điểm xem).
-export async function revenueOfYear(year, db = pool, asOf = null) {
+export async function revenueOfYear(year, db = pool, asOf = null, pit = false) {
+  if (pit && asOf) return revenueOfYearAsOf(year, asOf, db)
   const { rows } = await db.query(`
     SELECT COALESCE(SUM(CASE WHEN i.currency_code = 'VND' THEN it.amount_after_vat
                              ELSE it.amount_after_vat * COALESCE(i.exchange_rate, 1) END), 0) AS v

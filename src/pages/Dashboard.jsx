@@ -28,6 +28,8 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
   const [byCustomer, setByCustomer] = useState(null)
   const [byContract, setByContract] = useState(null)
   const [overdueTasks, setOverdueTasks] = useState(null)
+  // Danh sách HĐ dựng tại asOf (giá trị/ngày ký/trạng thái đúng quá khứ); null khi xem hiện tại.
+  const [asOfContractList, setAsOfContractList] = useState(null)
   const [openCard, setOpenCard] = useState(null)
   const [range, setRange] = useState(loadDashRange)
   // asOf: xem dashboard tại 1 thời điểm trong quá khứ (null = hiện tại). Không lưu local.
@@ -45,20 +47,27 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
     // overdue-tasks chỉ nhận asOf (không lọc theo khoảng năm ký).
     const tq = asOf ? `?asOf=${asOf}` : ''
     ;(async () => {
-      const [cf, bcu, bco, ot] = await Promise.all([
+      const [cf, bcu, bco, ot, cl] = await Promise.all([
         get(`/reports/cashflow-summary${tq}`),
         get(`/reports/debt-by-customer${q}`),
         get(`/reports/debt-by-contract${q}`),
         get(`/reports/overdue-tasks${tq}`),
+        // Chỉ cần danh sách HĐ as-of khi xem quá khứ; hiện tại dùng prop `contracts` (live).
+        asOf ? get(`/reports/contracts-asof?asOf=${asOf}`) : Promise.resolve(null),
       ])
       if (cancelled) return
       setCashflow(cf); setByCustomer(bcu); setByContract(bco); setOverdueTasks(ot)
+      setAsOfContractList(cl?.rows || null)
     })()
     return () => { cancelled = true }
   }, [range, asOf])
 
+  // Nguồn HĐ: khi xem quá khứ dùng danh sách dựng tại asOf (giá trị đúng quá khứ),
+  // ngược lại dùng prop `contracts` (live). Khi asOf đã chọn nhưng chưa tải xong → rỗng.
+  const srcContracts = useMemo(() => (asOf ? (asOfContractList || []) : contracts), [asOf, asOfContractList, contracts])
+
   // HĐ giới hạn theo khoảng năm + chỉ tính HĐ ký tới asOf (cho thẻ Tổng giá trị HĐ + chi tiết).
-  const rangedContracts = useMemo(() => filterByRange(contracts, range, asOf), [contracts, range, asOf])
+  const rangedContracts = useMemo(() => filterByRange(srcContracts, range, asOf), [srcContracts, range, asOf])
 
   // Mở hợp đồng tại đúng tab chứa nội dung (tab mặc định = thông tin HĐ).
   // extra: query phụ (vd { inId } để mở đúng HĐ nhập trong tab "Hợp đồng nhập").
@@ -84,7 +93,7 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
   const payMonth = cashflow?.expected_payment_month
   const year = Number(cashflow?.year) || (asOf ? Number(asOf.slice(0, 4)) : new Date().getFullYear())
   // HĐ ký tới asOf (cho thẻ "ký năm Y" — chỉ tính HĐ ký trước/đến thời điểm xem).
-  const asOfContracts = useMemo(() => filterByRange(contracts, {}, asOf), [contracts, asOf])
+  const asOfContracts = useMemo(() => filterByRange(srcContracts, {}, asOf), [srcContracts, asOf])
   const signedYear = signedThisYearVnd(asOfContracts, year)
 
   const cards = [

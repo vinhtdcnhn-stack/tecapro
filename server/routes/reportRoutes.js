@@ -3,7 +3,7 @@ import { requireAccountant } from '../middleware/accountantAccess.js'
 import { getOverdueReceivables, getCashflowSummary } from '../controllers/reportController.js'
 import {
   getReceivablesReport, getPayablesReport, getProgressCollection,
-  getDebtByContract, getDebtByCustomer,
+  getDebtByContract, getDebtByCustomer, getContractsAsOf,
 } from '../controllers/reportDebtController.js'
 import { getWarrantyReport } from '../controllers/reportWarrantyController.js'
 import { getOverdueTasks } from '../controllers/reportTaskController.js'
@@ -20,5 +20,6 @@ router.get('/reports/debt-by-contract',     requireAccountant, getDebtByContract
 router.get('/reports/debt-by-customer',     requireAccountant, getDebtByCustomer)       // #8
 router.get('/reports/warranty',             requireAccountant, getWarrantyReport)        // #10
 router.get('/reports/overdue-tasks',        requireAccountant, getOverdueTasks)          // dashboard điều hành
+router.get('/reports/contracts-asof',       requireAccountant, getContractsAsOf)         // danh sách HĐ tại 1 thời điểm
 
 export default router

@@ -29,14 +29,16 @@ function latestPaymentByReceivable(payByContract) {
 // ── #3 / #4: Công nợ phải thu KH (basis=plan|actual) ──────────────────────────
 export async function getReceivablesReport(req, res) {
   try {
-    const asOf  = validDate(req.query.asOf) || vnToday()
+    const explicitAsOf = validDate(req.query.asOf)
+    const asOf  = explicitAsOf || vnToday()
+    const pit   = !!explicitAsOf
     const to    = validDate(req.query.to) || lastDayOfMonth(asOf)
     const from  = validDate(req.query.from) || null
     const basis = req.query.basis === 'plan' ? 'plan' : 'actual'
     const today = asOf
 
     const [recv, prog, payByContract] = await Promise.all([
-      loadReceivables(undefined, { asOf }), loadProgressByContract(), loadPaymentsByContract(undefined, { asOf }),
+      loadReceivables(undefined, { asOf, pit }), loadProgressByContract(), loadPaymentsByContract(undefined, { asOf }),
     ])
     const computed = computeReceivableDues(recv, prog, basis, today)
     const payDate = latestPaymentByReceivable(payByContract)
@@ -76,12 +78,14 @@ export async function getReceivablesReport(req, res) {
 // ── #5: Công nợ phải trả NCC (phân bổ FIFO tiền đã trả cho các đợt theo hạn) ────
 export async function getPayablesReport(req, res) {
   try {
-    const asOf = validDate(req.query.asOf) || vnToday()
+    const explicitAsOf = validDate(req.query.asOf)
+    const asOf = explicitAsOf || vnToday()
+    const pit  = !!explicitAsOf
     const to   = validDate(req.query.to) || lastDayOfMonth(asOf)
     const from = validDate(req.query.from) || null
     const today = asOf
 
-    const [payables, payByCI] = await Promise.all([loadPayables(), loadPaymentsByContractIn(undefined, { asOf })])
+    const [payables, payByCI] = await Promise.all([loadPayables(undefined, { asOf, pit }), loadPaymentsByContractIn(undefined, { asOf })])
 
     // Gom đợt phải trả theo hợp đồng nhập, phân bổ FIFO tổng đã trả theo thứ tự hạn.
     const byCI = new Map()
@@ -182,10 +186,11 @@ export async function getProgressCollection(req, res) {
 // ({from,to}) + asOf (xem tại 1 thời điểm: đã thu/đã xuất HĐ chỉ tính tới asOf, quá hạn theo asOf).
 async function computeContractDebt(range = {}) {
   const { asOf } = range
+  const pit = !!asOf      // asOf rõ ràng → dựng số liệu tại thời điểm quá khứ từ record_history
   const today = asOf || vnToday()
   const [recv, prog, payByContract, contracts, invoicedByContract] = await Promise.all([
-    loadReceivables(undefined, { asOf }), loadProgressByContract(), loadPaymentsByContract(undefined, { asOf }),
-    loadContracts(undefined, range), loadInvoicedByContract(undefined, { asOf }),
+    loadReceivables(undefined, { asOf, pit }), loadProgressByContract(), loadPaymentsByContract(undefined, { asOf }),
+    loadContracts(undefined, { ...range, pit }), loadInvoicedByContract(undefined, { asOf, pit }),
   ])
   const computed = computeReceivableDues(recv, prog, 'actual', today)
 
@@ -219,6 +224,22 @@ async function computeContractDebt(range = {}) {
       days_overdue: lastOverdue, status,
     }
   })
+}
+
+// ── Danh sách HĐ "tại thời điểm" cho dashboard điều hành ──────────────────────
+// Trả về toàn bộ HĐ bán (chưa xóa) với giá trị/ngày ký/trạng thái ĐÚNG tại asOf, để
+// các thẻ tính client-side (Tổng giá trị HĐ – số lượng, Giá trị HĐ ký năm, modal
+// Portfolio/Momentum) phản ánh đúng giá trị quá khứ thay vì giá trị live. Không lọc
+// theo khoảng năm — frontend tự lọc (filterByRange). asOf rỗng → danh sách live.
+export async function getContractsAsOf(req, res) {
+  try {
+    const asOf = validDate(req.query.asOf)
+    const rows = await loadContracts(undefined, { asOf, pit: !!asOf })
+    res.json({ asOf, rows })
+  } catch (err) {
+    console.error('getContractsAsOf:', err)
+    res.status(500).json({ error: 'Không thể tải danh sách hợp đồng theo thời điểm.' })
+  }
 }
 
 // ── #9: Tổng hợp công nợ theo hợp đồng ────────────────────────────────────────

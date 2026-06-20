@@ -1,13 +1,21 @@
 import { pool } from '../db.js'
 import { vnToday } from '../utils/reportLoaders.js'
+import { overdueTasksAsOf } from '../utils/reportLoaders.asof.js'
 
 // GET /reports/overdue-tasks
 // Công việc QUÁ HẠN toàn hệ thống cho dashboard điều hành (đọc-only, gating requireAccountant).
 // Overdue = due_date < hôm nay (giờ VN) AND status chưa kết thúc ('Hoàn thành'/'Hủy').
 // Bỏ qua HĐ đã xóa. Sắp xếp theo số ngày trễ giảm dần.
+// Khi request có asOf rõ ràng (xem tại 1 thời điểm quá khứ) → dựng theo TRẠNG THÁI tại
+// asOf từ record_history (overdueTasksAsOf), không dùng status hiện tại.
 export async function getOverdueTasks(req, res) {
   try {
-    const asOf = /^\d{4}-\d{2}-\d{2}$/.test(req.query.asOf) ? req.query.asOf : vnToday()
+    const explicitAsOf = /^\d{4}-\d{2}-\d{2}$/.test(req.query.asOf) ? req.query.asOf : null
+    if (explicitAsOf) {
+      const rows = await overdueTasksAsOf(explicitAsOf, pool)
+      return res.json({ asOf: explicitAsOf, count: rows.length, rows })
+    }
+    const asOf = vnToday()
     const { rows } = await pool.query(`
       SELECT
         t.id,

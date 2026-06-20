@@ -50,8 +50,6 @@ function Overview() {
         <StatCard label="Nợ quá hạn" value={fmtVnd(sum.overdue_total_vnd)} color="#dc2626"
           hint={`${sum.overdue_count} khoản đang quá hạn`} />
       </div>
-      <div className="acc-section-title">Chi tiết cảnh báo nợ quá hạn</div>
-      <OverdueAlertsPage />
     </>
   )
 }
