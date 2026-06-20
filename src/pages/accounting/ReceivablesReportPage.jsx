@@ -13,7 +13,9 @@ export default function ReceivablesReportPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/api/reports/receivables?to=${to}&basis=${basis}`)
+      // asOf = to: chốt số liệu ĐÚNG tại ngày báo cáo (đã thu/giá trị HĐ/quá hạn tính tới ngày đó),
+      // dựng lại từ record_history thay vì giá trị live. to vẫn lọc khoản đáo hạn ≤ ngày đó.
+      const res = await fetch(`${API}/api/reports/receivables?to=${to}&asOf=${to}&basis=${basis}`)
       const data = await res.json()
       setRows(Array.isArray(data.rows) ? data.rows : [])
     } catch (e) { console.error('receivables report:', e) }

@@ -12,7 +12,9 @@ export default function PayablesReportPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/api/reports/payables?to=${to}`)
+      // asOf = to: chốt số liệu ĐÚNG tại ngày báo cáo (đã trả/giá trị/quá hạn tính tới ngày đó),
+      // dựng lại từ record_history thay vì giá trị live. to vẫn lọc đợt đáo hạn ≤ ngày đó.
+      const res = await fetch(`${API}/api/reports/payables?to=${to}&asOf=${to}`)
       const data = await res.json()
       setRows(Array.isArray(data.rows) ? data.rows : [])
     } catch (e) { console.error('payables report:', e) }

@@ -14,7 +14,7 @@ const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 
 // Bảng cảnh báo nợ quá hạn (sheet #1). Dùng cả như sub-view trong trang chủ kế toán.
 export default function OverdueAlertsPage() {
-  const [asOf, setAsOf]   = useState(() => new Date().toISOString().slice(0, 10))
+  const asOf = new Date().toISOString().slice(0, 10)   // luôn kiểm tra tại ngày hiện tại
   const [basis, setBasis] = useState('actual')   // 'actual' | 'plan'
   const [rows, setRows]   = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,10 +38,6 @@ export default function OverdueAlertsPage() {
   return (
     <div className="acc-report">
       <div className="acc-report-toolbar">
-        <label className="acc-field">
-          <span>Ngày kiểm tra</span>
-          <input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} />
-        </label>
         <div className="acc-seg">
           <button className={basis === 'actual' ? 'active' : ''} onClick={() => setBasis('actual')}>Theo tiến độ thực</button>
           <button className={basis === 'plan' ? 'active' : ''} onClick={() => setBasis('plan')}>Theo kế hoạch gốc</button>
@@ -52,7 +48,7 @@ export default function OverdueAlertsPage() {
       {loading ? (
         <p className="dash-empty">Đang tải...</p>
       ) : overdueRows.length === 0 ? (
-        <p className="dash-empty">Không có khoản nợ quá hạn tại ngày đã chọn. 🎉</p>
+        <p className="dash-empty">Không có khoản nợ quá hạn. 🎉</p>
       ) : (
         <div className="acc-table-wrap">
           <table className="acc-table">
