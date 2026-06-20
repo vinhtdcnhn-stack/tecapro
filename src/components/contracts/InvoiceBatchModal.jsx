@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import * as XLSX from 'xlsx'
 import Modal from '../common/Modal'
 import NumberInput from '../common/NumberInput'
 import DateInput from './DateInput'
@@ -51,6 +50,7 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
     const file = e.target.files?.[0]
     if (!file) return
     try {
+      const XLSX = await import('xlsx')
       const wb = XLSX.read(await file.arrayBuffer())
       const ws = wb.Sheets[wb.SheetNames[0]]
       const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
@@ -75,7 +75,8 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
   }
 
   // Tải file Excel mẫu: header + sẵn các dòng bảng giá (đơn giá/VAT/ĐVT), người dùng chỉ điền Số lượng.
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await import('xlsx')
     const header = ['Tên hàng', 'Số lượng', 'Đơn giá', 'VAT%', 'ĐVT']
     const body = boqItems.length
       ? boqItems.map(b => [b.item_name, '', num(b.unit_price), num(b.vat_rate), b.unit || ''])
