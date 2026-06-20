@@ -10,7 +10,7 @@ import { buildGanttModel, LABEL_W, HEAD_H, DAY_W } from './taskGanttUtils'
 // truyền) · onReorder(orderedIds): lưu thứ tự (anh-em) · canReorderRow(task): được phép
 // kéo việc đó hay không · children: modal/lớp phủ render BÊN TRONG khung Gantt để khi mở
 // toàn màn hình (Fullscreen API) vẫn nằm trên, thao tác được.
-export default function TaskGantt({ tasks, visibleIds = null, milestones = [], onEdit, onAdd, onReorder, canReorderRow = () => false, children }) {
+export default function TaskGantt({ tasks, visibleIds = null, milestones = [], onEdit, onAdd, onAddSub, canAddSub = () => false, onReorder, canReorderRow = () => false, children }) {
   const [groupBy, setGroupBy] = useState('department')   // 'department' | 'assignee' | 'none'
   const flat = groupBy === 'none'
   const canDrag = flat && typeof onReorder === 'function'   // bật theo từng dòng qua canReorderRow
@@ -187,11 +187,23 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], o
                   {row.type === 'group'      && <span className="tgantt-grouplabel">{row.name} <em>· {row.count}</em></span>}
                   {row.type === 'milestones' && <span className="tgantt-mslabel">◆ Mốc tiến độ</span>}
                   {row.type === 'task'       && (
-                    <span className="tgantt-tasklabel" title={row.task.title} style={{ paddingLeft: (row.depth || 0) * 16 }}>
-                      {row.depth > 0 && <span className="tgantt-subdot" aria-hidden>└</span>}
-                      <i className="tgantt-ava">{initials(row.task.assigned_to_name)}</i>
-                      {row.task.title}
-                    </span>
+                    <>
+                      <span className="tgantt-tasklabel" title={row.task.title} style={{ paddingLeft: (row.depth || 0) * 16 }}>
+                        {row.depth > 0 && <span className="tgantt-subdot" aria-hidden>└</span>}
+                        <i className="tgantt-ava">{initials(row.task.assigned_to_name)}</i>
+                        {row.task.title}
+                      </span>
+                      {onAddSub && canAddSub(row.task) && (
+                        <button
+                          type="button"
+                          className="tgantt-addsub-btn"
+                          onClick={(e) => { e.stopPropagation(); onAddSub(row.task) }}
+                          title="Thêm việc con"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
                 <div className="tgantt-rowtime" style={gridStyle}>

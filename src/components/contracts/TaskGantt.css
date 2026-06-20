@@ -99,9 +99,20 @@
 .tgantt-grouplabel em { color: #9ca3af; font-style: normal; font-weight: 500; }
 .tgantt-mslabel { font-weight: 700; color: #7c3aed; }
 .tgantt-tasklabel {
+  flex: 1 1 auto; min-width: 0;
   display: inline-flex; align-items: center; gap: 7px; overflow: hidden;
   white-space: nowrap; text-overflow: ellipsis;
 }
+
+/* Nút thêm việc con (hiện khi rê chuột vào dòng) */
+.tgantt-addsub-btn {
+  flex-shrink: 0; margin-left: 6px; opacity: 0; transition: opacity .12s;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; border: none; border-radius: 5px;
+  background: #ecfdf5; color: #059669; cursor: pointer;
+}
+.tgantt-addsub-btn:hover { background: #d1fae5; }
+.tgantt-row--task:hover .tgantt-addsub-btn { opacity: 1; }
 .tgantt-ava {
   flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
   background: #e0e7ff; color: #4338ca; font-size: 9px; font-weight: 700; font-style: normal;
