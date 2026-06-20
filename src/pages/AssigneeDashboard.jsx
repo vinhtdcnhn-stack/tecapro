@@ -8,7 +8,7 @@ import './PMDashboard.css'
 // được giao trực tiếp cho họ (contract_task.assigned_to), dùng cùng bảng + chuông/
 // ghim/nhắc như bảng dưới của PMDashboard. windowDays=Infinity → hiện mọi việc được
 // giao (không giới hạn 30 ngày) để họ thấy đầy đủ đầu việc của mình.
-export default function AssigneeDashboard({ user }) {
+export default function AssigneeDashboard({ user, switcher = null }) {
   const [items, setItems]     = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -47,7 +47,7 @@ export default function AssigneeDashboard({ user }) {
       <div className="dash-welcome">
         <div>
           <h1 className="dash-title">Công việc của tôi</h1>
-          <p className="dash-subtitle">Xin chào <strong>{user?.full_name || user?.email}</strong> — các công việc bạn được phân công xử lý</p>
+          <p className="dash-subtitle">{switcher}Xin chào <strong>{user?.full_name || user?.email}</strong> — các công việc bạn được phân công xử lý</p>
         </div>
       </div>
 

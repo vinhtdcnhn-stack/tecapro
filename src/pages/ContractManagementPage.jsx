@@ -7,6 +7,7 @@ import ContractDocumentsTab from '../components/contracts/ContractDocumentsTab'
 import ContractBOQTab from '../components/contracts/ContractBOQTab'
 import ContractProgressTab from '../components/contracts/ContractProgressTab'
 import ContractReceivableTab from '../components/contracts/ContractReceivableTab'
+import ContractInvoiceTab from '../components/contracts/ContractInvoiceTab'
 import ContractGuaranteeTab from '../components/contracts/ContractGuaranteeTab'
 import ContractTaskTab from '../components/contracts/ContractTaskTab'
 import ContractWarrantyTab from '../components/contracts/ContractWarrantyTab'
@@ -101,6 +102,8 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
         return <ContractProgressTab contractId={contractId} />
 case 'contract-debt':
         return <ContractReceivableTab contractId={contractId} />
+      case 'contract-invoice':
+        return <ContractInvoiceTab contractId={contractId} />
       case 'contract-warranty':
         return <ContractWarrantyTab contractId={contractId} />
       case 'contract-guarantee':

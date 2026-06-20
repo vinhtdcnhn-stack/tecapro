@@ -1,43 +1,68 @@
+import { useState } from 'react'
 import { API } from '../../config/api'
 import {
   STATUSES, fmtDate, daysUntil, isOverdue, isWarning,
-  priorityClass, statusClass, initials,
+  priorityClass, statusClass, initials, flattenTree, reorderIds,
 } from './taskUtils'
-import EditGuard from './EditGuard'
 
-// ── Department group ──────────────────────────────────────────────────────────
+// ── Department group (cây công việc con nhiều cấp) ──────────────────────────────
 
-export default function DeptGroup({ group, collapsed, onToggle, onEdit, onDelete, onStatusChange }) {
-  const total    = group.tasks.length
-  const done     = group.tasks.filter(t => t.status === 'Hoàn thành').length
-  const inDoing  = group.tasks.filter(t => t.status === 'Đang thực hiện').length
-  const overdues = group.tasks.filter(isOverdue).length
+export default function DeptGroup({
+  group, flat = false, childrenByParent, visible, collapsed, onToggle,
+  collapsedTask, onToggleTask, canWriteRow, canAddSub, canReorderRow,
+  onEdit, onDelete, onStatusChange, onAddSub, onReorder,
+}) {
+  const [dragId, setDragId] = useState(null)
+  const [overId, setOverId] = useState(null)
+  // Toàn bộ subtree (không tính thu/mở) để thống kê; danh sách hiển thị có tính thu/mở.
+  const statTasks  = flattenTree(group.tasks, childrenByParent, { visible }).map(r => r.task)
+  const renderRows = flattenTree(group.tasks, childrenByParent, { collapsed: collapsedTask, visible })
+
+  const total    = statTasks.length
+  const done     = statTasks.filter(t => t.status === 'Hoàn thành').length
+  const inDoing  = statTasks.filter(t => t.status === 'Đang thực hiện').length
+  const overdues = statTasks.filter(isOverdue).length
   const pct      = total > 0 ? Math.round(done / total * 100) : 0
 
   const barColor = pct === 100 ? '#16a34a' : pct >= 60 ? '#3b82f6' : pct >= 30 ? '#f59e0b' : '#e5e7eb'
 
-  return (
-    <div className={`task-dept-group ${group.key === 'none' ? 'task-nodept' : ''}`}>
-      <div className="task-dept-header" onClick={onToggle}>
-        <span className={`task-dept-toggle ${collapsed ? '' : 'open'}`}>▶</span>
-        <span className="task-dept-name">
-          {group.name}
-          <span>({total} việc)</span>
-        </span>
-        <div className="task-dept-progress">
-          <div className="task-dept-progress-bar">
-            <div className="task-dept-progress-fill" style={{ width: `${pct}%`, background: barColor }} />
-          </div>
-          <span className="task-dept-progress-pct">{pct}%</span>
-        </div>
-        <div className="task-dept-badges">
-          {inDoing > 0 && <span className="dept-badge dept-badge--doing">{inDoing} đang làm</span>}
-          {overdues > 0 && <span className="dept-badge dept-badge--overdue">{overdues} quá hạn</span>}
-        </div>
-      </div>
+  // Kéo-thả sắp xếp: chỉ trong cùng nhóm anh-em (cùng việc cha) và có quyền.
+  function handleDrop(toId) {
+    const dragTask = renderRows.find(r => r.task.id === dragId)?.task
+    const dropTask = renderRows.find(r => r.task.id === toId)?.task
+    setDragId(null); setOverId(null)
+    if (!dragTask || !dropTask || dragId === toId) return
+    const dp = dragTask.parent_task_id ?? null
+    if (String(dp) !== String(dropTask.parent_task_id ?? null)) return
+    if (!canReorderRow(dragTask)) return
+    const sib = renderRows.filter(r => (r.task.parent_task_id ?? null) + '' === dp + '').map(r => r.task.id)
+    const next = reorderIds(sib, dragId, toId)
+    if (next.some((id, i) => id !== sib[i])) onReorder(next)
+  }
 
-      {!collapsed && (
-        <EditGuard>
+  return (
+    <div className={`task-dept-group ${flat ? 'task-flat' : ''} ${group.key === 'none' ? 'task-nodept' : ''}`}>
+      {!flat && (
+        <div className="task-dept-header" onClick={onToggle}>
+          <span className={`task-dept-toggle ${collapsed ? '' : 'open'}`}>▶</span>
+          <span className="task-dept-name">
+            {group.name}
+            <span>({total} việc)</span>
+          </span>
+          <div className="task-dept-progress">
+            <div className="task-dept-progress-bar">
+              <div className="task-dept-progress-fill" style={{ width: `${pct}%`, background: barColor }} />
+            </div>
+            <span className="task-dept-progress-pct">{pct}%</span>
+          </div>
+          <div className="task-dept-badges">
+            {inDoing > 0 && <span className="dept-badge dept-badge--doing">{inDoing} đang làm</span>}
+            {overdues > 0 && <span className="dept-badge dept-badge--overdue">{overdues} quá hạn</span>}
+          </div>
+        </div>
+      )}
+
+      {(flat || !collapsed) && (
         <div className="task-table-wrapper">
           <table className="task-table">
             <thead>
@@ -48,24 +73,37 @@ export default function DeptGroup({ group, collapsed, onToggle, onEdit, onDelete
                 <th style={{ width: 160 }}>Người thực hiện</th>
                 <th style={{ width: 140 }}>Thời hạn</th>
                 <th style={{ width: 130 }}>Trạng thái</th>
-                <th style={{ width: 76 }}></th>
+                <th style={{ width: 110 }}></th>
               </tr>
             </thead>
             <tbody>
-              {group.tasks.map((task, idx) => (
+              {renderRows.map(({ task, depth, hasChildren }, idx) => (
                 <TaskRow
                   key={task.id}
                   idx={idx}
                   task={task}
+                  depth={depth}
+                  hasChildren={hasChildren}
+                  collapsed={!!collapsedTask[task.id]}
+                  onToggle={() => onToggleTask(task.id)}
+                  canWrite={canWriteRow(task)}
+                  canAddSub={canAddSub(task)}
+                  canReorder={canReorderRow(task)}
+                  dragging={dragId === task.id}
+                  dragOver={overId === task.id && dragId != null && dragId !== task.id}
+                  onDragStart={() => setDragId(task.id)}
+                  onDragEnd={() => { setDragId(null); setOverId(null) }}
+                  onDragOver={(e) => { e.preventDefault(); if (overId !== task.id) setOverId(task.id) }}
+                  onDrop={(e) => { e.preventDefault(); handleDrop(task.id) }}
                   onEdit={() => onEdit(task)}
                   onDelete={() => onDelete(task)}
+                  onAddSub={() => onAddSub(task)}
                   onStatusChange={onStatusChange}
                 />
               ))}
             </tbody>
           </table>
         </div>
-        </EditGuard>
       )}
     </div>
   )
@@ -73,24 +111,52 @@ export default function DeptGroup({ group, collapsed, onToggle, onEdit, onDelete
 
 // ── Task row ─────────────────────────────────────────────────────────────────
 
-function TaskRow({ idx, task, onEdit, onDelete, onStatusChange }) {
+function TaskRow({
+  idx, task, depth, hasChildren, collapsed, onToggle, canWrite, canAddSub, onEdit, onDelete, onAddSub, onStatusChange,
+  canReorder, dragging, dragOver, onDragStart, onDragEnd, onDragOver, onDrop,
+}) {
   const overdue  = isOverdue(task)
   const warn     = isWarning(task)
   const days     = daysUntil(task.due_date)
+  const locked   = (task.child_count || 0) > 0   // có việc con → trạng thái tự động
 
   const rowClass = [
+    depth > 0 ? 'task-row--child' : '',
     overdue ? 'task-row--overdue' : '',
     warn    ? 'task-row--warning' : '',
     task.status === 'Hoàn thành' ? 'task-row--done' : '',
+    dragging ? 'task-row--dragging' : '',
+    dragOver ? 'task-row--dragover' : '',
   ].filter(Boolean).join(' ')
 
   return (
-    <tr className={rowClass}>
-      <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>{idx + 1}</td>
+    <tr className={rowClass}
+      onDragOver={canReorder ? onDragOver : undefined}
+      onDrop={canReorder ? onDrop : undefined}>
+      <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>
+        {canReorder && (
+          <span
+            className="task-drag-grip"
+            draggable
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            title="Kéo để đổi thứ tự"
+            aria-hidden
+          >⋮⋮</span>
+        )}
+        <span className="task-row-idx">{idx + 1}</span>
+      </td>
 
       <td>
-        <div className="task-title-cell">
-          <span className="task-title">{task.title}</span>
+        <div className="task-title-cell" style={{ paddingLeft: depth * 20 }}>
+          <div className="task-title-line">
+            {hasChildren ? (
+              <button className={`task-tree-toggle ${collapsed ? '' : 'open'}`} onClick={onToggle} title={collapsed ? 'Mở việc con' : 'Thu việc con'}>▶</button>
+            ) : (
+              <span className="task-tree-spacer" />
+            )}
+            <span className="task-title">{task.title}</span>
+          </div>
           {task.description && <span className="task-desc-preview">{task.description}</span>}
           {Array.isArray(task.attachments) && task.attachments.map(att => {
             const isPdf = att.file_name.toLowerCase().endsWith('.pdf');
@@ -147,28 +213,48 @@ function TaskRow({ idx, task, onEdit, onDelete, onStatusChange }) {
       </td>
 
       <td>
-        <select
-          value={task.status}
-          onChange={e => onStatusChange(task, e.target.value)}
-          className={`status-badge-task ${statusClass(task.status)}`}
-          style={{ border: 'none', cursor: 'pointer', background: 'transparent', fontWeight: 600, fontSize: 11, padding: '3px 8px' }}
-        >
-          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+        {locked ? (
+          <span
+            className={`status-badge-task ${statusClass(task.status)} status-badge-task--locked`}
+            title="Tự động theo việc con"
+            style={{ fontWeight: 600, fontSize: 11, padding: '3px 8px' }}
+          >
+            {task.status} 🔒
+          </span>
+        ) : (
+          <select
+            value={task.status}
+            onChange={e => onStatusChange(task, e.target.value)}
+            disabled={!canWrite}
+            className={`status-badge-task ${statusClass(task.status)}`}
+            style={{ border: 'none', cursor: canWrite ? 'pointer' : 'default', background: 'transparent', fontWeight: 600, fontSize: 11, padding: '3px 8px' }}
+          >
+            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
       </td>
 
       <td>
         <div className="task-actions">
-          <button className="task-act-btn edit" onClick={onEdit} title="Chỉnh sửa">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-            </svg>
-          </button>
-          <button className="task-act-btn delete" onClick={onDelete} title="Xóa">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-            </svg>
-          </button>
+          {canAddSub && (
+            <button className="task-act-btn addsub" onClick={onAddSub} title="Thêm việc con">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+          )}
+          {canWrite && (
+            <>
+              <button className="task-act-btn edit" onClick={onEdit} title="Chỉnh sửa">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+              </button>
+              <button className="task-act-btn delete" onClick={onDelete} title="Xóa">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
+            </>
+          )}
         </div>
       </td>
     </tr>

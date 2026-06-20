@@ -1,0 +1,95 @@
+import { useState, useEffect } from 'react'
+import { API } from '../../../config/api.js'
+import { fmtFull } from '../execUtils.js'
+import { fmtMoney, fmtDate, endOfThisMonth } from '../../accounting/reportUtils.js'
+
+// Cuối tháng của 1 ngày ISO 'yyyy-mm-dd'.
+const endOfMonthOf = (iso) => {
+  const [y, m] = iso.split('-').map(Number)
+  return new Date(y, m, 0).toISOString().slice(0, 10)
+}
+
+// Chi tiết thẻ "Dự kiến THU/CHI tháng": tải lười khoản phải thu & phải trả đến hạn trong tháng.
+// asOf: xem tại 1 thời điểm → "tháng" = tháng của asOf, đã thu/trả tính tới asOf.
+export default function CashflowMonthDetail({ asOf = null, onOpenContract }) {
+  const [recv, setRecv] = useState([])
+  const [pay, setPay] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    const to = asOf ? endOfMonthOf(asOf) : endOfThisMonth()
+    const aq = asOf ? `&asOf=${asOf}` : ''
+    ;(async () => {
+      try {
+        const [r, p] = await Promise.all([
+          fetch(`${API}/reports/receivables?to=${to}&basis=actual${aq}`).then(x => x.json()),
+          fetch(`${API}/reports/payables?to=${to}${aq}`).then(x => x.json()),
+        ])
+        if (cancelled) return
+        setRecv((Array.isArray(r.rows) ? r.rows : []).filter(x => (parseFloat(x.remaining_vnd) || 0) > 0))
+        setPay((Array.isArray(p.rows) ? p.rows : []).filter(x => (parseFloat(x.remaining_vnd) || 0) > 0))
+      } catch (e) { console.error('cashflow month:', e) }
+      finally { if (!cancelled) setLoading(false) }
+    })()
+    return () => { cancelled = true }
+  }, [asOf])
+
+  const recvTotal = recv.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
+  const payTotal = pay.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
+
+  if (loading) return <p className="dash-empty">Đang tải dự kiến thu/chi tháng...</p>
+
+  return (
+    <div className="exec-detail">
+      <div className="exec-chip-row">
+        <div className="exec-chip exec-chip--good"><div className="exec-chip-lbl">Dự kiến THU</div>
+          <div className="exec-chip-val" title={fmtFull(recvTotal)}>{fmtMoney(recvTotal)} đ</div></div>
+        <div className="exec-chip exec-chip--danger"><div className="exec-chip-lbl">Dự kiến CHI</div>
+          <div className="exec-chip-val" title={fmtFull(payTotal)}>{fmtMoney(payTotal)} đ</div></div>
+        <div className="exec-chip"><div className="exec-chip-lbl">Chênh lệch ròng</div>
+          <div className="exec-chip-val" title={fmtFull(recvTotal - payTotal)}>{fmtMoney(recvTotal - payTotal)} đ</div></div>
+      </div>
+
+      <h3 className="exec-detail-h">Khoản phải thu đến hạn trong tháng</h3>
+      {recv.length === 0 ? <p className="dash-empty">Không có khoản phải thu đến hạn.</p> : (
+        <div className="acc-table-wrap">
+          <table className="acc-table">
+            <thead><tr><th>STT</th><th>Chủ đầu tư</th><th>Số HĐ</th><th>Nội dung</th><th className="num">Còn thu (VNĐ)</th><th>Hạn</th></tr></thead>
+            <tbody>
+              {recv.map((r, i) => (
+                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-debt')}>
+                  <td>{i + 1}</td><td>{r.customer_name || '—'}</td><td className="mono">{r.contract_no || '—'}</td>
+                  <td>{r.description || '—'}</td>
+                  <td className="num" title={fmtFull(r.remaining_vnd)}>{fmtMoney(r.remaining_vnd)}</td>
+                  <td>{fmtDate(r.due_date)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h3 className="exec-detail-h">Khoản phải trả NCC đến hạn trong tháng</h3>
+      {pay.length === 0 ? <p className="dash-empty">Không có khoản phải trả đến hạn.</p> : (
+        <div className="acc-table-wrap">
+          <table className="acc-table">
+            <thead><tr><th>STT</th><th>Nhà cung cấp</th><th>Số HĐ nhập</th><th>Nội dung</th><th className="num">Còn trả (VNĐ)</th><th>Hạn</th></tr></thead>
+            <tbody>
+              {pay.map((r, i) => (
+                <tr key={r.id}
+                  className={r.contract_out_id ? 'exec-row' : undefined}
+                  onClick={r.contract_out_id ? () => onOpenContract(r.contract_out_id, 'purchase-contract-info', { inId: r.contract_in_id }) : undefined}>
+                  <td>{i + 1}</td><td>{r.supplier_name || '—'}</td><td className="mono">{r.contract_no || '—'}</td>
+                  <td>{r.description || '—'}</td>
+                  <td className="num" title={fmtFull(r.remaining_vnd)}>{fmtMoney(r.remaining_vnd)}</td>
+                  <td>{fmtDate(r.due_date)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}

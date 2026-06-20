@@ -128,11 +128,14 @@ export default function useBOQTab(contractId) {
     if (!confirm(`Xóa dòng "${row.item_name || '(trống)'}"?`)) return
     try {
       const res = await fetch(`${API}/boq/${row.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Delete failed')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Delete failed')
+      }
       setRows(prev => prev.filter(r => r._key !== row._key))
       setSelected(prev => { const n = new Set(prev); n.delete(row._key); return n })
-    } catch {
-      alert('Không thể xóa dòng này.')
+    } catch (e) {
+      alert(e.message || 'Không thể xóa dòng này.')
     }
   }
 
@@ -277,12 +280,15 @@ export default function useBOQTab(contractId) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ids }),
         })
-        if (!res.ok) throw new Error('Bulk delete failed')
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Bulk delete failed')
+        }
       }
       setRows(prev => prev.filter(r => !keys.includes(r._key)))
       setSelected(new Set())
-    } catch {
-      alert('Không thể xóa các dòng đã chọn.')
+    } catch (e) {
+      alert(e.message || 'Không thể xóa các dòng đã chọn.')
     } finally {
       setBulkDeleting(false)
     }

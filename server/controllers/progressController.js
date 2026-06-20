@@ -1,4 +1,5 @@
 import { pool } from '../db.js'
+import { activateReadyTasksSafe } from '../services/taskAutoStart.js'
 
 // ── BB Type master ────────────────────────────────────────────────────────────
 
@@ -165,6 +166,9 @@ export async function updateProgress(req, res) {
       PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id]
     )
     res.json(full[0])
+
+    // Mốc tiến độ vừa có ngày thực tế → mở khóa các công việc phụ thuộc mốc này.
+    if (actual_date) activateReadyTasksSafe()
   } catch (err) {
     console.error('updateProgress:', err)
     res.status(500).json({ error: 'Failed to update progress entry' })

@@ -16,8 +16,11 @@ function barColor(task, overdue) {
   return { bg:'#e5e7eb', bd:'#9ca3af', fg:'#374151' }   // Chờ xử lý
 }
 
-// tasks: công việc đã lọc; milestones: mốc tiến độ HĐ; groups: [{key,name,tasks}] đã nhóm.
-export function buildGanttModel(tasks, milestones, groups) {
+// tasks: toàn bộ công việc hiển thị (để tính khung thời gian + mũi tên phụ thuộc).
+// groups: [{ key, name, items:[{task, depth}] }] — items ĐÃ sắp theo cây (DFS pre-order).
+// flat=true (chế độ "Không nhóm"): bỏ hàng tiêu đề nhóm. Hàng việc giữ nguyên thứ tự items
+// (đã theo cây/sort_order) — KHÔNG sắp lại theo ngày để cha-con liền nhau.
+export function buildGanttModel(tasks, milestones, groups, flat = false) {
   const tasksById = new Map(tasks.map(t => [String(t.id), t]))
   const msById    = new Map(milestones.map(m => [String(m.id), m]))
 
@@ -81,18 +84,17 @@ export function buildGanttModel(tasks, milestones, groups) {
 
   const taskTop = new Map()
   for (const g of groups) {
-    rows.push({ type: 'group', key: g.key, name: g.name, count: g.tasks.length, top, height: GROUP_H })
-    top += GROUP_H
-    const sorted = [...g.tasks].sort((a, b) => {
-      const sa = startOf.get(String(a.id)) || '', sb = startOf.get(String(b.id)) || ''
-      return sa < sb ? -1 : sa > sb ? 1 : 0
-    })
-    for (const t of sorted) {
+    if (!flat) {
+      rows.push({ type: 'group', key: g.key, name: g.name, count: g.items.length, top, height: GROUP_H })
+      top += GROUP_H
+    }
+    // items đã theo cây (DFS pre-order) — giữ nguyên để cha-con liền nhau & thụt lề theo depth.
+    for (const { task: t, depth } of g.items) {
       const s = startOf.get(String(t.id)), e = endOf.get(String(t.id))
       const overdue = isOverdue(t)
       const wdays = s && e ? diffDays(s, e) + 1 : 1
       rows.push({
-        type: 'task', task: t, top, height: ROW_H,
+        type: 'task', task: t, depth: depth || 0, top, height: ROW_H,
         startISO: s, endISO: e, left: xFor(s), width: Math.max(DAY_W, wdays * DAY_W),
         color: barColor(t, overdue), overdue,
       })

@@ -1,0 +1,53 @@
+/* ── Tab Xuất hóa đơn ────────────────────────────────────────────────────────── */
+.inv-tab { min-width: 0; }
+.inv-loading { padding: 24px; color: #6b7280; }
+
+.inv-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.inv-card { background: #fff; border: 1px solid #eef0f3; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+.inv-card-val { font-size: 20px; font-weight: 800; color: #2f6b3a; }
+.inv-card-lbl { font-size: 12px; color: #6b7280; margin-top: 6px; }
+
+.inv-section-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 10px; }
+.inv-section-head h3 { font-size: 15px; font-weight: 700; color: #374151; margin: 0; }
+.inv-add { padding: 8px 14px; font-size: 13px; font-weight: 600; color: #fff; background: #2f6b3a; border: none; border-radius: 8px; cursor: pointer; }
+.inv-add:hover { background: #245530; }
+
+.inv-empty-box { color: #9ca3af; font-size: 13px; padding: 14px; background: #f9fafb; border-radius: 8px; }
+
+.inv-table-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; }
+.inv-list { width: 100%; border-collapse: collapse; font-size: 13px; }
+.inv-list th, .inv-list td { padding: 8px 10px; border-bottom: 1px solid #f1f3f5; text-align: left; white-space: nowrap; }
+.inv-list th { background: #f9fafb; font-weight: 700; color: #374151; }
+.inv-list td.num, .inv-list th.num { text-align: right; }
+.inv-row { cursor: pointer; }
+.inv-row:hover { background: #fafbfc; }
+.inv-subrow td { background: #fafbfc; color: #4b5563; font-size: 12px; }
+.inv-actions { text-align: right; }
+.inv-link { background: none; border: none; color: #2563eb; cursor: pointer; font-size: 12px; font-weight: 600; margin-left: 8px; }
+.inv-del-link { color: #dc2626; }
+.inv-remain { color: #d97706; font-weight: 700; }
+.inv-done { color: #16a34a; }
+
+/* ── Modal đợt xuất hóa đơn ──────────────────────────────────────────────────── */
+.inv-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.inv-form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #6b7280; }
+.inv-form-grid input, .inv-form-grid select { font-size: 13px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 7px; }
+.inv-form-grid .inv-note { grid-column: 1 / -1; }
+
+.inv-items-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.inv-btn { padding: 6px 12px; font-size: 12px; font-weight: 600; color: #374151; background: #fff; border: 1px solid #d1d5db; border-radius: 7px; cursor: pointer; }
+.inv-import { padding: 6px 12px; font-size: 12px; font-weight: 600; color: #15803d; background: #f0fdf4; border: 1px solid #86efac; border-radius: 7px; cursor: pointer; }
+.inv-hint { font-size: 11px; color: #9ca3af; }
+
+.inv-items-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+.inv-items { width: 100%; border-collapse: collapse; font-size: 12px; }
+.inv-items th, .inv-items td { padding: 5px 6px; border-bottom: 1px solid #f1f3f5; }
+.inv-items th { background: #f9fafb; font-weight: 700; color: #374151; text-align: left; }
+.inv-items td.num, .inv-items th.num { text-align: right; }
+.inv-items input, .inv-items select { width: 100%; font-size: 12px; padding: 4px 6px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box; }
+.inv-items .inv-unit { width: 60px; }
+.inv-del { background: none; border: none; color: #dc2626; cursor: pointer; font-weight: 700; }
+.inv-empty { text-align: center; color: #9ca3af; padding: 14px; }
+
+.inv-totals { margin-top: 10px; text-align: right; font-size: 13px; color: #374151; }
+.inv-error { margin-top: 10px; color: #dc2626; font-size: 13px; white-space: pre-line; }

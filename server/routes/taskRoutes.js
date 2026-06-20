@@ -1,15 +1,16 @@
 import { Router } from 'express'
-import { getTasks, createTask, updateTask, deleteTask } from '../controllers/taskController.js'
+import { getTasks, createTask, updateTask, deleteTask, reorderTasks } from '../controllers/taskController.js'
 import { getAttachments, uploadAttachment, deleteAttachment, upload } from '../controllers/taskAttachmentController.js'
-import { pmFromParam, pmVia } from '../middleware/contractAccess.js'
+import { pmVia, canCreateTask, canWriteTask, canReorderTasks } from '../middleware/contractAccess.js'
 
 const router = Router()
 
 // Ghi yêu cầu PM của HĐ
 router.get('/contracts/:id/tasks',  getTasks)
-router.post('/contracts/:id/tasks', pmFromParam('id'), createTask)
-router.put('/tasks/:id',            pmVia('task'), updateTask)
-router.delete('/tasks/:id',         pmVia('task'), deleteTask)
+router.post('/contracts/:id/tasks', canCreateTask('id'), createTask)
+router.put('/contracts/:id/tasks/reorder', canReorderTasks('id'), reorderTasks)
+router.put('/tasks/:id',            canWriteTask('id'), updateTask)
+router.delete('/tasks/:id',         canWriteTask('id'), deleteTask)
 
 router.get('/tasks/:taskId/attachments',        getAttachments)
 // Guard trước multer để request không có quyền không ghi file ra đĩa

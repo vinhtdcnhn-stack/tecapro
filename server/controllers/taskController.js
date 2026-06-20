@@ -1,5 +1,7 @@
 import { pool } from '../db.js'
 import { notifyAction, notifyInfo, contractLabel, fmtDate } from '../services/notify.js'
+import { activateReadyTasks } from '../services/taskAutoStart.js'
+import { cascadeCompletion, notifyCascade } from '../services/taskCascade.js'
 
 const BASE_SELECT = `
   SELECT
@@ -20,6 +22,10 @@ const BASE_SELECT = `
     t.status,
     t.note,
     t.completed_at,
+    t.sort_order,
+    t.parent_task_id,
+    t.parent_start_offset,
+    (SELECT COUNT(*) FROM contract_task c WHERE c.parent_task_id = t.id)::int AS child_count,
     t.created_at,
     t.updated_at,
     (SELECT COUNT(*) FROM contract_task_attachment WHERE task_id = t.id)::int AS attachment_count,
@@ -70,7 +76,7 @@ export async function getTasks(req, res) {
     const { rows } = await pool.query(
       `${BASE_SELECT}
        WHERE t.contract_out_id = $1
-       ORDER BY t.department_id NULLS LAST, t.due_date NULLS LAST, t.id`,
+       ORDER BY t.sort_order, t.id`,
       [contractId]
     )
     res.json(rows)
@@ -84,7 +90,8 @@ export async function createTask(req, res) {
   const contractId = parseInt(req.params.id)
   const {
     title, description, department_id, assigned_to,
-    created_by, priority, start_date, due_date, duration_days, status, completed_at, note, dependencies
+    created_by, priority, start_date, due_date, duration_days, status, completed_at, note, dependencies,
+    parent_task_id, parent_start_offset,
   } = req.body
 
   if (!title?.trim()) {
@@ -94,13 +101,30 @@ export async function createTask(req, res) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    // Việc con: parent phải tồn tại và thuộc đúng hợp đồng này (chống gắn chéo HĐ).
+    let parentId = null
+    if (parent_task_id != null) {
+      const { rows: pr } = await client.query(
+        'SELECT id FROM contract_task WHERE id = $1 AND contract_out_id = $2',
+        [parent_task_id, contractId],
+      )
+      if (pr.length === 0) {
+        await client.query('ROLLBACK')
+        return res.status(400).json({ error: 'Công việc cha không hợp lệ.' })
+      }
+      parentId = pr[0].id
+    }
     const { rows } = await client.query(
       `INSERT INTO contract_task
         (contract_out_id, title, description, department_id, assigned_to,
-         created_by, priority, start_date, due_date, duration_days, status, completed_at, note, created_at, updated_at)
+         created_by, priority, start_date, due_date, duration_days, status, completed_at, note,
+         parent_task_id, parent_start_offset,
+         sort_order, created_at, updated_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
                CASE WHEN $11::varchar = 'Hoàn thành' THEN COALESCE($12::date, NOW()) ELSE NULL END,
-               $13,NOW(),NOW())
+               $13, $14, $15,
+               (SELECT COALESCE(MAX(sort_order),0)+1 FROM contract_task WHERE contract_out_id = $1),
+               NOW(),NOW())
        RETURNING id`,
       [
         contractId,
@@ -116,11 +140,16 @@ export async function createTask(req, res) {
         status        || 'Chờ xử lý',
         completed_at  || null,
         note?.trim()  || null,
+        parentId,
+        parentId != null && parent_start_offset != null ? parseInt(parent_start_offset, 10) || 0 : null,
       ]
     )
     const id = rows[0].id
     await replaceDependencies(client, id, dependencies)
+    // Thêm 1 việc con đang mở có thể khiến việc cha (đang Hoàn thành) tự mở lại.
+    const cascaded = parentId ? await cascadeCompletion(client, parentId) : []
     await client.query('COMMIT')
+    if (cascaded.length) notifyCascade(cascaded)
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     res.json(full.rows[0])
 
@@ -144,7 +173,8 @@ export async function updateTask(req, res) {
   const id = parseInt(req.params.id)
   const {
     title, description, department_id, assigned_to,
-    priority, start_date, due_date, duration_days, status, completed_at, note, dependencies
+    priority, start_date, due_date, duration_days, status, completed_at, note, dependencies,
+    parent_start_offset,
   } = req.body
 
   if (!title?.trim()) {
@@ -179,6 +209,8 @@ export async function updateTask(req, res) {
         note            = $10,
         completed_at    = CASE WHEN $9::varchar = 'Hoàn thành'
                                THEN COALESCE($11::date, completed_at, NOW()) ELSE NULL END,
+        -- Chỉ neo theo việc cha khi bản thân là việc con (parent_task_id không đổi ở update).
+        parent_start_offset = CASE WHEN parent_task_id IS NULL THEN NULL ELSE $13::int END,
         updated_at      = NOW()
        WHERE id = $12`,
       [
@@ -194,11 +226,24 @@ export async function updateTask(req, res) {
         note?.trim()  || null,
         completed_at  || null,
         id,
+        parent_start_offset != null ? parseInt(parent_start_offset, 10) || 0 : null,
       ]
     )
     // Chỉ thay bộ phụ thuộc khi client gửi lên (tránh xoá nhầm khi caller không quan tâm).
     if (dependencies !== undefined) await replaceDependencies(client, id, dependencies)
+    // Tự cập nhật trạng thái theo cây con: đánh giá chính việc này (nếu có con → ghi đè
+    // trạng thái client gửi = khoá tay) rồi lan lên việc cha/ông.
+    const cascaded = await cascadeCompletion(client, id)
     await client.query('COMMIT')
+    if (cascaded.length) notifyCascade(cascaded)
+
+    // Vừa hoàn thành 1 bước → mở khóa các việc phụ thuộc đã đủ điều kiện (chuyển sang
+    // "Đang thực hiện"). Chạy TRƯỚC khi trả response để client refetch thấy ngay trạng
+    // thái mới của các việc kế tiếp; thông báo bên trong vẫn fire-and-forget.
+    const newStatus = status || 'Chờ xử lý'
+    if (old && newStatus === 'Hoàn thành' && old.status !== 'Hoàn thành') {
+      try { await activateReadyTasks() } catch (e) { console.error('activateReadyTasks:', e) }
+    }
 
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     if (full.rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy công việc' })
@@ -218,7 +263,6 @@ export async function updateTask(req, res) {
       }
 
       // Đổi trạng thái → báo người tạo việc (thông tin). Không báo nếu chính họ đổi.
-      const newStatus = status || 'Chờ xử lý'
       const creator = Number(old.created_by) || null
       if (newStatus !== old.status && creator && creator !== actor) {
         notifyInfo([creator], `Công việc "${title.trim()}" (HĐ ${label}) đã chuyển sang trạng thái: ${newStatus}`)
@@ -235,11 +279,56 @@ export async function updateTask(req, res) {
 
 export async function deleteTask(req, res) {
   const id = parseInt(req.params.id)
+  const client = await pool.connect()
   try {
-    await pool.query('DELETE FROM contract_task WHERE id = $1', [id])
+    await client.query('BEGIN')
+    // Nhớ việc cha trước khi xoá: xoá việc con mở cuối cùng có thể khiến cha tự Hoàn thành.
+    const { rows } = await client.query('SELECT parent_task_id FROM contract_task WHERE id = $1', [id])
+    const parentId = rows[0]?.parent_task_id ?? null
+    await client.query('DELETE FROM contract_task WHERE id = $1', [id])
+    const cascaded = parentId ? await cascadeCompletion(client, parentId) : []
+    await client.query('COMMIT')
+    if (cascaded.length) notifyCascade(cascaded)
     res.json({ success: true })
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
     console.error('deleteTask:', err)
     res.status(500).json({ error: 'Không thể xóa công việc' })
+  } finally {
+    client.release()
+  }
+}
+
+// Sắp xếp lại thứ tự công việc (kéo-thả). Body: { orderedIds:[...] } — danh sách id
+// (có thể là tập con khi đang lọc) theo thứ tự MỚI. Giữ nguyên các "ô" sort_order mà
+// nhóm này đang chiếm rồi gán lại theo thứ tự mới → công việc ngoài tập không bị xê dịch.
+export async function reorderTasks(req, res) {
+  const contractId = parseInt(req.params.id)
+  const ids = (Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : [])
+    .map(Number).filter(Number.isFinite)
+  if (ids.length === 0) return res.status(400).json({ error: 'orderedIds rỗng' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    // Chỉ nhận việc thuộc đúng hợp đồng; khóa dòng để cập nhật nhất quán.
+    const { rows } = await client.query(
+      'SELECT id, sort_order FROM contract_task WHERE contract_out_id = $1 AND id = ANY($2) FOR UPDATE',
+      [contractId, ids],
+    )
+    const valid = new Set(rows.map(r => Number(r.id)))
+    const finalIds = ids.filter(id => valid.has(id))
+    const slots = rows.map(r => r.sort_order).sort((a, b) => a - b)
+    for (let i = 0; i < finalIds.length; i++) {
+      await client.query('UPDATE contract_task SET sort_order = $1 WHERE id = $2', [slots[i], finalIds[i]])
+    }
+    await client.query('COMMIT')
+    res.json({ success: true })
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    console.error('reorderTasks:', err)
+    res.status(500).json({ error: 'Không thể sắp xếp công việc' })
+  } finally {
+    client.release()
   }
 }

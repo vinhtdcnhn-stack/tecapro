@@ -5,7 +5,7 @@ import { fmtVnd, fmtUsd, WINDOW_DAYS } from './trackingUtils'
 import './Dashboard.css'
 import './PMDashboard.css'
 
-export default function PMDashboard({ user }) {
+export default function PMDashboard({ user, switcher = null }) {
   const [summary, setSummary] = useState(null)
   const [items, setItems]     = useState([])
   const [loading, setLoading] = useState(true)
@@ -48,7 +48,7 @@ export default function PMDashboard({ user }) {
       <div className="dash-welcome">
         <div>
           <h1 className="dash-title">Bảng theo dõi tiến độ dự án</h1>
-          <p className="dash-subtitle">Xin chào <strong>{user?.full_name || user?.email}</strong> — các mốc thời hạn cần theo sát</p>
+          <p className="dash-subtitle">{switcher}Xin chào <strong>{user?.full_name || user?.email}</strong> — các mốc thời hạn cần theo sát</p>
         </div>
       </div>
 

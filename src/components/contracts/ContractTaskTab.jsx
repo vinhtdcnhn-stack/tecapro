@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import './ContractTaskTab.css'
 
 import { API } from '../../config/api'
-import { isOverdue, groupByDept } from './taskUtils'
+import { isOverdue, groupByDept, groupByAssignee, buildTaskTree, visibleTaskIds } from './taskUtils'
+import { useCanEdit } from '../../context/ContractPermContext'
 import DeptGroup from './TaskDeptGroup'
 import TaskModal from './TaskModal'
 import TaskGantt from './TaskGantt'
@@ -18,9 +19,13 @@ export default function ContractTaskTab({ contractId, currentUser }) {
   const [milestones, setMilestones] = useState([])  // mốc tiến độ HĐ (cho Gantt)
   const [filter, setFilter]       = useState('all')
   const [view, setView]           = useState('list')  // 'list' | 'gantt'
+  const [groupBy, setGroupBy]     = useState('department')  // 'department' | 'assignee' | 'none' (chế độ danh sách)
   const [modalOpen, setModalOpen] = useState(false)
   const [editTask, setEditTask]   = useState(null)  // null = create mode
-  const [collapsed, setCollapsed] = useState({})    // dept.id → bool
+  const [parentTask, setParentTask] = useState(null) // ≠ null = đang tạo việc con
+  const [collapsed, setCollapsed] = useState({})    // dept.key → bool
+  const [collapsedTask, setCollapsedTask] = useState({}) // task.id → bool (thu/mở việc con)
+  const canEdit = useCanEdit()
 
   // ── Load data ───────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -43,33 +48,64 @@ export default function ContractTaskTab({ contractId, currentUser }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
   useEffect(() => { load() }, [load])
 
-  // ── Filtered tasks ──────────────────────────────────────────────────────────
-  const filtered = tasks.filter(t => {
+  // ── Cây công việc + bộ lọc (giữ tổ tiên để cây liền mạch) ────────────────────
+  const { roots, childrenByParent, byId } = buildTaskTree(tasks)
+  const matchFn = (t) => {
     if (filter === 'waiting')  return t.status === 'Chờ xử lý'
     if (filter === 'doing')    return t.status === 'Đang thực hiện'
     if (filter === 'done')     return t.status === 'Hoàn thành'
     if (filter === 'overdue')  return isOverdue(t)
     return true
-  })
+  }
+  const visible = filter === 'all' ? null : visibleTaskIds(tasks, matchFn)
+  const visibleRoots = visible ? roots.filter(r => visible.has(String(r.id))) : roots
+  const hasVisible = visible ? visible.size > 0 : tasks.length > 0
 
-  // ── Group by department ────────────────────────────────────────────────────
-  const groups = groupByDept(filtered)
+  // ── Nhóm việc gốc (việc con lồng dưới cha) — theo bộ chọn như Gantt ──────────
+  const flat = groupBy === 'none'
+  const groups = flat
+    ? [{ key: '__all__', name: '', tasks: visibleRoots }]
+    : groupBy === 'assignee'
+      ? groupByAssignee(visibleRoots)
+      : groupByDept(visibleRoots)
 
   // ── Overdue count (cho nhãn bộ lọc) ──────────────────────────────────────────
   const overdue = tasks.filter(isOverdue).length
 
+  // ── Quyền theo dòng (khớp backend canCreateTask/canWriteTask) ─────────────────
+  const uid = Number(currentUser?.id)
+  const canAddSub  = (task) => canEdit || Number(task.assigned_to) === uid
+  const canWriteRow = (task) => {
+    if (canEdit) return true
+    if (task.parent_task_id == null) return false           // việc gốc: chỉ PM/admin
+    if (Number(task.assigned_to) === uid) return true        // assignee của việc con
+    const p = byId.get(String(task.parent_task_id))
+    return !!(p && Number(p.assigned_to) === uid)            // assignee của việc cha
+  }
+  // Sắp xếp 1 việc trong nhóm anh-em: PM/admin (mọi việc) hoặc assignee của VIỆC CHA.
+  const canReorderRow = (task) => {
+    if (canEdit) return true
+    if (task.parent_task_id == null) return false           // việc gốc: chỉ PM/admin
+    const p = byId.get(String(task.parent_task_id))
+    return !!(p && Number(p.assigned_to) === uid)
+  }
+
   // ── Handlers ────────────────────────────────────────────────────────────────
-  function openCreate() { setEditTask(null); setModalOpen(true) }
-  function openEdit(t)  { setEditTask(t);    setModalOpen(true) }
+  function openCreate()   { setEditTask(null); setParentTask(null); setModalOpen(true) }
+  function openAddSub(t)  { setEditTask(null); setParentTask(t);    setModalOpen(true) }
+  function openEdit(t)    { setEditTask(t);    setParentTask(null); setModalOpen(true) }
+  function toggleTask(id) { setCollapsedTask(prev => ({ ...prev, [id]: !prev[id] })) }
 
   async function handleSave(formData) {
     try {
       const url    = editTask ? `${API}/tasks/${editTask.id}` : `${API}/contracts/${contractId}/tasks`
       const method = editTask ? 'PUT' : 'POST'
+      const body   = { ...formData, created_by: currentUser?.id }
+      if (!editTask && parentTask) body.parent_task_id = parentTask.id
       const res    = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, created_by: currentUser?.id }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lỗi lưu')
@@ -119,6 +155,9 @@ export default function ContractTaskTab({ contractId, currentUser }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setTasks(prev => prev.map(t => t.id === task.id ? data : t))
+      // Đổi trạng thái có thể: (a) mở khóa việc phụ thuộc; (b) tự hoàn thành/mở lại việc
+      // cha theo cây con → tải lại để hiển thị trạng thái mới của toàn cây.
+      load()
     } catch (e) { alert('Lỗi: ' + e.message) }
   }
 
@@ -126,7 +165,41 @@ export default function ContractTaskTab({ contractId, currentUser }) {
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  // Kéo-thả sắp xếp (Gantt "Không nhóm"): cập nhật lạc quan rồi lưu; lỗi → tải lại.
+  async function handleReorder(orderedIds) {
+    const idSet = new Set(orderedIds)
+    setTasks(prev => {
+      const moved = orderedIds.map(id => prev.find(t => t.id === id)).filter(Boolean)
+      let k = 0
+      return prev.map(t => (idSet.has(t.id) ? moved[k++] : t))
+    })
+    try {
+      const res = await fetch(`${API}/contracts/${contractId}/tasks/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds }),
+      })
+      if (!res.ok) throw new Error()
+    } catch { load() }
+  }
+
   if (loading) return <div className="task-loading">Đang tải...</div>
+
+  // Modal dùng chung cho cả 2 chế độ. Ở chế độ Gantt nó render BÊN TRONG <TaskGantt>
+  // (để khi mở toàn màn hình vẫn nằm trên & thao tác được); chế độ Danh sách render ở cuối.
+  const modalNode = modalOpen && (
+    <TaskModal
+      task={editTask}
+      parentTask={parentTask}
+      departments={departments}
+      users={users}
+      allTasks={tasks}
+      milestones={milestones}
+      currentUser={currentUser}
+      onSave={handleSave}
+      onClose={handleModalClose}
+    />
+  )
 
   return (
     <div className="task-tab">
@@ -163,10 +236,33 @@ export default function ContractTaskTab({ contractId, currentUser }) {
         </div>
       </div>
 
+      {/* Bộ chọn nhóm (chỉ ở chế độ Danh sách) */}
+      {view === 'list' && hasVisible && (
+        <div className="task-group-toolbar">
+          <span className="task-group-label">Nhóm theo:</span>
+          <div className="task-group-seg">
+            <button className={groupBy === 'department' ? 'active' : ''} onClick={() => setGroupBy('department')}>Phòng ban</button>
+            <button className={groupBy === 'assignee' ? 'active' : ''} onClick={() => setGroupBy('assignee')}>Người được giao</button>
+            <button className={groupBy === 'none' ? 'active' : ''} onClick={() => setGroupBy('none')}>Không nhóm</button>
+          </div>
+          {flat && canEdit && <span className="task-group-hint">Kéo công việc để đổi thứ tự</span>}
+        </div>
+      )}
+
       {/* Nội dung: Danh sách hoặc Gantt */}
       {view === 'gantt' ? (
-        <TaskGantt tasks={filtered} milestones={milestones} onEdit={openEdit} />
-      ) : filtered.length === 0 ? (
+        <TaskGantt
+          tasks={tasks}
+          visibleIds={visible}
+          milestones={milestones}
+          onEdit={openEdit}
+          onAdd={canEdit ? openCreate : undefined}
+          onReorder={handleReorder}
+          canReorderRow={canReorderRow}
+        >
+          {modalNode}
+        </TaskGantt>
+      ) : !hasVisible ? (
         <div className="task-empty">
           {filter === 'all'
             ? 'Chưa có công việc nào. Nhấn Thêm công việc để bắt đầu.'
@@ -176,27 +272,26 @@ export default function ContractTaskTab({ contractId, currentUser }) {
         <DeptGroup
           key={group.key}
           group={group}
+          flat={flat}
+          childrenByParent={childrenByParent}
+          visible={visible}
           collapsed={!!collapsed[group.key]}
           onToggle={() => toggleCollapse(group.key)}
+          collapsedTask={collapsedTask}
+          onToggleTask={toggleTask}
+          canWriteRow={canWriteRow}
+          canAddSub={canAddSub}
+          canReorderRow={canReorderRow}
           onEdit={openEdit}
           onDelete={handleDelete}
           onStatusChange={handleStatusChange}
+          onAddSub={openAddSub}
+          onReorder={handleReorder}
         />
       ))}
 
-      {/* Modal */}
-      {modalOpen && (
-        <TaskModal
-          task={editTask}
-          departments={departments}
-          users={users}
-          allTasks={tasks}
-          milestones={milestones}
-          currentUser={currentUser}
-          onSave={handleSave}
-          onClose={handleModalClose}
-        />
-      )}
+      {/* Modal (chế độ Danh sách) — chế độ Gantt render modal bên trong <TaskGantt> */}
+      {view !== 'gantt' && modalNode}
     </div>
   )
 }

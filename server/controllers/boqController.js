@@ -52,6 +52,15 @@ async function syncContractTotal(contractId, db = pool) {
   `, [contractId])
 }
 
+// Tổng SL đã xuất hóa đơn của 1 dòng bảng giá (để chặn sửa SL thấp hơn / xóa dòng đã xuất).
+async function invoicedQty(boqId, db = pool) {
+  const { rows } = await db.query(
+    'SELECT COALESCE(SUM(quantity), 0) AS q FROM public.contract_out_invoice_item WHERE boq_id = $1',
+    [boqId]
+  )
+  return parseFloat(rows[0]?.q) || 0
+}
+
 // Map Excel row (0-indexed array) → BOQ fields
 // Expected template columns:
 //   A(0): Danh mục hàng hóa | B(1): HScode | C(2): ĐVT
@@ -231,6 +240,15 @@ export async function updateBOQItem(req, res) {
     const { price, before, after } = calc(quantity, unit_price, vat_rate, currency)
     const type = item_type === 'di_thang' ? 'di_thang' : 'trong_nuoc'
 
+    // Không cho giảm SL bảng giá xuống dưới SL đã xuất hóa đơn của dòng này.
+    const newQty = parseFloat(quantity) || 0
+    const invoiced = await invoicedQty(req.params.id)
+    if (newQty < invoiced - 1e-6) {
+      return res.status(400).json({
+        error: `Không thể giảm số lượng xuống ${newQty}: mặt hàng đã xuất hóa đơn ${invoiced}. Sửa hoặc xóa hóa đơn liên quan trước.`,
+      })
+    }
+
     const { rows } = await pool.query(`
       UPDATE public.contract_out_boq SET
         item_name = $1, hs_code = $2, unit = $3,
@@ -257,6 +275,11 @@ export async function updateBOQItem(req, res) {
 
 export async function deleteBOQItem(req, res) {
   try {
+    // Không cho xóa dòng bảng giá đã có trong hóa đơn đã xuất.
+    if (await invoicedQty(req.params.id) > 0) {
+      return res.status(400).json({ error: 'Không thể xóa: mặt hàng này đã có trong hóa đơn đã xuất. Sửa hoặc xóa hóa đơn liên quan trước.' })
+    }
+
     const { rows } = await pool.query(
       'DELETE FROM public.contract_out_boq WHERE id = $1 RETURNING contract_out_id',
       [req.params.id]
@@ -279,6 +302,21 @@ export async function bulkDeleteBOQItems(req, res) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+
+    // Chặn nếu có dòng nào đã xuất hóa đơn.
+    const { rows: used } = await client.query(
+      `SELECT DISTINCT b.item_name FROM public.contract_out_invoice_item it
+         JOIN public.contract_out_boq b ON b.id = it.boq_id
+        WHERE it.boq_id = ANY($1::bigint[])`,
+      [ids]
+    )
+    if (used.length) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({
+        error: `Không thể xóa, các mặt hàng đã xuất hóa đơn: ${used.map(r => r.item_name).join(', ')}.`,
+      })
+    }
+
     const { rows } = await client.query(
       'DELETE FROM public.contract_out_boq WHERE id = ANY($1::bigint[]) RETURNING contract_out_id',
       [ids]
@@ -373,6 +411,17 @@ export async function saveImportedBOQ(req, res) {
       await client.query('BEGIN')
 
       if (replaceAll) {
+        // Thay toàn bộ bảng giá = xóa hết dòng cũ → chặn nếu có dòng đã xuất hóa đơn.
+        const { rows: used } = await client.query(
+          `SELECT 1 FROM public.contract_out_invoice_item it
+             JOIN public.contract_out_boq b ON b.id = it.boq_id
+            WHERE b.contract_out_id = $1 LIMIT 1`,
+          [contractId]
+        )
+        if (used.length) {
+          await client.query('ROLLBACK')
+          return res.status(400).json({ error: 'Không thể thay toàn bộ bảng giá: đã có mặt hàng xuất hóa đơn. Hãy thêm bổ sung thay vì thay thế.' })
+        }
         await client.query('DELETE FROM public.contract_out_boq WHERE contract_out_id = $1', [contractId])
       }
 

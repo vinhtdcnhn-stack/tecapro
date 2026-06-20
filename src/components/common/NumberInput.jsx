@@ -11,16 +11,22 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 const groupThousands = (digits) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 
 // Số "thô" (vd "15000000.02", 62, "") → chuỗi hiển thị "15.000.000,02".
-function formatFromRaw(v) {
+// integer=true: chỉ hiển thị phần nguyên (bỏ phần thập phân).
+function formatFromRaw(v, integer) {
   if (v === '' || v == null) return ''
   let s = String(v)
   let [i, d] = s.split('.')
   i = (i || '').replace(/^0+(?=\d)/, '') || '0'
-  return d != null ? `${groupThousands(i)},${d}` : groupThousands(i)
+  return !integer && d != null ? `${groupThousands(i)},${d}` : groupThousands(i)
 }
 
 // Chuỗi người dùng gõ → { display, raw }.
-function parseTyped(str) {
+// integer=true: bỏ luôn dấu phẩy/phần thập phân, chỉ nhận số nguyên.
+function parseTyped(str, integer) {
+  if (integer) {
+    const intPart = (str.replace(/\D/g, '').replace(/^0+(?=\d)/, '')) || ''
+    return { display: groupThousands(intPart), raw: intPart }
+  }
   // Chỉ giữ chữ số và dấu phẩy; bỏ mọi dấu chấm (phân cách nghìn) và ký tự khác.
   let cleaned = str.replace(/[^\d,]/g, '')
   // Chỉ giữ dấu phẩy đầu tiên làm phân cách thập phân.
@@ -51,8 +57,8 @@ function caretAfterSig(formatted, n) {
   return formatted.length
 }
 
-export default function NumberInput({ value, onChange, ...rest }) {
-  const [display, setDisplay] = useState(() => formatFromRaw(value))
+export default function NumberInput({ value, onChange, integer = false, ...rest }) {
+  const [display, setDisplay] = useState(() => formatFromRaw(value, integer))
   const inputRef = useRef(null)
   const caretRef = useRef(null)
   const lastEmit = useRef(value == null ? '' : String(value))
@@ -61,7 +67,7 @@ export default function NumberInput({ value, onChange, ...rest }) {
   // tránh đè lên những gì người dùng đang gõ (so sánh với giá trị vừa phát ra).
   useEffect(() => {
     if (String(value ?? '') !== String(lastEmit.current ?? '')) {
-      setDisplay(formatFromRaw(value))
+      setDisplay(formatFromRaw(value, integer))
       lastEmit.current = value == null ? '' : String(value)
     }
   }, [value])
@@ -75,7 +81,7 @@ export default function NumberInput({ value, onChange, ...rest }) {
 
   const handleChange = (e) => {
     const sigBefore = sigCount(e.target.value.slice(0, e.target.selectionStart ?? 0))
-    const { display: nextDisplay, raw } = parseTyped(e.target.value)
+    const { display: nextDisplay, raw } = parseTyped(e.target.value, integer)
     caretRef.current = caretAfterSig(nextDisplay, sigBefore)
     lastEmit.current = raw
     setDisplay(nextDisplay)

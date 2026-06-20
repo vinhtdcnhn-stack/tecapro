@@ -14,8 +14,12 @@ const fmtSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function TaskModal({ task, departments, users, allTasks = [], milestones = [], currentUser, onSave, onClose }) {
+export default function TaskModal({ task, parentTask = null, departments, users, allTasks = [], milestones = [], currentUser, onSave, onClose }) {
   const isEdit = !!task
+  const isSubtask = !isEdit && !!parentTask
+  // Việc cha (tạo việc con: từ prop; sửa việc con: tra từ allTasks) → cho phép neo ngày theo cha.
+  const parentOf = parentTask || allTasks.find(t => String(t.id) === String(task?.parent_task_id)) || null
+  const hasParent = !!parentOf
 
   const [form, setForm] = useState({
     title:         task?.title         ?? '',
@@ -41,8 +45,11 @@ export default function TaskModal({ task, departments, users, allTasks = [], mil
     dep_progress_id: d.dep_progress_id ?? '',
     offset_days: d.offset_days ?? 0,
   }))
-  const [startMode, setStartMode] = useState(initialDeps.length ? 'deps' : 'fixed')  // 'fixed' | 'deps'
+  const [startMode, setStartMode] = useState(
+    task?.parent_start_offset != null ? 'parent' : (initialDeps.length ? 'deps' : 'fixed')
+  )  // 'fixed' | 'deps' | 'parent'
   const [deps, setDeps]           = useState(initialDeps)
+  const [parentOffset, setParentOffset] = useState(task?.parent_start_offset ?? 0)
 
   // ── Chế độ thời hạn hoàn thành ──
   // 'fixed' = chọn ngày cố định · 'duration' = làm trong N ngày (gồm cả ngày bắt đầu).
@@ -74,10 +81,16 @@ export default function TaskModal({ task, departments, users, allTasks = [], mil
   const tasksById  = useMemo(() => new Map(allTasks.map(t => [String(t.id), t])), [allTasks])
   const msById     = useMemo(() => new Map(milestones.map(m => [String(m.id), m])), [milestones])
 
-  // Ngày bắt đầu hiệu lực (từ ngày cố định hoặc các bước phụ thuộc) — KHÔNG fallback về due
+  // Ngày bắt đầu hiệu lực (từ ngày cố định / bước trước / việc cha) — KHÔNG fallback về due
   // để tránh vòng lặp khi due được suy ra từ start.
   const baseStart = resolveTaskStart(
-    { ...task, start_date: startMode === 'fixed' ? form.start_date : null, dependencies: cleanDeps },
+    {
+      ...task,
+      parent_task_id: parentOf?.id ?? task?.parent_task_id ?? null,
+      parent_start_offset: startMode === 'parent' ? (Number(parentOffset) || 0) : null,
+      start_date: startMode === 'fixed' ? form.start_date : null,
+      dependencies: startMode === 'deps' ? cleanDeps : [],
+    },
     tasksById, msById,
   )
   // Ngày bắt đầu dự kiến (read-only) hiển thị cho người dùng.
@@ -143,7 +156,8 @@ export default function TaskModal({ task, departments, users, allTasks = [], mil
       start_date: startMode === 'fixed' ? (form.start_date || null) : null,
       due_date: effectiveDue,
       duration_days: dueMode === 'duration' ? durDays : null,
-      dependencies: cleanDeps,
+      dependencies: startMode === 'deps' ? cleanDeps : [],
+      parent_start_offset: startMode === 'parent' ? (Number(parentOffset) || 0) : null,
     }
     const savedTask = await onSave(payload)
     if (!savedTask) { setSaving(false); return }
@@ -186,11 +200,16 @@ export default function TaskModal({ task, departments, users, allTasks = [], mil
       labelledBy="task-modal-title"
     >
         <div className="task-modal-header">
-          <h3 id="task-modal-title">{isEdit ? 'Cập nhật công việc' : 'Thêm công việc mới'}</h3>
+          <h3 id="task-modal-title">{isEdit ? 'Cập nhật công việc' : isSubtask ? 'Thêm công việc con' : 'Thêm công việc mới'}</h3>
           <button className="task-modal-close" onClick={onClose} aria-label="Đóng">✕</button>
         </div>
 
         <div className="task-modal-body">
+          {isSubtask && (
+            <div className="task-subtask-banner">
+              Việc con của: <strong>{parentTask.title}</strong>
+            </div>
+          )}
           {/* Title */}
           <div className="task-form-row">
             <div className="task-form-group full">
@@ -315,11 +334,32 @@ export default function TaskModal({ task, departments, users, allTasks = [], mil
                   <input type="radio" name="startMode" checked={startMode === 'deps'} onChange={() => setStartMode('deps')} />
                   Sau khi bước trước hoàn thành
                 </label>
+                {hasParent && (
+                  <label className={startMode === 'parent' ? 'active' : ''}>
+                    <input type="radio" name="startMode" checked={startMode === 'parent'} onChange={() => setStartMode('parent')} />
+                    Theo việc cha
+                  </label>
+                )}
               </div>
 
               {startMode === 'fixed' ? (
                 <div style={{ maxWidth: 220, marginTop: 8 }}>
                   <DateInput value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+                </div>
+              ) : startMode === 'parent' ? (
+                <div className="task-parent-start">
+                  <div className="task-parent-start-name">
+                    Bám theo ngày bắt đầu của: <strong>{parentOf?.title || '—'}</strong>
+                  </div>
+                  <div className="task-due-offset">
+                    <input
+                      type="number"
+                      min="0"
+                      value={parentOffset}
+                      onChange={e => setParentOffset(e.target.value)}
+                    />
+                    <span>ngày sau khi việc cha bắt đầu (0 = cùng ngày)</span>
+                  </div>
                 </div>
               ) : (
                 <div className="task-deps">

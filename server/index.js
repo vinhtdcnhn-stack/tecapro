@@ -9,6 +9,8 @@ import { requireAuth } from './middleware/auth.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
 import { logger } from './utils/logger.js'
 import { startReminderScheduler } from './services/reminderScheduler.js'
+import { startTaskAutoStartScheduler } from './services/taskAutoStart.js'
+import { startOverdueAlertScheduler } from './services/overdueDebtScheduler.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -113,4 +115,8 @@ app.listen(port, host, () => {
   logger.info(`[server] listening on http://${host}:${port}`)
   // Bộ nhắc hạn Telegram hàng ngày (tự bỏ qua nếu không cấu hình bot token).
   startReminderScheduler()
+  // Tự chuyển công việc "Chờ xử lý" → "Đang thực hiện" khi tới ngày bắt đầu hiệu lực.
+  startTaskAutoStartScheduler()
+  // Cảnh báo nợ quá hạn leo thang (tự bỏ qua nếu không cấu hình Telegram).
+  startOverdueAlertScheduler()
 })

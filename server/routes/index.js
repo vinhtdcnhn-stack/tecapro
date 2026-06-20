@@ -23,6 +23,8 @@ import contractInLogisticsRoutes from './contractInLogisticsRoutes.js'
 import pmDashboardRoutes from './pmDashboardRoutes.js'
 import deptWorkRoutes from './deptWorkRoutes.js'
 import approvalRoutes from './approvalRoutes.js'
+import reportRoutes from './reportRoutes.js'
+import invoiceRoutes from './invoiceRoutes.js'
 
 const router = Router()
 
@@ -122,5 +124,11 @@ router.use('/', deptWorkRoutes)
 
 // Đề xuất / Phê duyệt (giống Base Request)
 router.use('/', approvalRoutes)
+
+// Xuất hóa đơn (HĐ bán)
+router.use('/', invoiceRoutes)
+
+// Báo cáo tài chính (kế toán / BGĐ / admin)
+router.use('/', reportRoutes)
 
 export default router

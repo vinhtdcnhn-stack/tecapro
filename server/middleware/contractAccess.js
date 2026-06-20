@@ -26,6 +26,7 @@ const RESOLVERS = {
   receivable:        `SELECT contract_out_id FROM contract_receivable WHERE id = ANY($1::bigint[])`,
   receivablePayment: `SELECT contract_out_id FROM contract_receivable_payment WHERE id = ANY($1::bigint[])`,
   guarantee:         `SELECT contract_out_id FROM contract_guarantee WHERE id = ANY($1::bigint[])`,
+  invoice:           `SELECT contract_out_id FROM contract_out_invoice WHERE id = ANY($1::bigint[])`,
   task:              `SELECT contract_out_id FROM contract_task WHERE id = ANY($1::bigint[])`,
   equipment:         `SELECT contract_out_id FROM contract_equipment WHERE id = ANY($1::bigint[])`,
   outDelivery:       `SELECT contract_out_id FROM contract_out_delivery WHERE id = ANY($1::bigint[])`,
@@ -103,6 +104,118 @@ export const pmVia = (key, param = 'id') => makeGuard(req => req.params[param], 
 
 // Bulk: body { ids: [...] } chứa id con
 export const pmViaBody = (key) => makeGuard(req => req.body?.ids, RESOLVERS[key])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quyền GHI công việc có nới cho NGƯỜI ĐƯỢC GIAO (assignee) — cho phép tạo/sửa việc CON.
+// Việc gốc (parent_task_id NULL) vẫn chỉ PM/admin. Việc con: PM/admin HOẶC người được
+// giao việc con đó HOẶC người được giao việc CHA của nó.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function isPmOfContract(userId, contractId) {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM contract_out_member
+      WHERE user_id = $1 AND member_role = 'PM' AND contract_out_id = $2 LIMIT 1`,
+    [userId, contractId],
+  )
+  return rows.length > 0
+}
+
+// POST /contracts/:id/tasks — tạo việc (hoặc việc con nếu body.parent_task_id).
+export function canCreateTask(param = 'id') {
+  return async function guard(req, res, next) {
+    try {
+      if (Number(req.user?.role) === 1) return next() // admin
+      const contractId = String(req.params[param] ?? '')
+      if (!ID_RE.test(contractId)) {
+        res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+        return
+      }
+      if (await isPmOfContract(req.user.id, contractId)) return next()
+
+      // Không phải PM: chỉ cho khi tạo việc CON của một việc mình được giao, cùng HĐ.
+      const parentId = req.body?.parent_task_id
+      if (parentId != null && ID_RE.test(String(parentId))) {
+        const { rows } = await pool.query(
+          'SELECT contract_out_id, assigned_to FROM contract_task WHERE id = $1',
+          [parentId],
+        )
+        const p = rows[0]
+        if (p && String(p.contract_out_id) === contractId && Number(p.assigned_to) === Number(req.user.id)) {
+          return next()
+        }
+      }
+      res.status(403).json({ error: 'Chỉ PM (hoặc admin / người được giao việc cha) mới được thêm công việc.' })
+    } catch (err) { next(err) }
+  }
+}
+
+// PUT /contracts/:id/tasks/reorder — sắp xếp thứ tự. PM/admin sắp tuỳ ý; người được giao
+// VIỆC CHA được sắp xếp các việc con của nó (orderedIds phải là anh-em cùng 1 cha non-null).
+export function canReorderTasks(param = 'id') {
+  return async function guard(req, res, next) {
+    try {
+      if (Number(req.user?.role) === 1) return next() // admin
+      const contractId = String(req.params[param] ?? '')
+      if (!ID_RE.test(contractId)) {
+        res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+        return
+      }
+      if (await isPmOfContract(req.user.id, contractId)) return next()
+
+      const ids = (Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : [])
+        .map(Number).filter(Number.isFinite)
+      if (!ids.length) { res.status(400).json({ error: 'orderedIds rỗng.' }); return }
+
+      const { rows } = await pool.query(
+        'SELECT id, contract_out_id, parent_task_id FROM contract_task WHERE id = ANY($1::bigint[])',
+        [ids],
+      )
+      // Phải đủ, cùng HĐ, và cùng MỘT việc cha non-null (anh-em).
+      const parents = new Set(rows.map(r => r.parent_task_id == null ? 'root' : String(r.parent_task_id)))
+      if (rows.length !== ids.length
+          || rows.some(r => String(r.contract_out_id) !== contractId)
+          || parents.size !== 1 || parents.has('root')) {
+        res.status(403).json({ error: 'Chỉ PM (hoặc admin) mới được sắp xếp các việc này.' })
+        return
+      }
+      const { rows: pr } = await pool.query('SELECT assigned_to FROM contract_task WHERE id = $1', [rows[0].parent_task_id])
+      if (pr[0] && Number(pr[0].assigned_to) === Number(req.user.id)) return next()
+      res.status(403).json({ error: 'Chỉ PM (hoặc admin / người được giao việc cha) mới được sắp xếp việc con.' })
+    } catch (err) { next(err) }
+  }
+}
+
+// PUT|DELETE /tasks/:id — sửa/xoá việc. Nới cho assignee của việc con (hoặc của việc cha nó).
+export function canWriteTask(param = 'id') {
+  return async function guard(req, res, next) {
+    try {
+      if (Number(req.user?.role) === 1) return next() // admin
+      const taskId = String(req.params[param] ?? '')
+      if (!ID_RE.test(taskId)) {
+        res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+        return
+      }
+      const { rows } = await pool.query(
+        `SELECT t.contract_out_id, t.assigned_to, t.parent_task_id, p.assigned_to AS parent_assigned_to
+           FROM contract_task t
+           LEFT JOIN contract_task p ON p.id = t.parent_task_id
+          WHERE t.id = $1`,
+        [taskId],
+      )
+      const t = rows[0]
+      if (!t) { res.status(404).json({ error: 'Không tìm thấy công việc.' }); return }
+
+      if (await isPmOfContract(req.user.id, String(t.contract_out_id))) return next()
+
+      const uid = Number(req.user.id)
+      const isSubtask = t.parent_task_id != null
+      if (isSubtask && (Number(t.assigned_to) === uid || Number(t.parent_assigned_to) === uid)) {
+        return next()
+      }
+      res.status(403).json({ error: 'Chỉ PM (hoặc admin / người được giao) mới được sửa công việc này.' })
+    } catch (err) { next(err) }
+  }
+}
 
 // Biến thể cho phép PM HOẶC Kỹ thuật (member_role='Technical') — dùng cho thao tác serial.
 export const pmOrTechVia = (key, param = 'id') => makeGuard(req => req.params[param], RESOLVERS[key], ['PM', 'Technical'])

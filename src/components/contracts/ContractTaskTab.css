@@ -58,6 +58,21 @@
 }
 .task-add-btn:hover { background: #15803d; }
 
+/* ── Bộ chọn nhóm (chế độ Danh sách) ─────────────────────────────────────*/
+.task-group-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: -6px; }
+.task-group-label { font-size: 12px; color: #6b7280; font-weight: 600; }
+.task-group-seg { display: inline-flex; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; }
+.task-group-seg button {
+  padding: 6px 14px; font-size: 12px; font-weight: 600; color: #374151;
+  background: #fff; border: none; cursor: pointer;
+}
+.task-group-seg button + button { border-left: 1px solid #d1d5db; }
+.task-group-seg button.active { background: #16a34a; color: #fff; }
+.task-group-hint { font-size: 11px; color: #9ca3af; font-style: italic; }
+
+/* Chế độ "Không nhóm": chỉ số thứ tự hiển thị mờ, kéo-thả toàn danh sách */
+.task-flat .task-table tbody tr:first-child td { border-top: none; }
+
 /* ── Department group ────────────────────────────────────────────────────*/
 .task-dept-group { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
 
@@ -159,6 +174,38 @@
 .task-act-btn.edit:hover   { background: #dbeafe; }
 .task-act-btn.delete { background: #fff5f5; color: #dc2626; }
 .task-act-btn.delete:hover { background: #fee2e2; }
+.task-act-btn.addsub { background: #f0fdf4; color: #16a34a; }
+.task-act-btn.addsub:hover { background: #dcfce7; }
+
+/* ── Công việc con (cây nhiều cấp) ──────────────────────────────────────── */
+.task-title-line { display: flex; align-items: center; gap: 6px; }
+.task-tree-toggle {
+  width: 16px; height: 16px; flex-shrink: 0; padding: 0; border: none; background: transparent;
+  color: #6b7280; cursor: pointer; font-size: 9px; line-height: 1;
+  transition: transform .15s; transform: rotate(0deg);
+}
+.task-tree-toggle.open { transform: rotate(90deg); }
+.task-tree-spacer { width: 16px; flex-shrink: 0; display: inline-block; }
+.task-row--child td { background: #fbfdfb; }
+.task-row--child .task-title { font-weight: 500; }
+
+.status-badge-task--locked { display: inline-flex; align-items: center; gap: 3px; opacity: .85; cursor: default; }
+
+/* Kéo-thả sắp xếp ở danh sách */
+.task-drag-grip {
+  cursor: grab; color: #cbd5e1; font-size: 12px; line-height: 1; letter-spacing: -2px;
+  margin-right: 4px; user-select: none; opacity: 0; transition: opacity .12s, color .12s;
+}
+.task-table tbody tr:hover .task-drag-grip { opacity: 1; }
+.task-drag-grip:hover { color: #16a34a; }
+.task-drag-grip:active { cursor: grabbing; }
+.task-row--dragging td { opacity: .5; }
+.task-row--dragover td { box-shadow: inset 0 2px 0 #16a34a; }
+
+.task-subtask-banner {
+  margin-bottom: 12px; padding: 8px 12px; border-radius: 8px;
+  background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-size: 13px;
+}
 
 /* ── Modal ─────────────────────────────────────────────────────────────── */
 .task-modal-overlay {
@@ -281,6 +328,9 @@
 .task-due-offset { display: inline-flex; align-items: center; gap: 6px; }
 .task-due-offset input { width: 64px; text-align: right; }
 .task-due-offset span { font-size: 12px; color: #6b7280; white-space: nowrap; }
+
+.task-parent-start { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.task-parent-start-name { font-size: 12px; color: #374151; }
 
 /* ── Mobile: bảng công việc → thẻ xếp dọc, form trong modal stack 1 cột ─────── */
 @media (max-width: 768px) {

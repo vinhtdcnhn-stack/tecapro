@@ -61,6 +61,71 @@ export function groupByAssignee(tasks) {
   return [...map.values()].sort((a, b) => (a.key === 'none' ? 1 : b.key === 'none' ? -1 : 0))
 }
 
+// ── Cây công việc con (sub-task) ────────────────────────────────────────────────
+
+// Dựng cây từ danh sách phẳng (đã sort theo sort_order). Trả { byId, roots, childrenByParent }.
+// roots = việc gốc (parent_task_id null / cha không tồn tại); childrenByParent: Map(parentId→[con]).
+export function buildTaskTree(tasks) {
+  const byId = new Map(tasks.map(t => [String(t.id), t]))
+  const childrenByParent = new Map()
+  const roots = []
+  for (const t of tasks) {
+    const pid = t.parent_task_id != null ? String(t.parent_task_id) : null
+    if (pid && byId.has(pid)) {
+      if (!childrenByParent.has(pid)) childrenByParent.set(pid, [])
+      childrenByParent.get(pid).push(t)
+    } else {
+      roots.push(t)
+    }
+  }
+  return { byId, roots, childrenByParent }
+}
+
+// Tập id hiển thị theo bộ lọc: node khớp matchFn + TẤT CẢ tổ tiên (giữ cây liền mạch).
+export function visibleTaskIds(tasks, matchFn) {
+  const byId = new Map(tasks.map(t => [String(t.id), t]))
+  const visible = new Set()
+  for (const t of tasks) {
+    if (!matchFn(t)) continue
+    let cur = t
+    while (cur) {
+      const id = String(cur.id)
+      if (visible.has(id)) break
+      visible.add(id)
+      const pid = cur.parent_task_id != null ? String(cur.parent_task_id) : null
+      cur = pid ? byId.get(pid) : null
+    }
+  }
+  return visible
+}
+
+// Tạo thứ tự id mới khi kéo `fromId` thả lên `toId` (chèn vào đúng vị trí). Dùng chung
+// cho kéo-thả ở Danh sách và Gantt.
+export function reorderIds(ids, fromId, toId) {
+  if (fromId === toId) return ids
+  const from = ids.indexOf(fromId), to = ids.indexOf(toId)
+  if (from < 0 || to < 0) return ids
+  const a = ids.slice()
+  a.splice(from, 1)
+  a.splice(to, 0, fromId)
+  return a
+}
+
+// DFS pre-order các việc gốc → [{ task, depth, hasChildren }]. Chỉ đi vào con hiển thị
+// (theo `visible`) và node không bị thu (collapsed[id]). visible=null → hiện tất cả.
+export function flattenTree(rootTasks, childrenByParent, { collapsed = {}, visible = null } = {}) {
+  const out = []
+  const vis = (t) => !visible || visible.has(String(t.id))
+  const walk = (node, depth) => {
+    if (!vis(node)) return
+    const kids = (childrenByParent.get(String(node.id)) || []).filter(vis)
+    out.push({ task: node, depth, hasChildren: kids.length > 0 })
+    if (!collapsed[String(node.id)]) for (const c of kids) walk(c, depth + 1)
+  }
+  for (const r of rootTasks) walk(r, 0)
+  return out
+}
+
 // ── Lịch / phụ thuộc — tính ngày bắt đầu hiệu lực cho Gantt ─────────────────────
 
 export const dayPart = (v) => (v ? String(v).slice(0, 10) : null)   // 'yyyy-mm-dd[...]' → 'yyyy-mm-dd'
@@ -98,10 +163,17 @@ function stepFinishDate(task) {
   return dayPart(task.due_date)
 }
 
-// Ngày bắt đầu hiệu lực: MAX(ngày hoàn thành từng bước trước + offset); nếu không có
+// Ngày bắt đầu hiệu lực: MAX(ngày hoàn thành từng bước trước + 1 + offset); nếu không có
 // phụ thuộc resolve được → start_date thủ công; nếu cũng trống → null (caller fallback due_date).
 // tasksById / milestonesById: Map khoá theo String(id).
 export function resolveTaskStart(task, tasksById, milestonesById) {
+  // Neo theo việc cha (động): ngày bắt đầu = ngày bắt đầu hiệu lực của việc cha + offset
+  // (offset 0 = cùng ngày). Đệ quy lên cha (chuỗi parent_task_id luôn không vòng lặp).
+  if (task?.parent_start_offset != null && task?.parent_task_id != null) {
+    const parent = tasksById?.get(String(task.parent_task_id))
+    const ps = parent ? resolveTaskStart(parent, tasksById, milestonesById) : null
+    if (ps) return addDaysISO(ps, Number(task.parent_start_offset) || 0)
+  }
   const deps = Array.isArray(task?.dependencies) ? task.dependencies : []
   if (deps.length) {
     const cands = []
@@ -113,7 +185,9 @@ export function resolveTaskStart(task, tasksById, milestonesById) {
         const m = milestonesById?.get(String(d.dep_progress_id))
         finish = m ? (dayPart(m.actual_date) || dayPart(m.planned_date)) : null
       }
-      if (finish) cands.push(addDaysISO(finish, d.offset_days))
+      // Bắt đầu NGÀY SAU khi bước trước hoàn thành (không chồng lên ngày kết thúc của
+      // bước trước); offset_days là số ngày trễ thêm: 0 ngày sau = ngay hôm sau.
+      if (finish) cands.push(addDaysISO(finish, (Number(d.offset_days) || 0) + 1))
     }
     const mx = maxISO(cands)
     if (mx) return mx

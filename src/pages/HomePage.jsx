@@ -5,7 +5,11 @@ import homeHero from '../assets/home-hero.png'
 import Dashboard from './Dashboard'
 import PMDashboard from './PMDashboard'
 import AssigneeDashboard from './AssigneeDashboard'
+import AccountingDashboard from './AccountingDashboard'
+import DashSwitcher from './DashSwitcher'
+import './accounting/Accounting.css'
 
+const STORE_KEY = 'home_dashboard'
 
 export default function HomePage() {
   const { user } = useAuth()
@@ -13,32 +17,27 @@ export default function HomePage() {
   const [customers, setCustomers] = useState([])
   const [users, setUsers] = useState([])
   const [loaded, setLoaded] = useState(false)
+  const [selected, setSelected] = useState(null)
 
-  // Dashboard chọn theo VỊ TRÍ trước (bảng position), cá nhân sau:
-  //   PM_TEAM            → bảng theo dõi tiến độ dự án (PMDashboard)
-  //   GD / PGD (giám đốc)→ dashboard tổng quan (Dashboard)
-  //   còn lại            → nếu là thành viên ≥1 dự án thì cũng dùng PMDashboard
+  // Vai trò → các dashboard khả dụng. Một user có thể giữ nhiều vị trí (nhiều vai).
   const codes = new Set([
     ...(user?.positions?.map(p => p.code) || []),
     user?.position_code,
   ].filter(Boolean))
   const hasPMPosition = codes.has('PM_TEAM')
   const isDirector    = codes.has('GD') || codes.has('PGD')
+  const isAdmin       = Number(user?.role) === 1
+  const isAccountant  = user?.department_name === 'Ban Kế Toán'
 
   useEffect(() => {
     if (!user) return
-    // PM_TEAM render PMDashboard (tự nạp /api/pm/:id/dashboard) → KHÔNG dùng
-    // contracts/customers/users. Bỏ qua các fetch này để chúng không tranh
-    // connection pool/băng thông với request dashboard, tránh làm trang chủ chờ.
-    if (hasPMPosition) return // nhánh PM render trước khi đọc `loaded` → không cần set
     let cancelled = false
     ;(async () => {
       try {
-        // /api/contracts đã lọc theo thành viên cho non-admin → dùng để biết user có tham gia dự án không.
+        // /api/contracts đã lọc theo thành viên cho non-admin → biết user có tham gia dự án không.
         const c = await fetch(`${API}/api/contracts`).then(r => r.json())
         if (cancelled) return
         setContracts(Array.isArray(c) ? c : [])
-        // Chỉ Dashboard tổng quan (GD/PGD) mới cần thêm khách hàng + nhân sự.
         if (isDirector) {
           const [cu, u] = await Promise.all([
             fetch(`${API}/api/customers`).then(r => r.json()),
@@ -56,7 +55,7 @@ export default function HomePage() {
       }
     })()
     return () => { cancelled = true }
-  }, [user, hasPMPosition, isDirector])
+  }, [user, isDirector])
 
   if (!user) {
     return (
@@ -68,25 +67,6 @@ export default function HomePage() {
     )
   }
 
-  // ── Ưu tiên theo vị trí ──
-  if (hasPMPosition) {
-    return (
-      <main className="page admin-page dash-page">
-        <PMDashboard user={user} />
-      </main>
-    )
-  }
-
-  if (isDirector) {
-    return (
-      <main className="page admin-page dash-page">
-        <Dashboard user={user} contracts={contracts} customers={customers} users={users} />
-      </main>
-    )
-  }
-
-  // ── Sau đó theo cá nhân: thành viên dự án (bất kỳ vai trò) cũng dùng dashboard tiến độ ──
-  // Chờ tải xong danh sách HĐ (đã lọc theo thành viên) mới quyết định, tránh nhấp nháy.
   if (!loaded) {
     return (
       <main className="page admin-page dash-page">
@@ -95,19 +75,42 @@ export default function HomePage() {
     )
   }
 
-  if (contracts.length > 0) {
-    return (
-      <main className="page admin-page dash-page">
-        <PMDashboard user={user} />
-      </main>
-    )
+  // ── Danh sách dashboard khả dụng (sau khi biết membership) ──
+  const canPM = hasPMPosition || contracts.length > 0
+  const available = []
+  if (canPM)                                  available.push({ key: 'pm',        label: 'Tiến độ dự án' })
+  if (isDirector)                             available.push({ key: 'director',  label: 'Tổng quan hệ thống' })
+  if (isAccountant || isDirector || isAdmin)  available.push({ key: 'accounting', label: 'Kế toán' })
+  if (available.length === 0)                 available.push({ key: 'assignee',  label: 'Việc của tôi' })
+
+  // Mặc định theo thứ tự ưu tiên cũ; nhớ lựa chọn người dùng nếu còn hợp lệ.
+  const defaultKey = canPM ? 'pm' : isDirector ? 'director' : isAccountant ? 'accounting' : 'assignee'
+  const stored = (typeof localStorage !== 'undefined') ? localStorage.getItem(STORE_KEY) : null
+  const keys = available.map(a => a.key)
+  const active = (selected && keys.includes(selected)) ? selected
+    : (stored && keys.includes(stored)) ? stored
+    : (keys.includes(defaultKey) ? defaultKey : keys[0])
+
+  const pick = (key) => {
+    setSelected(key)
+    try { localStorage.setItem(STORE_KEY, key) } catch { /* ignore */ }
   }
 
-  // Không tham gia dự án nào → hiển thị các công việc được giao trực tiếp cho user
-  // (tự báo "Bạn chưa có công việc được phân công" nếu không có việc nào).
+  const switcher = <DashSwitcher available={available} active={active} onPick={pick} />
+
+  const render = () => {
+    switch (active) {
+      case 'director':   return <Dashboard switcher={switcher} user={user} contracts={contracts} customers={customers} users={users} />
+      case 'accounting': return <AccountingDashboard switcher={switcher} user={user} />
+      case 'assignee':   return <AssigneeDashboard switcher={switcher} user={user} />
+      case 'pm':
+      default:           return <PMDashboard switcher={switcher} user={user} />
+    }
+  }
+
   return (
     <main className="page admin-page dash-page">
-      <AssigneeDashboard user={user} />
+      {render()}
     </main>
   )
 }
