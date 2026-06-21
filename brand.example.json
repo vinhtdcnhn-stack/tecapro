@@ -1,0 +1,27 @@
+{
+  "_huong_dan": [
+    "MẪU CẤU HÌNH NHẬN DIỆN THƯƠNG HIỆU CHO TỪNG DOANH NGHIỆP.",
+    "Cách dùng trên mỗi VPS (làm 1 lần):",
+    "  1. Copy file này thành public/brand.json (KHÔNG theo git, không bị pull đè).",
+    "  2. Sửa name / tagline / màu theo doanh nghiệp.",
+    "  3. Đặt logo/favicon/hero riêng vào public/brand/ (cũng không theo git).",
+    "Sau đó mỗi lần cập nhật code: git pull && npm run build — brand giữ nguyên.",
+    "Có thể chỉ khai báo các khóa màu muốn đổi; khóa thiếu sẽ dùng mặc định trong src/index.css.",
+    "favicon = icon tab trình duyệt; bỏ trống hoặc xóa khóa này thì TỰ DÙNG logo làm icon.",
+    "hero = ảnh lớn trang chủ khi chưa đăng nhập (bỏ trống = dùng ảnh mặc định)."
+  ],
+  "name": "Tên doanh nghiệp",
+  "tagline": "Dòng giới thiệu hiển thị khi chưa đăng nhập",
+  "logo": "/brand/logo.png",
+  "favicon": "/brand/favicon.svg",
+  "hero": "/brand/hero.png",
+  "colors": {
+    "brand": "#2f6b3a",
+    "brandDark": "#2b5f35",
+    "brandLight": "#4f9d5b",
+    "brandPale": "#95b79b",
+    "accent": "#15803d",
+    "accent2": "#22c55e",
+    "accentHover": "#166534"
+  }
+}

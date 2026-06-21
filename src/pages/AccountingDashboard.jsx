@@ -41,7 +41,7 @@ function Overview() {
   return (
     <>
       <div className="acc-stats">
-        <StatCard label={`Doanh thu xuất hóa đơn ${sum.year}`} value={fmtVnd(sum.revenue_ytd)} color="#2f6b3a"
+        <StatCard label={`Doanh thu xuất hóa đơn ${sum.year}`} value={fmtVnd(sum.revenue_ytd)} color="var(--brand)"
           hint={sum.revenue_ytd == null ? 'Sẽ có khi bật module Xuất hóa đơn' : 'Lũy kế từ đầu năm'} />
         <StatCard label="Dự kiến THU trong tháng" value={fmtVnd(sum.expected_receipt_month)} color="#2563eb"
           hint="Công nợ phải thu tới hạn (theo tiến độ thực) chưa thu" />

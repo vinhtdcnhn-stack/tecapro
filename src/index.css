@@ -6,6 +6,14 @@
    Trước đây các biến này được dùng trong App.css nhưng chưa từng được khai báo,
    khiến tiêu đề login (.title-accent) mất chữ và focus ring không hiển thị. */
 :root {
+  /* Màu nhận diện thương hiệu — NGUỒN MẶC ĐỊNH (TECAPRO).
+     Mỗi doanh nghiệp ghi đè qua public/brand.json lúc chạy (xem src/config/brand.js),
+     nên đổi màu/logo không cần sửa code và `git pull` không đụng tới. */
+  --brand: #2f6b3a;           /* xanh lá thương hiệu — màu chủ đạo */
+  --brand-dark: #2b5f35;      /* đậm hơn — cuối gradient header */
+  --brand-light: #4f9d5b;     /* sáng hơn — gradient phụ */
+  --brand-pale: #95b79b;      /* nhạt — đầu gradient header */
+
   --accent: #15803d;          /* xanh lá đậm — chữ nhấn, link, eyebrow */
   --accent-2: #22c55e;        /* xanh lá sáng — điểm cuối gradient */
   --accent-soft: rgba(21, 128, 61, 0.15); /* nền mờ — focus ring, glow */

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getBrand } from '../../config/brand'
 
 export default function LoginForm({ onLogin, error }) {
   const [email, setEmail] = useState('')
@@ -11,7 +12,7 @@ export default function LoginForm({ onLogin, error }) {
   return (
     <div className="content">
       <div className="login-header">
-        <p className="eyebrow">TECAPRO</p>
+        <p className="eyebrow">{getBrand().name}</p>
         <h2 className="login-title">ĐĂNG NHẬP</h2>
         <p className="subtitle login-subtitle">Hệ thống quản lý nội bộ</p>
       </div>

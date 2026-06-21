@@ -34,7 +34,7 @@
   top: 0;
   z-index: 10;
   backdrop-filter: blur(10px);
-  background: linear-gradient(90deg, #95b79b 0%, #2f6b3a 55%, #2b5f35 100%);
+  background: linear-gradient(90deg, var(--brand-pale) 0%, var(--brand) 55%, var(--brand-dark) 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.18);
 }
 
@@ -411,7 +411,7 @@ background:
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+  background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent-2) 100%);
   border: none;
   border-radius: 999px;
   cursor: pointer;
@@ -492,7 +492,7 @@ background:
 }
 
 .sidebar-btn.active {
-  background: linear-gradient(135deg, #166534, #15803d);
+  background: linear-gradient(135deg, var(--accent-hover), var(--accent));
 
   color: white;
 
@@ -838,7 +838,7 @@ background:
 }
 
 .field input:focus {
-  border-color: #15803d;
+  border-color: var(--accent);
 
   box-shadow:
     0 0 0 3px rgba(21,128,61,0.15);
@@ -949,7 +949,7 @@ background:
 }
 
 .contract-header-kpi-value.money {
-  color: #15803d;
+  color: var(--accent);
 }
 
 .contract-header-item {
@@ -973,7 +973,7 @@ background:
 
 .contract-header-value.money {
   font-family: monospace;
-  color: #15803d;
+  color: var(--accent);
 }
 
 .contract-management-body {
@@ -1035,7 +1035,7 @@ background:
   border-radius: 9px;
   font-size: 13px;
   font-weight: 600;
-  color: #166534;
+  color: var(--accent-hover);
   cursor: pointer;
 }
 .cin-tab-backdrop {
@@ -1091,12 +1091,12 @@ background:
   cursor: pointer;
 }
 .cin-tab-drawer-item.active {
-  background: linear-gradient(135deg, #166534, #15803d);
+  background: linear-gradient(135deg, var(--accent-hover), var(--accent));
   color: #fff;
   font-weight: 600;
 }
 .cin-tab-drawer-back {
-  color: #166534;
+  color: var(--accent-hover);
   font-weight: 600;
   border-bottom: 1px solid #f3f4f6;
   margin-bottom: 4px;
@@ -1141,7 +1141,7 @@ background:
 }
 
 .contract-sidebar-item.active {
-  background: linear-gradient(135deg, #166534, #15803d);
+  background: linear-gradient(135deg, var(--accent-hover), var(--accent));
   color: white;
   font-weight: 600;
 }
@@ -1230,7 +1230,7 @@ background:
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #15803d;
+  border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.1);
   background: white;
 }
@@ -1275,7 +1275,7 @@ background:
   align-items: center;
   padding: 6px 12px;
   background: linear-gradient(135deg, rgba(22, 101, 52, 0.1), rgba(34, 197, 94, 0.08));
-  color: #166534;
+  color: var(--accent-hover);
   border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
@@ -1315,7 +1315,7 @@ background:
   background: transparent;
   border: none;
 
-  color: #15803d;
+  color: var(--accent);
   font-size: 18px;
   font-weight: 600;
 
@@ -1327,7 +1327,7 @@ background:
 }
 
 .btn-edit-contract:hover {
-  color: #166534;
+  color: var(--accent-hover);
 }
 
 .btn-edit-contract svg {
@@ -1476,7 +1476,7 @@ background:
     margin-top: 8px;
     font-size: 12px;
     font-weight: 600;
-    color: #166534;
+    color: var(--accent-hover);
   }
   .contract-sidebar {
     display: block;

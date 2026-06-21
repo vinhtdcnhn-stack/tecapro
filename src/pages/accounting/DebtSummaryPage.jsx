@@ -46,7 +46,7 @@ export default function DebtSummaryPage() {
     <div className="acc-report">
       {totals && (
         <div className="acc-stats">
-          <Card label="Tổng giá trị HĐ" value={fmtMoney(totals.total_value) + ' đ'} color="#2f6b3a" />
+          <Card label="Tổng giá trị HĐ" value={fmtMoney(totals.total_value) + ' đ'} color="var(--brand)" />
           <Card label="Tổng đã thu" value={fmtMoney(totals.total_paid) + ' đ'} color="#16a34a" />
           <Card label="Tổng công nợ phải thu" value={fmtMoney(totals.total_outstanding) + ' đ'} color="#2563eb" />
           <Card label="Công nợ trong hạn" value={fmtMoney(totals.in_term) + ' đ'} color="#0891b2" />

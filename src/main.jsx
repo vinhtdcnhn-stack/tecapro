@@ -2,16 +2,21 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './config/fetchSetup' // phải chạy trước mọi lời gọi fetch
+import { loadBrand } from './config/brand' // nạp logo/màu riêng của doanh nghiệp
 import { AuthProvider } from './context/AuthContext'
 import './index.css'
 import App from './App.jsx'
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
-  </StrictMode>,
-)
+// Nạp nhận diện thương hiệu (màu + logo + tên) TRƯỚC khi render để tránh chớp
+// màu/logo mặc định. Lỗi/thiếu brand.json vẫn render bình thường với mặc định.
+loadBrand().finally(() => {
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <BrowserRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    </StrictMode>,
+  )
+})

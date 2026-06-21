@@ -41,7 +41,7 @@ export default function WarrantyReportPage() {
   return (
     <div className="acc-report">
       <div className="acc-stats">
-        <Card label="HĐ có bảo hành" value={s.contracts_with_warranty} color="#2f6b3a" />
+        <Card label="HĐ có bảo hành" value={s.contracts_with_warranty} color="var(--brand)" />
         <Card label="HĐ còn bảo hành" value={s.still_valid} color="#16a34a" />
         <Card label="HĐ sắp hết (≤30 ngày)" value={s.expiring_30d} color="#d97706" />
         <Card label="HĐ hết bảo hành" value={s.expired} color="#dc2626" />

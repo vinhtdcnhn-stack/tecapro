@@ -98,7 +98,7 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
 
   const cards = [
     {
-      key: 'portfolio', icon: '📊', accent: '#2f6b3a', label: 'Tổng giá trị hợp đồng',
+      key: 'portfolio', icon: '📊', accent: 'var(--brand)', label: 'Tổng giá trị hợp đồng',
       value: M(portfolio), valueTitle: T(portfolio), sub: `${rangedContracts.length} hợp đồng`,
       title: 'Tổng giá trị hợp đồng',
       render: () => <PortfolioDetail contracts={rangedContracts} byContract={byContract} onOpenContract={openContract} />,

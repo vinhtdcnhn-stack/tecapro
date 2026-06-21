@@ -2,7 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { API } from '../../config/api'
-import tecaproLogo from '../../assets/tecapro-logo.png'
+import { getBrand } from '../../config/brand'
+import fallbackLogo from '../../assets/tecapro-logo.png'
+
+const brand = getBrand() // logo + tên doanh nghiệp, đã nạp từ brand.json lúc khởi động
 
 const MENUS = [
   { label: 'Trang chủ',        path: '/'        },
@@ -91,7 +94,12 @@ export default function Header({ onChangePassword }) {
           onClick={() => { setMobileMenuOpen(false); navigate('/') }}
           aria-label="Trang chủ"
         >
-          <img className="brand-logo" src={tecaproLogo} alt="TECAPRO" />
+          <img
+            className="brand-logo"
+            src={brand.logo || fallbackLogo}
+            alt={brand.name}
+            onError={(e) => { e.currentTarget.src = fallbackLogo }}
+          />
         </button>
 
         {user ? (
@@ -137,7 +145,7 @@ export default function Header({ onChangePassword }) {
             ))}
           </nav>
         ) : (
-          <span className="topbar-branch">Chi nhánh Hà nội - Công ty TECAPRO</span>
+          <span className="topbar-branch">{brand.tagline || brand.name}</span>
         )}
 
         <div className="topbar-actions">

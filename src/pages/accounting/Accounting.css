@@ -8,12 +8,12 @@
   background: #fff; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer;
 }
 .acc-subnav button:hover { background: #f3f4f6; }
-.acc-subnav button.active { background: #2f6b3a; color: #fff; border-color: #2f6b3a; }
+.acc-subnav button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
 
 /* Thẻ chỉ số dòng tiền */
 .acc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 22px; }
 .acc-stat-card {
-  background: #fff; border: 1px solid #eef0f3; border-top: 3px solid #2f6b3a;
+  background: #fff; border: 1px solid #eef0f3; border-top: 3px solid var(--brand);
   border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.04);
 }
 .acc-stat-value { font-size: 22px; font-weight: 800; line-height: 1.2; }
@@ -82,9 +82,9 @@
 /* Bộ chọn dashboard (người nhiều vai) — icon đặt ngay trước lời chào */
 .dash-switcher-ic { position: relative; display: inline-flex; vertical-align: middle; margin-right: 8px; }
 .dash-switcher-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: color .12s, background .12s; }
-.dash-switcher-btn:hover { color: #2f6b3a; background: #e8efe9; }
-.dash-switcher-btn[aria-expanded="true"] { color: #2f6b3a; background: #e8efe9; }
+.dash-switcher-btn:hover { color: var(--brand); background: #e8efe9; }
+.dash-switcher-btn[aria-expanded="true"] { color: var(--brand); background: #e8efe9; }
 .dash-switcher-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 180px; padding: 4px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
 .dash-switcher-menu button { display: block; width: 100%; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 600; color: #4b5563; background: transparent; border: none; border-radius: 7px; cursor: pointer; }
 .dash-switcher-menu button:hover { color: #111827; background: #f3f4f6; }
-.dash-switcher-menu button.active { color: #2f6b3a; background: #eef5ef; }
+.dash-switcher-menu button.active { color: var(--brand); background: #eef5ef; }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { API_BASE as API } from '../config/api'
 import { useAuth } from '../context/AuthContext'
-import homeHero from '../assets/home-hero.png'
+import { getBrand } from '../config/brand'
+import fallbackHero from '../assets/home-hero.png'
 import Dashboard from './Dashboard'
 import PMDashboard from './PMDashboard'
 import AssigneeDashboard from './AssigneeDashboard'
@@ -61,7 +62,12 @@ export default function HomePage() {
     return (
       <main className="page page--home">
         <div className="home-hero">
-          <img className="home-hero-img" src={homeHero} alt="" />
+          <img
+            className="home-hero-img"
+            src={getBrand().hero || fallbackHero}
+            alt=""
+            onError={(e) => { e.currentTarget.src = fallbackHero }}
+          />
         </div>
       </main>
     )

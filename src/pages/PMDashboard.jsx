@@ -54,7 +54,7 @@ export default function PMDashboard({ user, switcher = null }) {
 
       {/* Phần trên: ô tổng quan */}
       <div className="dash-stats pm-stats">
-        <StatCard label="Hợp đồng của tôi" value={s.contractCount}        color="#2f6b3a" icon="📋" />
+        <StatCard label="Hợp đồng của tôi" value={s.contractCount}        color="var(--brand)" icon="📋" />
         <StatCard label="Tổng giá trị (VNĐ)" value={`${fmtVnd(s.totalVnd)} đ`} color="#2563eb" icon="💰" />
         <StatCard label="Tổng giá trị (USD)" value={`${fmtUsd(s.totalUsd)} $`} color="#7c3aed" icon="💵" />
         <StatCard label="Mốc sắp đến hạn (≤7 ngày)" value={s.upcomingCount} color="#d97706" icon="⏰" />
