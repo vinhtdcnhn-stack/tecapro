@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API_BASE as API } from '../../config/api'
-import { fmtMoney, fmtDate, fmtPct, exportTable } from './reportUtils'
+import { fmtMoney, fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
@@ -30,6 +30,7 @@ export default function DebtSummaryPage() {
   const [totals, setTotals] = useState(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)   // customer_id đang mở
+  const goContract = useContractNav()
   const custCopy = useCopyMenu(buildCustText, (c) => c.customer_name || 'Khách hàng')
   const conCopy = useCopyMenu(buildConText, (k) => k.contract_no || k.project_name || 'Hợp đồng')
 
@@ -94,7 +95,8 @@ export default function DebtSummaryPage() {
                   <td className="num">{fmtPct(c.collection_ratio)}</td>
                 </tr>,
                 ...kids.map(k => (
-                  <tr key={`k${k.contract_out_id}`} className="acc-row-sub" {...conCopy.getRowProps(k)}>
+                  <tr key={`k${k.contract_out_id}`} className="acc-row-sub acc-row-link" title="Bấm để mở công nợ phải thu của hợp đồng"
+                      {...conCopy.getRowProps(k)} onClick={() => goContract(k.contract_out_id, { tab: 'contract-debt' })}>
                     <td colSpan={2}><span className="mono">{k.contract_no}</span> · {k.project_name || '—'}</td>
                     <td>{fmtDate(k.contract_date)}</td>
                     <td className="num">{fmtMoney(k.value_vnd)}</td>

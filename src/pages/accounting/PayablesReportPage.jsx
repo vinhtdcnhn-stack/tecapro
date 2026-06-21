@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../../config/api'
-import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable } from './reportUtils'
+import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable, useContractNav } from './reportUtils'
 import ReportPeriodField from './ReportPeriodField.jsx'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
@@ -19,6 +19,7 @@ export default function PayablesReportPage() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải trả')
+  const goContract = useContractNav()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -67,7 +68,9 @@ export default function PayablesReportPage() {
             </tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id} {...getRowProps(r)}>
+                <tr key={r.id} className="acc-row-link" title="Bấm để mở thanh toán của hợp đồng nhập"
+                    {...getRowProps(r)}
+                    onClick={() => goContract(r.contract_out_id, { tab: 'purchase-contract-info', inId: r.contract_in_id, inTab: 'payment' })}>
                   <td>{i + 1}</td><td>{r.supplier_code || '—'}</td><td>{r.supplier_name || '—'}</td>
                   <td className="mono">{r.contract_no || '—'}</td><td>{r.description || '—'}</td>
                   <td className="num">{fmtMoney(r.amount)} {r.currency_code}</td>

@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react'
 import { API_BASE as API } from '../../config/api'
-import { fmtDate, fmtPct, exportTable } from './reportUtils'
+import { fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
@@ -26,6 +26,7 @@ export default function WarrantyReportPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)
+  const goContract = useContractNav()
   const contractCopy = useCopyMenu(buildContractText, (c) => c.contract_no || 'Hợp đồng')
   const caseCopy = useCopyMenu(buildCaseText, (c) => c.title || c.case_no || 'Yêu cầu BH')
 
@@ -97,7 +98,8 @@ export default function WarrantyReportPage() {
                     <td><span className={`acc-status ${ST_CLASS[c.status] || ''}`}>{c.status}</span></td>
                   </tr>
                   {isOpen && c.devices.map(d => (
-                    <tr key={d.id} className="acc-row-sub">
+                    <tr key={d.id} className="acc-row-sub acc-row-link" title="Bấm để mở bảo hành của hợp đồng"
+                        onClick={() => goContract(c.contract_out_id, { tab: 'contract-warranty' })}>
                       <td colSpan={2}>{d.name}</td>
                       <td colSpan={3}>BH: {fmtDate(d.warranty_from)} → {fmtDate(d.warranty_to)}</td>
                       <td colSpan={3}><span className={`acc-status ${ST_CLASS[d.status] || ''}`}>{d.status}</span></td>
@@ -117,7 +119,8 @@ export default function WarrantyReportPage() {
           <thead><tr><th>Mã phiếu</th><th>Số HĐ</th><th>Nội dung</th><th>Người báo</th><th>Ngày tiếp nhận</th><th>Ngày hoàn thành</th><th>Trạng thái</th></tr></thead>
           <tbody>
             {data.cases.map(c => (
-              <tr key={c.id} {...caseCopy.getRowProps(c)}>
+              <tr key={c.id} className="acc-row-link" title="Bấm để mở bảo hành của hợp đồng"
+                  {...caseCopy.getRowProps(c)} onClick={() => goContract(c.contract_out_id, { tab: 'contract-warranty' })}>
                 <td className="mono">{c.case_no || c.id}</td><td className="mono">{c.contract_no}</td>
                 <td>{c.title}</td><td>{c.reported_by || '—'}</td>
                 <td>{fmtDate(c.reported_date)}</td><td>{fmtDate(c.resolved_date)}</td>

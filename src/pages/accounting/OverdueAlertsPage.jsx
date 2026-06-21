@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../../config/api'
+import { useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
@@ -27,6 +28,7 @@ export default function OverdueAlertsPage() {
   const [rows, setRows]   = useState([])
   const [loading, setLoading] = useState(true)
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản nợ')
+  const goContract = useContractNav()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -70,7 +72,8 @@ export default function OverdueAlertsPage() {
             </thead>
             <tbody>
               {overdueRows.map((r, i) => (
-                <tr key={r.id} {...getRowProps(r)}>
+                <tr key={r.id} className="acc-row-link" title="Bấm để mở công nợ phải thu của hợp đồng"
+                    {...getRowProps(r)} onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}>
                   <td>{i + 1}</td>
                   <td>{r.customer_code || '—'}</td>
                   <td>{r.customer_name || '—'}</td>

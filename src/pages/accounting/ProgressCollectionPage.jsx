@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API_BASE as API } from '../../config/api'
-import { fmtMoney, fmtDate, exportTable } from './reportUtils'
+import { fmtMoney, fmtDate, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
@@ -21,6 +21,7 @@ export default function ProgressCollectionPage() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng')
+  const goContract = useContractNav()
 
   useEffect(() => {
     let alive = true
@@ -58,7 +59,8 @@ export default function ProgressCollectionPage() {
             </tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.contract_out_id} {...getRowProps(r)}>
+                <tr key={r.contract_out_id} className="acc-row-link" title="Bấm để mở công nợ phải thu của hợp đồng"
+                    {...getRowProps(r)} onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}>
                   <td>{i + 1}</td><td className="mono">{r.contract_no}</td><td>{r.customer_name || '—'}</td>
                   <td>{r.project_name || '—'}</td><td>{fmtDate(r.contract_date)}</td>
                   <td className="num">{fmtMoney(r.value_vnd)}</td>

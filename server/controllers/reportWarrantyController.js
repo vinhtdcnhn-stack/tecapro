@@ -64,7 +64,7 @@ export async function getWarrantyReport(req, res) {
     // Yêu cầu bảo hành.
     const { rows: caseRows } = await pool.query(
       `SELECT wc.id, wc.case_no, wc.title, wc.reported_by, wc.reported_date, wc.resolved_date, wc.status,
-              c.contract_no
+              wc.contract_out_id, c.contract_no
          FROM warranty_case wc
          JOIN contract_out c ON c.id = wc.contract_out_id
         ORDER BY wc.reported_date DESC NULLS LAST, wc.id DESC`)
@@ -87,7 +87,8 @@ export async function getWarrantyReport(req, res) {
       asOf: today, summary, top_products: top,
       contracts,
       cases: caseRows.map(c => ({
-        id: c.id, case_no: c.case_no, title: c.title, contract_no: c.contract_no,
+        id: c.id, case_no: c.case_no, title: c.title,
+        contract_out_id: c.contract_out_id, contract_no: c.contract_no,
         reported_by: c.reported_by, reported_date: iso(c.reported_date),
         resolved_date: iso(c.resolved_date), status: c.status,
         resolved: RESOLVED.has(c.status) || !!c.resolved_date,

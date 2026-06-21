@@ -83,6 +83,11 @@
 .acc-row-click td:first-child { font-weight: 700; }
 .acc-row-sub td { background: #fafbfc; color: #4b5563; font-size: 12px; }
 
+/* Hàng báo cáo bấm để nhảy tới đúng tab trong hợp đồng */
+.acc-row-link { cursor: pointer; }
+.acc-row-link:hover { background: #eff6ff; }
+.acc-row-sub.acc-row-link:hover td { background: #eff6ff; }
+
 /* Bộ chọn dashboard (người nhiều vai) — icon đặt ngay trước lời chào */
 .dash-switcher-ic { position: relative; display: inline-flex; vertical-align: middle; margin-right: 8px; }
 .dash-switcher-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: color .12s, background .12s; }

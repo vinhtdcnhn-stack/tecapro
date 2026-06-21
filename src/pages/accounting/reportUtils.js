@@ -1,3 +1,6 @@
+import { useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+
 export const fmtMoney = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
 export const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 export const fmtPct   = (r) => (r == null ? '—' : Math.round((parseFloat(r) || 0) * 100) + '%')
@@ -20,6 +23,24 @@ export const endOfThisMonth = () => {
   const mm = String(last.getMonth() + 1).padStart(2, '0')
   const dd = String(last.getDate()).padStart(2, '0')
   return `${last.getFullYear()}-${mm}-${dd}`
+}
+
+// Hook điều hướng tới đúng tab trong chi tiết hợp đồng (mở từ một hàng báo cáo kế toán).
+// goContract(contractOutId, { tab, inId, inTab }):
+//   tab   — menu HĐ bán: 'contract-debt' (công nợ phải thu), 'contract-warranty', ...
+//   inId  — id HĐ nhập cần mở (khi tab = 'purchase-contract-info')
+//   inTab — sub-tab HĐ nhập: 'payment' (thanh toán), ...
+export function useContractNav() {
+  const navigate = useNavigate()
+  return useCallback((contractOutId, { tab, inId, inTab } = {}) => {
+    if (!contractOutId) return
+    const qs = new URLSearchParams()
+    if (tab) qs.set('tab', tab)
+    if (inId) qs.set('inId', String(inId))
+    if (inTab) qs.set('inTab', inTab)
+    const s = qs.toString()
+    navigate(`/qlda/${contractOutId}${s ? `?${s}` : ''}`)
+  }, [navigate])
 }
 
 // Xuất bảng ra Excel. columns: [{ label, value:(row)=>cell }]. rows: dữ liệu.
