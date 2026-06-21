@@ -10,7 +10,7 @@ import { buildGanttModel, LABEL_W, HEAD_H, DAY_W } from './taskGanttUtils'
 // truyền) · onReorder(orderedIds): lưu thứ tự (anh-em) · canReorderRow(task): được phép
 // kéo việc đó hay không · children: modal/lớp phủ render BÊN TRONG khung Gantt để khi mở
 // toàn màn hình (Fullscreen API) vẫn nằm trên, thao tác được.
-export default function TaskGantt({ tasks, visibleIds = null, milestones = [], onEdit, onAdd, onAddSub, canAddSub = () => false, onReorder, canReorderRow = () => false, children }) {
+export default function TaskGantt({ tasks, visibleIds = null, milestones = [], onEdit, onAdd, onAddSub, canAddSub = () => false, onReorder, canReorderRow = () => false, onTaskContextMenu, children }) {
   const [groupBy, setGroupBy] = useState('department')   // 'department' | 'assignee' | 'none'
   const flat = groupBy === 'none'
   const canDrag = flat && typeof onReorder === 'function'   // bật theo từng dòng qua canReorderRow
@@ -68,6 +68,30 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], o
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
     }
   }, [fullscreen])
+
+  // Mobile: ấn giữ một thanh việc để mở menu Sao chép (tương đương chuột phải).
+  // Dùng ref cấp component (chỉ một chạm tại một thời điểm) vì các hàng nằm trong map.
+  const lpTimer = useRef(null)
+  const lpStart = useRef(null)
+  const lpFired = useRef(false)
+  function lpTouchStart(e, task) {
+    if (!onTaskContextMenu || e.touches?.length !== 1) return
+    const t = e.touches[0]
+    lpStart.current = { x: t.clientX, y: t.clientY }
+    lpFired.current = false
+    clearTimeout(lpTimer.current)
+    lpTimer.current = setTimeout(() => {
+      lpFired.current = true
+      onTaskContextMenu(task, { preventDefault() {}, clientX: lpStart.current.x, clientY: lpStart.current.y })
+    }, 450)
+  }
+  function lpTouchMove(e) {
+    const s = lpStart.current, t = e.touches?.[0]
+    if (!lpTimer.current || !s || !t) return
+    if (Math.abs(t.clientX - s.x) > 10 || Math.abs(t.clientY - s.y) > 10) { clearTimeout(lpTimer.current); lpTimer.current = null }
+  }
+  function lpTouchEnd() { clearTimeout(lpTimer.current); lpTimer.current = null }
+  function lpClickCapture(e) { if (lpFired.current) { e.preventDefault(); e.stopPropagation(); lpFired.current = false } }
 
   function handleDrop(toId) {
     if (!canDrag || dragId == null || dragId === toId) { setDragId(null); setOverId(null); return }
@@ -173,6 +197,11 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], o
                   + (dragRow && overId === row.task.id ? ' tgantt-row--dragover' : '')
                   + (dragRow && dragId === row.task.id ? ' tgantt-row--dragging' : '')}
                 style={{ height: row.height }}
+                onContextMenu={row.type === 'task' ? (e => onTaskContextMenu?.(row.task, e)) : undefined}
+                onTouchStart={row.type === 'task' ? (e => lpTouchStart(e, row.task)) : undefined}
+                onTouchMove={row.type === 'task' ? lpTouchMove : undefined}
+                onTouchEnd={row.type === 'task' ? lpTouchEnd : undefined}
+                onClickCapture={row.type === 'task' ? lpClickCapture : undefined}
                 onDragOver={dragRow ? (e => { e.preventDefault(); if (overId !== row.task.id) setOverId(row.task.id) }) : undefined}
                 onDrop={dragRow ? (e => { e.preventDefault(); handleDrop(row.task.id) }) : undefined}
               >

@@ -1,9 +1,24 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DateInput, { isoToDisplay } from '../components/contracts/DateInput'
+import TaskContextMenu from '../components/contracts/TaskContextMenu'
+import { copyToClipboard } from '../components/contracts/taskUtils'
+import { useRowLongPress } from '../components/contracts/useLongPress'
 import {
   WINDOW_DAYS, todayISO, daysBetween, effRemind, KIND_META, targetUrl, dueInfo,
 } from './trackingUtils'
+
+// Đoạn text "đường dẫn" để dán vào chat hỏi tình trạng mốc/việc.
+function buildItemCopyText(it) {
+  if (!it) return ''
+  const crumbs = []
+  if (it.contract_no) crumbs.push(`HĐ ${it.contract_no}`)
+  if (it.kind) crumbs.push(it.kind)
+  crumbs.push(it.title)
+  const di = dueInfo(it.due_date)
+  const due = it.due_date ? ` — Hạn: ${isoToDisplay(it.due_date)} (${di.label})` : ''
+  return `📌 ${crumbs.join(' › ')}${due}`
+}
 
 // Bảng theo dõi mốc thời hạn / công việc + ghim/nhắc (chuông). Dùng chung cho
 // PMDashboard (mốc của các HĐ user tham gia) và AssigneeDashboard (việc được giao).
@@ -24,6 +39,11 @@ export default function TrackingTable({
 }) {
   const navigate = useNavigate()
   const [contractFilter, setContractFilter] = useState('')
+  const [ctxMenu, setCtxMenu] = useState(null)  // { x, y, task } | null — menu chuột phải/ấn giữ
+
+  function openCtxMenu(it, e) { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, task: it }) }
+  // Mobile: ấn giữ một hàng → mở menu Sao chép tại điểm chạm.
+  const getLongPress = useRowLongPress((it, x, y) => setCtxMenu({ x, y, task: it }))
 
   // Giữ mốc trong cửa sổ N ngày (gồm cả quá hạn); mốc đã ghim luôn hiện. Item không
   // có hạn chỉ hiện ở chế độ "mọi mốc" (windowDays=Infinity, vd danh sách việc được giao).
@@ -109,7 +129,12 @@ export default function TrackingTable({
                 const overdue = di.days != null && di.days <= 0
                 const dueCls = overdue ? 'due-overdue' : reminding ? 'due-soon' : 'due-normal'
                 return (
-                  <tr key={`${it.source_type}:${it.source_id}`} className={it.pinned ? 'pm-row-pinned' : ''}>
+                  <tr
+                    key={`${it.source_type}:${it.source_id}`}
+                    className={it.pinned ? 'pm-row-pinned' : ''}
+                    onContextMenu={(e) => openCtxMenu(it, e)}
+                    {...getLongPress(it)}
+                  >
                     <td className="pm-col-contract">
                       <button className="pm-contract-link" onClick={() => navigate(targetUrl(it))} title="Mở thẳng tới mục công việc này">
                         {it.contract_no || '—'}
@@ -151,6 +176,13 @@ export default function TrackingTable({
           </table>
         </div>
       )}
+
+      <TaskContextMenu
+        key={ctxMenu ? `${ctxMenu.task.source_type}:${ctxMenu.task.source_id}-${ctxMenu.x}-${ctxMenu.y}` : 'closed'}
+        menu={ctxMenu}
+        onCopy={(it) => copyToClipboard(buildItemCopyText(it))}
+        onClose={() => setCtxMenu(null)}
+      />
     </div>
   )
 }

@@ -190,6 +190,21 @@ export async function updateTask(req, res) {
       [id],
     )
     const old = prev.rows[0]
+    if (!old) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Không tìm thấy công việc' })
+    }
+
+    // Chỉ NGƯỜI TẠO việc (hoặc admin) mới được đổi người thực hiện. PM/người được giao
+    // vẫn sửa được các trường khác, nhưng không đổi được assignee của việc do người khác tạo.
+    const reqAssignee = Number(assigned_to) || null
+    const curAssignee = Number(old.assigned_to) || null
+    if (reqAssignee !== curAssignee
+        && Number(req.user?.role) !== 1
+        && Number(old.created_by) !== Number(req.user?.id)) {
+      await client.query('ROLLBACK')
+      return res.status(403).json({ error: 'Chỉ người tạo công việc (hoặc admin) mới được thay đổi người thực hiện.' })
+    }
 
     await client.query(
       // Hoàn thành: giữ thời điểm hoàn thành cũ nếu đã có (COALESCE đọc giá trị cũ của chính dòng),

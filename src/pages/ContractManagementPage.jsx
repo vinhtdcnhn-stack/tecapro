@@ -109,7 +109,7 @@ case 'contract-debt':
       case 'contract-guarantee':
         return <ContractGuaranteeTab contractId={contractId} />
       case 'contract-tasks':
-        return <ContractTaskTab contractId={contractId} currentUser={currentUser} />
+        return <ContractTaskTab contractId={contractId} currentUser={currentUser} contract={contract} />
       case 'purchase-contract-info':
         return <ContractInTab contractId={contractId} initialContractInId={initialInId} initialTab={initialInTab} currentUser={currentUser} contract={contract} />
 default:

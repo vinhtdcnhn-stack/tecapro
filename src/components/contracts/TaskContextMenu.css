@@ -1,0 +1,62 @@
+.task-ctxmenu {
+  position: fixed;
+  z-index: 4000;
+  min-width: 190px;
+  max-width: 280px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  padding: 6px;
+  animation: task-ctxmenu-in 0.1s ease-out;
+}
+
+@keyframes task-ctxmenu-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.task-ctxmenu-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-ctxmenu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  color: #1f2937;
+  padding: 8px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.task-ctxmenu-item:hover {
+  background: #f0f9f4;
+  color: #15803d;
+}
+
+.task-ctxmenu-item svg { flex-shrink: 0; color: #16a34a; }
+
+/* Thiết bị cảm ứng: chặn callout/bôi đen mặc định để ấn giữ gọi được menu Sao chép */
+@media (pointer: coarse) {
+  .task-table tbody tr,
+  .pm-track-table tbody tr,
+  .tgantt-row--task {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

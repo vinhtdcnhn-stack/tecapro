@@ -20,6 +20,10 @@ export default function TaskModal({ task, parentTask = null, departments, users,
   // Việc cha (tạo việc con: từ prop; sửa việc con: tra từ allTasks) → cho phép neo ngày theo cha.
   const parentOf = parentTask || allTasks.find(t => String(t.id) === String(task?.parent_task_id)) || null
   const hasParent = !!parentOf
+  // Đổi người thực hiện: khi TẠO ai cũng được; khi SỬA chỉ người tạo việc (hoặc admin).
+  const canEditAssignee = !isEdit
+    || Number(currentUser?.role) === 1
+    || Number(task?.created_by) === Number(currentUser?.id)
 
   const [form, setForm] = useState({
     title:         task?.title         ?? '',
@@ -119,8 +123,9 @@ export default function TaskModal({ task, parentTask = null, departments, users,
   function set(field, val) {
     setForm(prev => {
       const next = { ...prev, [field]: val }
-      // Reset assigned_to when dept changes (user may not belong to new dept)
-      if (field === 'department_id') next.assigned_to = ''
+      // Reset assigned_to when dept changes (user may not belong to new dept).
+      // Bỏ qua nếu không có quyền đổi assignee → giữ nguyên người thực hiện cũ.
+      if (field === 'department_id' && canEditAssignee) next.assigned_to = ''
       return next
     })
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }))
@@ -255,20 +260,33 @@ export default function TaskModal({ task, parentTask = null, departments, users,
             </div>
             <div className="task-form-group">
               <label>Người thực hiện</label>
-              <select
-                value={form.assigned_to}
-                onChange={e => set('assigned_to', e.target.value)}
-              >
-                <option value="">-- Chưa assign --</option>
-                {deptUsers.map(u => (
-                  <option key={u.id} value={u.id}>{u.full_name}</option>
-                ))}
-              </select>
-              {form.department_id && deptUsers.length === 0 && (
-                <span className="assign-hint">Phòng ban này chưa có nhân viên</span>
-              )}
-              {!form.department_id && (
-                <span className="assign-hint">Chọn phòng ban để lọc nhân viên</span>
+              {canEditAssignee ? (
+                <>
+                  <select
+                    value={form.assigned_to}
+                    onChange={e => set('assigned_to', e.target.value)}
+                  >
+                    <option value="">-- Chưa assign --</option>
+                    {deptUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.full_name}</option>
+                    ))}
+                  </select>
+                  {form.department_id && deptUsers.length === 0 && (
+                    <span className="assign-hint">Phòng ban này chưa có nhân viên</span>
+                  )}
+                  {!form.department_id && (
+                    <span className="assign-hint">Chọn phòng ban để lọc nhân viên</span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={task?.assigned_to_name || 'Chưa assign'}
+                    disabled
+                  />
+                  <span className="assign-hint">Chỉ người tạo công việc mới được đổi người thực hiện</span>
+                </>
               )}
             </div>
           </div>

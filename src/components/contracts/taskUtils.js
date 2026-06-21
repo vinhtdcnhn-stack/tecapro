@@ -36,6 +36,41 @@ export function initials(name) {
   return name.split(' ').filter(Boolean).slice(-2).map(w => w[0]).join('').toUpperCase()
 }
 
+// ── Sao chép thông tin công việc (dán vào chat hỏi tình trạng) ────────────────────
+// Tạo đoạn văn bản gọn gồm "đường dẫn" (HĐ → công việc) + nội dung chính của việc.
+// contract (tùy chọn) cung cấp số HĐ / tên dự án để người nhận biết việc thuộc đâu.
+export function buildTaskCopyText(task, contract = null) {
+  if (!task) return ''
+  // Đường dẫn: Hợp đồng → (việc cha nếu có) → công việc
+  const crumbs = []
+  if (contract?.contract_no) crumbs.push(`HĐ ${contract.contract_no}`)
+  if (contract?.project_name) crumbs.push(contract.project_name)
+  if (task.parent_task_title) crumbs.push(task.parent_task_title)
+  crumbs.push(task.title)
+  return `📌 ${crumbs.join(' › ')}`
+}
+
+// Sao chép văn bản vào clipboard (có fallback cho ngữ cảnh không bảo mật/khung fullscreen).
+export async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch { /* rơi xuống fallback */ }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.focus(); ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch { return false }
+}
+
 // ── Nhóm công việc ─────────────────────────────────────────────────────────────
 // Dùng chung cho danh sách (ContractTaskTab) và Gantt.
 

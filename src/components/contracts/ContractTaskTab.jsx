@@ -2,16 +2,17 @@ import { useState, useEffect, useCallback } from 'react'
 import './ContractTaskTab.css'
 
 import { API } from '../../config/api'
-import { isOverdue, groupByDept, groupByAssignee, buildTaskTree, visibleTaskIds } from './taskUtils'
+import { isOverdue, groupByDept, groupByAssignee, buildTaskTree, visibleTaskIds, buildTaskCopyText, copyToClipboard } from './taskUtils'
 import { useCanEdit } from '../../context/ContractPermContext'
 import DeptGroup from './TaskDeptGroup'
 import TaskModal from './TaskModal'
 import TaskGantt from './TaskGantt'
+import TaskContextMenu from './TaskContextMenu'
 import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function ContractTaskTab({ contractId, currentUser }) {
+export default function ContractTaskTab({ contractId, currentUser, contract = null }) {
   const [tasks, setTasks]         = useState([])
   const [loading, setLoading]     = useState(true)
   const [departments, setDepts]   = useState([])
@@ -25,6 +26,7 @@ export default function ContractTaskTab({ contractId, currentUser }) {
   const [parentTask, setParentTask] = useState(null) // ≠ null = đang tạo việc con
   const [collapsed, setCollapsed] = useState({})    // dept.key → bool
   const [collapsedTask, setCollapsedTask] = useState({}) // task.id → bool (thu/mở việc con)
+  const [ctxMenu, setCtxMenu]     = useState(null)  // { x, y, task } | null — menu chuột phải
   const canEdit = useCanEdit()
 
   // ── Load data ───────────────────────────────────────────────────────────────
@@ -165,6 +167,15 @@ export default function ContractTaskTab({ contractId, currentUser }) {
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  // ── Menu chuột phải: sao chép thông tin việc để dán vào chat hỏi tình trạng ──────
+  function openTaskCtxMenu(task, e) {
+    e.preventDefault()
+    setCtxMenu({ x: e.clientX, y: e.clientY, task })
+  }
+  function copyTaskInfo(task) {
+    return copyToClipboard(buildTaskCopyText(task, contract))
+  }
+
   // Kéo-thả sắp xếp (Gantt "Không nhóm"): cập nhật lạc quan rồi lưu; lỗi → tải lại.
   async function handleReorder(orderedIds) {
     const idSet = new Set(orderedIds)
@@ -187,18 +198,30 @@ export default function ContractTaskTab({ contractId, currentUser }) {
 
   // Modal dùng chung cho cả 2 chế độ. Ở chế độ Gantt nó render BÊN TRONG <TaskGantt>
   // (để khi mở toàn màn hình vẫn nằm trên & thao tác được); chế độ Danh sách render ở cuối.
-  const modalNode = modalOpen && (
-    <TaskModal
-      task={editTask}
-      parentTask={parentTask}
-      departments={departments}
-      users={users}
-      allTasks={tasks}
-      milestones={milestones}
-      currentUser={currentUser}
-      onSave={handleSave}
-      onClose={handleModalClose}
-    />
+  // Modal + menu chuột phải render cùng chỗ: ở Gantt nằm BÊN TRONG <TaskGantt> (để toàn
+  // màn hình vẫn thao tác được), ở Danh sách render ở cuối tab.
+  const overlayNodes = (
+    <>
+      {modalOpen && (
+        <TaskModal
+          task={editTask}
+          parentTask={parentTask}
+          departments={departments}
+          users={users}
+          allTasks={tasks}
+          milestones={milestones}
+          currentUser={currentUser}
+          onSave={handleSave}
+          onClose={handleModalClose}
+        />
+      )}
+      <TaskContextMenu
+        key={ctxMenu ? `${ctxMenu.task.id}-${ctxMenu.x}-${ctxMenu.y}` : 'closed'}
+        menu={ctxMenu}
+        onCopy={copyTaskInfo}
+        onClose={() => setCtxMenu(null)}
+      />
+    </>
   )
 
   return (
@@ -263,8 +286,9 @@ export default function ContractTaskTab({ contractId, currentUser }) {
           canAddSub={canAddSub}
           onReorder={handleReorder}
           canReorderRow={canReorderRow}
+          onTaskContextMenu={openTaskCtxMenu}
         >
-          {modalNode}
+          {overlayNodes}
         </TaskGantt>
       ) : !hasVisible ? (
         <div className="task-empty">
@@ -291,11 +315,12 @@ export default function ContractTaskTab({ contractId, currentUser }) {
           onStatusChange={handleStatusChange}
           onAddSub={openAddSub}
           onReorder={handleReorder}
+          onTaskContextMenu={openTaskCtxMenu}
         />
       ))}
 
-      {/* Modal (chế độ Danh sách) — chế độ Gantt render modal bên trong <TaskGantt> */}
-      {view !== 'gantt' && modalNode}
+      {/* Modal + menu chuột phải (chế độ Danh sách) — Gantt render bên trong <TaskGantt> */}
+      {view !== 'gantt' && overlayNodes}
     </div>
   )
 }

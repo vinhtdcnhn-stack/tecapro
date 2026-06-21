@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { API } from '../../config/api'
+import { useLongPress } from './useLongPress'
 import {
   STATUSES, fmtDate, daysUntil, isOverdue, isWarning,
   priorityClass, statusClass, initials, flattenTree, reorderIds,
@@ -10,7 +11,7 @@ import {
 export default function DeptGroup({
   group, flat = false, childrenByParent, visible, collapsed, onToggle,
   collapsedTask, onToggleTask, canWriteRow, canAddSub, canReorderRow,
-  onEdit, onDelete, onStatusChange, onAddSub, onReorder,
+  onEdit, onDelete, onStatusChange, onAddSub, onReorder, onTaskContextMenu,
 }) {
   const [dragId, setDragId] = useState(null)
   const [overId, setOverId] = useState(null)
@@ -99,6 +100,7 @@ export default function DeptGroup({
                   onDelete={() => onDelete(task)}
                   onAddSub={() => onAddSub(task)}
                   onStatusChange={onStatusChange}
+                  onContextMenu={(e) => onTaskContextMenu?.(task, e)}
                 />
               ))}
             </tbody>
@@ -113,12 +115,14 @@ export default function DeptGroup({
 
 function TaskRow({
   idx, task, depth, hasChildren, collapsed, onToggle, canWrite, canAddSub, onEdit, onDelete, onAddSub, onStatusChange,
-  canReorder, dragging, dragOver, onDragStart, onDragEnd, onDragOver, onDrop,
+  canReorder, dragging, dragOver, onDragStart, onDragEnd, onDragOver, onDrop, onContextMenu,
 }) {
   const overdue  = isOverdue(task)
   const warn     = isWarning(task)
   const days     = daysUntil(task.due_date)
   const locked   = (task.child_count || 0) > 0   // có việc con → trạng thái tự động
+  // Mobile: ấn giữ để mở menu Sao chép (cùng hành vi với chuột phải trên desktop).
+  const longPress = useLongPress((x, y) => onContextMenu?.({ preventDefault() {}, clientX: x, clientY: y }))
 
   const rowClass = [
     depth > 0 ? 'task-row--child' : '',
@@ -131,6 +135,8 @@ function TaskRow({
 
   return (
     <tr className={rowClass}
+      onContextMenu={onContextMenu}
+      {...longPress}
       onDragOver={canReorder ? onDragOver : undefined}
       onDrop={canReorder ? onDrop : undefined}>
       <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>

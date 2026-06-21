@@ -40,6 +40,9 @@ function applyColors(colors = {}) {
 }
 
 // Đặt icon tab trình duyệt (tái dùng thẻ <link rel="icon"> có sẵn, tạo nếu thiếu).
+// Phải đặt đúng `type` theo đuôi file, nếu không type cũ (vd image/svg+xml) lệch
+// với href .png sẽ khiến trình duyệt bỏ qua, giữ nguyên icon cũ.
+const FAVICON_TYPE = { svg: 'image/svg+xml', png: 'image/png', ico: 'image/x-icon', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
 function applyFavicon(href) {
   if (!href) return
   let link = document.querySelector("link[rel~='icon']")
@@ -48,6 +51,9 @@ function applyFavicon(href) {
     link.rel = 'icon'
     document.head.appendChild(link)
   }
+  const ext = href.split('?')[0].split('.').pop().toLowerCase()
+  if (FAVICON_TYPE[ext]) link.type = FAVICON_TYPE[ext]
+  else link.removeAttribute('type')
   link.href = href
 }
 
