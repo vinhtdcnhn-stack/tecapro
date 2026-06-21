@@ -2,11 +2,23 @@ import { useState, useEffect } from 'react'
 import { API } from '../../../config/api.js'
 import { fmtFull } from '../execUtils.js'
 import { fmtMoney, fmtDate, TIER_CLASS } from '../../accounting/reportUtils.js'
+import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+
+// Đoạn text dán vào chat hỏi tình trạng khoản nợ quá hạn.
+function buildCopyText(r) {
+  const crumbs = []
+  if (r.contract_no) crumbs.push(`HĐ ${r.contract_no}`)
+  if (r.customer_name) crumbs.push(r.customer_name)
+  if (r.description) crumbs.push(r.description)
+  return `📌 ${crumbs.join(' › ')} — Còn nợ: ${fmtMoney(r.remaining_vnd)} đ, `
+    + `Hạn TT: ${fmtDate(r.due_date)} (quá hạn ${r.days_overdue} ngày, ${r.tier_label || ''})`
+}
 
 // Chi tiết thẻ "Nợ quá hạn": tải lười danh sách khoản nợ quá hạn, nhóm theo số ngày.
 export default function OverdueDebtDetail({ asOf = null, onOpenContract }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản nợ')
 
   useEffect(() => {
     let cancelled = false
@@ -44,7 +56,7 @@ export default function OverdueDebtDetail({ asOf = null, onOpenContract }) {
             </tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-debt')}>
+                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-debt')} {...getRowProps(r)}>
                   <td>{i + 1}</td>
                   <td>{r.customer_name || '—'}</td>
                   <td className="mono">{r.contract_no || '—'}</td>
@@ -59,6 +71,7 @@ export default function OverdueDebtDetail({ asOf = null, onOpenContract }) {
           </table>
         </div>
       )}
+      {copyMenu}
     </div>
   )
 }

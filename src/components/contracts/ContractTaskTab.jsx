@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import './ContractTaskTab.css'
 
 import { API } from '../../config/api'
-import { isOverdue, groupByDept, groupByAssignee, buildTaskTree, visibleTaskIds, buildTaskCopyText, copyToClipboard } from './taskUtils'
+import { isOverdue, groupByDept, groupByAssignee, buildTaskTree, visibleTaskIds, buildTaskCopyText, copyToClipboard, transferredParentIds } from './taskUtils'
 import { useCanEdit } from '../../context/ContractPermContext'
 import DeptGroup from './TaskDeptGroup'
 import TaskModal from './TaskModal'
 import TaskGantt from './TaskGantt'
 import TaskContextMenu from './TaskContextMenu'
+import TaskTransferDialog from './TaskTransferDialog'
 import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -27,6 +28,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   const [collapsed, setCollapsed] = useState({})    // dept.key → bool
   const [collapsedTask, setCollapsedTask] = useState({}) // task.id → bool (thu/mở việc con)
   const [ctxMenu, setCtxMenu]     = useState(null)  // { x, y, task } | null — menu chuột phải
+  const [transferTask, setTransferTask] = useState(null)  // ≠ null = đang mở hộp thoại chuyển việc
   const canEdit = useCanEdit()
 
   // ── Load data ───────────────────────────────────────────────────────────────
@@ -63,6 +65,16 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   const visibleRoots = visible ? roots.filter(r => visible.has(String(r.id))) : roots
   const hasVisible = visible ? visible.size > 0 : tasks.length > 0
 
+  // ── Mặc định THU các nhánh "chuyển việc" (việc cha có việc con trùng tên) ──────
+  // Suy ra lúc render (không dùng effect): nhánh chuyển việc thu sẵn, người dùng tự bung
+  // khi cần — thao tác bung/thu (collapsedTask) đè lên mặc định.
+  const transferredIds = useMemo(() => transferredParentIds(tasks), [tasks])
+  const effectiveCollapsedTask = useMemo(() => {
+    const map = {}
+    for (const id of transferredIds) map[id] = true
+    return { ...map, ...collapsedTask }
+  }, [transferredIds, collapsedTask])
+
   // ── Nhóm việc gốc (việc con lồng dưới cha) — theo bộ chọn như Gantt ──────────
   const flat = groupBy === 'none'
   const groups = flat
@@ -96,7 +108,13 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   function openCreate()   { setEditTask(null); setParentTask(null); setModalOpen(true) }
   function openAddSub(t)  { setEditTask(null); setParentTask(t);    setModalOpen(true) }
   function openEdit(t)    { setEditTask(t);    setParentTask(null); setModalOpen(true) }
-  function toggleTask(id) { setCollapsedTask(prev => ({ ...prev, [id]: !prev[id] })) }
+  // Lật theo hiện trạng (override nếu có, ngược lại theo mặc định thu của nhánh chuyển việc).
+  function toggleTask(id) {
+    setCollapsedTask(prev => {
+      const cur = prev[id] ?? transferredIds.has(String(id))
+      return { ...prev, [id]: !cur }
+    })
+  }
 
   async function handleSave(formData) {
     try {
@@ -176,6 +194,46 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
     return copyToClipboard(buildTaskCopyText(task, contract))
   }
 
+  // ── Chuyển việc: tạo việc con giống việc cha nhưng giao cho người được chọn ───────
+  // Cùng quyền với "thêm việc con" (canAddSub): PM/admin hoặc người được giao việc này.
+  async function handleTransfer({ department_id, assigned_to }) {
+    const task = transferTask
+    if (!task) return false
+    try {
+      const res = await fetch(`${API}/contracts/${contractId}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title:         task.title,
+          description:   task.description,
+          department_id: department_id ?? task.department_id ?? null,
+          assigned_to,
+          created_by:    currentUser?.id,
+          priority:      task.priority,
+          // Giữ nguyên ràng buộc lịch của việc gốc (ngày cố định / bước trước / theo việc cha).
+          start_date:    task.start_date ? task.start_date.slice(0, 10) : null,
+          due_date:      task.due_date ? task.due_date.slice(0, 10) : null,
+          duration_days: task.duration_days ?? null,
+          dependencies:  Array.isArray(task.dependencies) ? task.dependencies : [],
+          parent_start_offset: task.parent_start_offset ?? null,
+          note:          task.note,
+          // Để "Chờ xử lý" — backend tự chuyển sang "Đang thực hiện" nếu đã tới ngày bắt đầu.
+          status:        'Chờ xử lý',
+          parent_task_id: task.id,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Lỗi chuyển việc')
+      setTasks(prev => [...prev, data])
+      setCollapsedTask(prev => ({ ...prev, [task.id]: false }))  // mở việc cha để thấy việc con mới
+      setTransferTask(null)
+      return true
+    } catch (e) {
+      alert('Lỗi: ' + e.message)
+      return false
+    }
+  }
+
   // Kéo-thả sắp xếp (Gantt "Không nhóm"): cập nhật lạc quan rồi lưu; lỗi → tải lại.
   async function handleReorder(orderedIds) {
     const idSet = new Set(orderedIds)
@@ -219,8 +277,20 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
         key={ctxMenu ? `${ctxMenu.task.id}-${ctxMenu.x}-${ctxMenu.y}` : 'closed'}
         menu={ctxMenu}
         onCopy={copyTaskInfo}
+        canTransfer={!!ctxMenu && canAddSub(ctxMenu.task)}
+        onTransfer={(task) => setTransferTask(task)}
         onClose={() => setCtxMenu(null)}
       />
+      {transferTask && (
+        <TaskTransferDialog
+          task={transferTask}
+          departments={departments}
+          users={users}
+          currentUser={currentUser}
+          onConfirm={handleTransfer}
+          onClose={() => setTransferTask(null)}
+        />
+      )}
     </>
   )
 
@@ -280,6 +350,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           tasks={tasks}
           visibleIds={visible}
           milestones={milestones}
+          defaultCollapsedTaskIds={transferredIds}
           onEdit={openEdit}
           onAdd={canEdit ? openCreate : undefined}
           onAddSub={openAddSub}
@@ -305,7 +376,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           visible={visible}
           collapsed={!!collapsed[group.key]}
           onToggle={() => toggleCollapse(group.key)}
-          collapsedTask={collapsedTask}
+          collapsedTask={effectiveCollapsedTask}
           onToggleTask={toggleTask}
           canWriteRow={canWriteRow}
           canAddSub={canAddSub}

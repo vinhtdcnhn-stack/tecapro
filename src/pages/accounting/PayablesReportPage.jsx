@@ -1,13 +1,23 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, TIER_CLASS, endOfThisMonth, exportTable } from './reportUtils'
+import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
+
+// Text dán chat: một khoản công nợ phải trả NCC.
+function buildCopyText(r) {
+  const crumbs = [r.contract_no ? `HĐ nhập ${r.contract_no}` : null, r.supplier_name, r.description].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Cần trả: ${fmtMoney(r.amount)} ${r.currency_code || ''}, `
+    + `Đã trả: ${fmtMoney(r.paid)}, Còn nợ: ${fmtMoney(r.remaining)} (${fmtMoney(r.remaining_vnd)} đ), `
+    + `Hạn trả: ${fmtDate(r.due_date)}${r.days_overdue > 0 ? ` (quá hạn ${r.days_overdue} ngày)` : ''}`
+}
 
 // #5 — Công nợ phải trả NCC (đã trả phân bổ FIFO theo hạn).
 export default function PayablesReportPage() {
   const [to, setTo]     = useState(endOfThisMonth)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải trả')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,7 +66,7 @@ export default function PayablesReportPage() {
             </tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id}>
+                <tr key={r.id} {...getRowProps(r)}>
                   <td>{i + 1}</td><td>{r.supplier_code || '—'}</td><td>{r.supplier_name || '—'}</td>
                   <td className="mono">{r.contract_no || '—'}</td><td>{r.description || '—'}</td>
                   <td className="num">{fmtMoney(r.amount)} {r.currency_code}</td>
@@ -72,6 +82,7 @@ export default function PayablesReportPage() {
           </table>
         </div>
       )}
+      {copyMenu}
     </div>
   )
 }

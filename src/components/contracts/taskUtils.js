@@ -146,6 +146,21 @@ export function reorderIds(ids, fromId, toId) {
   return a
 }
 
+// Tập id việc CHA có ít nhất một việc con TRÙNG TÊN với mình — dấu hiệu việc con sinh
+// ra do "Chuyển việc" (handleTransfer tạo việc con giữ nguyên title). Dùng để mặc định
+// thu các nhánh này lại ở Danh sách và Gantt (Set chứa id dạng chuỗi).
+export function transferredParentIds(tasks) {
+  const norm = (s) => String(s ?? '').trim().toLowerCase()
+  const byId = new Map(tasks.map(t => [String(t.id), t]))
+  const ids = new Set()
+  for (const t of tasks) {
+    if (t.parent_task_id == null) continue
+    const p = byId.get(String(t.parent_task_id))
+    if (p && norm(p.title) === norm(t.title)) ids.add(String(p.id))
+  }
+  return ids
+}
+
 // DFS pre-order các việc gốc → [{ task, depth, hasChildren }]. Chỉ đi vào con hiển thị
 // (theo `visible`) và node không bị thu (collapsed[id]). visible=null → hiện tất cả.
 export function flattenTree(rootTasks, childrenByParent, { collapsed = {}, visible = null } = {}) {

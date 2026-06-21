@@ -150,6 +150,10 @@ export async function createTask(req, res) {
     const cascaded = parentId ? await cascadeCompletion(client, parentId) : []
     await client.query('COMMIT')
     if (cascaded.length) notifyCascade(cascaded)
+    // Việc tạo ra mà ĐÃ tới ngày bắt đầu (ngày cố định/bước trước/việc cha) → tự chuyển
+    // sang "Đang thực hiện" ngay. Bỏ qua thông báo auto-start cho chính việc này vì bên
+    // dưới đã có thông báo "được giao việc mới".
+    try { await activateReadyTasks([id]) } catch (e) { console.error('activateReadyTasks(create):', e) }
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     res.json(full.rows[0])
 

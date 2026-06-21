@@ -1,9 +1,20 @@
 import { useState, useEffect } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, fmtPct, exportTable } from './reportUtils'
+import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
 const STATUS_CLASS = { 'Quá hạn': 'st-over', 'Trong hạn': 'st-in', 'Đã thanh toán': 'st-paid' }
+
+// Text dán chat: tổng hợp công nợ theo khách hàng / từng hợp đồng.
+const buildCustText = (c) =>
+  `📌 ${c.customer_name || 'Khách hàng'} — ${c.total_contracts} HĐ, Tổng giá trị: ${fmtMoney(c.value_vnd)} đ, `
+  + `Đã thu: ${fmtMoney(c.paid_vnd)} đ, Công nợ còn lại: ${fmtMoney(c.outstanding_vnd)} đ (tỷ lệ thu ${fmtPct(c.collection_ratio)})`
+const buildConText = (k) => {
+  const crumbs = [k.contract_no ? `HĐ ${k.contract_no}` : null, k.project_name].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Giá trị: ${fmtMoney(k.value_vnd)} đ, Đã thu: ${fmtMoney(k.paid_vnd)} đ, `
+    + `Công nợ: ${fmtMoney(k.outstanding_vnd)} đ, ${k.status || ''}${k.days_overdue > 0 ? ` (quá hạn ${k.days_overdue} ngày)` : ''}`
+}
 
 function Card({ label, value, color }) {
   return <div className="acc-stat-card" style={{ borderTopColor: color }}>
@@ -19,6 +30,8 @@ export default function DebtSummaryPage() {
   const [totals, setTotals] = useState(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)   // customer_id đang mở
+  const custCopy = useCopyMenu(buildCustText, (c) => c.customer_name || 'Khách hàng')
+  const conCopy = useCopyMenu(buildConText, (k) => k.contract_no || k.project_name || 'Hợp đồng')
 
   useEffect(() => {
     let alive = true
@@ -71,7 +84,7 @@ export default function DebtSummaryPage() {
               const isOpen = open === c.customer_id
               const kids = isOpen ? contracts.filter(x => String(x.customer_id) === String(c.customer_id)) : []
               return [
-                <tr key={`c${c.customer_id}`} className="acc-row-click" onClick={() => setOpen(isOpen ? null : c.customer_id)}>
+                <tr key={`c${c.customer_id}`} className="acc-row-click" onClick={() => setOpen(isOpen ? null : c.customer_id)} {...custCopy.getRowProps(c)}>
                   <td>{isOpen ? '▾ ' : '▸ '}{c.customer_code || '—'}</td>
                   <td>{c.customer_name}</td>
                   <td className="num">{c.total_contracts}</td>
@@ -81,7 +94,7 @@ export default function DebtSummaryPage() {
                   <td className="num">{fmtPct(c.collection_ratio)}</td>
                 </tr>,
                 ...kids.map(k => (
-                  <tr key={`k${k.contract_out_id}`} className="acc-row-sub">
+                  <tr key={`k${k.contract_out_id}`} className="acc-row-sub" {...conCopy.getRowProps(k)}>
                     <td colSpan={2}><span className="mono">{k.contract_no}</span> · {k.project_name || '—'}</td>
                     <td>{fmtDate(k.contract_date)}</td>
                     <td className="num">{fmtMoney(k.value_vnd)}</td>
@@ -95,6 +108,8 @@ export default function DebtSummaryPage() {
           </tbody>
         </table>
       </div>
+      {custCopy.copyMenu}
+      {conCopy.copyMenu}
     </div>
   )
 }

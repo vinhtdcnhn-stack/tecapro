@@ -5,7 +5,9 @@ import './TaskContextMenu.css'
 // Hiện ở vị trí con trỏ với mục "Sao chép thông tin". Đóng khi click ra ngoài / cuộn /
 // nhấn ESC. Dùng position:fixed nên hoạt động cả trong khung Gantt toàn màn hình.
 // menu: { x, y, task } | null · onCopy(task) · onClose()
-export default function TaskContextMenu({ menu, onCopy, onClose }) {
+// canTransfer (tùy chọn): true → hiện thêm mục "Chuyển việc"; onTransfer(task): mở hộp
+// thoại chọn người để giao lại (tạo việc con). Bỏ trống cả hai → menu chỉ có Sao chép.
+export default function TaskContextMenu({ menu, onCopy, onClose, canTransfer = false, onTransfer }) {
   const ref = useRef(null)
   const [copied, setCopied] = useState(false)
   const [pos, setPos] = useState({ x: 0, y: 0 })
@@ -48,6 +50,11 @@ export default function TaskContextMenu({ menu, onCopy, onClose }) {
     else onClose()
   }
 
+  function handleTransfer() {
+    onClose()
+    onTransfer?.(menu.task)
+  }
+
   return (
     <div
       ref={ref}
@@ -62,6 +69,14 @@ export default function TaskContextMenu({ menu, onCopy, onClose }) {
         </svg>
         {copied ? 'Đã sao chép ✓' : 'Sao chép thông tin'}
       </button>
+      {canTransfer && onTransfer && (
+        <button type="button" className="task-ctxmenu-item" onClick={handleTransfer}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 6l-1.41 1.41L16.17 9H8v2h8.17l-1.58 1.58L16 14l4-4-4-4zM4 18h8v-2H4V6h8V4H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/>
+          </svg>
+          Chuyển việc
+        </button>
+      )}
     </div>
   )
 }

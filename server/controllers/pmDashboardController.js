@@ -61,10 +61,13 @@ export async function getPMDashboard(req, res) {
           WHERE contract_out_id = ANY($1) AND expiry_date IS NOT NULL
             AND COALESCE(status, '') <> 'Đã hoàn trả'`, [ids]),
       pool.query(
-        `SELECT id, contract_out_id, title, due_date
-           FROM contract_task
-          WHERE contract_out_id = ANY($1) AND due_date IS NOT NULL
-            AND status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')`, [ids]),
+        `SELECT t.id, t.contract_out_id, t.title, t.due_date,
+                t.assigned_to, t.created_by, t.parent_task_id,
+                u.full_name AS assigned_to_name
+           FROM contract_task t
+           LEFT JOIN app_user u ON u.id = t.assigned_to
+          WHERE t.contract_out_id = ANY($1) AND t.due_date IS NOT NULL
+            AND t.status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')`, [ids]),
       pool.query(
         'SELECT id, contract_no, contract_out_id, contract_date FROM contract_in WHERE contract_out_id = ANY($1)', [ids]),
     ])
@@ -123,14 +126,48 @@ export async function getPMDashboard(req, res) {
     })
 
     // ── Công việc triển khai: thời hạn = due_date, chỉ việc chưa xong ──
+    // Chuyển việc tạo "việc con" sao chép y hệt việc cha (cùng HĐ + tiêu đề + hạn) → mỗi
+    // lần chuyển sinh thêm một dòng trùng. Gộp các dòng trùng rồi chọn dòng để hiện:
+    //   • Có "việc tôi giao đi" (tôi tạo khi chuyển cho người khác) → hiện HẾT các việc đó,
+    //     mỗi người tôi giao là một dòng theo dõi (kèm tên người nhận để phân biệt).
+    //   • Không có → hiện "việc giao đến tôi" (assigned_to = tôi).
+    //   • Vẫn không → gộp về một dòng đại diện (việc gốc) để tránh trùng.
+    // Dòng đã ghim luôn được giữ thêm để không che mất lựa chọn của user.
+    const isPinned = (t) => tmap.get(`task:${t.id}`)?.pinned || false
+    const givenAway = (t) => Number(t.created_by) === userId && t.parent_task_id != null
+
+    const taskGroups = new Map()
     tasks.forEach(t => {
-      const c = getC(t.contract_out_id)
-      items.push(attach({
-        source_type: 'task', source_id: t.id, contract_id: t.contract_out_id,
-        contract_no: c?.contract_no, due_date: iso(t.due_date),
-        title: t.title || 'Công việc', sub: 'Hạn hoàn thành', kind: 'Công việc',
-      }))
+      const key = `${t.contract_out_id}|${t.title || ''}|${iso(t.due_date)}`
+      if (!taskGroups.has(key)) taskGroups.set(key, [])
+      taskGroups.get(key).push(t)
     })
+
+    for (const group of taskGroups.values()) {
+      const mine = group.filter(givenAway)
+      let chosen
+      if (mine.length) {
+        chosen = mine
+      } else {
+        const assignedToMe = group.filter(t => Number(t.assigned_to) === userId)
+        chosen = assignedToMe.length
+          ? assignedToMe
+          : [group.find(t => t.parent_task_id == null) || group[0]]
+      }
+      // Bổ sung các dòng đã ghim chưa nằm trong tập đã chọn.
+      const ids = new Set(chosen.map(t => t.id))
+      group.forEach(t => { if (isPinned(t) && !ids.has(t.id)) { chosen.push(t); ids.add(t.id) } })
+
+      chosen.forEach(t => {
+        const c = getC(t.contract_out_id)
+        items.push(attach({
+          source_type: 'task', source_id: t.id, contract_id: t.contract_out_id,
+          contract_no: c?.contract_no, due_date: iso(t.due_date),
+          title: t.title || 'Công việc', kind: 'Công việc',
+          sub: givenAway(t) ? `Đã giao: ${t.assigned_to_name || '—'}` : 'Hạn hoàn thành',
+        }))
+      })
+    }
 
     // ════════ NGUỒN PHÍA NHẬP — HĐ nhập thuộc các HĐ bán user tham gia ════════
     const inIds = inContracts.map(c => c.id)

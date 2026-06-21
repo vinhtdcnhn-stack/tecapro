@@ -1,11 +1,24 @@
 import { fmtDate } from '../../accounting/reportUtils.js'
+import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
 
 // Nhóm số ngày trễ → class tô màu (tái dùng thang nhóm nợ).
 const tierOf = (d) => d <= 7 ? 'tier-1' : d <= 15 ? 'tier-2' : d <= 30 ? 'tier-3' : 'tier-4'
 
+// Đoạn text dán vào chat hỏi tình trạng việc quá hạn.
+function buildCopyText(r) {
+  const crumbs = []
+  if (r.contract_no) crumbs.push(`HĐ ${r.contract_no}`)
+  if (r.customer_name) crumbs.push(r.customer_name)
+  crumbs.push(r.title || 'Công việc')
+  const meta = [r.department_name, r.assigned_to_name && `phụ trách ${r.assigned_to_name}`].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Hạn: ${fmtDate(r.due_date)} (quá hạn ${r.days_overdue} ngày)`
+    + (meta.length ? `, ${meta.join(', ')}` : '') + `, ${r.status || ''}`
+}
+
 // Chi tiết thẻ "Công việc quá hạn": bảng task quá hạn toàn hệ thống.
 export default function OverdueTasksDetail({ overdueTasks, onOpenContract }) {
   const rows = overdueTasks?.rows || []
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText)
 
   return (
     <div className="exec-detail">
@@ -23,7 +36,7 @@ export default function OverdueTasksDetail({ overdueTasks, onOpenContract }) {
             </tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-tasks')}>
+                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-tasks')} {...getRowProps(r)}>
                   <td>{i + 1}</td>
                   <td>{r.title || '—'}</td>
                   <td className="mono">{r.contract_no || '—'}</td>
@@ -39,6 +52,7 @@ export default function OverdueTasksDetail({ overdueTasks, onOpenContract }) {
           </table>
         </div>
       )}
+      {copyMenu}
     </div>
   )
 }

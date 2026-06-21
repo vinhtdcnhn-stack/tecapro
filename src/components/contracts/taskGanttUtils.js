@@ -85,16 +85,16 @@ export function buildGanttModel(tasks, milestones, groups, flat = false) {
   const taskTop = new Map()
   for (const g of groups) {
     if (!flat) {
-      rows.push({ type: 'group', key: g.key, name: g.name, count: g.items.length, top, height: GROUP_H })
+      rows.push({ type: 'group', key: g.key, name: g.name, count: g.count ?? g.items.length, top, height: GROUP_H })
       top += GROUP_H
     }
     // items đã theo cây (DFS pre-order) — giữ nguyên để cha-con liền nhau & thụt lề theo depth.
-    for (const { task: t, depth } of g.items) {
+    for (const { task: t, depth, hasChildren } of g.items) {
       const s = startOf.get(String(t.id)), e = endOf.get(String(t.id))
       const overdue = isOverdue(t)
       const wdays = s && e ? diffDays(s, e) + 1 : 1
       rows.push({
-        type: 'task', task: t, depth: depth || 0, top, height: ROW_H,
+        type: 'task', task: t, depth: depth || 0, hasChildren: !!hasChildren, top, height: ROW_H,
         startISO: s, endISO: e, left: xFor(s), width: Math.max(DAY_W, wdays * DAY_W),
         color: barColor(t, overdue), overdue,
       })

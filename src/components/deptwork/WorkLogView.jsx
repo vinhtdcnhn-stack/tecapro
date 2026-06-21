@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import DateInput from '../contracts/DateInput'
 import MobileEditSheet, { Field } from '../contracts/MobileEditSheet'
 import useIsMobile from '../contracts/useIsMobile'
+import { useCopyMenu } from '../common/useCopyMenu.jsx'
 import { API } from '../../config/api'
 import { fmtDate } from './deptWorkUtils'
 
@@ -20,6 +21,12 @@ const SHIFTS = [
 ]
 const shiftLabels = (keys) => SHIFTS.filter(s => (keys || []).includes(s.key)).map(s => s.label).join(', ')
 
+// Text dán chat: một dòng nhật ký công việc.
+const buildLogText = (l) =>
+  `📌 Nhật ký ${fmtDate(l.log_date)} — ${l.description || ''}`
+  + (l.task_title ? ` (việc: ${l.task_title})` : '')
+  + ` · ${shiftLabels(l.shifts) || `${Number(l.effort_hours || 0).toFixed(1)}h`}`
+
 const blankForm = () => ({ id: null, log_date: todayIso(), task_id: '', description: '', shifts: [] })
 
 // Nhật ký công việc hằng ngày của một người (đầu vào tính năng lực).
@@ -33,6 +40,7 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
   const [tasks, setTasks] = useState([])
   const [form, setForm] = useState(null)            // null = đóng; object = đang nhập/sửa
   const [saving, setSaving] = useState(false)
+  const { getRowProps, copyMenu } = useCopyMenu(buildLogText, (l) => fmtDate(l.log_date))
 
   const isOwnView = Number(viewUser) === Number(currentUser?.id)
 
@@ -169,7 +177,7 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
       ) : isMobile ? (
         <div className="dw-log-cards">
           {logs.map(l => (
-            <div key={l.id} className="dw-log-card" onClick={() => isOwnView && setForm({ id: l.id, log_date: l.log_date?.slice(0, 10), task_id: l.task_id || '', description: l.description, shifts: l.shifts || [] })}>
+            <div key={l.id} className="dw-log-card" onClick={() => isOwnView && setForm({ id: l.id, log_date: l.log_date?.slice(0, 10), task_id: l.task_id || '', description: l.description, shifts: l.shifts || [] })} {...getRowProps(l)}>
               <div className="dw-log-card-top">
                 <span>{fmtDate(l.log_date)}</span>
                 <strong>{shiftLabels(l.shifts) || `${Number(l.effort_hours).toFixed(1)}h`}</strong>
@@ -186,7 +194,7 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
           </thead>
           <tbody>
             {logs.map(l => (
-              <tr key={l.id}>
+              <tr key={l.id} {...getRowProps(l)}>
                 <td>{fmtDate(l.log_date)}</td>
                 <td className="dw-pre">{l.description}</td>
                 <td>{l.task_title || '—'}</td>
@@ -222,6 +230,7 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
           </div>
         )
       )}
+      {copyMenu}
     </div>
   )
 }

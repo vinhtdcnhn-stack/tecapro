@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, exportTable } from './reportUtils'
+import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
 const CAT_CLASS = {
@@ -8,10 +9,18 @@ const CAT_CLASS = {
   'Từ 6-9 tháng': 'cat-3', 'Trên 9 tháng': 'cat-4',
 }
 
+// Text dán chat: tiến độ thu của một hợp đồng.
+function buildCopyText(r) {
+  const crumbs = [r.contract_no ? `HĐ ${r.contract_no}` : null, r.project_name, r.customer_name].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Giá trị: ${fmtMoney(r.value_vnd)} đ, Đã thu: ${fmtMoney(r.collected_vnd)} đ, `
+    + `Còn phải thu: ${fmtMoney(r.remaining_vnd)} đ${r.delay_days > 0 ? `, chậm ${r.delay_days} ngày` : ''} (${r.category || ''})`
+}
+
 // #6 — Tổng kết tiến độ thu (số ngày chậm theo mốc bị nợ lâu nhất).
 export default function ProgressCollectionPage() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng')
 
   useEffect(() => {
     let alive = true
@@ -49,7 +58,7 @@ export default function ProgressCollectionPage() {
             </tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.contract_out_id}>
+                <tr key={r.contract_out_id} {...getRowProps(r)}>
                   <td>{i + 1}</td><td className="mono">{r.contract_no}</td><td>{r.customer_name || '—'}</td>
                   <td>{r.project_name || '—'}</td><td>{fmtDate(r.contract_date)}</td>
                   <td className="num">{fmtMoney(r.value_vnd)}</td>
@@ -63,6 +72,7 @@ export default function ProgressCollectionPage() {
           </table>
         </div>
       )}
+      {copyMenu}
     </div>
   )
 }

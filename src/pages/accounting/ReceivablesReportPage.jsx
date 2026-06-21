@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, TIER_CLASS, endOfThisMonth, exportTable } from './reportUtils'
+import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
+
+// Text dán chat: một khoản công nợ phải thu.
+function buildCopyText(r) {
+  const crumbs = [r.contract_no ? `HĐ ${r.contract_no}` : null, r.customer_name, r.description].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Cần thu: ${fmtMoney(r.amount)} ${r.currency_code || ''}, `
+    + `Đã thu: ${fmtMoney(r.paid)}, Còn nợ: ${fmtMoney(r.remaining)} (${fmtMoney(r.remaining_vnd)} đ), `
+    + `Hạn thu: ${fmtDate(r.due_date)}${r.days_overdue > 0 ? ` (quá hạn ${r.days_overdue} ngày)` : ''}`
+}
 
 // #3 / #4 — Công nợ phải thu KH (theo kế hoạch gốc hoặc tiến độ thực).
 export default function ReceivablesReportPage() {
@@ -9,6 +18,7 @@ export default function ReceivablesReportPage() {
   const [basis, setBasis] = useState('actual')
   const [rows, setRows]   = useState([])
   const [loading, setLoading] = useState(true)
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải thu')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -62,7 +72,7 @@ export default function ReceivablesReportPage() {
             </tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id}>
+                <tr key={r.id} {...getRowProps(r)}>
                   <td>{i + 1}</td><td>{r.customer_code || '—'}</td><td>{r.customer_name || '—'}</td>
                   <td className="mono">{r.contract_no}</td><td>{r.description || '—'}</td>
                   <td className="num">{r.ratio_pct == null ? '—' : r.ratio_pct.toFixed(1) + '%'}</td>
@@ -79,6 +89,7 @@ export default function ReceivablesReportPage() {
           </table>
         </div>
       )}
+      {copyMenu}
     </div>
   )
 }

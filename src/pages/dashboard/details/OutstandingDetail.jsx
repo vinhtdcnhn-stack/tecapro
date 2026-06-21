@@ -1,5 +1,15 @@
 import { fmtFull, debtStatusBadge } from '../execUtils.js'
 import { fmtMoney, fmtDate } from '../../accounting/reportUtils.js'
+import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+
+// Text dán chat: công nợ theo chủ đầu tư / theo hợp đồng.
+const buildCustText = (r) =>
+  `📌 ${r.customer_name || 'Chủ đầu tư'} — Còn nợ: ${fmtMoney(r.outstanding_vnd)} đ (${r.total_contracts} HĐ)`
+const buildConText = (r) => {
+  const crumbs = [r.contract_no ? `HĐ ${r.contract_no}` : null, r.customer_name].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Còn nợ: ${fmtMoney(r.outstanding_vnd)} đ`
+    + (r.days_overdue > 0 ? ` (quá hạn ${r.days_overdue} ngày)` : '') + `, ${r.status || ''}`
+}
 
 // Chi tiết thẻ "Công nợ phải thu": theo chủ đầu tư + danh sách HĐ còn nợ.
 export default function OutstandingDetail({ byCustomer, byContract, onOpenContract }) {
@@ -10,6 +20,8 @@ export default function OutstandingDetail({ byCustomer, byContract, onOpenContra
     .filter(r => (parseFloat(r.outstanding_vnd) || 0) > 0)
     .sort((a, b) => (parseFloat(b.outstanding_vnd) || 0) - (parseFloat(a.outstanding_vnd) || 0))
   const t = byCustomer?.totals || {}
+  const cust = useCopyMenu(buildCustText, (r) => r.customer_name || 'Chủ đầu tư')
+  const con = useCopyMenu(buildConText, (r) => r.contract_no || r.customer_name || 'Hợp đồng')
 
   return (
     <div className="exec-detail">
@@ -29,7 +41,7 @@ export default function OutstandingDetail({ byCustomer, byContract, onOpenContra
             <thead><tr><th>STT</th><th>Chủ đầu tư</th><th className="num">Số HĐ</th><th className="num">Còn nợ (VNĐ)</th></tr></thead>
             <tbody>
               {custRows.map((r, i) => (
-                <tr key={r.customer_id}>
+                <tr key={r.customer_id} {...cust.getRowProps(r)}>
                   <td>{i + 1}</td><td>{r.customer_name || '—'}</td>
                   <td className="num">{r.total_contracts}</td>
                   <td className="num" title={fmtFull(r.outstanding_vnd)}>{fmtMoney(r.outstanding_vnd)}</td>
@@ -50,7 +62,7 @@ export default function OutstandingDetail({ byCustomer, byContract, onOpenContra
             </tr></thead>
             <tbody>
               {conRows.map((r, i) => (
-                <tr key={r.contract_out_id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-debt')}>
+                <tr key={r.contract_out_id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-debt')} {...con.getRowProps(r)}>
                   <td>{i + 1}</td>
                   <td className="mono">{r.contract_no || '—'}</td>
                   <td>{r.customer_name || '—'}</td>
@@ -64,6 +76,8 @@ export default function OutstandingDetail({ byCustomer, byContract, onOpenContra
           </table>
         </div>
       )}
+      {cust.copyMenu}
+      {con.copyMenu}
     </div>
   )
 }

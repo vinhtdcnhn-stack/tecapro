@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react'
 import { API } from '../../../config/api.js'
 import { fmtFull } from '../execUtils.js'
 import { fmtMoney, fmtDate, endOfThisMonth } from '../../accounting/reportUtils.js'
+import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+
+// Text dán chat: khoản phải thu / phải trả đến hạn trong tháng.
+const buildRecvText = (r) => {
+  const crumbs = [r.contract_no ? `HĐ ${r.contract_no}` : null, r.customer_name, r.description].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Còn thu: ${fmtMoney(r.remaining_vnd)} đ, Hạn: ${fmtDate(r.due_date)}`
+}
+const buildPayText = (r) => {
+  const crumbs = [r.contract_no ? `HĐ nhập ${r.contract_no}` : null, r.supplier_name, r.description].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Còn trả: ${fmtMoney(r.remaining_vnd)} đ, Hạn: ${fmtDate(r.due_date)}`
+}
 
 // Cuối tháng của 1 ngày ISO 'yyyy-mm-dd'.
 const endOfMonthOf = (iso) => {
@@ -37,6 +48,8 @@ export default function CashflowMonthDetail({ asOf = null, onOpenContract }) {
 
   const recvTotal = recv.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
   const payTotal = pay.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
+  const recvCopy = useCopyMenu(buildRecvText, (r) => r.description || r.contract_no || 'Khoản phải thu')
+  const payCopy = useCopyMenu(buildPayText, (r) => r.description || r.contract_no || 'Khoản phải trả')
 
   if (loading) return <p className="dash-empty">Đang tải dự kiến thu/chi tháng...</p>
 
@@ -58,7 +71,7 @@ export default function CashflowMonthDetail({ asOf = null, onOpenContract }) {
             <thead><tr><th>STT</th><th>Chủ đầu tư</th><th>Số HĐ</th><th>Nội dung</th><th className="num">Còn thu (VNĐ)</th><th>Hạn</th></tr></thead>
             <tbody>
               {recv.map((r, i) => (
-                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-debt')}>
+                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-debt')} {...recvCopy.getRowProps(r)}>
                   <td>{i + 1}</td><td>{r.customer_name || '—'}</td><td className="mono">{r.contract_no || '—'}</td>
                   <td>{r.description || '—'}</td>
                   <td className="num" title={fmtFull(r.remaining_vnd)}>{fmtMoney(r.remaining_vnd)}</td>
@@ -79,7 +92,8 @@ export default function CashflowMonthDetail({ asOf = null, onOpenContract }) {
               {pay.map((r, i) => (
                 <tr key={r.id}
                   className={r.contract_out_id ? 'exec-row' : undefined}
-                  onClick={r.contract_out_id ? () => onOpenContract(r.contract_out_id, 'purchase-contract-info', { inId: r.contract_in_id }) : undefined}>
+                  onClick={r.contract_out_id ? () => onOpenContract(r.contract_out_id, 'purchase-contract-info', { inId: r.contract_in_id }) : undefined}
+                  {...payCopy.getRowProps(r)}>
                   <td>{i + 1}</td><td>{r.supplier_name || '—'}</td><td className="mono">{r.contract_no || '—'}</td>
                   <td>{r.description || '—'}</td>
                   <td className="num" title={fmtFull(r.remaining_vnd)}>{fmtMoney(r.remaining_vnd)}</td>
@@ -90,6 +104,8 @@ export default function CashflowMonthDetail({ asOf = null, onOpenContract }) {
           </table>
         </div>
       )}
+      {recvCopy.copyMenu}
+      {payCopy.copyMenu}
     </div>
   )
 }

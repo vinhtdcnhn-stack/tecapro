@@ -10,7 +10,7 @@ import { buildGanttModel, LABEL_W, HEAD_H, DAY_W } from './taskGanttUtils'
 // truyền) · onReorder(orderedIds): lưu thứ tự (anh-em) · canReorderRow(task): được phép
 // kéo việc đó hay không · children: modal/lớp phủ render BÊN TRONG khung Gantt để khi mở
 // toàn màn hình (Fullscreen API) vẫn nằm trên, thao tác được.
-export default function TaskGantt({ tasks, visibleIds = null, milestones = [], onEdit, onAdd, onAddSub, canAddSub = () => false, onReorder, canReorderRow = () => false, onTaskContextMenu, children }) {
+export default function TaskGantt({ tasks, visibleIds = null, milestones = [], defaultCollapsedTaskIds = null, onEdit, onAdd, onAddSub, canAddSub = () => false, onReorder, canReorderRow = () => false, onTaskContextMenu, children }) {
   const [groupBy, setGroupBy] = useState('department')   // 'department' | 'assignee' | 'none'
   const flat = groupBy === 'none'
   const canDrag = flat && typeof onReorder === 'function'   // bật theo từng dòng qua canReorderRow
@@ -18,6 +18,18 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], o
   // Kéo-thả sắp xếp (chỉ chế độ "Không nhóm").
   const [dragId, setDragId]   = useState(null)
   const [overId, setOverId]   = useState(null)
+
+  // Thu/mở (collapse) như bên Danh sách: theo nhóm (phòng ban / người) + theo cây việc con.
+  // Mỗi lần mở Gantt (component remount khi chuyển chế độ) → mặc định thu các nhánh "chuyển
+  // việc" (defaultCollapsedTaskIds); người dùng tự bung khi cần xem.
+  const [collapsedGroup, setCollapsedGroup] = useState({})
+  const [collapsedTask, setCollapsedTask]   = useState(() => {
+    const init = {}
+    for (const id of (defaultCollapsedTaskIds || [])) init[String(id)] = true
+    return init
+  })
+  const toggleGroup = (key) => setCollapsedGroup(p => ({ ...p, [key]: !p[key] }))
+  const toggleTask  = (id)  => setCollapsedTask(p => ({ ...p, [id]: !p[id] }))
 
   // Toàn màn hình: mở khung Gantt phủ kín màn hình, ESC để thoát.
   const [fullscreen, setFullscreen] = useState(false)
@@ -29,11 +41,19 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], o
   const visibleRoots = useMemo(() => roots.filter(t => !visibleIds || visibleIds.has(String(t.id))), [roots, visibleIds])
 
   const groups = useMemo(() => {
-    const expand = (rootList) => ({ items: flattenTree(rootList, childrenByParent, { visible: visibleIds }) })
-    if (flat) return [{ key: '__all__', name: '', ...expand(visibleRoots) }]
+    // count = tổng việc cả nhóm (luôn tính, cho tiêu đề); items = danh sách hiển thị
+    // (rỗng nếu nhóm bị thu; bỏ con của việc bị thu).
+    const expand = (rootList, key) => {
+      const full = flattenTree(rootList, childrenByParent, { visible: visibleIds })
+      const items = (key != null && collapsedGroup[key])
+        ? []
+        : flattenTree(rootList, childrenByParent, { visible: visibleIds, collapsed: collapsedTask })
+      return { items, count: full.length }
+    }
+    if (flat) return [{ key: '__all__', name: '', ...expand(visibleRoots, null) }]
     const gs = groupBy === 'assignee' ? groupByAssignee(visibleRoots) : groupByDept(visibleRoots)
-    return gs.map(g => ({ key: g.key, name: g.name, ...expand(g.tasks) }))
-  }, [visibleRoots, childrenByParent, visibleIds, groupBy, flat])
+    return gs.map(g => ({ key: g.key, name: g.name, ...expand(g.tasks, g.key) }))
+  }, [visibleRoots, childrenByParent, visibleIds, groupBy, flat, collapsedGroup, collapsedTask])
 
   const model = useMemo(() => buildGanttModel(visibleTasks, milestones, groups, flat), [visibleTasks, milestones, groups, flat])
   const { width, monthSegs, days, rows, bodyHeight, arrows, todayX } = model
@@ -190,6 +210,14 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], o
           <div className="tgantt-body" style={{ height: bodyHeight }}>
             {rows.map((row, i) => {
               const dragRow = row.type === 'task' && canDrag && canReorderRow(row.task)
+              // Hint chung cho cả nhãn việc (cột trái) lẫn thanh Gantt — để gantt thường và
+              // toàn màn hình hiện cùng thông tin: tên · thời gian · trạng thái+người làm · người giao.
+              const taskTip = row.type === 'task' ? [
+                row.task.title,
+                `${row.startISO ? fmtDate(row.startISO) : '—'} → ${row.endISO ? fmtDate(row.endISO) : '—'}`,
+                `${row.task.status}${row.task.assigned_to_name ? ' · ' + row.task.assigned_to_name : ''}`,
+                row.task.created_by_name ? `Giao bởi: ${row.task.created_by_name}` : null,
+              ].filter(Boolean).join('\n') : ''
               return (
               <div
                 key={i}
@@ -213,12 +241,31 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], o
                   onDragEnd={dragRow ? (() => { setDragId(null); setOverId(null) }) : undefined}
                 >
                   {dragRow && <span className="tgantt-drag-grip" aria-hidden>⋮⋮</span>}
-                  {row.type === 'group'      && <span className="tgantt-grouplabel">{row.name} <em>· {row.count}</em></span>}
+                  {row.type === 'group'      && (
+                    <button
+                      type="button"
+                      className="tgantt-grouplabel"
+                      onClick={() => toggleGroup(row.key)}
+                      title={collapsedGroup[row.key] ? 'Mở nhóm' : 'Thu nhóm'}
+                    >
+                      <span className={`tgantt-toggle${collapsedGroup[row.key] ? '' : ' open'}`} aria-hidden>▶</span>
+                      {row.name} <em>· {row.count}</em>
+                    </button>
+                  )}
                   {row.type === 'milestones' && <span className="tgantt-mslabel">◆ Mốc tiến độ</span>}
                   {row.type === 'task'       && (
                     <>
-                      <span className="tgantt-tasklabel" title={row.task.title} style={{ paddingLeft: (row.depth || 0) * 16 }}>
-                        {row.depth > 0 && <span className="tgantt-subdot" aria-hidden>└</span>}
+                      <span className="tgantt-tasklabel" title={taskTip} style={{ paddingLeft: (row.depth || 0) * 16 }}>
+                        {row.hasChildren ? (
+                          <button
+                            type="button"
+                            className={`tgantt-toggle${collapsedTask[row.task.id] ? '' : ' open'}`}
+                            onClick={(e) => { e.stopPropagation(); toggleTask(row.task.id) }}
+                            title={collapsedTask[row.task.id] ? 'Mở việc con' : 'Thu việc con'}
+                          >▶</button>
+                        ) : (
+                          row.depth > 0 && <span className="tgantt-subdot" aria-hidden>└</span>
+                        )}
                         <i className="tgantt-ava">{initials(row.task.assigned_to_name)}</i>
                         {row.task.title}
                       </span>
@@ -256,7 +303,7 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], o
                       className="tgantt-bar"
                       style={{ left: row.left, width: row.width, background: row.color.bg, borderColor: row.color.bd, color: row.color.fg }}
                       onClick={() => onEdit?.(row.task)}
-                      title={`${row.task.title}\n${row.startISO ? fmtDate(row.startISO) : '—'} → ${row.endISO ? fmtDate(row.endISO) : '—'}\n${row.task.status}${row.task.assigned_to_name ? ' · ' + row.task.assigned_to_name : ''}`}
+                      title={taskTip}
                     >
                       <span className="tgantt-bar-text">{row.task.title}</span>
                     </button>

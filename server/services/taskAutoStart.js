@@ -28,7 +28,10 @@ function vnToday() {
 // Một lượt quét: chuyển các công việc đã đủ điều kiện sang "Đang thực hiện",
 // trả về danh sách đã chuyển (để báo). An toàn khi gọi đồng thời (UPDATE atomic,
 // chỉ tác động dòng còn 'Chờ xử lý').
-export async function activateReadyTasks() {
+// skipNotifyIds: id các việc vẫn được kích hoạt nhưng KHÔNG gửi thông báo auto-start
+// (vd việc vừa tạo đã có thông báo "được giao việc mới" riêng — tránh báo trùng).
+export async function activateReadyTasks(skipNotifyIds = []) {
+  const skip = new Set((skipNotifyIds || []).map(String))
   const today = vnToday()
   const { rows } = await pool.query(
     `
@@ -98,6 +101,7 @@ export async function activateReadyTasks() {
   )
 
   for (const r of rows) {
+    if (skip.has(String(r.id))) continue
     const label = await contractLabel(r.contract_out_id)
     const assignee = Number(r.assigned_to) || null
     const creator  = Number(r.created_by) || null

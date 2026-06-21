@@ -1,11 +1,20 @@
 import { fmtCompact, fmtFull, groupByStatus, debtStatusBadge } from '../execUtils.js'
 import { fmtMoney } from '../../accounting/reportUtils.js'
+import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+
+// Text dán chat: hợp đồng theo giá trị.
+function buildCopyText(r) {
+  const crumbs = [r.contract_no ? `HĐ ${r.contract_no}` : null, r.project_name, r.customer_name].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Giá trị: ${fmtMoney(r.value_vnd)} đ, `
+    + `Đã thu: ${fmtMoney(r.paid_vnd)} đ, Còn nợ: ${fmtMoney(r.outstanding_vnd)} đ, ${r.status || ''}`
+}
 
 // Chi tiết thẻ "Tổng giá trị HĐ": cơ cấu theo trạng thái + bảng tất cả HĐ theo giá trị.
 export default function PortfolioDetail({ contracts = [], byContract, onOpenContract }) {
   const groups = groupByStatus(contracts)
   const rows = [...(byContract?.rows || [])].sort(
     (a, b) => (parseFloat(b.value_vnd) || 0) - (parseFloat(a.value_vnd) || 0))
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng')
 
   return (
     <div className="exec-detail">
@@ -33,7 +42,7 @@ export default function PortfolioDetail({ contracts = [], byContract, onOpenCont
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.contract_out_id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-info')}>
+                <tr key={r.contract_out_id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-info')} {...getRowProps(r)}>
                   <td>{i + 1}</td>
                   <td className="mono">{r.contract_no || '—'}</td>
                   <td>{r.project_name || '—'}</td>
@@ -49,6 +58,7 @@ export default function PortfolioDetail({ contracts = [], byContract, onOpenCont
         </div>
       )}
       <p className="exec-detail-note">Bấm vào một dòng để mở hợp đồng. Tổng {rows.length} hợp đồng.</p>
+      {copyMenu}
     </div>
   )
 }

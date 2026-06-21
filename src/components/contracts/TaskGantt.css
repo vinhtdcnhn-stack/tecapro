@@ -95,8 +95,20 @@
   background: #fff; border-right: 1px solid #e5e7eb; font-size: 12px; color: #111827;
 }
 .tgantt-row--group .tgantt-rowlabel { background: #f9fafb; }
-.tgantt-grouplabel { font-weight: 700; color: #374151; }
+.tgantt-grouplabel {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0; border: none; background: transparent; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 700; color: #374151;
+}
 .tgantt-grouplabel em { color: #9ca3af; font-style: normal; font-weight: 500; }
+
+/* Nút thu/mở (▶ xoay 90° khi mở) — dùng cho cả nhóm và cây việc con */
+.tgantt-toggle {
+  flex-shrink: 0; width: 16px; height: 16px; padding: 0; border: none;
+  background: transparent; color: #6b7280; cursor: pointer; font-size: 9px;
+  line-height: 1; transition: transform .15s; transform: rotate(0deg);
+}
+.tgantt-toggle.open { transform: rotate(90deg); }
 .tgantt-mslabel { font-weight: 700; color: #7c3aed; }
 .tgantt-tasklabel {
   flex: 1 1 auto; min-width: 0;

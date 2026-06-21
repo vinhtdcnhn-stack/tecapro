@@ -1,11 +1,18 @@
 import { fmtFull } from '../execUtils.js'
 import { fmtMoney, fmtPct } from '../../accounting/reportUtils.js'
+import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+
+// Text dán chat: đã thu theo chủ đầu tư.
+const buildCopyText = (r) =>
+  `📌 ${r.customer_name || 'Chủ đầu tư'} — Giá trị: ${fmtMoney(r.value_vnd)} đ, Đã thu: ${fmtMoney(r.paid_vnd)} đ, `
+  + `Còn nợ: ${fmtMoney(r.outstanding_vnd)} đ (tỷ lệ thu ${fmtPct(r.collection_ratio)}, ${r.total_contracts} HĐ)`
 
 // Chi tiết thẻ "Doanh thu đã thu": top chủ đầu tư theo số đã thu + tỷ lệ thu.
 export default function CollectedDetail({ byCustomer }) {
   const rows = [...(byCustomer?.rows || [])].sort(
     (a, b) => (parseFloat(b.paid_vnd) || 0) - (parseFloat(a.paid_vnd) || 0))
   const t = byCustomer?.totals || {}
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.customer_name || 'Chủ đầu tư')
 
   return (
     <div className="exec-detail">
@@ -31,7 +38,7 @@ export default function CollectedDetail({ byCustomer }) {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.customer_id}>
+                <tr key={r.customer_id} {...getRowProps(r)}>
                   <td>{i + 1}</td>
                   <td>{r.customer_name || '—'}</td>
                   <td className="num">{r.total_contracts}</td>
@@ -45,6 +52,7 @@ export default function CollectedDetail({ byCustomer }) {
           </table>
         </div>
       )}
+      {copyMenu}
     </div>
   )
 }

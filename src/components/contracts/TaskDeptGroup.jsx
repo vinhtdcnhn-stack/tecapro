@@ -200,6 +200,11 @@ function TaskRow({
         ) : (
           <span className="assignee-empty">Chưa assign</span>
         )}
+        {task.created_by_name && (
+          <span className="assigner-line" title="Người giao việc">
+            Giao bởi: {task.created_by_name}
+          </span>
+        )}
       </td>
 
       <td>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import DateInput from '../contracts/DateInput'
 import useIsMobile from '../contracts/useIsMobile'
+import { useCopyMenu } from '../common/useCopyMenu.jsx'
 import { API } from '../../config/api'
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
@@ -11,6 +12,12 @@ const firstOfMonthIso = () => {
 
 const utilClass = (u) => u >= 90 ? 'dw-util-high' : u >= 50 ? 'dw-util-mid' : 'dw-util-low'
 
+// Text dán chat: năng lực của một người.
+const buildCopyText = (r) =>
+  `📌 Năng lực ${r.full_name || ''}${r.team_name ? ` (${r.team_name})` : ''} — Tổng ${Number(r.total_hours || 0).toFixed(1)}h, `
+  + `${r.days_logged} ngày ghi, ${r.avg_hours_per_day}h TB/ngày, ${r.tasks_touched} việc chạm, `
+  + `${r.completed_tasks} hoàn thành, ${r.utilization}% sử dụng`
+
 // Báo cáo năng lực theo giờ công trong khoảng ngày (head: tất cả; member: chính mình).
 export default function CapacityReport({ canManage }) {
   const isMobile = useIsMobile()
@@ -18,6 +25,7 @@ export default function CapacityReport({ canManage }) {
   const [to, setTo] = useState(todayIso())
   const [segment, setSegment] = useState('')   // '' | 'PRESALE' | 'POSTSALE' (suy từ vị trí)
   const [data, setData] = useState({ rows: [], working_days: 0 })
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.full_name || 'Người')
 
   const load = useCallback(async () => {
     try {
@@ -55,7 +63,7 @@ export default function CapacityReport({ canManage }) {
       ) : isMobile ? (
         <div className="dw-cap-cards">
           {rows.map(r => (
-            <div key={r.user_id} className="dw-cap-card">
+            <div key={r.user_id} className="dw-cap-card" {...getRowProps(r)}>
               <div className="dw-cap-card-top">
                 <strong>{r.full_name}</strong>
                 <span className={`dw-util-badge ${utilClass(r.utilization)}`}>{r.utilization}%</span>
@@ -82,7 +90,7 @@ export default function CapacityReport({ canManage }) {
           </thead>
           <tbody>
             {rows.map(r => (
-              <tr key={r.user_id}>
+              <tr key={r.user_id} {...getRowProps(r)}>
                 <td>{r.full_name}</td>
                 <td>{r.team_name || '—'}</td>
                 <td className="num">{Number(r.total_hours).toFixed(1)}</td>
@@ -96,6 +104,7 @@ export default function CapacityReport({ canManage }) {
           </tbody>
         </table>
       )}
+      {copyMenu}
     </div>
   )
 }

@@ -1,5 +1,10 @@
 import { fmtCompact, fmtFull, signedByMonth, signedThisYearVnd, signedThisYearCount } from '../execUtils.js'
 import { fmtMoney } from '../../accounting/reportUtils.js'
+import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+
+// Text dán chat: giá trị HĐ ký trong một tháng.
+const buildCopyText = (m) =>
+  `📌 Đà ký HĐ ${m.label} — ${m.count} HĐ, Giá trị: ${fmtMoney(m.valueVnd)} đ`
 
 // Chi tiết thẻ "Đà ký HĐ": biểu đồ cột (CSS thuần) giá trị HĐ ký theo 12 tháng gần nhất.
 export default function MomentumDetail({ contracts = [] }) {
@@ -7,6 +12,7 @@ export default function MomentumDetail({ contracts = [] }) {
   const max = Math.max(1, ...months.map(m => m.valueVnd))
   const yearVnd = signedThisYearVnd(contracts)
   const yearCount = signedThisYearCount(contracts)
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (m) => `Đà ký HĐ ${m.label}`)
 
   return (
     <div className="exec-detail">
@@ -36,7 +42,7 @@ export default function MomentumDetail({ contracts = [] }) {
           <thead><tr><th>Tháng</th><th className="num">Số HĐ ký</th><th className="num">Giá trị (VNĐ)</th></tr></thead>
           <tbody>
             {[...months].reverse().map(m => (
-              <tr key={m.key}>
+              <tr key={m.key} {...getRowProps(m)}>
                 <td>{m.label}</td>
                 <td className="num">{m.count}</td>
                 <td className="num" title={fmtFull(m.valueVnd)}>{fmtMoney(m.valueVnd)}</td>
@@ -45,6 +51,7 @@ export default function MomentumDetail({ contracts = [] }) {
           </tbody>
         </table>
       </div>
+      {copyMenu}
     </div>
   )
 }

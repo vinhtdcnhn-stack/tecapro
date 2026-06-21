@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../../config/api'
+import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
 const TIER_CLASS = {
@@ -12,12 +13,20 @@ const TIER_CLASS = {
 const fmtMoney = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
 const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 
+// Text dán chat: một khoản nợ quá hạn.
+function buildCopyText(r) {
+  const crumbs = [r.contract_no ? `HĐ ${r.contract_no}` : null, r.customer_name, r.description].filter(Boolean)
+  return `📌 ${crumbs.join(' › ')} — Còn nợ: ${fmtMoney(r.remaining)} ${r.currency_code || ''}`
+    + ` (${fmtMoney(r.remaining_vnd)} đ), Hạn TT: ${fmtDate(r.due_date)} (quá hạn ${r.days_overdue} ngày, ${r.tier_label || ''})`
+}
+
 // Bảng cảnh báo nợ quá hạn (sheet #1). Dùng cả như sub-view trong trang chủ kế toán.
 export default function OverdueAlertsPage() {
   const asOf = new Date().toISOString().slice(0, 10)   // luôn kiểm tra tại ngày hiện tại
   const [basis, setBasis] = useState('actual')   // 'actual' | 'plan'
   const [rows, setRows]   = useState([])
   const [loading, setLoading] = useState(true)
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản nợ')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -61,7 +70,7 @@ export default function OverdueAlertsPage() {
             </thead>
             <tbody>
               {overdueRows.map((r, i) => (
-                <tr key={r.id}>
+                <tr key={r.id} {...getRowProps(r)}>
                   <td>{i + 1}</td>
                   <td>{r.customer_code || '—'}</td>
                   <td>{r.customer_name || '—'}</td>
@@ -79,6 +88,7 @@ export default function OverdueAlertsPage() {
           </table>
         </div>
       )}
+      {copyMenu}
     </div>
   )
 }

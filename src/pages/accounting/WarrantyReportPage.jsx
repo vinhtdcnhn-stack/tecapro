@@ -1,9 +1,18 @@
 import { useState, useEffect, Fragment } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtDate, fmtPct, exportTable } from './reportUtils'
+import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
 const ST_CLASS = { 'Còn hiệu lực': 'st-in', 'Sắp hết hạn': 'st-warn', 'Hết hiệu lực': 'st-over' }
+
+// Text dán chat: tình trạng bảo hành theo HĐ / một yêu cầu bảo hành.
+const buildContractText = (c) =>
+  `📌 HĐ ${c.contract_no || ''}${c.customer_name ? ` › ${c.customer_name}` : ''} — ${c.device_count} TB `
+  + `(còn hạn ${c.valid_count}, hết hạn ${c.expired_count}), Hết BH: ${fmtDate(c.earliest_expiry)} → ${fmtDate(c.latest_expiry)}, ${c.status || ''}`
+const buildCaseText = (c) =>
+  `📌 Phiếu BH ${c.case_no || c.id}${c.contract_no ? ` › HĐ ${c.contract_no}` : ''} — ${c.title || ''}`
+  + `${c.reported_by ? `, báo bởi ${c.reported_by}` : ''}, tiếp nhận ${fmtDate(c.reported_date)}, ${c.status || ''}`
 
 function Card({ label, value, color }) {
   return <div className="acc-stat-card" style={{ borderTopColor: color }}>
@@ -17,6 +26,8 @@ export default function WarrantyReportPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)
+  const contractCopy = useCopyMenu(buildContractText, (c) => c.contract_no || 'Hợp đồng')
+  const caseCopy = useCopyMenu(buildCaseText, (c) => c.title || c.case_no || 'Yêu cầu BH')
 
   useEffect(() => {
     let alive = true
@@ -77,7 +88,7 @@ export default function WarrantyReportPage() {
               const isOpen = open === c.contract_out_id
               return (
                 <Fragment key={c.contract_out_id}>
-                  <tr className="acc-row-click" onClick={() => setOpen(isOpen ? null : c.contract_out_id)}>
+                  <tr className="acc-row-click" onClick={() => setOpen(isOpen ? null : c.contract_out_id)} {...contractCopy.getRowProps(c)}>
                     <td>{isOpen ? '▾ ' : '▸ '}<span className="mono">{c.contract_no}</span></td>
                     <td>{c.customer_name || '—'}</td>
                     <td className="num">{c.device_count}</td><td className="num">{c.valid_count}</td>
@@ -106,7 +117,7 @@ export default function WarrantyReportPage() {
           <thead><tr><th>Mã phiếu</th><th>Số HĐ</th><th>Nội dung</th><th>Người báo</th><th>Ngày tiếp nhận</th><th>Ngày hoàn thành</th><th>Trạng thái</th></tr></thead>
           <tbody>
             {data.cases.map(c => (
-              <tr key={c.id}>
+              <tr key={c.id} {...caseCopy.getRowProps(c)}>
                 <td className="mono">{c.case_no || c.id}</td><td className="mono">{c.contract_no}</td>
                 <td>{c.title}</td><td>{c.reported_by || '—'}</td>
                 <td>{fmtDate(c.reported_date)}</td><td>{fmtDate(c.resolved_date)}</td>
@@ -117,6 +128,8 @@ export default function WarrantyReportPage() {
           </tbody>
         </table>
       </div>
+      {contractCopy.copyMenu}
+      {caseCopy.copyMenu}
     </div>
   )
 }
