@@ -1,7 +1,7 @@
 import { pool } from '../db.js'
 import {
   loadContractsAsOf, loadReceivablesAsOf, loadPayablesAsOf,
-  loadInvoicedByContractAsOf, revenueOfYearAsOf,
+  loadInvoicedByContractAsOf, revenueOfYearAsOf, loadProgressByContractAsOf,
 } from './reportLoaders.asof.js'
 
 // Bộ nạp dữ liệu + helper dùng chung cho các báo cáo tài chính (kế toán). Tính trên
@@ -49,7 +49,9 @@ export async function loadReceivables(db = pool, { asOf, pit } = {}) {
 }
 
 // Map(contract_out_id(string) → progressRows[] đã sort) để dựng bbDateMap.
-export async function loadProgressByContract(db = pool) {
+// asOf+pit (tùy chọn): dựng tiến độ biên bản đúng phiên bản tại asOf từ record_history.
+export async function loadProgressByContract(db = pool, { asOf, pit } = {}) {
+  if (pit && asOf) return loadProgressByContractAsOf(asOf, db)
   const { rows } = await db.query(`
     SELECT contract_out_id, id, bb_type_id, planned_date, actual_date, offset_days, base_bb_type_id, base_anchor
       FROM contract_out_progress ORDER BY contract_out_id, sort_order, id`)

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../../config/api'
-import { fmtMoney, fmtDate, TIER_CLASS, endOfThisMonth, exportTable } from './reportUtils'
+import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable } from './reportUtils'
+import ReportPeriodField from './ReportPeriodField.jsx'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import './Accounting.css'
 
@@ -14,7 +15,7 @@ function buildCopyText(r) {
 
 // #3 / #4 — Công nợ phải thu KH (theo kế hoạch gốc hoặc tiến độ thực).
 export default function ReceivablesReportPage() {
-  const [to, setTo]       = useState(endOfThisMonth)
+  const [to, setTo]       = useState(todayLocal)
   const [basis, setBasis] = useState('actual')
   const [rows, setRows]   = useState([])
   const [loading, setLoading] = useState(true)
@@ -23,9 +24,10 @@ export default function ReceivablesReportPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      // asOf = to: chốt số liệu ĐÚNG tại ngày báo cáo (đã thu/giá trị HĐ/quá hạn tính tới ngày đó),
-      // dựng lại từ record_history thay vì giá trị live. to vẫn lọc khoản đáo hạn ≤ ngày đó.
-      const res = await fetch(`${API}/api/reports/receivables?to=${to}&asOf=${to}&basis=${basis}`)
+      // Chỉ gửi asOf (≤ hôm nay): chốt số liệu ĐÚNG tại ngày báo cáo (đã thu/giá trị HĐ/
+      // quá hạn tính tới ngày đó), dựng lại từ record_history. Backend tự lấy cận lọc
+      // to = cuối tháng của asOf → vẫn liệt kê đủ khoản đáo hạn trong tháng đó.
+      const res = await fetch(`${API}/api/reports/receivables?asOf=${to}&basis=${basis}`)
       const data = await res.json()
       setRows(Array.isArray(data.rows) ? data.rows : [])
     } catch (e) { console.error('receivables report:', e) }
@@ -50,8 +52,7 @@ export default function ReceivablesReportPage() {
   return (
     <div className="acc-report">
       <div className="acc-report-toolbar">
-        <label className="acc-field"><span>Kỳ báo cáo đến ngày</span>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <ReportPeriodField value={to} onChange={setTo} />
         <div className="acc-seg">
           <button className={basis === 'actual' ? 'active' : ''} onClick={() => setBasis('actual')}>Theo tiến độ thực</button>
           <button className={basis === 'plan' ? 'active' : ''} onClick={() => setBasis('plan')}>Theo kế hoạch gốc</button>

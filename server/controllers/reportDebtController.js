@@ -35,12 +35,17 @@ export async function getReceivablesReport(req, res) {
     const to    = validDate(req.query.to) || lastDayOfMonth(asOf)
     const from  = validDate(req.query.from) || null
     const basis = req.query.basis === 'plan' ? 'plan' : 'actual'
-    const today = asOf
+    // Quá hạn luôn neo theo NGÀY HIỆN TẠI, không vượt quá hôm nay: báo cáo "đến cuối
+    // tháng" vẫn liệt kê khoản đáo hạn trong kỳ (effective_due ≤ to), nhưng chỉ đánh
+    // dấu quá hạn khi đã trễ so với hôm nay — asOf tương lai không được tính trước.
+    // asOf quá khứ (xem lại lịch sử) giữ nguyên để quá hạn đúng tại thời điểm đó.
+    const realToday = vnToday()
+    const overdueAsOf = asOf < realToday ? asOf : realToday
 
     const [recv, prog, payByContract] = await Promise.all([
-      loadReceivables(undefined, { asOf, pit }), loadProgressByContract(), loadPaymentsByContract(undefined, { asOf }),
+      loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit }), loadPaymentsByContract(undefined, { asOf }),
     ])
-    const computed = computeReceivableDues(recv, prog, basis, today)
+    const computed = computeReceivableDues(recv, prog, basis, overdueAsOf)
     const payDate = latestPaymentByReceivable(payByContract)
 
     const rows = computed
@@ -83,7 +88,11 @@ export async function getPayablesReport(req, res) {
     const pit  = !!explicitAsOf
     const to   = validDate(req.query.to) || lastDayOfMonth(asOf)
     const from = validDate(req.query.from) || null
-    const today = asOf
+    // Quá hạn neo theo NGÀY HIỆN TẠI, không vượt quá hôm nay (như phải thu): báo cáo
+    // "đến cuối tháng" vẫn liệt kê đợt đáo hạn ≤ to, nhưng chỉ đánh dấu quá hạn khi đã
+    // trễ so với hôm nay. asOf quá khứ giữ nguyên để quá hạn đúng tại thời điểm đó.
+    const realToday = vnToday()
+    const today = asOf < realToday ? asOf : realToday
 
     const [payables, payByCI] = await Promise.all([loadPayables(undefined, { asOf, pit }), loadPaymentsByContractIn(undefined, { asOf })])
 
@@ -189,7 +198,7 @@ async function computeContractDebt(range = {}) {
   const pit = !!asOf      // asOf rõ ràng → dựng số liệu tại thời điểm quá khứ từ record_history
   const today = asOf || vnToday()
   const [recv, prog, payByContract, contracts, invoicedByContract] = await Promise.all([
-    loadReceivables(undefined, { asOf, pit }), loadProgressByContract(), loadPaymentsByContract(undefined, { asOf }),
+    loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit }), loadPaymentsByContract(undefined, { asOf }),
     loadContracts(undefined, { ...range, pit }), loadInvoicedByContract(undefined, { asOf, pit }),
   ])
   const computed = computeReceivableDues(recv, prog, 'actual', today)

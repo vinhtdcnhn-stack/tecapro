@@ -91,6 +91,28 @@ export async function loadReceivablesAsOf({ asOf } = {}, db = pool) {
   return out
 }
 
+// Tương đương loadProgressByContract(...) nhưng tại asOf: Map(contract_out_id(string)
+// → progressRows[] đã sort theo sort_order,id) dựng từ snapshot contract_out_progress,
+// để hạn thu neo-theo-mốc-biên-bản tính đúng phiên bản tiến độ tại thời điểm asOf.
+// Loại mốc tạo-sau-asOf / đã xóa tại asOf (không có trong snapshot).
+export async function loadProgressByContractAsOf(asOf, db = pool) {
+  const snap = await asOfSnapshot('contract_out_progress', asOf, db)
+  const map = new Map()
+  for (const [id, r] of snap) {
+    const k = String(r.contract_out_id)
+    if (!map.has(k)) map.set(k, [])
+    map.get(k).push({
+      contract_out_id: r.contract_out_id, id: Number(id), bb_type_id: r.bb_type_id,
+      planned_date: r.planned_date, actual_date: r.actual_date, offset_days: r.offset_days,
+      base_bb_type_id: r.base_bb_type_id, base_anchor: r.base_anchor, sort_order: r.sort_order,
+    })
+  }
+  for (const rows of map.values()) {
+    rows.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.id - b.id))
+  }
+  return map
+}
+
 // Tương đương loadPayables(...) nhưng tại asOf. Ngữ cảnh HĐ nhập + NCC lấy live.
 export async function loadPayablesAsOf(asOf, db = pool) {
   const [snap, { rows: ciRows }] = await Promise.all([

@@ -19,7 +19,7 @@ export async function getOverdueReceivables(req, res) {
     const pit   = !!explicitAsOf
     const basis = req.query.basis === 'plan' ? 'plan' : 'actual'
 
-    const [receivables, progressByContract] = await Promise.all([loadReceivables(undefined, { asOf, pit }), loadProgressByContract()])
+    const [receivables, progressByContract] = await Promise.all([loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit })])
     const computed = computeReceivableDues(receivables, progressByContract, basis, asOf)
 
     const rows = computed
@@ -98,7 +98,7 @@ export async function getCashflowSummary(req, res) {
     const eom  = lastDayOfMonth(asOf)
     const year = asOf.slice(0, 4)
 
-    const [receivables, progressByContract] = await Promise.all([loadReceivables(undefined, { asOf, pit }), loadProgressByContract()])
+    const [receivables, progressByContract] = await Promise.all([loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit })])
     const computed = computeReceivableDues(receivables, progressByContract, 'actual', asOf)
 
     let expectedReceiptMonth = 0, overdueTotal = 0, overdueCount = 0
