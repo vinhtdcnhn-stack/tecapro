@@ -104,6 +104,10 @@ export default function TrackingTable({
                 const di = dueInfo(it.due_date)
                 const remind = effRemind(it)
                 const reminding = remind && remind <= today
+                // Màu chữ hạn theo trạng thái: quá hạn → đỏ; còn hạn mà đang nhắc
+                // (chuông) → vàng; còn lại → xanh dương nhạt.
+                const overdue = di.days != null && di.days <= 0
+                const dueCls = overdue ? 'due-overdue' : reminding ? 'due-soon' : 'due-normal'
                 return (
                   <tr key={`${it.source_type}:${it.source_id}`} className={it.pinned ? 'pm-row-pinned' : ''}>
                     <td className="pm-col-contract">
@@ -119,7 +123,7 @@ export default function TrackingTable({
                         <span className="pm-item-title">{it.title}</span>
                       </div>
                       <div className="pm-item-meta">
-                        <span className={`pm-due ${di.cls}`}>{isoToDisplay(it.due_date) || '—'} · {di.label}</span>
+                        <span className={`pm-due ${dueCls}`}>{isoToDisplay(it.due_date) || '—'} · {di.label}</span>
                         {it.sub && <span className="pm-sub">· {it.sub}</span>}
                       </div>
                     </td>

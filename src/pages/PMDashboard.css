@@ -89,9 +89,9 @@
 .side-in  { color: #475569; background: #e2e8f0; }
 
 .pm-due { font-weight: 600; }
-.due-overdue { color: #b91c1c; }
-.due-soon    { color: #b45309; }
-.due-normal  { color: #6b7280; }
+.due-overdue { color: #b91c1c; } /* quá hạn → đỏ */
+.due-soon    { color: #ca8a04; } /* còn hạn + đang nhắc (chuông) → vàng */
+.due-normal  { color: #3b82f6; } /* còn lại → xanh dương nhạt */
 
 .pm-actions { display: flex; align-items: center; gap: 6px; }
 .pm-pin {
