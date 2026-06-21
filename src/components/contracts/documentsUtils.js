@@ -33,6 +33,13 @@ export function formatDate(dateStr) {
   return new Date(dateStr).toLocaleString('vi-VN')
 }
 
+// .docx (OpenXML) — mammoth chỉ đọc được .docx, KHÔNG đọc .doc nhị phân cũ.
+export function isDocx(file) {
+  if (!file) return false
+  if (file.mime_type?.includes('wordprocessingml')) return true
+  return /\.docx$/i.test(file.file_name || '')
+}
+
 export function getFileIcon(mimeType = '') {
   if (mimeType.includes('pdf')) return { emoji: '📄', color: '#dc2626' }
   if (mimeType.includes('word')) return { emoji: '📝', color: '#2563eb' }

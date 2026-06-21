@@ -208,8 +208,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
       })
     } else {
       setSelectedFiles(new Set([file.id]))
-      const canPreview = file.mime_type?.includes('pdf') || file.mime_type?.includes('image')
-      setPreviewFile(canPreview ? file : null)
+      setPreviewFile(file)
     }
   }
 
