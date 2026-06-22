@@ -1,6 +1,7 @@
 import { fmtCompact, fmtFull, groupByStatus, debtStatusBadge } from '../execUtils.js'
 import { fmtMoney } from '../../accounting/reportUtils.js'
 import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../../components/common/deepLink'
 
 // Text dán chat: hợp đồng theo giá trị.
 function buildCopyText(r) {
@@ -14,7 +15,8 @@ export default function PortfolioDetail({ contracts = [], byContract, onOpenCont
   const groups = groupByStatus(contracts)
   const rows = [...(byContract?.rows || [])].sort(
     (a, b) => (parseFloat(b.value_vnd) || 0) - (parseFloat(a.value_vnd) || 0))
-  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng')
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng',
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-info' }))
 
   return (
     <div className="exec-detail">

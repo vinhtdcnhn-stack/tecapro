@@ -3,6 +3,7 @@ import { API } from '../../../config/api.js'
 import { fmtFull } from '../execUtils.js'
 import { fmtMoney, fmtDate, endOfThisMonth } from '../../accounting/reportUtils.js'
 import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../../components/common/deepLink'
 
 // Text dán chat: khoản phải thu / phải trả đến hạn trong tháng.
 const buildRecvText = (r) => {
@@ -48,8 +49,10 @@ export default function CashflowMonthDetail({ asOf = null, onOpenContract }) {
 
   const recvTotal = recv.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
   const payTotal = pay.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
-  const recvCopy = useCopyMenu(buildRecvText, (r) => r.description || r.contract_no || 'Khoản phải thu')
-  const payCopy = useCopyMenu(buildPayText, (r) => r.description || r.contract_no || 'Khoản phải trả')
+  const recvCopy = useCopyMenu(buildRecvText, (r) => r.description || r.contract_no || 'Khoản phải thu',
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
+  const payCopy = useCopyMenu(buildPayText, (r) => r.description || r.contract_no || 'Khoản phải trả',
+    (r) => contractPath(r.contract_out_id, { tab: 'purchase-contract-info', inId: r.contract_in_id }))
 
   if (loading) return <p className="dash-empty">Đang tải dự kiến thu/chi tháng...</p>
 

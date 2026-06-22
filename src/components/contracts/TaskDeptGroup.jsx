@@ -10,7 +10,7 @@ import {
 
 export default function DeptGroup({
   group, flat = false, childrenByParent, visible, collapsed, onToggle,
-  collapsedTask, onToggleTask, canWriteRow, canAddSub, canReorderRow,
+  collapsedTask, onToggleTask, highlightId, canWriteRow, canAddSub, canReorderRow,
   onEdit, onDelete, onStatusChange, onAddSub, onReorder, onTaskContextMenu,
 }) {
   const [dragId, setDragId] = useState(null)
@@ -87,6 +87,7 @@ export default function DeptGroup({
                   hasChildren={hasChildren}
                   collapsed={!!collapsedTask[task.id]}
                   onToggle={() => onToggleTask(task.id)}
+                  highlight={String(task.id) === String(highlightId)}
                   canWrite={canWriteRow(task)}
                   canAddSub={canAddSub(task)}
                   canReorder={canReorderRow(task)}
@@ -114,7 +115,7 @@ export default function DeptGroup({
 // ── Task row ─────────────────────────────────────────────────────────────────
 
 function TaskRow({
-  idx, task, depth, hasChildren, collapsed, onToggle, canWrite, canAddSub, onEdit, onDelete, onAddSub, onStatusChange,
+  idx, task, depth, hasChildren, collapsed, onToggle, highlight, canWrite, canAddSub, onEdit, onDelete, onAddSub, onStatusChange,
   canReorder, dragging, dragOver, onDragStart, onDragEnd, onDragOver, onDrop, onContextMenu,
 }) {
   const overdue  = isOverdue(task)
@@ -131,10 +132,11 @@ function TaskRow({
     task.status === 'Hoàn thành' ? 'task-row--done' : '',
     dragging ? 'task-row--dragging' : '',
     dragOver ? 'task-row--dragover' : '',
+    highlight ? 'task-row--highlight' : '',
   ].filter(Boolean).join(' ')
 
   return (
-    <tr className={rowClass}
+    <tr id={`task-row-${task.id}`} className={rowClass}
       onContextMenu={onContextMenu}
       {...longPress}
       onDragOver={canReorder ? onDragOver : undefined}

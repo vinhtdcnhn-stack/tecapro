@@ -1,6 +1,7 @@
 import { fmtFull } from '../execUtils.js'
 import { fmtMoney, fmtDate } from '../../accounting/reportUtils.js'
 import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../../components/common/deepLink'
 
 // Text dán chat: giá trị đã xuất hóa đơn theo hợp đồng.
 function buildCopyText(r) {
@@ -15,7 +16,8 @@ export default function RevenueDetail({ cashflow, byContract, onOpenContract }) 
     .filter(r => (parseFloat(r.invoiced_vnd) || 0) > 0)
     .sort((a, b) => (parseFloat(b.invoiced_vnd) || 0) - (parseFloat(a.invoiced_vnd) || 0))
   const year = cashflow?.year || new Date().getFullYear()
-  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng')
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng',
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-invoice' }))
 
   return (
     <div className="exec-detail">

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { API } from '../../config/api'
+import { parseDeepLink } from '../../components/common/deepLink'
 import { getBrand } from '../../config/brand'
 import fallbackLogo from '../../assets/tecapro-logo.png'
 
@@ -26,7 +27,10 @@ export default function Header({ onChangePassword }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState(null)
   const [inboxCount, setInboxCount] = useState(0)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchText, setSearchText] = useState('')
   const navRef = useRef(null)
+  const searchRef = useRef(null)
 
   // Số đơn đang chờ chính mình duyệt (badge trên menu "Đề xuất").
   // Tải khi đăng nhập / đổi trang, và tự làm mới mỗi 60 giây.
@@ -51,6 +55,16 @@ export default function Header({ onChangePassword }) {
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [openDropdown])
+
+  // Đóng ô tra cứu công việc khi bấm ra ngoài hoặc nhấn Esc.
+  useEffect(() => {
+    if (!searchOpen) return
+    const onDocClick = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setSearchOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setSearchOpen(false) }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDocClick); document.removeEventListener('keydown', onKey) }
+  }, [searchOpen])
 
   // "Hợp đồng bán" chỉ hiện cho admin hoặc người đang tham gia ít nhất một dự án.
   const canSeeContracts = !!user && (Number(user.role) === 1 || user.has_projects)
@@ -83,6 +97,20 @@ export default function Header({ onChangePassword }) {
     setMobileMenuOpen(false)
     logout()
     navigate('/')
+  }
+
+  // Dán đường dẫn (đã sao chép từ menu "Sao chép thông tin") → nhảy đúng vị trí.
+  function handleTaskSearch(e) {
+    e?.preventDefault()
+    const path = parseDeepLink(searchText)
+    if (!path) {
+      alert('Không nhận dạng được đường dẫn. Hãy dán đúng đoạn đã sao chép (có dòng 🔗).')
+      return
+    }
+    setSearchOpen(false)
+    setSearchText('')
+    setMobileMenuOpen(false)
+    navigate(path)
   }
 
   return (
@@ -162,6 +190,34 @@ export default function Header({ onChangePassword }) {
               <button type="button" className="topbar-btn" onClick={handleLogout}>
                 Đăng xuất
               </button>
+              <div className="topbar-search" ref={searchRef}>
+                <button
+                  type="button"
+                  className="topbar-btn topbar-icon-btn"
+                  title="Tra cứu: dán đường dẫn đã sao chép để nhảy tới đúng vị trí (việc, công nợ, bảo hành...)"
+                  aria-label="Tra cứu theo đường dẫn đã sao chép"
+                  aria-expanded={searchOpen}
+                  onClick={() => setSearchOpen(o => !o)}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.3-4.3"></path>
+                  </svg>
+                </button>
+                {searchOpen && (
+                  <form className="topbar-search-pop" onSubmit={handleTaskSearch}>
+                    <input
+                      type="text"
+                      autoFocus
+                      value={searchText}
+                      onChange={e => setSearchText(e.target.value)}
+                      placeholder="Dán đường dẫn đã sao chép..."
+                      aria-label="Đường dẫn đã sao chép"
+                    />
+                    <button type="submit" className="topbar-search-go">Đi tới</button>
+                  </form>
+                )}
+              </div>
             </>
           ) : (
             <button

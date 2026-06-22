@@ -2,6 +2,7 @@ import { useState, useEffect, Fragment } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../components/common/deepLink'
 import './Accounting.css'
 
 const ST_CLASS = { 'Còn hiệu lực': 'st-in', 'Sắp hết hạn': 'st-warn', 'Hết hiệu lực': 'st-over' }
@@ -27,8 +28,9 @@ export default function WarrantyReportPage() {
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)
   const goContract = useContractNav()
-  const contractCopy = useCopyMenu(buildContractText, (c) => c.contract_no || 'Hợp đồng')
-  const caseCopy = useCopyMenu(buildCaseText, (c) => c.title || c.case_no || 'Yêu cầu BH')
+  const warrantyLink = (c) => contractPath(c.contract_out_id, { tab: 'contract-warranty' })
+  const contractCopy = useCopyMenu(buildContractText, (c) => c.contract_no || 'Hợp đồng', warrantyLink)
+  const caseCopy = useCopyMenu(buildCaseText, (c) => c.title || c.case_no || 'Yêu cầu BH', warrantyLink)
 
   useEffect(() => {
     let alive = true

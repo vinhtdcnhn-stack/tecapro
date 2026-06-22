@@ -13,6 +13,7 @@ export default function QldaDetailPage() {
           initialMenu={params.get('tab') || null}
           initialInId={params.get('inId') ? Number(params.get('inId')) : null}
           initialInTab={params.get('inTab') || null}
+          initialTaskId={params.get('taskId') || null}
         />
       </div>
     </main>

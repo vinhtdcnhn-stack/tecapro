@@ -1,6 +1,7 @@
 import { fmtFull, debtStatusBadge } from '../execUtils.js'
 import { fmtMoney, fmtDate } from '../../accounting/reportUtils.js'
 import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../../components/common/deepLink'
 
 // Text dán chat: công nợ theo chủ đầu tư / theo hợp đồng.
 const buildCustText = (r) =>
@@ -20,8 +21,9 @@ export default function OutstandingDetail({ byCustomer, byContract, onOpenContra
     .filter(r => (parseFloat(r.outstanding_vnd) || 0) > 0)
     .sort((a, b) => (parseFloat(b.outstanding_vnd) || 0) - (parseFloat(a.outstanding_vnd) || 0))
   const t = byCustomer?.totals || {}
-  const cust = useCopyMenu(buildCustText, (r) => r.customer_name || 'Chủ đầu tư')
-  const con = useCopyMenu(buildConText, (r) => r.contract_no || r.customer_name || 'Hợp đồng')
+  const cust = useCopyMenu(buildCustText, (r) => r.customer_name || 'Chủ đầu tư')  // mức KH: không gắn 1 HĐ → không có link
+  const con = useCopyMenu(buildConText, (r) => r.contract_no || r.customer_name || 'Hợp đồng',
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
 
   return (
     <div className="exec-detail">

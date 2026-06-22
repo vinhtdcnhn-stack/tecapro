@@ -1,5 +1,6 @@
 import { fmtDate } from '../../accounting/reportUtils.js'
 import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../../components/common/deepLink'
 
 // Nhóm số ngày trễ → class tô màu (tái dùng thang nhóm nợ).
 const tierOf = (d) => d <= 7 ? 'tier-1' : d <= 15 ? 'tier-2' : d <= 30 ? 'tier-3' : 'tier-4'
@@ -18,7 +19,8 @@ function buildCopyText(r) {
 // Chi tiết thẻ "Công việc quá hạn": bảng task quá hạn toàn hệ thống.
 export default function OverdueTasksDetail({ overdueTasks, onOpenContract }) {
   const rows = overdueTasks?.rows || []
-  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText)
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, undefined,
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-tasks', taskId: r.id }))
 
   return (
     <div className="exec-detail">

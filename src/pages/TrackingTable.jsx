@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import DateInput, { isoToDisplay } from '../components/contracts/DateInput'
 import TaskContextMenu from '../components/contracts/TaskContextMenu'
 import { copyToClipboard } from '../components/contracts/taskUtils'
+import { absUrl } from '../components/common/deepLink'
 import { useRowLongPress } from '../components/contracts/useLongPress'
 import {
   WINDOW_DAYS, todayISO, daysBetween, effRemind, KIND_META, targetUrl, dueInfo,
 } from './trackingUtils'
 
-// Đoạn text "đường dẫn" để dán vào chat hỏi tình trạng mốc/việc.
+// Đoạn text "đường dẫn" để dán vào chat hỏi tình trạng mốc/việc. Kèm dòng 🔗 (nếu mốc gắn
+// được vị trí) để người nhận dán vào ô tra cứu trên thanh tiêu đề và nhảy thẳng tới đó.
 function buildItemCopyText(it) {
   if (!it) return ''
   const crumbs = []
@@ -17,7 +19,9 @@ function buildItemCopyText(it) {
   crumbs.push(it.title)
   const di = dueInfo(it.due_date)
   const due = it.due_date ? ` — Hạn: ${isoToDisplay(it.due_date)} (${di.label})` : ''
-  return `📌 ${crumbs.join(' › ')}${due}`
+  const text = `📌 ${crumbs.join(' › ')}${due}`
+  const path = targetUrl(it)
+  return path ? `${text}\n🔗 ${absUrl(path)}` : text
 }
 
 // Bảng theo dõi mốc thời hạn / công việc + ghim/nhắc (chuông). Dùng chung cho

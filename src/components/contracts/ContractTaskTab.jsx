@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import './ContractTaskTab.css'
 
 import { API } from '../../config/api'
@@ -13,7 +13,7 @@ import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function ContractTaskTab({ contractId, currentUser, contract = null }) {
+export default function ContractTaskTab({ contractId, currentUser, contract = null, initialTaskId = null }) {
   const [tasks, setTasks]         = useState([])
   const [loading, setLoading]     = useState(true)
   const [departments, setDepts]   = useState([])
@@ -29,6 +29,8 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   const [collapsedTask, setCollapsedTask] = useState({}) // task.id → bool (thu/mở việc con)
   const [ctxMenu, setCtxMenu]     = useState(null)  // { x, y, task } | null — menu chuột phải
   const [transferTask, setTransferTask] = useState(null)  // ≠ null = đang mở hộp thoại chuyển việc
+  const [highlightId, setHighlightId] = useState(null)  // id việc cần làm nổi bật khi đến từ đường dẫn
+  const jumpedFor = useRef(null)  // id đã nhảy tới (tránh nhảy lặp lại mỗi lần render)
   const canEdit = useCanEdit()
 
   // ── Load data ───────────────────────────────────────────────────────────────
@@ -51,6 +53,48 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
   useEffect(() => { load() }, [load])
+
+  // ── Đến từ đường dẫn đã sao chép: nhảy tới & làm nổi bật đúng công việc ─────────
+  // Mở các việc cha (kể cả nhánh "chuyển việc" mặc định thu), bỏ lọc, về chế độ Danh
+  // sách, rồi cuộn tới dòng việc. jumpedFor tránh nhảy lặp; đổi taskId → nhảy lại.
+  useEffect(() => {
+    if (!initialTaskId || loading || !tasks.length) return
+    if (jumpedFor.current === String(initialTaskId)) return
+    const target = tasks.find(t => String(t.id) === String(initialTaskId))
+    if (!target) return
+    jumpedFor.current = String(initialTaskId)
+
+    // Mở toàn bộ chuỗi việc cha để dòng việc hiển thị.
+    const taskById = new Map(tasks.map(t => [String(t.id), t]))
+    const openAncestors = {}
+    const seen = new Set()
+    let cur = target
+    while (cur?.parent_task_id != null && !seen.has(String(cur.id))) {
+      seen.add(String(cur.id))
+      openAncestors[String(cur.parent_task_id)] = false
+      cur = taskById.get(String(cur.parent_task_id))
+    }
+    /* eslint-disable react-hooks/set-state-in-effect -- áp trạng thái điều hướng một lần khi đến từ đường dẫn */
+    setCollapsedTask(prev => ({ ...prev, ...openAncestors }))
+    setFilter('all')
+    setView('list')
+    setHighlightId(String(target.id))
+    /* eslint-enable react-hooks/set-state-in-effect */
+
+    // Cuộn sau khi cây đã render lại (đợi mở nhánh + đổi chế độ).
+    const timer = setTimeout(() => {
+      document.getElementById(`task-row-${target.id}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 120)
+    return () => clearTimeout(timer)
+  }, [initialTaskId, loading, tasks])
+
+  // Tự tắt làm nổi bật sau vài giây.
+  useEffect(() => {
+    if (!highlightId) return
+    const t = setTimeout(() => setHighlightId(null), 3500)
+    return () => clearTimeout(t)
+  }, [highlightId])
 
   // ── Cây công việc + bộ lọc (giữ tổ tiên để cây liền mạch) ────────────────────
   const { roots, childrenByParent, byId } = buildTaskTree(tasks)
@@ -378,6 +422,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           onToggle={() => toggleCollapse(group.key)}
           collapsedTask={effectiveCollapsedTask}
           onToggleTask={toggleTask}
+          highlightId={highlightId}
           canWriteRow={canWriteRow}
           canAddSub={canAddSub}
           canReorderRow={canReorderRow}

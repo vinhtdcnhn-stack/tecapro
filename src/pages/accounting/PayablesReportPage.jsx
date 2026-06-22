@@ -3,6 +3,7 @@ import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable, useContractNav } from './reportUtils'
 import ReportPeriodField from './ReportPeriodField.jsx'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../components/common/deepLink'
 import './Accounting.css'
 
 // Text dán chat: một khoản công nợ phải trả NCC.
@@ -18,7 +19,8 @@ export default function PayablesReportPage() {
   const [to, setTo]     = useState(todayLocal)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
-  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải trả')
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải trả',
+    (r) => contractPath(r.contract_out_id, { tab: 'purchase-contract-info', inId: r.contract_in_id, inTab: 'payment' }))
   const goContract = useContractNav()
 
   const load = useCallback(async () => {

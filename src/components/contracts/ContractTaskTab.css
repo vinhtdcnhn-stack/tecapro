@@ -124,6 +124,14 @@
 .task-row--warning  { background: #fffbeb !important; }
 .task-row--done     { opacity: .65; }
 
+/* Làm nổi bật việc khi đến từ đường dẫn đã sao chép (tự tắt sau vài giây) */
+.task-row--highlight { animation: task-row-flash 3.5s ease-out; }
+.task-row--highlight td:first-child { box-shadow: inset 3px 0 0 #16a34a; }
+@keyframes task-row-flash {
+  0%, 30%  { background: #dcfce7 !important; }
+  100%     { background: transparent; }
+}
+
 /* ── Cell styles ─────────────────────────────────────────────────────────*/
 .task-title-cell { display: flex; flex-direction: column; gap: 2px; max-width: 300px; }
 .task-title      { font-weight: 600; color: #111827; line-height: 1.3; }

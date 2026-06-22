@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../components/common/deepLink'
 import './Accounting.css'
 
 const STATUS_CLASS = { 'Quá hạn': 'st-over', 'Trong hạn': 'st-in', 'Đã thanh toán': 'st-paid' }
@@ -31,8 +32,9 @@ export default function DebtSummaryPage() {
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)   // customer_id đang mở
   const goContract = useContractNav()
-  const custCopy = useCopyMenu(buildCustText, (c) => c.customer_name || 'Khách hàng')
-  const conCopy = useCopyMenu(buildConText, (k) => k.contract_no || k.project_name || 'Hợp đồng')
+  const custCopy = useCopyMenu(buildCustText, (c) => c.customer_name || 'Khách hàng')  // mức KH: không gắn 1 HĐ → không có link
+  const conCopy = useCopyMenu(buildConText, (k) => k.contract_no || k.project_name || 'Hợp đồng',
+    (k) => contractPath(k.contract_out_id, { tab: 'contract-debt' }))
 
   useEffect(() => {
     let alive = true

@@ -14,7 +14,7 @@ import ContractWarrantyTab from '../components/contracts/ContractWarrantyTab'
 import ContractInTab from '../components/contracts/ContractInTab'
 import { ContractPermProvider, useCanEdit } from '../context/ContractPermContext'
 
-export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab }) {
+export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab, initialTaskId }) {
   const contractId = selectedContractId // dẫn xuất thẳng từ prop (trước đây mirror qua state + setContractId)
   const [contract, setContract] = useState(null)
   const [activeMenu, setActiveMenu] = useState(initialMenu || 'contract-info')
@@ -84,11 +84,12 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
     loadContract()
   }, [selectedContractId])
 
-  // Khi đến từ deep-link (dashboard), nhảy thẳng tới đúng menu được yêu cầu.
+  // Khi đến từ deep-link (dashboard / ô tra cứu công việc), nhảy thẳng tới đúng menu.
+  // initialTaskId vào deps để dán đường dẫn việc mới (cùng HĐ) vẫn ép về tab Công việc.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- áp menu theo deep-link khi mở/đổi hợp đồng
     if (initialMenu) setActiveMenu(initialMenu)
-  }, [initialMenu, selectedContractId])
+  }, [initialMenu, selectedContractId, initialTaskId])
 
   const renderContent = () => {
     switch (activeMenu) {
@@ -109,7 +110,7 @@ case 'contract-debt':
       case 'contract-guarantee':
         return <ContractGuaranteeTab contractId={contractId} />
       case 'contract-tasks':
-        return <ContractTaskTab contractId={contractId} currentUser={currentUser} contract={contract} />
+        return <ContractTaskTab contractId={contractId} currentUser={currentUser} contract={contract} initialTaskId={initialTaskId} />
       case 'purchase-contract-info':
         return <ContractInTab contractId={contractId} initialContractInId={initialInId} initialTab={initialInTab} currentUser={currentUser} contract={contract} />
 default:

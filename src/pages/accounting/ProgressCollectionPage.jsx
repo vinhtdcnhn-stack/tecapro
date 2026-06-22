@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../components/common/deepLink'
 import './Accounting.css'
 
 const CAT_CLASS = {
@@ -20,7 +21,8 @@ function buildCopyText(r) {
 export default function ProgressCollectionPage() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
-  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng')
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng',
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
   const goContract = useContractNav()
 
   useEffect(() => {

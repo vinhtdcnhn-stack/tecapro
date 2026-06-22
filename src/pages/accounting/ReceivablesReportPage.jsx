@@ -3,6 +3,7 @@ import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable, useContractNav } from './reportUtils'
 import ReportPeriodField from './ReportPeriodField.jsx'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../components/common/deepLink'
 import './Accounting.css'
 
 // Text dán chat: một khoản công nợ phải thu.
@@ -19,7 +20,8 @@ export default function ReceivablesReportPage() {
   const [basis, setBasis] = useState('actual')
   const [rows, setRows]   = useState([])
   const [loading, setLoading] = useState(true)
-  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải thu')
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải thu',
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
   const goContract = useContractNav()
 
   const load = useCallback(async () => {

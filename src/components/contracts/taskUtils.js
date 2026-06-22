@@ -47,7 +47,14 @@ export function buildTaskCopyText(task, contract = null) {
   if (contract?.project_name) crumbs.push(contract.project_name)
   if (task.parent_task_title) crumbs.push(task.parent_task_title)
   crumbs.push(task.title)
-  return `📌 ${crumbs.join(' › ')}`
+  const lines = [`📌 ${crumbs.join(' › ')}`]
+  // Đường dẫn điều hướng: dán vào ô tra cứu trên thanh tiêu đề để nhảy đúng việc.
+  const cid = contract?.id ?? task.contract_out_id ?? task.contract_id
+  if (cid != null) {
+    const origin = (typeof window !== 'undefined' && window.location?.origin) || ''
+    lines.push(`🔗 ${origin}/qlda/${cid}?tab=contract-tasks&taskId=${task.id}`)
+  }
+  return lines.join('\n')
 }
 
 // Sao chép văn bản vào clipboard (có fallback cho ngữ cảnh không bảo mật/khung fullscreen).

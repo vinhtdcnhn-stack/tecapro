@@ -3,6 +3,7 @@ import { API } from '../../../config/api.js'
 import { fmtFull } from '../execUtils.js'
 import { fmtMoney, fmtDate, TIER_CLASS } from '../../accounting/reportUtils.js'
 import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../../components/common/deepLink'
 
 // Đoạn text dán vào chat hỏi tình trạng khoản nợ quá hạn.
 function buildCopyText(r) {
@@ -18,7 +19,8 @@ function buildCopyText(r) {
 export default function OverdueDebtDetail({ asOf = null, onOpenContract }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
-  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản nợ')
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản nợ',
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
 
   useEffect(() => {
     let cancelled = false

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
+import { contractPath } from '../../components/common/deepLink'
 import './Accounting.css'
 
 const TIER_CLASS = {
@@ -27,7 +28,8 @@ export default function OverdueAlertsPage() {
   const [basis, setBasis] = useState('actual')   // 'actual' | 'plan'
   const [rows, setRows]   = useState([])
   const [loading, setLoading] = useState(true)
-  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản nợ')
+  const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản nợ',
+    (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
   const goContract = useContractNav()
 
   const load = useCallback(async () => {

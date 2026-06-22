@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import TaskContextMenu from '../contracts/TaskContextMenu'
 import { copyToClipboard } from '../contracts/taskUtils'
+import { absUrl } from './deepLink'
 import { useRowLongPress } from '../contracts/useLongPress'
 
 // ── Hook gắn menu "Sao chép thông tin" cho từng hàng bảng ──────────────────────
@@ -9,10 +10,13 @@ import { useRowLongPress } from '../contracts/useLongPress'
 //
 //   buildText(row) → đoạn văn bản chép vào clipboard.
 //   titleOf(row)   → (tùy chọn) tiêu đề hiển thị trên đầu menu; mặc định row.title.
+//   buildLink(row) → (tùy chọn) path nội bộ tới đúng vị trí của hàng (dùng contractPath
+//                    ở common/deepLink). Nếu trả path, nối thêm dòng "🔗 <URL>" vào văn
+//                    bản để người nhận dán vào ô tra cứu và nhảy thẳng tới đó.
 //
 // Trả về { getRowProps, copyMenu }: spread {...getRowProps(row)} lên <tr>, và render
 // {copyMenu} một lần sau bảng (vd ngay trước thẻ đóng của vùng chứa).
-export function useCopyMenu(buildText, titleOf) {
+export function useCopyMenu(buildText, titleOf, buildLink) {
   const [ctx, setCtx] = useState(null)   // { x, y, task } | null
 
   const open = useCallback((row, x, y) => {
@@ -31,7 +35,12 @@ export function useCopyMenu(buildText, titleOf) {
     <TaskContextMenu
       key={ctx ? `${ctx.x}-${ctx.y}` : 'closed'}
       menu={ctx}
-      onCopy={(task) => copyToClipboard(buildText(task))}
+      onCopy={(task) => {
+        let text = buildText(task)
+        const link = buildLink?.(task)
+        if (link) text += `\n🔗 ${absUrl(link)}`
+        return copyToClipboard(text)
+      }}
       onClose={() => setCtx(null)}
     />
   )
