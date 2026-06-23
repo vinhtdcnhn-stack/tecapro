@@ -34,7 +34,9 @@ export function parseDeepLink(text) {
   // 1) Dòng "🔗 <url|path>" — định dạng chuẩn app chèn vào.
   let raw = t.match(/🔗\s*(\S+)/)?.[1]
   // 2) Dán URL tuyệt đối hoặc path nội bộ trần.
-  if (!raw) raw = t.match(/https?:\/\/\S+/)?.[0] || t.match(/\/qlda\/\d+(?:\?\S*)?/)?.[0]
+  if (!raw) raw = t.match(/https?:\/\/\S+/)?.[0]
+    || t.match(/\/qlda\/\d+(?:\?\S*)?/)?.[0]
+    || t.match(/\/cong-viec\/dau-thau\/goi\/\d+(?:\?\S*)?/)?.[0]
   if (!raw) return null
   if (/^https?:\/\//i.test(raw)) {
     try { const u = new URL(raw); return u.pathname + u.search } catch { return null }

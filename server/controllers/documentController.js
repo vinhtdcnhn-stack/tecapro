@@ -70,7 +70,7 @@ export const uploadIn = multer({ storage: storageIn, limits: UPLOAD_LIMITS, file
 // document_folder.id is integer (pg → JS number)
 // document_folder.parent_id is bigint (pg → JS string)
 // Must use loose comparison to match them.
-function buildTree(folders, parentId = null) {
+export function buildTree(folders, parentId = null) {
   return folders
     .filter(f => {
       if (parentId === null) return f.parent_id === null

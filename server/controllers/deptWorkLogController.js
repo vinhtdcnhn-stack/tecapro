@@ -171,18 +171,17 @@ export async function getCapacity(req, res) {
           WHERE extract(isodow FROM d) < 6
        ),
        roster AS (
-         SELECT m.user_id, u.full_name, m.dept_role,
+         SELECT u.id AS user_id, u.full_name,
                 NULLIF(concat_ws(', ',
                   MAX(CASE WHEN p.code = 'PRESALE'  THEN 'Presale'  END),
                   MAX(CASE WHEN p.code = 'POSTSALE' THEN 'Postsale' END)
                 ), '') AS team_name
-           FROM dept_work_member m
-           JOIN app_user u ON u.id = m.user_id
-           LEFT JOIN app_user_position up ON up.user_id = m.user_id
+           FROM app_user u
+           LEFT JOIN app_user_position up ON up.user_id = u.id
            LEFT JOIN position p ON p.id = up.position_id AND p.code IN ('PRESALE', 'POSTSALE')
-          WHERE m.department_id = $3 AND m.is_active
-            AND ($5::int IS NULL OR m.user_id = $5)
-          GROUP BY m.user_id, u.full_name, m.dept_role
+          WHERE u.department_id = $3 AND u.is_active IS NOT FALSE
+            AND ($5::int IS NULL OR u.id = $5)
+          GROUP BY u.id, u.full_name
          HAVING $4::text IS NULL OR bool_or(p.code = $4)
        ),
        logs AS (
@@ -201,7 +200,7 @@ export async function getCapacity(req, res) {
           WHERE t.status = $6 AND t.completed_at::date BETWEEN $1 AND $2
           GROUP BY a.assignee_id
        )
-       SELECT r.user_id, r.full_name, r.team_name, r.dept_role,
+       SELECT r.user_id, r.full_name, r.team_name,
               COALESCE(l.total_hours, 0)::numeric AS total_hours,
               COALESCE(l.days_logged, 0)::int     AS days_logged,
               COALESCE(l.tasks_touched, 0)::int   AS tasks_touched,

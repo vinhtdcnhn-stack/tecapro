@@ -1,0 +1,198 @@
+/* Module Quản lý Đấu thầu — Ban Kế hoạch Đấu thầu. */
+
+/* ── Toolbar + bảng danh sách ───────────────────────────────────────────── */
+.tender-toolbar {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px;
+}
+.tender-toolbar-spacer { flex: 1 1 auto; }
+.tender-search { min-width: 240px; flex: 0 1 320px; }
+.tender-toolbar select, .tender-search {
+  padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;
+}
+
+.tender-table-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
+.tender-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 920px; }
+.tender-table th, .tender-table td {
+  padding: 9px 12px; text-align: left; border-bottom: 1px solid #f1f5f9; white-space: nowrap;
+}
+.tender-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+.tender-table td.num, .tender-table th.num { text-align: right; }
+.tender-row { cursor: pointer; }
+.tender-row:hover { background: #f9fafb; }
+.tender-name { font-weight: 600; color: #0f172a; white-space: normal; min-width: 220px; }
+.tender-muted { color: #94a3b8; }
+.tender-due { color: #b91c1c; font-weight: 600; }
+
+.tender-badge {
+  display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
+}
+
+/* ── Chi tiết gói thầu ───────────────────────────────────────────────────── */
+.tender-detail-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+.btn-link {
+  background: none; border: none; color: #2563eb; cursor: pointer; font-size: 13px; padding: 2px 4px;
+}
+.btn-link:hover { text-decoration: underline; }
+.btn-link.danger { color: #dc2626; }
+
+.tender-tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin: 8px 0 18px; flex-wrap: wrap; }
+.tender-tab {
+  background: none; border: none; padding: 9px 16px; cursor: pointer; font-size: 14px; font-weight: 600;
+  color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+.tender-tab.active { color: #15803d; border-bottom-color: #15803d; }
+
+/* head + tabs cố định, phần thân tab cuộn dọc trong thẻ .content-area */
+.tender-detail .tender-detail-head,
+.tender-detail .tender-tabs { flex-shrink: 0; }
+.tender-detail .tender-tab-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+
+/* ── Tab Thông tin chung ─────────────────────────────────────────────────── */
+.tender-info-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.tender-info-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; margin-bottom: 18px;
+}
+.tender-info-row { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px dashed #f1f5f9; }
+.tender-info-label { flex: 0 0 150px; color: #64748b; font-size: 13px; }
+.tender-info-value { flex: 1; font-weight: 500; color: #0f172a; }
+.tender-status-edit { display: flex; gap: 18px; padding-top: 14px; border-top: 1px solid #e5e7eb; }
+
+/* ── Form (modal) ────────────────────────────────────────────────────────── */
+/* .modal-body mặc định là lưới 2 cột (App.css) → nó dồn .tender-form-grid vào
+   nửa trái, để trống nửa phải. Trả về block để form chiếm trọn chiều rộng. */
+.tender-form-modal .modal-body { display: block; }
+.tender-form-modal .modal-header h3 {
+  margin: 0; font-size: 20px; font-weight: 700; color: #0f172a;
+}
+.tender-form-modal .modal-close {
+  border: none; background: none; cursor: pointer; font-size: 18px; line-height: 1;
+  color: #94a3b8; padding: 4px 8px; border-radius: 8px;
+}
+.tender-form-modal .modal-close:hover { background: #f1f5f9; color: #0f172a; }
+
+.tender-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 0; }
+.field > span { font-size: 13px; color: #475569; font-weight: 500; }
+.field input, .field select, .field textarea {
+  padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none; border-color: #15803d; box-shadow: 0 0 0 3px rgba(21,128,61,.12);
+}
+.field--wide { grid-column: 1 / -1; }
+
+/* Nút footer phụ (Hủy) — vốn chưa được style ở đâu */
+.tender-form-modal .btn-secondary {
+  background: #fff; border: 1px solid #d1d5db; color: #374151;
+  padding: 8px 16px; border-radius: 8px; font-weight: 500; cursor: pointer;
+}
+.tender-form-modal .btn-secondary:hover { background: #f9fafb; }
+.tender-form-modal .btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ── Checklist ───────────────────────────────────────────────────────────── */
+.tender-checklist-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.tender-progress { flex: 1; display: flex; align-items: center; gap: 10px; }
+.tender-progress-bar { flex: 1; height: 10px; background: #f1f5f9; border-radius: 999px; overflow: hidden; max-width: 360px; }
+.tender-progress-fill { height: 100%; background: #15803d; transition: width .25s; }
+.tender-progress-label { font-size: 13px; color: #475569; font-weight: 600; }
+
+.tender-ci-tree { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+.tender-ci-row {
+  display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-bottom: 1px solid #f1f5f9;
+}
+.tender-ci-row:hover { background: #f9fafb; }
+.tender-ci-toggle { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 13px; width: 16px; }
+.tender-ci-title { font-weight: 600; color: #0f172a; flex: 1 1 auto; min-width: 160px; }
+.tender-ci-files { font-size: 12px; color: #64748b; }
+.tender-ci-status { padding: 3px 8px; border-radius: 999px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; }
+.tender-ci-actions { display: flex; gap: 2px; }
+.tender-ci-detail { padding: 10px; background: #fafafa; border-bottom: 1px solid #f1f5f9; }
+.tender-ci-desc { margin: 0 0 8px; color: #475569; font-size: 13px; }
+.tender-checklist-actions { margin-left: auto; display: flex; gap: 8px; }
+.tender-tpl-desc { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Tệp đính kèm / hồ sơ ────────────────────────────────────────────────── */
+.tender-attachments-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.tender-attachments-title { font-size: 13px; font-weight: 600; color: #475569; }
+.tender-file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.tender-file-item { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 4px 0; }
+.tender-file-name { background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; font-size: 13px; text-align: left; }
+.tender-file-name:hover { text-decoration: underline; }
+.tender-file-note { font-size: 12px; font-weight: 600; color: #b45309; background: #fef3c7; border-radius: 999px; padding: 1px 8px; }
+.tender-invitation-upload { display: flex; align-items: center; gap: 8px; }
+.tender-note-input { border: 1px solid #d1d5db; border-radius: 8px; padding: 6px 10px; font-size: 13px; min-width: 220px; }
+.tender-note-input:focus { outline: none; border-color: #15803d; }
+
+/* ── Lịch sử ─────────────────────────────────────────────────────────────── */
+.tender-activity { list-style: none; margin: 0; padding: 0; }
+.tender-activity-item { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+.tender-activity-action { font-weight: 600; color: #15803d; flex: 0 0 110px; }
+.tender-activity-detail { flex: 1 1 auto; color: #0f172a; }
+.tender-activity-meta { color: #94a3b8; }
+
+/* ── Review & Versioning ─────────────────────────────────────────────────── */
+.tender-review-submit { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+.tender-review-note { flex: 1; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+.tender-version-list { display: flex; flex-direction: column; gap: 12px; }
+.tender-version { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; }
+.tender-version-head { display: flex; align-items: center; gap: 10px; }
+.tender-version-tag { font-weight: 800; color: #1d4ed8; background: #dbeafe; padding: 2px 9px; border-radius: 6px; font-size: 13px; }
+.tender-version-note { margin: 8px 0 4px; color: #475569; font-size: 13px; }
+.tender-review-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px dashed #f1f5f9; margin-top: 6px; font-size: 13px; }
+.tender-review-comment { flex: 1; color: #0f172a; }
+.tender-decide { display: flex; gap: 8px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
+.tender-decide select { padding: 7px 9px; border: 1px solid #d1d5db; border-radius: 8px; }
+.tender-decide-comment { flex: 1; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+.tender-version-done { margin: 10px 0 0; color: #15803d; font-weight: 600; font-size: 13px; }
+
+/* ── Dashboard trang chủ ─────────────────────────────────────────────────── */
+.tender-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 16px 0 22px; }
+.tender-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; text-align: center; }
+.tender-card-value { font-size: 30px; font-weight: 800; line-height: 1.1; }
+.tender-card-label { font-size: 13px; color: #64748b; margin-top: 4px; }
+.tender-dash-cols { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.tender-dash-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; }
+.tender-dash-section h3 { margin: 0 0 10px; font-size: 15px; }
+.tender-dash-list { list-style: none; margin: 0; padding: 0; }
+.tender-dash-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+.tender-dash-row:hover { background: #f9fafb; }
+.tender-dash-name { flex: 1; font-weight: 500; color: #0f172a; }
+.tender-dash-due { font-size: 12px; color: #64748b; }
+
+/* ── Báo cáo ─────────────────────────────────────────────────────────────── */
+.tender-rep-filter { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #64748b; }
+.tender-rep-filter input { padding: 6px 9px; border: 1px solid #d1d5db; border-radius: 8px; }
+.tender-rep-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.tender-rep-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; }
+.tender-rep-section h3 { margin: 0 0 10px; font-size: 15px; }
+.tender-rep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tender-rep-table th, .tender-rep-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+.tender-rep-table th { color: #64748b; font-weight: 600; }
+
+@media (max-width: 760px) {
+  .tender-info-grid, .tender-form-grid, .tender-dash-cols, .tender-rep-grid { grid-template-columns: 1fr; }
+  .tender-cards { grid-template-columns: repeat(2, 1fr); }
+  .tender-status-edit { flex-direction: column; gap: 8px; }
+}
+
+/* ── Trang "Việc đấu thầu của tôi" (người được giao ngoài Ban Đấu thầu) ─────── */
+/* Dùng lại bố cục trang chi tiết gói thầu: .content-area cuộn dọc, đầu trang (head +
+   thẻ thông tin + tabs) cố định, thân tab (trình quản lý tệp) chiếm phần còn lại. */
+.tender-error { color: #b91c1c; background: #fee2e2; border-radius: 8px; padding: 10px 12px; }
+
+.mtt .mtt-card { flex-shrink: 0; }
+.mtt-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 14px 16px; margin: 4px 0 14px;
+}
+.mtt-card-top { display: flex; align-items: flex-start; gap: 12px; }
+.mtt-card-titles { flex: 1 1 auto; min-width: 0; }
+.mtt-task-title { margin: 0 0 2px; font-size: 16px; color: #0f172a; }
+.tender-status-badge { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 11px; white-space: nowrap; }
+.mtt-desc { margin: 10px 0 0; color: #475569; font-size: 14px; white-space: pre-wrap; }
+.mtt-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 13px; color: #64748b; }
+.mtt-status-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+.mtt-status-btn { border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+.mtt-status-btn:hover:not(:disabled) { border-color: #15803d; color: #15803d; }
+.mtt-status-btn.active { background: #15803d; border-color: #15803d; color: #fff; cursor: default; }
+.mtt-status-btn:disabled:not(.active) { opacity: .55; cursor: default; }

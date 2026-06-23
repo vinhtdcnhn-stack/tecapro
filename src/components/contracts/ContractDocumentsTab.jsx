@@ -11,8 +11,10 @@ import { NewFolderModal, RenameFolderModal, DeleteFolderModal } from './Document
 import EditGuard from './EditGuard'
 import { useCanEdit } from '../../context/ContractPermContext'
 
-export default function ContractDocumentsTab({ contractId, basePath }) {
-  // basePath overrides the default "contracts/{contractId}" prefix
+export default function ContractDocumentsTab({ contractId, basePath, allowRootUpload = false }) {
+  // basePath overrides the default "contracts/{contractId}" prefix.
+  // allowRootUpload: cho phép tải tệp vào THƯ MỤC GỐC (không chọn thư mục) — dùng cho
+  // tab Hồ sơ mời thầu (Đấu thầu). Mặc định false để HĐ giữ nguyên: phải chọn thư mục.
   const resourcePath = basePath || `contracts/${contractId}`
   const [folders, setFolders] = useState([])
   const [selectedFolderId, setSelectedFolderId] = useState(null)
@@ -76,12 +78,14 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
   useEffect(() => {
     if (selectedFolderId) {
       loadFiles(selectedFolderId)
+    } else if (allowRootUpload) {
+      loadFiles('root') // gốc: tệp folder_id IS NULL
     } else {
       setFiles([])
     }
     setPreviewFile(null)
     setSelectedFiles(new Set())
-  }, [selectedFolderId, loadFiles])
+  }, [selectedFolderId, loadFiles, allowRootUpload])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const {
@@ -90,7 +94,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
     uploadFiles,
     handleUploadFile, handleUploadFolder,
     handleFileChange, handleFolderChange,
-  } = useDocumentUpload({ resourcePath, selectedFolderId, loadFolders, loadFiles })
+  } = useDocumentUpload({ resourcePath, selectedFolderId, loadFolders, loadFiles, allowRootUpload })
 
   // ── Folder tree helpers ──────────────────────────────────────────────────
 
@@ -180,9 +184,12 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
 
   // ── Drag-and-drop ────────────────────────────────────────────────────────
 
+  // Đích tải lên hợp lệ khi đã chọn thư mục, hoặc đang ở gốc nhưng cho phép tải vào gốc.
+  const canUploadHere = !!selectedFolderId || allowRootUpload
+
   const handleDragOver = (e) => {
     e.preventDefault()
-    if (canEdit && selectedFolderId) setIsDragging(true)
+    if (canEdit && canUploadHere) setIsDragging(true)
   }
 
   const handleDragLeave = (e) => {
@@ -193,7 +200,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
     e.preventDefault()
     setIsDragging(false)
     if (!canEdit) return // chỉ PM/admin được upload bằng kéo-thả
-    if (!selectedFolderId) { alert('Vui lòng chọn thư mục để upload file'); return }
+    if (!canUploadHere) { alert('Vui lòng chọn thư mục để upload file'); return }
     if (e.dataTransfer.files.length > 0) await uploadFiles(e.dataTransfer.files)
   }
 
@@ -291,7 +298,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
           <div className="documents-toolbar">
             <div className="toolbar-left">
               <EditGuard>
-                <button className="btn-toolbar btn-upload" onClick={handleUploadFile} disabled={!selectedFolderId || isUploading}>
+                <button className="btn-toolbar btn-upload" onClick={handleUploadFile} disabled={!canUploadHere || isUploading}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
                   {isUploading ? 'Đang upload...' : 'Upload'}
                 </button>
@@ -364,7 +371,7 @@ export default function ContractDocumentsTab({ contractId, basePath }) {
               </div>
             )}
 
-            {!selectedFolderId ? (
+            {!selectedFolderId && !allowRootUpload ? (
               <div className="no-folder-selected">
                 <svg width="44" height="44" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>

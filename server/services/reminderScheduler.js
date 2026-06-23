@@ -87,10 +87,34 @@ async function remindDueReceivables() {
   }
 }
 
+// Gói thầu sắp đến hạn nộp (trong 3 ngày tới, chưa có kết quả) → nhắc người làm thầu.
+async function remindTenderDeadlines() {
+  const { rows } = await pool.query(
+    `SELECT id, package_name, bid_maker_id, submit_date
+       FROM tender
+      WHERE is_deleted = false
+        AND bid_maker_id IS NOT NULL
+        AND result IS NULL
+        AND submit_date IS NOT NULL
+        AND submit_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '3 days'`,
+  )
+  const byUser = new Map()
+  const today = new Date().toISOString().slice(0, 10)
+  for (const r of rows) {
+    const overdue = String(r.submit_date).slice(0, 10) < today
+    const trang = overdue ? 'QUÁ HẠN nộp' : 'sắp đến hạn nộp'
+    pushLine(byUser, Number(r.bid_maker_id), `• Gói thầu "${r.package_name}" — ${trang} ${fmtDate(r.submit_date)}`)
+  }
+  for (const [userId, lines] of byUser) {
+    notifyAction([userId], `Gói thầu cần chú ý hạn nộp:\n${lines.join('\n')}`)
+  }
+}
+
 // Chạy 1 lượt quét nhắc hạn (có thể gọi thủ công để test).
 export async function runDailyReminders() {
   try { await remindDueTasks() } catch (err) { console.error('remindDueTasks:', err) }
   try { await remindDueReceivables() } catch (err) { console.error('remindDueReceivables:', err) }
+  try { await remindTenderDeadlines() } catch (err) { console.error('remindTenderDeadlines:', err) }
 }
 
 // Lấy thời điểm hiện tại theo giờ Việt Nam → { date:'YYYY-MM-DD', hhmm:'HH:MM', dow:1..7 }.

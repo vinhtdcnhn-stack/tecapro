@@ -1,6 +1,6 @@
 import { pool } from '../db.js'
 import { sendTelegramMessage } from './telegram.js'
-import { DEPT_KT_CO_DIEN } from '../middleware/deptWorkAccess.js'
+import { DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Thông báo Telegram cho module Quản lý công việc — KT Cơ điện.
@@ -11,16 +11,17 @@ import { DEPT_KT_CO_DIEN } from '../middleware/deptWorkAccess.js'
 export { notifyUsers } from './notify.js'
 
 // Gửi tới toàn bộ trưởng/phó phòng KT Cơ điện (dùng cho escalation / báo vấn đề).
+// Trưởng/phó xác định theo chức danh (Trưởng/Phó ban), không còn theo dept_work_member.
 export async function notifyHeads(text) {
   try {
     const { rows } = await pool.query(
-      `SELECT u.telegram_chat_id
-         FROM dept_work_member m
-         JOIN app_user u ON u.id = m.user_id
-        WHERE m.department_id = $1 AND m.is_active
-          AND m.dept_role IN ('HEAD','DEPUTY')
+      `SELECT DISTINCT u.telegram_chat_id
+         FROM app_user u
+         JOIN app_user_position ap ON ap.user_id = u.id
+        WHERE u.department_id = $1
+          AND ap.position_id = ANY($2::int[])
           AND u.telegram_chat_id IS NOT NULL`,
-      [DEPT_KT_CO_DIEN],
+      [DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS],
     )
     for (const r of rows) if (r.telegram_chat_id) sendTelegramMessage(r.telegram_chat_id, text)
   } catch (err) {

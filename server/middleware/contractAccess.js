@@ -1,4 +1,5 @@
 import { pool } from '../db.js'
+import { userIsHead } from './tenderAccess.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phân quyền ghi theo hợp đồng:
@@ -357,17 +358,46 @@ export const blockIfLockedVia = (key, param = 'id') => makeLockGuard(req => req.
 export const blockIfLockedViaBody = (key) => makeLockGuard(req => req.body?.ids, LOCK_RESOLVERS[key])
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tài liệu (folder/file) dùng chung cho cả HĐ bán lẫn HĐ nhập → phân nhánh:
+// Tài liệu (folder/file) dùng chung cho HĐ bán / HĐ nhập / gói thầu → phân nhánh:
 //   - thuộc HĐ nhập (contract_in_id ≠ null): luật người tạo (created_by) / admin
-//   - thuộc HĐ bán  (contract_in_id  = null): luật PM của HĐ bán / admin (như cũ)
+//   - thuộc gói thầu (tender_id ≠ null):     luật làm thầu / Trưởng phòng / admin
+//   - thuộc HĐ bán  (còn lại):               luật PM của HĐ bán / admin (như cũ)
 // ─────────────────────────────────────────────────────────────────────────────
 const DOC_RESOLVERS = {
-  folder: `SELECT f.contract_in_id, f.contract_id AS contract_out_id, ci.created_by
+  folder: `SELECT f.contract_in_id, f.contract_id AS contract_out_id, f.tender_id, f.item_id, ci.created_by
              FROM document_folder f LEFT JOIN contract_in ci ON ci.id = f.contract_in_id
             WHERE f.id = ANY($1::bigint[])`,
-  file: `SELECT df.contract_in_id, df.contract_id AS contract_out_id, ci.created_by
+  file: `SELECT df.contract_in_id, df.contract_id AS contract_out_id, df.tender_id, df.item_id, ci.created_by
            FROM document_file df LEFT JOIN contract_in ci ON ci.id = df.contract_in_id
           WHERE df.id = ANY($1::bigint[])`,
+}
+
+// Quyền GHI tài liệu gói thầu: Trưởng phòng Đấu thầu HOẶC người làm thầu của TẤT CẢ
+// gói liên quan (admin đã được lọc trước đó). Trả true nếu được phép.
+async function canWriteTenderDocs(userId, userRole, tenderIds) {
+  if (await userIsHead(userId, userRole)) return true
+  const distinct = [...new Set(tenderIds.map(String))]
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM tender WHERE id = ANY($1::bigint[]) AND bid_maker_id = $2`,
+    [distinct, userId],
+  )
+  return rows[0].n === distinct.length
+}
+
+// Quyền GHI tệp SẢN PHẨM (khoá item_id): Trưởng phòng, HOẶC người được giao / người
+// làm thầu của gói cho TẤT CẢ đầu việc liên quan (admin đã lọc trước đó).
+async function canWriteItemDocs(userId, userRole, itemIds) {
+  if (await userIsHead(userId, userRole)) return true
+  const distinct = [...new Set(itemIds.map(String))]
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS n
+       FROM tender_checklist_item i
+       JOIN tender t ON t.id = i.tender_id
+      WHERE i.id = ANY($1::bigint[])
+        AND (i.assignee_id = $2 OR t.bid_maker_id = $2)`,
+    [distinct, userId],
+  )
+  return rows[0].n === distinct.length
 }
 
 export const docGuard = (key, param = 'id') => async function docGuardMw(req, res, next) {
@@ -388,12 +418,32 @@ export const docGuard = (key, param = 'id') => async function docGuardMw(req, re
 
     const me = String(req.user.id)
     const ciRows = rows.filter(r => r.contract_in_id != null) // tài liệu HĐ nhập
-    const coRows = rows.filter(r => r.contract_in_id == null)  // tài liệu HĐ bán
+    const itRows = rows.filter(r => r.contract_in_id == null && r.item_id != null) // tệp sản phẩm đầu việc
+    const tdRows = rows.filter(r => r.contract_in_id == null && r.item_id == null && r.tender_id != null) // tài liệu gói thầu
+    const coRows = rows.filter(r => r.contract_in_id == null && r.item_id == null && r.tender_id == null)  // tài liệu HĐ bán
 
     // Tài liệu HĐ nhập: phải là người tạo của tất cả HĐ nhập liên quan.
     if (!ciRows.every(r => r.created_by != null && String(r.created_by) === me)) {
       res.status(403).json({ error: 'Chỉ người tạo hợp đồng nhập (hoặc admin) mới được sửa đổi tài liệu này.' })
       return
+    }
+
+    // Tệp sản phẩm đầu việc: người được giao / làm thầu của tất cả đầu việc HOẶC Trưởng phòng.
+    if (itRows.length) {
+      const itemIds = itRows.map(r => r.item_id)
+      if (!await canWriteItemDocs(req.user.id, req.user.role, itemIds)) {
+        res.status(403).json({ error: 'Chỉ người được giao việc (hoặc người làm thầu/Trưởng phòng) mới được sửa tệp này.' })
+        return
+      }
+    }
+
+    // Tài liệu gói thầu: làm thầu của tất cả gói liên quan HOẶC Trưởng phòng.
+    if (tdRows.length) {
+      const tenderIds = tdRows.map(r => r.tender_id)
+      if (!await canWriteTenderDocs(req.user.id, req.user.role, tenderIds)) {
+        res.status(403).json({ error: 'Chỉ người làm thầu của gói (hoặc Trưởng phòng) mới được sửa đổi tài liệu này.' })
+        return
+      }
     }
 
     // Tài liệu HĐ bán: phải là PM của tất cả HĐ bán liên quan.

@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { API } from '../../config/api'
 
-export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders, loadFiles }) {
+export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders, loadFiles, allowRootUpload = false }) {
   const [fileInputKey, setFileInputKey] = useState(0)
   const [folderInputKey, setFolderInputKey] = useState(0)
   const [uploadQueue, setUploadQueue] = useState([])
 
   const isUploading = uploadQueue.some(q => q.status === 'pending' || q.status === 'uploading')
+
+  // Thư mục đích: đã chọn → dùng id; chưa chọn nhưng cho phép gốc → 'root'.
+  const targetFolder = selectedFolderId || (allowRootUpload ? 'root' : null)
 
   const uploadFiles = async (fileList) => {
     const items = Array.from(fileList).map(f => ({ name: f.name, status: 'pending', file: f }))
@@ -16,7 +19,7 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
       try {
         const formData = new FormData()
         formData.append('file', items[i].file)
-        formData.append('folderId', selectedFolderId)
+        formData.append('folderId', targetFolder)
         const res = await fetch(`${API}/${resourcePath}/files/upload`, { method: 'POST', body: formData })
         if (!res.ok) throw new Error('Upload failed')
         setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'done' } : item))
@@ -24,7 +27,7 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
         setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error' } : item))
       }
     }
-    await loadFiles(selectedFolderId)
+    await loadFiles(targetFolder)
     setTimeout(() => setUploadQueue([]), 3000)
   }
 
@@ -32,6 +35,7 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
     const fileArray = Array.from(files)
     if (fileArray.length === 0) return
 
+    // Thư mục tạo ở gốc có parent_id null (sentinel 'root' chỉ dùng cho TỆP, không cho parent_id).
     const folderIdMap = new Map()
     folderIdMap.set('', selectedFolderId)
 
@@ -92,7 +96,7 @@ export function useDocumentUpload({ resourcePath, selectedFolderId, loadFolders,
   const handleFileChange = async (event) => {
     const files = event.target.files
     if (!files || files.length === 0) return
-    if (!selectedFolderId) { alert('Vui lòng chọn thư mục để upload file'); return }
+    if (!selectedFolderId && !allowRootUpload) { alert('Vui lòng chọn thư mục để upload file'); return }
     await uploadFiles(files)
     setFileInputKey(prev => prev + 1)
   }

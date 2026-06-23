@@ -3,10 +3,14 @@ import { pool } from '../db.js'
 // ─────────────────────────────────────────────────────────────────────────────
 // Phân quyền cho module Quản lý công việc — Ban KT Cơ điện (department id 7).
 // Mẫu giống contractAccess.js: admin (role=1) toàn quyền; còn lại kiểm tra DB.
-// Vai trò trong phòng lấy từ dept_work_member.dept_role ('HEAD'|'DEPUTY'|'MEMBER').
+// Quyền quản lý bảng việc (tạo/giao/sửa/xóa) lấy theo CHỨC DANH: Trưởng ban / Phó ban
+// (app_user_position → position id 3,4), không còn dùng dept_work_member.dept_role.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const DEPT_KT_CO_DIEN = 7
+
+// Chức danh được coi là quản lý phòng việc: Trưởng ban (3), Phó ban (4).
+export const MANAGER_POSITION_IDS = [3, 4]
 
 const ID_RE = /^\d+$/
 
@@ -17,26 +21,24 @@ function paramId(req, name) {
 
 const isAdmin = (req) => Number(req.user?.role) === 1
 
-// Thành viên phòng: có dòng dept_work_member active HOẶC app_user.department_id = 7.
+// Thành viên phòng = nhân sự thuộc Ban KT Cơ điện (app_user.department_id = 7).
 async function queryIsMember(userId) {
   const { rows } = await pool.query(
-    `SELECT 1
-       FROM app_user u
-       LEFT JOIN dept_work_member m
-         ON m.user_id = u.id AND m.department_id = $2 AND m.is_active
-      WHERE u.id = $1 AND (u.department_id = $2 OR m.id IS NOT NULL)
-      LIMIT 1`,
+    `SELECT 1 FROM app_user WHERE id = $1 AND department_id = $2 LIMIT 1`,
     [userId, DEPT_KT_CO_DIEN],
   )
   return rows.length > 0
 }
 
+// Quản lý phòng = nhân sự thuộc phòng KT Cơ điện VÀ giữ chức danh Trưởng/Phó ban.
 async function queryIsHeadOrDeputy(userId) {
   const { rows } = await pool.query(
-    `SELECT 1 FROM dept_work_member
-      WHERE user_id = $1 AND department_id = $2 AND is_active
-        AND dept_role IN ('HEAD','DEPUTY') LIMIT 1`,
-    [userId, DEPT_KT_CO_DIEN],
+    `SELECT 1
+       FROM app_user u
+       JOIN app_user_position ap ON ap.user_id = u.id
+      WHERE u.id = $1 AND u.department_id = $2
+        AND ap.position_id = ANY($3::int[]) LIMIT 1`,
+    [userId, DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS],
   )
   return rows.length > 0
 }

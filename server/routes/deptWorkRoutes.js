@@ -4,7 +4,7 @@ import {
   isAssigneeOf, isAssignmentHolder, isHandoffRecipient, isLogOwner,
 } from '../middleware/deptWorkAccess.js'
 import {
-  getTeams, getMembers, addMember, updateMember, removeMember,
+  getTeams, getMembers,
 } from '../controllers/deptWorkTeamController.js'
 import {
   getTasks, getTask, createTask, updateTask, updateTaskStatus, deleteTask,
@@ -26,12 +26,9 @@ import {
 // Tiền tố /dept-work. Đọc cần là thành viên phòng; ghi cấu hình cần trưởng/phó phòng.
 const router = Router()
 
-// Team + thành viên
+// Team + danh sách thành viên (đọc; thành viên/quyền suy từ phòng + chức danh)
 router.get('/dept-work/teams', isDeptMember, getTeams)
 router.get('/dept-work/members', isDeptMember, getMembers)
-router.post('/dept-work/members', isHeadOrDeputy, addMember)
-router.put('/dept-work/members/:id', isHeadOrDeputy, updateMember)
-router.delete('/dept-work/members/:id', isHeadOrDeputy, removeMember)
 
 // Việc: đọc cho mọi thành viên; tạo cho mọi thành viên (controller áp luật NV/head);
 // sửa/xóa chỉ head/deputy; đổi trạng thái chỉ nhóm trưởng/head.

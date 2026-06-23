@@ -9,11 +9,14 @@ export const ORIGIN_LABEL = { internal: 'Nội bộ', customer: 'Khách hàng' }
 
 export const ACCEPT_LABEL = { pending: 'Chờ nhận', accepted: '', rejected: 'Đã từ chối' }
 
+// Chức danh được coi là quản lý phòng việc: Trưởng ban (3), Phó ban (4).
+export const MANAGER_POSITION_IDS = [3, 4]
+
 // Người dùng hiện tại có quyền quản lý việc (tạo/giao/sửa/xóa) không.
-export function canManageDeptWork(user, members) {
+// Quyền lấy theo chức danh (app_user_position), không còn theo dept_work_member.
+export function canManageDeptWork(user) {
   if (Number(user?.role) === 1) return true
-  const me = members?.find(m => m.user_id === user?.id)
-  return me ? ['HEAD', 'DEPUTY'].includes(me.dept_role) : false
+  return (user?.positions || []).some(p => MANAGER_POSITION_IDS.includes(p.id))
 }
 
 // Tên rút gọn danh sách người nhận, đánh dấu nhóm trưởng.

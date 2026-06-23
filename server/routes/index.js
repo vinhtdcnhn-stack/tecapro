@@ -22,6 +22,7 @@ import contractInCustomsRoutes from './contractInCustomsRoutes.js'
 import contractInLogisticsRoutes from './contractInLogisticsRoutes.js'
 import pmDashboardRoutes from './pmDashboardRoutes.js'
 import deptWorkRoutes from './deptWorkRoutes.js'
+import tenderRoutes from './tenderRoutes.js'
 import approvalRoutes from './approvalRoutes.js'
 import reportRoutes from './reportRoutes.js'
 import invoiceRoutes from './invoiceRoutes.js'
@@ -121,6 +122,9 @@ router.use('/', pmDashboardRoutes)
 
 // Quản lý công việc — Ban KT Cơ điện
 router.use('/', deptWorkRoutes)
+
+// Quản lý Đấu thầu — Ban Kế hoạch Đấu thầu
+router.use('/', tenderRoutes)
 
 // Đề xuất / Phê duyệt (giống Base Request)
 router.use('/', approvalRoutes)

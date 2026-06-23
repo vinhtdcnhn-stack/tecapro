@@ -8,6 +8,9 @@ import QldaPage from './pages/QldaPage'
 import QldaDetailPage from './pages/QldaDetailPage'
 import QuantriPage from './pages/QuantriPage'
 import DeptWorkPage from './pages/DeptWorkPage'
+import TenderPage from './pages/TenderPage'
+import TenderDetailPage from './pages/TenderDetailPage'
+import MyTenderTaskPage from './pages/MyTenderTaskPage'
 import ApprovalPage from './pages/ApprovalPage'
 import WarrantyLookupPage from './pages/WarrantyLookupPage'
 import LoginPage from './pages/LoginPage'
@@ -71,6 +74,22 @@ export default function App() {
         <Route
           path="/cong-viec/kt-co-dien/:section"
           element={<RequireAuth><DeptWorkPage /></RequireAuth>}
+        />
+        <Route
+          path="/cong-viec/dau-thau"
+          element={<RequireAuth><Navigate to="/cong-viec/dau-thau/list" replace /></RequireAuth>}
+        />
+        <Route
+          path="/cong-viec/dau-thau/goi/:id"
+          element={<RequireAuth><TenderDetailPage /></RequireAuth>}
+        />
+        <Route
+          path="/cong-viec/dau-thau/:section"
+          element={<RequireAuth><TenderPage /></RequireAuth>}
+        />
+        <Route
+          path="/viec-dau-thau/:itemId"
+          element={<RequireAuth><MyTenderTaskPage /></RequireAuth>}
         />
         <Route
           path="/de-xuat"

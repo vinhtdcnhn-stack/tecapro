@@ -7,6 +7,7 @@ import Dashboard from './Dashboard'
 import PMDashboard from './PMDashboard'
 import AssigneeDashboard from './AssigneeDashboard'
 import AccountingDashboard from './AccountingDashboard'
+import TenderDashboard from './TenderDashboard'
 import DashSwitcher from './DashSwitcher'
 import './accounting/Accounting.css'
 
@@ -29,6 +30,7 @@ export default function HomePage() {
   const isDirector    = codes.has('GD') || codes.has('PGD')
   const isAdmin       = Number(user?.role) === 1
   const isAccountant  = user?.department_name === 'Ban Kế Toán'
+  const isTenderPlanner = Number(user?.department_id) === 9
 
   useEffect(() => {
     if (!user) return
@@ -87,10 +89,14 @@ export default function HomePage() {
   if (canPM)                                  available.push({ key: 'pm',        label: 'Tiến độ dự án' })
   if (isDirector)                             available.push({ key: 'director',  label: 'Tổng quan hệ thống' })
   if (isAccountant || isDirector || isAdmin)  available.push({ key: 'accounting', label: 'Kế toán' })
-  if (available.length === 0)                 available.push({ key: 'assignee',  label: 'Việc của tôi' })
+  if (isTenderPlanner)                        available.push({ key: 'tender',     label: 'Kế hoạch đấu thầu' })
+  // "Việc của tôi" luôn khả dụng: gom mọi việc giao trực tiếp (gồm việc đấu thầu giao
+  // cho người ngoài Ban Đấu thầu) với cửa sổ thời hạn không giới hạn → không bỏ sót.
+  available.push({ key: 'assignee', label: 'Việc của tôi' })
 
   // Mặc định theo thứ tự ưu tiên cũ; nhớ lựa chọn người dùng nếu còn hợp lệ.
-  const defaultKey = canPM ? 'pm' : isDirector ? 'director' : isAccountant ? 'accounting' : 'assignee'
+  const defaultKey = canPM ? 'pm' : isDirector ? 'director' : isAccountant ? 'accounting'
+    : isTenderPlanner ? 'tender' : 'assignee'
   const stored = (typeof localStorage !== 'undefined') ? localStorage.getItem(STORE_KEY) : null
   const keys = available.map(a => a.key)
   const active = (selected && keys.includes(selected)) ? selected
@@ -108,6 +114,7 @@ export default function HomePage() {
     switch (active) {
       case 'director':   return <Dashboard switcher={switcher} user={user} contracts={contracts} customers={customers} users={users} />
       case 'accounting': return <AccountingDashboard switcher={switcher} user={user} />
+      case 'tender':     return <TenderDashboard switcher={switcher} user={user} />
       case 'assignee':   return <AssigneeDashboard switcher={switcher} user={user} />
       case 'pm':
       default:           return <PMDashboard switcher={switcher} user={user} />

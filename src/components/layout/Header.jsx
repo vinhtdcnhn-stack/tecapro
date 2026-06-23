@@ -13,7 +13,10 @@ const MENUS = [
   { label: 'Hợp đồng bán',    path: '/qlda'    },
   {
     label: 'Công việc',
-    children: [{ label: 'KT Cơ điện', path: '/cong-viec/kt-co-dien' }],
+    children: [
+      { label: 'KT Cơ điện', path: '/cong-viec/kt-co-dien', dept: 7 },
+      { label: 'Kế hoạch đấu thầu', path: '/cong-viec/dau-thau', dept: 9 },
+    ],
   },
   { label: 'Đề xuất',          path: '/de-xuat' },
   { label: 'Tra cứu bảo hành', path: '/tracuu'  },
@@ -68,13 +71,17 @@ export default function Header({ onChangePassword }) {
 
   // "Hợp đồng bán" chỉ hiện cho admin hoặc người đang tham gia ít nhất một dự án.
   const canSeeContracts = !!user && (Number(user.role) === 1 || user.has_projects)
-  // "Công việc → KT Cơ điện" chỉ hiện cho thành viên Ban KT Cơ điện (dept 7).
-  const canSeeDeptWork = !!user && Number(user.department_id) === 7
-  const menus = MENUS.filter(m => {
-    if (m.path === '/qlda') return canSeeContracts
-    if (m.label === 'Công việc') return canSeeDeptWork
-    return true
-  })
+  const isAdmin = !!user && Number(user.role) === 1
+  // Mỗi mục con của "Công việc" gắn với một phòng ban (dept). Admin thấy hết; còn lại
+  // chỉ thấy mục của phòng mình. Dropdown hiện khi có ít nhất một mục con hợp lệ.
+  const canSeeChild = (c) => isAdmin || (!!user && Number(user.department_id) === c.dept)
+  const menus = MENUS
+    .map(m => m.children ? { ...m, children: m.children.filter(canSeeChild) } : m)
+    .filter(m => {
+      if (m.path === '/qlda') return canSeeContracts
+      if (m.children) return m.children.length > 0
+      return true
+    })
 
   function isActive(menu) {
     if (menu.children) return menu.children.some(c => location.pathname.startsWith(c.path))

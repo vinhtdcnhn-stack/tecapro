@@ -44,6 +44,8 @@ const IN_TAB = {
 export function targetUrl(it) {
   // Việc module KT Cơ điện không gắn hợp đồng → về bảng công việc của phòng.
   if (it.source_type === 'dept_work_task') return '/cong-viec/kt-co-dien/board'
+  // Đầu việc checklist đấu thầu → trang riêng cho người được giao (không vào module Đấu thầu).
+  if (it.source_type === 'tender_checklist') return `/viec-dau-thau/${it.source_id}`
   if (!it.contract_id) return null
   if (it.side === 'Nhập' && it.contract_in_id) {
     const inTab = IN_TAB[it.source_type] || 'info'

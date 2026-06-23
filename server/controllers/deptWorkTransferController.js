@@ -15,9 +15,7 @@ async function taskTitle(taskId) {
 
 async function isDeptMember(userId) {
   const { rows } = await pool.query(
-    `SELECT 1 FROM app_user u
-       LEFT JOIN dept_work_member m ON m.user_id = u.id AND m.department_id = $2 AND m.is_active
-      WHERE u.id = $1 AND (u.department_id = $2 OR m.id IS NOT NULL) LIMIT 1`,
+    `SELECT 1 FROM app_user WHERE id = $1 AND department_id = $2 LIMIT 1`,
     [userId, DEPT_KT_CO_DIEN],
   )
   return rows.length > 0

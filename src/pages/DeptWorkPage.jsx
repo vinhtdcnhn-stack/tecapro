@@ -32,7 +32,7 @@ export default function DeptWorkPage() {
   if (!canAccess) return <Navigate to="/" replace />
   if (!VALID.includes(section)) return <Navigate to="/cong-viec/kt-co-dien/board" replace />
 
-  const canManage = canManageDeptWork(user, members)
+  const canManage = canManageDeptWork(user)
 
   return (
     <main className="page admin-page">

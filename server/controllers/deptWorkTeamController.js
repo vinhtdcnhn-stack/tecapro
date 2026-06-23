@@ -1,11 +1,10 @@
 import { pool } from '../db.js'
-import { DEPT_KT_CO_DIEN } from '../middleware/deptWorkAccess.js'
+import { DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Team (presale/postsale) + thành viên/vai trò của module KT Cơ điện.
+// Team (presale/postsale) + danh sách thành viên của module KT Cơ điện.
+// Thành viên = nhân sự thuộc phòng (department_id); quản lý suy từ chức danh.
 // ──────────────────────────────────────────────────────────────────────────────
-
-const VALID_ROLES = new Set(['HEAD', 'DEPUTY', 'MEMBER'])
 
 export async function getTeams(_req, res) {
   try {
@@ -25,75 +24,25 @@ export async function getTeams(_req, res) {
 
 export async function getMembers(_req, res) {
   try {
+    // Danh sách người được giao việc = nhân sự đang hoạt động thuộc phòng KT Cơ điện.
+    // Quản lý (Trưởng/Phó ban) suy từ chức danh app_user_position, không còn dùng
+    // dept_work_member. dept_role trả về chỉ để xếp quản lý lên đầu (UI không phụ thuộc).
     const { rows } = await pool.query(
-      `SELECT m.id, m.user_id, u.full_name, m.dept_role, m.is_active
-         FROM dept_work_member m
-         JOIN app_user u ON u.id = m.user_id
-        WHERE m.department_id = $1
-        ORDER BY CASE m.dept_role WHEN 'HEAD' THEN 0 WHEN 'DEPUTY' THEN 1 ELSE 2 END, u.full_name`,
-      [DEPT_KT_CO_DIEN],
+      `SELECT u.id AS user_id, u.full_name,
+              CASE WHEN bool_or(ap.position_id = ANY($2::int[]))
+                   THEN 'MANAGER' ELSE 'MEMBER' END AS dept_role,
+              true AS is_active
+         FROM app_user u
+         LEFT JOIN app_user_position ap ON ap.user_id = u.id
+        WHERE u.department_id = $1 AND u.is_active IS NOT FALSE
+        GROUP BY u.id, u.full_name
+        ORDER BY CASE WHEN bool_or(ap.position_id = ANY($2::int[])) THEN 0 ELSE 1 END,
+                 u.full_name`,
+      [DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS],
     )
     res.json(rows)
   } catch (err) {
     console.error('getMembers:', err)
     res.status(500).json({ error: 'Không thể tải danh sách thành viên.' })
-  }
-}
-
-export async function addMember(req, res) {
-  const userId = parseInt(req.body?.user_id)
-  const deptRole = String(req.body?.dept_role ?? 'MEMBER').toUpperCase()
-  if (!userId) return res.status(400).json({ error: 'Thiếu người dùng.' })
-  if (!VALID_ROLES.has(deptRole)) return res.status(400).json({ error: 'Vai trò không hợp lệ.' })
-  try {
-    const { rows } = await pool.query(
-      `INSERT INTO dept_work_member (department_id, user_id, dept_role)
-       VALUES ($1, $2, $3)
-       RETURNING id, user_id, dept_role, is_active`,
-      [DEPT_KT_CO_DIEN, userId, deptRole],
-    )
-    res.status(201).json(rows[0])
-  } catch (err) {
-    if (err.code === '23505') {
-      return res.status(400).json({ error: 'Người dùng đã là thành viên của phòng.' })
-    }
-    console.error('addMember:', err)
-    res.status(500).json({ error: 'Không thể thêm thành viên.' })
-  }
-}
-
-export async function updateMember(req, res) {
-  const id = parseInt(req.params.id)
-  const deptRole = String(req.body?.dept_role ?? 'MEMBER').toUpperCase()
-  const isActive = req.body?.is_active === undefined ? true : !!req.body.is_active
-  if (!VALID_ROLES.has(deptRole)) return res.status(400).json({ error: 'Vai trò không hợp lệ.' })
-  try {
-    const { rows } = await pool.query(
-      `UPDATE dept_work_member
-          SET dept_role = $1, is_active = $2, updated_at = now()
-        WHERE id = $3 AND department_id = $4
-        RETURNING id, user_id, dept_role, is_active`,
-      [deptRole, isActive, id, DEPT_KT_CO_DIEN],
-    )
-    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy thành viên.' })
-    res.json(rows[0])
-  } catch (err) {
-    console.error('updateMember:', err)
-    res.status(500).json({ error: 'Không thể cập nhật thành viên.' })
-  }
-}
-
-export async function removeMember(req, res) {
-  const id = parseInt(req.params.id)
-  try {
-    const { rowCount } = await pool.query(
-      'DELETE FROM dept_work_member WHERE id = $1 AND department_id = $2',
-      [id, DEPT_KT_CO_DIEN],
-    )
-    if (!rowCount) return res.status(404).json({ error: 'Không tìm thấy thành viên.' })
-    res.json({ success: true })
-  } catch (err) {
-    console.error('removeMember:', err)
-    res.status(500).json({ error: 'Không thể xóa thành viên.' })
   }
 }

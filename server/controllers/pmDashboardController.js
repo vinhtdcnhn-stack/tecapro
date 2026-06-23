@@ -277,6 +277,25 @@ export async function getPMDashboard(req, res) {
       }))
     }
 
+    // ── Đầu việc checklist đấu thầu giao trực tiếp cho user ──
+    // Người tham gia HĐ (PM…) vào dashboard này theo mặc định nên việc đấu thầu được
+    // giao cũng phải hiện ở đây, không chỉ ở "Việc của tôi". Mở chi tiết qua trang
+    // riêng /viec-dau-thau/:itemId (xem trackingUtils.targetUrl).
+    const tcd = await pool.query(
+      `SELECT i.id, i.title, i.due_date, t.package_name
+         FROM tender_checklist_item i
+         JOIN tender t ON t.id = i.tender_id
+        WHERE i.assignee_id = $1
+          AND i.status NOT IN ('Hoàn thành', 'Hủy')
+          AND COALESCE(t.is_deleted, false) = false`, [userId])
+    tcd.rows.forEach(t => {
+      items.push(attach({
+        source_type: 'tender_checklist', source_id: t.id, side: 'Đấu thầu',
+        contract_id: null, contract_no: t.package_name, due_date: iso(t.due_date),
+        title: t.title || 'Đầu việc', sub: 'Đấu thầu', kind: 'Công việc',
+      }))
+    })
+
     // ── Summary ──
     const soon = new Date(todayISO()); soon.setDate(soon.getDate() + 7)
     const soonISO = soon.toISOString().slice(0, 10)
@@ -346,7 +365,28 @@ export async function getAssignedTasks(req, res) {
       remind_at: t.remind_at ? iso(t.remind_at) : null,
     }))
 
-    res.json({ items: [...items, ...dwItems] })
+    // Đầu việc checklist đấu thầu giao trực tiếp cho user. Người được giao có thể không
+    // thuộc Ban Đấu thầu nên không thấy gói trong module — gom vào đây để vẫn nắm việc.
+    // Mở chi tiết qua trang riêng /viec-dau-thau/:itemId (xem trackingUtils.targetUrl).
+    const tc = await pool.query(
+      `SELECT i.id, i.title, i.due_date, t.package_name, tr.pinned, tr.remind_at
+         FROM tender_checklist_item i
+         JOIN tender t ON t.id = i.tender_id
+         LEFT JOIN pm_dashboard_tracking tr
+           ON tr.user_id = $1 AND tr.source_type = 'tender_checklist' AND tr.source_id = i.id
+        WHERE i.assignee_id = $1
+          AND i.status NOT IN ('Hoàn thành', 'Hủy')
+          AND COALESCE(t.is_deleted, false) = false`, [userId])
+    const tcItems = tc.rows.map(t => ({
+      source_type: 'tender_checklist', source_id: t.id, side: 'Đấu thầu',
+      contract_id: null, contract_no: t.package_name,
+      due_date: iso(t.due_date),
+      title: t.title || 'Đầu việc', sub: 'Đấu thầu', kind: 'Công việc',
+      pinned: t.pinned || false,
+      remind_at: t.remind_at ? iso(t.remind_at) : null,
+    }))
+
+    res.json({ items: [...items, ...dwItems, ...tcItems] })
   } catch (err) {
     console.error('getAssignedTasks:', err)
     res.status(500).json({ error: 'Không thể tải công việc được giao' })
