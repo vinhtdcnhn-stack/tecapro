@@ -9,7 +9,7 @@ import TenderChecklistTemplate from '../components/tender/TenderChecklistTemplat
 import { isHeadUser } from '../components/tender/tenderUtils'
 import '../components/tender/Tender.css'
 
-const VALID = ['list', 'queue', 'my', 'template', 'reports']
+const VALID = ['list', 'my', 'template', 'reports']
 
 export default function TenderPage() {
   const { user } = useAuth()
@@ -38,13 +38,7 @@ export default function TenderPage() {
           {section === 'list' && (
             <>
               <h2 className="section-title">KẾ HOẠCH ĐẤU THẦU — DANH SÁCH GÓI</h2>
-              <TenderList mode="all" />
-            </>
-          )}
-          {section === 'queue' && (
-            <>
-              <h2 className="section-title">HÀNG ĐỢI PHÂN CÔNG</h2>
-              <TenderList mode="queue" canCreate={false} />
+              <TenderList mode="all" isHead={isHead} members={members} />
             </>
           )}
           {section === 'my' && (

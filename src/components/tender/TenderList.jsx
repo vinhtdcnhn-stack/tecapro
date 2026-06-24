@@ -10,9 +10,9 @@ import {
 
 // Bảng danh sách gói thầu + bộ lọc + tạo mới + xuất Excel.
 //   mode='all'   → mọi gói (Danh sách gói)
-//   mode='queue' → gói chưa phân công người làm (Hàng đợi phân công, Trưởng phòng)
 //   mode='my'    → gói mình phụ trách (Việc của tôi)
-export default function TenderList({ mode = 'all', canCreate = true }) {
+// Trưởng phòng (isHead) phân công người làm thầu/AM ngay trong form tạo/sửa.
+export default function TenderList({ mode = 'all', canCreate = true, isHead = false, members = [] }) {
   const navigate = useNavigate()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -37,7 +37,6 @@ export default function TenderList({ mode = 'all', canCreate = true }) {
 
   const filtered = useMemo(() => {
     let r = rows
-    if (mode === 'queue') r = r.filter(t => !t.bid_maker_id)
     if (field) r = r.filter(t => t.field === field)
     if (status) r = r.filter(t => t.workflow_status === status)
     if (result) r = r.filter(t => (t.result || '') === result)
@@ -47,7 +46,7 @@ export default function TenderList({ mode = 'all', canCreate = true }) {
         .some(v => String(v || '').toLowerCase().includes(s)))
     }
     return r
-  }, [rows, mode, field, status, result, q])
+  }, [rows, field, status, result, q])
 
   const { getRowProps, copyMenu } = useCopyMenu(
     (t) => `Gói thầu: ${t.package_name}\nChủ đầu tư: ${t.investor || '—'}\nDự toán: ${fmtAmount(t.estimate, t.currency_code) || '—'}`
@@ -132,6 +131,8 @@ export default function TenderList({ mode = 'all', canCreate = true }) {
       {modal && (
         <TenderModal
           tender={modal === 'new' ? null : modal}
+          isHead={isHead}
+          members={members}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load() }}
         />

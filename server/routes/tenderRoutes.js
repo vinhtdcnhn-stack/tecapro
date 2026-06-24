@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import {
   isTenderMember, isHead, isBidMakerOrHead, isChecklistEditor, isChecklistContributor,
+  isItemDocEditor, isItemReviewCurator,
 } from '../middleware/tenderAccess.js'
 import {
-  getTenders, getTender, createTender, updateTender, assignTender,
+  getTenders, getTender, createTender, updateTender,
   updateTenderStatus, deleteTender, getActivityLog, getMembers, getMyTenders,
 } from '../controllers/tenderController.js'
 import {
@@ -13,10 +14,9 @@ import {
   getTemplate, createTemplateItem, updateTemplateItem, deleteTemplateItem, applyTemplate,
 } from '../controllers/tenderChecklistTemplateController.js'
 import {
-  uploadSummary, uploadVersion,
+  uploadSummary,
   viewAttachment, downloadAttachment,
   getSummaryFiles, uploadSummaryFile, deleteSummaryFile, viewSummary, downloadSummary,
-  viewVersion, downloadVersion,
 } from '../controllers/tenderFileController.js'
 import {
   uploadTender, getFolderTreeTender, createFolderTender, getTenderFiles, uploadFileTender,
@@ -26,8 +26,9 @@ import {
   getItemInvitationFolders, getItemInvitationFiles,
 } from '../controllers/tenderItemDocController.js'
 import {
-  getReviewData, submitVersion, decideReview,
-} from '../controllers/tenderReviewController.js'
+  getItemsForReview, submitItemReview, decideItemReview, reopenItemReview,
+  toggleFileExcluded, toggleFolderExcluded, uploadReplacement, deleteReplacement,
+} from '../controllers/tenderItemReviewController.js'
 import { getReports } from '../controllers/tenderReportController.js'
 
 // Tất cả route đã nằm sau requireAuth (mount trong routes/index.js).
@@ -51,8 +52,8 @@ router.get('/tender/:id', isTenderMember, getTender)
 router.put('/tender/:id', isBidMakerOrHead('id'), updateTender)
 router.delete('/tender/:id', isHead, deleteTender)
 
-// Phân công (Trưởng phòng) + đổi trạng thái/kết quả (người làm thầu hoặc trưởng phòng).
-router.put('/tender/:id/assign', isHead, assignTender)
+// Đổi trạng thái/kết quả (người làm thầu hoặc trưởng phòng). Phân công người làm thầu/
+// AM nay nằm trong tạo/sửa gói (createTender/updateTender, gác head ở controller).
 router.put('/tender/:id/status', isBidMakerOrHead('id'), updateTenderStatus)
 
 // Nhật ký thao tác (audit).
@@ -76,9 +77,9 @@ router.get('/tender/my-task/:itemId', isChecklistContributor('itemId'), getMyTas
 // trước, upload cả thư mục). Sửa tên/xoá thư mục, xoá/xem/tải tệp dùng route toàn
 // cục /folders/:id, /files/:id (docGuard đã nới cho tệp theo item). Guard TRƯỚC multer.
 router.get('/tender/my-task/:itemId/docs/folders', isChecklistContributor('itemId'), getItemFolders)
-router.post('/tender/my-task/:itemId/docs/folders', isChecklistContributor('itemId'), createItemFolder)
+router.post('/tender/my-task/:itemId/docs/folders', isItemDocEditor('itemId'), createItemFolder)
 router.get('/tender/my-task/:itemId/docs/files', isChecklistContributor('itemId'), getItemFiles)
-router.post('/tender/my-task/:itemId/docs/files/upload', isChecklistContributor('itemId'), uploadTenderItem.single('file'), uploadItemDoc)
+router.post('/tender/my-task/:itemId/docs/files/upload', isItemDocEditor('itemId'), uploadTenderItem.single('file'), uploadItemDoc)
 
 // Hồ sơ mời thầu (đầu vào) — CHỈ ĐỌC cho người được giao việc (xem/tải qua /files/:id).
 router.get('/tender/my-task/:itemId/invitation/folders', isChecklistContributor('itemId'), getItemInvitationFolders)
@@ -86,9 +87,9 @@ router.get('/tender/my-task/:itemId/invitation/files', isChecklistContributor('i
 
 // Tệp sản phẩm phía Ban Đấu thầu (trong tab Checklist) — cùng kho document_file(item_id).
 router.get('/tender/checklist/:itemId/docs/folders', isTenderMember, getItemFolders)
-router.post('/tender/checklist/:itemId/docs/folders', isChecklistContributor('itemId'), createItemFolder)
+router.post('/tender/checklist/:itemId/docs/folders', isItemDocEditor('itemId'), createItemFolder)
 router.get('/tender/checklist/:itemId/docs/files', isTenderMember, getItemFiles)
-router.post('/tender/checklist/:itemId/docs/files/upload', isChecklistContributor('itemId'), uploadTenderItem.single('file'), uploadItemDoc)
+router.post('/tender/checklist/:itemId/docs/files/upload', isItemDocEditor('itemId'), uploadTenderItem.single('file'), uploadItemDoc)
 
 // ── Hồ sơ mời thầu (đầu vào từ chủ đầu tư) — thư mục/tệp như tài liệu HĐ bán,
 //    cho phép tải tệp vào thư mục gốc. Sửa tên/xoá thư mục, xoá/xem/tải tệp dùng
@@ -103,17 +104,23 @@ router.get('/tender/:id/summary', isTenderMember, getSummaryFiles)
 router.post('/tender/:id/summary', isBidMakerOrHead('id'), uploadSummary.single('file'), uploadSummaryFile)
 router.delete('/tender/summary/:id', isTenderMember, deleteSummaryFile)
 
-// ── Review & Versioning ─────────────────────────────────────────────────────
-router.get('/tender/:id/review', isTenderMember, getReviewData)
-router.post('/tender/:id/review/submit', isBidMakerOrHead('id'), uploadVersion.single('file'), submitVersion)
-router.post('/tender/review/:versionId/decide', isHead, decideReview)
+// ── Review & Comment theo TỪNG ĐẦU VIỆC ─────────────────────────────────────
+// (thay cho review cả gói theo phiên bản — các route /version cũ đã gỡ).
+// Curate (đánh dấu loại / tải thay thế / gửi review) = người phụ trách gói/Trưởng phòng;
+// kết luận Đạt/Trả lại = Trưởng phòng. Guard đặt TRƯỚC multer cho route tải thay thế.
+router.get('/tender/:id/review', isTenderMember, getItemsForReview)
+router.post('/tender/checklist/:itemId/review/submit', isItemReviewCurator('item', 'itemId'), submitItemReview)
+router.post('/tender/checklist/:itemId/review/decide', isHead, decideItemReview)
+router.post('/tender/checklist/:itemId/review/reopen', isHead, reopenItemReview)
+router.put('/tender/checklist/file/:fileId/review-exclude', isItemReviewCurator('file', 'fileId'), toggleFileExcluded)
+router.put('/tender/checklist/folder/:folderId/review-exclude', isItemReviewCurator('folder', 'folderId'), toggleFolderExcluded)
+router.post('/tender/checklist/:itemId/review/replacement', isItemReviewCurator('item', 'itemId'), uploadTenderItem.single('file'), uploadReplacement)
+router.delete('/tender/checklist/file/:fileId/replacement', isItemReviewCurator('file', 'fileId'), deleteReplacement)
 
 // ── Phục vụ tệp (xem inline / tải về) ───────────────────────────────────────
 router.get('/tender-files/attachment/:id/view', isTenderMember, viewAttachment)
 router.get('/tender-files/attachment/:id/download', isTenderMember, downloadAttachment)
 router.get('/tender-files/summary/:id/view', isTenderMember, viewSummary)
 router.get('/tender-files/summary/:id/download', isTenderMember, downloadSummary)
-router.get('/tender-files/version/:id/view', isTenderMember, viewVersion)
-router.get('/tender-files/version/:id/download', isTenderMember, downloadVersion)
 
 export default router

@@ -101,13 +101,21 @@
   display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-bottom: 1px solid #f1f5f9;
 }
 .tender-ci-row:hover { background: #f9fafb; }
+/* Đầu việc đã duyệt Đạt — tô màu xanh + viền trái để dễ nhận diện, đã khoá chỉnh sửa. */
+.tender-ci-row--approved { background: #f0fdf4; border-left: 3px solid #16a34a; }
+.tender-ci-row--approved:hover { background: #e6fbeb; }
+.tender-ci-lock { font-size: 12px; font-weight: 600; color: #15803d; white-space: nowrap; }
 .tender-ci-toggle { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 13px; width: 16px; }
 .tender-ci-title { font-weight: 600; color: #0f172a; flex: 1 1 auto; min-width: 160px; }
 .tender-ci-files { font-size: 12px; color: #64748b; }
 .tender-ci-status { padding: 3px 8px; border-radius: 999px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; }
 .tender-ci-actions { display: flex; gap: 2px; }
 .tender-ci-detail { padding: 10px; background: #fafafa; border-bottom: 1px solid #f1f5f9; }
+/* Trình quản lý thư mục/tệp nhúng trong checklist cần chiều cao xác định (flex:1 sẽ co về 0). */
+.tender-ci-detail .contract-documents-tab { height: 460px; }
 .tender-ci-desc { margin: 0 0 8px; color: #475569; font-size: 13px; }
+.tender-ci-rework { font-size: 12px; font-weight: 600; color: #b45309; background: #fef3c7; padding: 2px 8px; border-radius: 999px; white-space: nowrap; cursor: help; }
+.tender-ci-rework-note { margin: 0 0 8px; padding: 8px 10px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; color: #92400e; font-size: 13px; white-space: pre-wrap; }
 .tender-checklist-actions { margin-left: auto; display: flex; gap: 8px; }
 .tender-tpl-desc { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -143,7 +151,8 @@
 .tender-decide { display: flex; gap: 8px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
 .tender-decide select { padding: 7px 9px; border: 1px solid #d1d5db; border-radius: 8px; }
 .tender-decide-comment { flex: 1; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 8px; }
-.tender-version-done { margin: 10px 0 0; color: #15803d; font-weight: 600; font-size: 13px; }
+.tender-version-done-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.tender-version-done { margin: 0; color: #15803d; font-weight: 600; font-size: 13px; }
 
 /* ── Dashboard trang chủ ─────────────────────────────────────────────────── */
 .tender-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 16px 0 22px; }
@@ -191,8 +200,34 @@
 .tender-status-badge { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 11px; white-space: nowrap; }
 .mtt-desc { margin: 10px 0 0; color: #475569; font-size: 14px; white-space: pre-wrap; }
 .mtt-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 13px; color: #64748b; }
+.mtt-rework { margin-top: 12px; padding: 10px 12px; background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; border-radius: 6px; }
+.mtt-rework-head { font-weight: 700; color: #b45309; font-size: 14px; }
+.mtt-rework-reason { margin-top: 4px; color: #92400e; font-size: 14px; white-space: pre-wrap; }
 .mtt-status-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
 .mtt-status-btn { border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
 .mtt-status-btn:hover:not(:disabled) { border-color: #15803d; color: #15803d; }
 .mtt-status-btn.active { background: #15803d; border-color: #15803d; color: #fff; cursor: default; }
 .mtt-status-btn:disabled:not(.active) { opacity: .55; cursor: default; }
+.mtt-locked-note { margin: 10px 0 0; font-size: 13px; }
+
+/* ── Review theo đầu việc + gợi ý curate ─────────────────────────────────── */
+.tender-ci-review-hint {
+  margin: 4px 0 8px;
+  padding: 6px 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: #1e3a8a;
+}
+.tender-review-docs { margin: 8px 0; }
+.tender-review-docs .contract-documents-tab { height: 460px; }
+.review-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+.review-tag--replace  { background: #dbeafe; color: #1d4ed8; }
+.review-tag--excluded { background: #fee2e2; color: #b91c1c; }

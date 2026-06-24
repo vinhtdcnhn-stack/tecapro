@@ -98,6 +98,11 @@ async function bidMakerOfItem(itemId, userId) {
   return rows.length > 0
 }
 
+// Người làm thầu của gói chứa đầu việc (export cho controller áp luật mở khoá trạng thái).
+export async function userIsBidMakerOfItem(itemId, userId) {
+  return bidMakerOfItem(itemId, userId)
+}
+
 export function isChecklistEditor(param = 'itemId') {
   return async (req, res, next) => {
     try {
@@ -130,6 +135,73 @@ export function isChecklistContributor(param = 'itemId') {
       if (!itemId) return res.status(400).json({ error: 'Tham số id không hợp lệ.' })
       if (await itemContributor(itemId, req.user.id)) return next()
       FORBIDDEN(res, 'Chỉ người được giao việc (hoặc người làm thầu/Trưởng phòng) mới được thực hiện thao tác này.')
+    } catch (err) { next(err) }
+  }
+}
+
+// GHI tệp sản phẩm của đầu việc (tạo thư mục / upload). Như isChecklistContributor
+// nhưng ĐÓNG BĂNG khi đầu việc đã 'Hoàn thành': lúc đó không ai được thay đổi tệp
+// (kể cả người làm thầu/Trưởng phòng) — phải mở lại trạng thái trước. admin ngoại lệ.
+export function isItemDocEditor(param = 'itemId') {
+  return async (req, res, next) => {
+    try {
+      if (isAdmin(req)) return next()
+      const itemId = paramId(req, param)
+      if (!itemId) return res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+      const { rows } = await pool.query(
+        'SELECT status FROM tender_checklist_item WHERE id = $1', [itemId])
+      if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
+      if (rows[0].status === 'Hoàn thành') {
+        return FORBIDDEN(res, 'Đầu việc đã hoàn thành — cần mở lại trạng thái trước khi thay đổi tệp sản phẩm.')
+      }
+      if (await queryIsHead(req.user.id)) return next()
+      if (await itemContributor(itemId, req.user.id)) return next()
+      FORBIDDEN(res, 'Chỉ người được giao việc (hoặc người làm thầu/Trưởng phòng) mới được thực hiện thao tác này.')
+    } catch (err) { next(err) }
+  }
+}
+
+// ── Curate review theo từng đầu việc ─────────────────────────────────────────
+// Quyền CURATE (đánh dấu loại file/thư mục, tải file thay thế, gửi review) thuộc về
+// NGƯỜI PHỤ TRÁCH GÓI (bid_maker) — hoặc Trưởng phòng / admin. Chỉ cho curate khi đầu
+// việc CHƯA đang chờ duyệt và CHƯA được duyệt (review_status ∉ {pending, approved}).
+// Param có thể là itemId, hoặc id của file/thư mục → tra ngược ra đầu việc.
+async function itemIdFrom(kind, rawId) {
+  if (kind === 'item') return /^\d+$/.test(String(rawId)) ? rawId : null
+  const table = kind === 'file' ? 'document_file' : 'document_folder'
+  const { rows } = await pool.query(`SELECT item_id FROM ${table} WHERE id = $1 LIMIT 1`, [rawId])
+  return rows[0]?.item_id ?? null
+}
+
+export function isItemReviewCurator(kind = 'item', param = 'itemId') {
+  return async (req, res, next) => {
+    try {
+      const rawId = paramId(req, param)
+      if (!rawId) return res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+      const itemId = await itemIdFrom(kind, rawId)
+      if (!itemId) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
+
+      const { rows } = await pool.query(
+        `SELECT i.review_status, t.bid_maker_id
+           FROM tender_checklist_item i JOIN tender t ON t.id = i.tender_id
+          WHERE i.id = $1`, [itemId])
+      if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
+      const { review_status, bid_maker_id } = rows[0]
+
+      if (!isAdmin(req)) {
+        const allowed = await queryIsHead(req.user.id) || Number(bid_maker_id) === Number(req.user.id)
+        if (!allowed) {
+          return FORBIDDEN(res, 'Chỉ người phụ trách gói (hoặc Trưởng phòng) mới được curate/gửi review.')
+        }
+      }
+      // admin cũng phải tôn trọng khoá phase: đã gửi/đã duyệt thì không curate được nữa.
+      if (review_status === 'pending' || review_status === 'approved') {
+        return FORBIDDEN(res, review_status === 'pending'
+          ? 'Đầu việc đang chờ duyệt — không thể chỉnh sửa bản gửi review.'
+          : 'Đầu việc đã được duyệt — không thể chỉnh sửa bản gửi review.')
+      }
+      req.reviewItemId = String(itemId)
+      next()
     } catch (err) { next(err) }
   }
 }

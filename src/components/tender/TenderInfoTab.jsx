@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { API } from '../../config/api'
 import TenderModal from './TenderModal'
-import AssignModal from './AssignModal'
 import { WORKFLOW, RESULTS, statusColor, resultColor, fmtMoney, fmtAmount, fmtDate } from './tenderUtils'
 
 // Tab "Thông tin chung": hiển thị 16 trường, sửa (người làm thầu/Trưởng phòng),
-// phân công (Trưởng phòng), đổi trạng thái workflow & kết quả.
+// đổi trạng thái workflow & kết quả. Phân công người làm thầu/AM nằm trong form sửa
+// (chỉ Trưởng phòng/admin thấy 2 trường đó).
 function Row({ label, children }) {
   return (
     <div className="tender-info-row">
@@ -17,7 +17,6 @@ function Row({ label, children }) {
 
 export default function TenderInfoTab({ tender, members, isHead, canEdit, onChanged }) {
   const [editing, setEditing] = useState(false)
-  const [assigning, setAssigning] = useState(false)
   const [busy, setBusy] = useState(false)
   const sc = statusColor(tender.workflow_status)
   const rc = resultColor(tender.result)
@@ -46,7 +45,6 @@ export default function TenderInfoTab({ tender, members, isHead, canEdit, onChan
         {rc && <span className="tender-badge" style={{ background: rc.bg, color: rc.fg }}>{tender.result}</span>}
         <div className="tender-toolbar-spacer" />
         {canEdit && <button className="btn-secondary" onClick={() => setEditing(true)}>Sửa thông tin</button>}
-        {isHead && <button className="btn-primary" onClick={() => setAssigning(true)}>Phân công</button>}
       </div>
 
       <div className="tender-info-grid">
@@ -91,12 +89,9 @@ export default function TenderInfoTab({ tender, members, isHead, canEdit, onChan
       )}
 
       {editing && (
-        <TenderModal tender={tender} onClose={() => setEditing(false)}
+        <TenderModal tender={tender} isHead={isHead} members={members}
+          onClose={() => setEditing(false)}
           onSaved={() => { setEditing(false); onChanged?.() }} />
-      )}
-      {assigning && (
-        <AssignModal tender={tender} members={members} onClose={() => setAssigning(false)}
-          onSaved={() => { setAssigning(false); onChanged?.() }} />
       )}
     </div>
   )

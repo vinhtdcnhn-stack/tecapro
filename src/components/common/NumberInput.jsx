@@ -70,7 +70,7 @@ export default function NumberInput({ value, onChange, integer = false, ...rest 
       setDisplay(formatFromRaw(value, integer))
       lastEmit.current = value == null ? '' : String(value)
     }
-  }, [value])
+  }, [value, integer])
 
   useLayoutEffect(() => {
     if (caretRef.current != null && inputRef.current) {

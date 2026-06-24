@@ -42,6 +42,12 @@
   letter-spacing: 0.06em;
 }
 
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .btn-icon {
   display: inline-flex;
   align-items: center;
@@ -55,7 +61,8 @@
   border-radius: 6px;
   transition: all 0.15s;
 }
-.btn-icon:hover { background: #e5e7eb; color: #15803d; }
+.btn-icon:hover:not(:disabled) { background: #e5e7eb; color: #15803d; }
+.btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .folder-tree {
   flex: 1;
@@ -616,3 +623,24 @@
   color: #6b7280;
   font-size: 15px;
 }
+
+/* ── Chế độ curate review (Đấu thầu) ────────────────────────────────────── */
+.documents-table tr.review-excluded .file-name-text,
+.documents-table tr.is-replaced .file-name-text,
+.folder-node.review-excluded .folder-name {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+.col-review { white-space: nowrap; text-align: right; width: 1%; }
+.col-review .btn-link { margin-left: 8px; }
+.review-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  vertical-align: middle;
+}
+.review-tag--replace  { background: #dbeafe; color: #1d4ed8; }
+.review-tag--excluded { background: #fee2e2; color: #b91c1c; }

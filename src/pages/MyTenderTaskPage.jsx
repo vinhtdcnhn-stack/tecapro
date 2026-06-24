@@ -47,6 +47,9 @@ export default function MyTenderTaskPage() {
 
   async function changeStatus(status) {
     if (!item || status === item.status) return
+    // Xác nhận trước khi đánh dấu hoàn thành — sau đó tệp sản phẩm sẽ bị khoá.
+    if (status === 'Hoàn thành' &&
+      !confirm('Bạn có chắc chắn hoàn thành công việc này? Sau khi hoàn thành, bạn sẽ không thể tải lên hay thay đổi tệp sản phẩm.')) return
     setSaving(true)
     try {
       const res = await fetch(`${API}/tender/checklist/${itemId}/status`, {
@@ -70,6 +73,10 @@ export default function MyTenderTaskPage() {
   }
 
   const sc = statusColor(item.status)
+  const isDone = item.status === 'Hoàn thành'
+  // Khi đã hoàn thành: tệp sản phẩm bị khoá; chỉ Trưởng phòng/người làm thầu (can_manage)
+  // mới được chuyển sang trạng thái khác.
+  const locked = isDone && !item.can_manage
 
   return (
     <main className="page admin-page">
@@ -95,6 +102,14 @@ export default function MyTenderTaskPage() {
 
             {item.description && <p className="mtt-desc">{item.description}</p>}
 
+            {/* Yêu cầu làm lại từ người quản lý gói — hiển thị nổi bật lý do + số lần sửa */}
+            {item.rework_count > 0 && item.rework_reason && (
+              <div className="mtt-rework">
+                <div className="mtt-rework-head">🔁 Yêu cầu làm lại — lần {item.rework_count}</div>
+                <div className="mtt-rework-reason">{item.rework_reason}</div>
+              </div>
+            )}
+
             <div className="mtt-meta">
               {item.department_name && <span>Phòng: <strong>{item.department_name}</strong></span>}
               <span>Người phụ trách: <strong>{item.assignee_name || '—'}</strong></span>
@@ -107,11 +122,17 @@ export default function MyTenderTaskPage() {
                 <button
                   key={s}
                   className={`mtt-status-btn ${s === item.status ? 'active' : ''}`}
-                  disabled={saving || s === item.status}
+                  disabled={saving || s === item.status || locked}
                   onClick={() => changeStatus(s)}
                 >{s}</button>
               ))}
             </div>
+            {locked && (
+              <p className="tender-muted mtt-locked-note">
+                Công việc đã hoàn thành. Việc mở lại trạng thái do Trưởng phòng Kế hoạch Đấu thầu
+                hoặc người được giao phụ trách gói thực hiện.
+              </p>
+            )}
           </div>
 
           {/* Tabs: tệp sản phẩm (sửa được) / hồ sơ mời thầu (chỉ đọc) */}
@@ -126,7 +147,7 @@ export default function MyTenderTaskPage() {
 
           <div className="tender-tab-body">
             {tab === 'docs' && (
-              <ContractPermProvider canEdit={true}>
+              <ContractPermProvider canEdit={!isDone}>
                 <ContractDocumentsTab basePath={`tender/my-task/${itemId}/docs`} allowRootUpload />
               </ContractPermProvider>
             )}

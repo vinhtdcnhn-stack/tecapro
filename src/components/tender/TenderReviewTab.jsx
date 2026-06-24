@@ -1,130 +1,140 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
-import { getFileIcon, formatDate } from '../contracts/documentsUtils'
-import TenderFilePreview from './TenderFilePreview'
+import { formatDate } from '../contracts/documentsUtils'
+import ContractDocumentsTab from '../contracts/ContractDocumentsTab'
+import { ContractPermProvider } from '../../context/ContractPermContext'
 
-// Tab "Review & Comment": trình hồ sơ theo phiên bản, Trưởng phòng kết luận Đạt/Chưa đạt,
-// xem trước từng version + lịch sử comment.
-export default function TenderReviewTab({ tenderId, canEdit, isHead }) {
-  const [versions, setVersions] = useState([])
+// Tab "Review & Comment" — duyệt theo TỪNG ĐẦU VIỆC. Người phụ trách gói đã curate tệp
+// (loại bớt / thay thế) rồi gửi lên; Trưởng ban xem bản gửi review và kết luận Đạt / Trả lại.
+// Tệp/thư mục hiển thị bằng giao diện 3 phần (cây thư mục · bảng tệp · xem trước) giống tab
+// Checklist công việc — chỉ đọc, các đánh dấu "đã loại / thay thế" hiện ngay trên bảng tệp.
+const REVIEW_BADGE = {
+  pending:  { label: 'Chờ duyệt', bg: '#fef9c3', fg: '#a16207' },
+  approved: { label: 'Đã duyệt',  bg: '#dcfce7', fg: '#15803d' },
+  returned: { label: 'Bị trả lại', bg: '#fee2e2', fg: '#b91c1c' },
+}
+
+export default function TenderReviewTab({ tenderId, isHead }) {
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [preview, setPreview] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [note, setNote] = useState('')
-  const [decision, setDecision] = useState({})   // { [versionId]: { conclusion, comment } }
-  const inputRef = useRef(null)
+  const [expanded, setExpanded] = useState({})   // { [itemId]: bool }
+  const [decision, setDecision] = useState({})   // { [itemId]: { conclusion, comment } }
 
   const load = useCallback(() => {
     setLoading(true)
     fetch(`${API}/tender/${tenderId}/review`)
       .then(r => r.ok ? r.json() : [])
-      .then(d => setVersions(Array.isArray(d) ? d : []))
-      .catch(() => setVersions([]))
+      .then(d => setItems(Array.isArray(d) ? d : []))
+      .catch(() => setItems([]))
       .finally(() => setLoading(false))
   }, [tenderId])
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() async: setState sau await
   useEffect(load, [load])
 
-  async function submit(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setSubmitting(true)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      if (note.trim()) fd.append('note', note.trim())
-      const res = await fetch(`${API}/tender/${tenderId}/review/submit`, { method: 'POST', body: fd })
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Trình hồ sơ thất bại.') }
-      setNote('')
-      load()
-    } catch (err) {
-      alert(err.message)
-    } finally {
-      setSubmitting(false)
-      if (inputRef.current) inputRef.current.value = ''
-    }
+  async function reopen(itemId) {
+    const comment = prompt('Lý do thu hồi kết luận đã duyệt (sẽ lưu lịch sử, có thể bỏ trống):')
+    if (comment == null) return            // người dùng huỷ
+    const res = await fetch(`${API}/tender/checklist/${itemId}/review/reopen`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment: comment.trim() }),
+    })
+    if (res.ok) load()
+    else { const e = await res.json().catch(() => ({})); alert(e.error || 'Không thể thu hồi kết luận.') }
   }
 
-  async function decide(versionId) {
-    const d = decision[versionId] || {}
-    if (!d.conclusion) { alert('Chọn kết luận Đạt / Chưa đạt.'); return }
-    if (d.conclusion === 'fail' && !(d.comment || '').trim()) { alert('Cần ghi lý do khi Chưa đạt.'); return }
-    const res = await fetch(`${API}/tender/review/${versionId}/decide`, {
+  async function decide(itemId) {
+    const d = decision[itemId] || {}
+    if (!d.conclusion) { alert('Chọn kết luận Đạt / Trả lại.'); return }
+    if (d.conclusion === 'fail' && !(d.comment || '').trim()) { alert('Cần ghi lý do khi Trả lại.'); return }
+    const res = await fetch(`${API}/tender/checklist/${itemId}/review/decide`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ conclusion: d.conclusion, comment: d.comment || '' }),
     })
-    if (res.ok) { setDecision(s => ({ ...s, [versionId]: {} })); load() }
+    if (res.ok) { setDecision(s => ({ ...s, [itemId]: {} })); load() }
     else { const e = await res.json().catch(() => ({})); alert(e.error || 'Không thể lưu kết luận.') }
   }
 
-  const setDec = (vid, patch) => setDecision(s => ({ ...s, [vid]: { ...s[vid], ...patch } }))
+  const setDec = (id, patch) => setDecision(s => ({ ...s, [id]: { ...s[id], ...patch } }))
 
   if (loading) return <p className="dash-empty">Đang tải…</p>
+  if (!items.length) return <p className="dash-empty">Chưa có đầu việc nào được gửi review.</p>
 
-  const latestId = versions[0]?.id
   return (
     <div className="tender-review">
-      {canEdit && (
-        <div className="tender-review-submit">
-          <input className="tender-review-note" placeholder="Ghi chú khi trình (vd: đã sửa theo góp ý)…"
-            value={note} onChange={e => setNote(e.target.value)} />
-          <input ref={inputRef} type="file" hidden onChange={submit} />
-          <button className="btn-primary" onClick={() => inputRef.current?.click()} disabled={submitting}>
-            {submitting ? 'Đang trình…' : '+ Trình hồ sơ review'}
-          </button>
-        </div>
-      )}
+      <div className="tender-version-list">
+        {items.map(it => {
+          const rb = REVIEW_BADGE[it.review_status] || REVIEW_BADGE.pending
+          const d = decision[it.id] || {}
+          const isOpen = !!expanded[it.id]
+          return (
+            <div key={it.id} className="tender-version">
+              <div className="tender-version-head">
+                <button className="tender-ci-toggle" onClick={() => setExpanded(e => ({ ...e, [it.id]: !e[it.id] }))}>
+                  {isOpen ? '▾' : '▸'}
+                </button>
+                <span className="tender-ci-title">{it.title}</span>
+                <span className="tender-badge" style={{ background: rb.bg, color: rb.fg }}>{rb.label}</span>
+                {it.files.length > 0 && <span className="tender-ci-files">📎 {it.files.length}</span>}
+                <span className="tender-muted">
+                  {it.department_name || ''}{it.assignee_name ? ` · ${it.assignee_name}` : ''}
+                  {it.submitted_by_name ? ` · gửi: ${it.submitted_by_name}` : ''}
+                  {it.review_submitted_at ? ` · ${formatDate(it.review_submitted_at)}` : ''}
+                </span>
+              </div>
 
-      {!versions.length ? (
-        <p className="dash-empty">Chưa có phiên bản hồ sơ nào được trình.</p>
-      ) : (
-        <div className="tender-version-list">
-          {versions.map(v => {
-            const ic = getFileIcon(v.mime_type)
-            const passed = v.reviews.some(r => r.conclusion === 'pass')
-            const decided = v.reviews.length > 0
-            return (
-              <div key={v.id} className="tender-version">
-                <div className="tender-version-head">
-                  <span className="tender-version-tag">v{v.version_no}</span>
-                  <span style={{ color: ic.color }}>{ic.emoji}</span>
-                  <button className="tender-file-name" onClick={() => setPreview(v)}>{v.file_name}</button>
-                  <span className="tender-muted">{v.uploaded_by_name} · {formatDate(v.created_at)}</span>
+              {/* Tệp/thư mục gửi review — giao diện 3 phần, chỉ đọc (đã áp đánh dấu loại / thay thế) */}
+              {isOpen && (
+                <div className="tender-review-docs">
+                  <ContractPermProvider canEdit={false}>
+                    <ContractDocumentsTab basePath={`tender/checklist/${it.id}/docs`} allowRootUpload />
+                  </ContractPermProvider>
                 </div>
-                {v.note && <p className="tender-version-note">📝 {v.note}</p>}
+              )}
 
-                {v.reviews.map(r => (
+              {/* Lịch sử kết luận */}
+              {it.reviews.map(r => {
+                const badge = r.conclusion === 'pass'
+                  ? { label: 'Đạt', bg: '#dcfce7', fg: '#15803d' }
+                  : r.conclusion === 'reopen'
+                    ? { label: 'Thu hồi duyệt', bg: '#e0e7ff', fg: '#4338ca' }
+                    : { label: 'Trả lại', bg: '#fee2e2', fg: '#b91c1c' }
+                return (
                   <div key={r.id} className={`tender-review-row ${r.conclusion}`}>
-                    <span className="tender-badge" style={r.conclusion === 'pass'
-                      ? { background: '#dcfce7', color: '#15803d' } : { background: '#fee2e2', color: '#b91c1c' }}>
-                      {r.conclusion === 'pass' ? 'Đạt' : 'Chưa đạt'}
-                    </span>
+                    <span className="tender-badge" style={{ background: badge.bg, color: badge.fg }}>{badge.label}</span>
                     {r.comment && <span className="tender-review-comment">{r.comment}</span>}
                     <span className="tender-muted">{r.reviewer_name} · {formatDate(r.created_at)}</span>
                   </div>
-                ))}
+                )
+              })}
 
-                {isHead && v.id === latestId && !passed && (
-                  <div className="tender-decide">
-                    <select value={(decision[v.id]?.conclusion) || ''}
-                      onChange={e => setDec(v.id, { conclusion: e.target.value })}>
-                      <option value="">— Kết luận —</option>
-                      <option value="pass">Đạt</option>
-                      <option value="fail">Chưa đạt</option>
-                    </select>
-                    <input className="tender-decide-comment" placeholder="Nhận xét / lý do…"
-                      value={(decision[v.id]?.comment) || ''}
-                      onChange={e => setDec(v.id, { comment: e.target.value })} />
-                    <button className="btn-primary" onClick={() => decide(v.id)}>Lưu kết luận</button>
-                  </div>
-                )}
-                {decided && passed && <p className="tender-version-done">✓ Hồ sơ đã đạt — sẵn sàng in/ký.</p>}
-              </div>
-            )
-          })}
-        </div>
-      )}
-      {preview && <TenderFilePreview file={preview} kind="version" onClose={() => setPreview(null)} />}
+              {/* Trưởng ban kết luận (chỉ khi đang chờ duyệt) */}
+              {isHead && it.review_status === 'pending' && (
+                <div className="tender-decide">
+                  <select value={d.conclusion || ''} onChange={e => setDec(it.id, { conclusion: e.target.value })}>
+                    <option value="">— Kết luận —</option>
+                    <option value="pass">Đạt</option>
+                    <option value="fail">Trả lại</option>
+                  </select>
+                  <input className="tender-decide-comment" placeholder="Nhận xét / lý do…"
+                    value={d.comment || ''} onChange={e => setDec(it.id, { comment: e.target.value })} />
+                  <button className="btn-primary" onClick={() => decide(it.id)}>Lưu kết luận</button>
+                </div>
+              )}
+              {it.review_status === 'approved' && (
+                <div className="tender-version-done-row">
+                  <p className="tender-version-done">✓ Đầu việc đã được duyệt Đạt.</p>
+                  {isHead && (
+                    <button className="btn-link" onClick={() => reopen(it.id)}
+                      title="Thu hồi kết luận để xem xét lại — đầu việc sẽ mở khoá và chờ duyệt lại">
+                      ↩ Thu hồi kết luận
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

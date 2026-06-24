@@ -4,11 +4,13 @@ import EditGuard from './EditGuard'
 export default function DocumentFolderTree({
   folders, selectedFolderId, expandedFolders,
   onSelect, onToggleExpand, onRename, onDelete,
+  // Chế độ curate review (chỉ Đấu thầu): { busy, onToggleExclude }
+  review,
 }) {
   const renderNodes = (folderList, level = 0) => folderList.map(folder => (
     <div key={folder.id} className="folder-tree-item">
       <div
-        className={`folder-node ${String(selectedFolderId) === String(folder.id) ? 'selected' : ''}`}
+        className={`folder-node ${String(selectedFolderId) === String(folder.id) ? 'selected' : ''} ${folder.review_excluded ? 'review-excluded' : ''}`}
         style={{ paddingLeft: `${level * 16 + 6}px` }}
         onClick={() => onSelect(folder.id)}
       >
@@ -23,6 +25,17 @@ export default function DocumentFolderTree({
           <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
         </svg>
         <span className="folder-name">{folder.folder_name}</span>
+        {folder.review_excluded && <span className="review-tag review-tag--excluded">đã loại</span>}
+        {review && (
+          <button
+            className="folder-action-btn"
+            title={folder.review_excluded ? 'Khôi phục vào review' : 'Loại khỏi review'}
+            disabled={review.busy}
+            onClick={(e) => { e.stopPropagation(); review.onToggleExclude(folder) }}
+          >
+            {folder.review_excluded ? '↩' : '⊘'}
+          </button>
+        )}
         <EditGuard>
           <div className="folder-actions">
             <button className="folder-action-btn" title="Đổi tên" onClick={(e) => onRename(folder, e)}>

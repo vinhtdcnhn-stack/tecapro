@@ -53,7 +53,7 @@ async function serve(res, table, id, { inline }) {
   }
 }
 
-async function removeFile(table, id, res, req, { editorOnly = false } = {}) {
+async function removeFile(table, id, res) {
   const { rows } = await pool.query(
     `SELECT file_path, uploaded_by FROM ${table} WHERE id = $1`, [id])
   if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy tệp.' })
@@ -106,7 +106,7 @@ export async function uploadItemAttachment(req, res) {
 }
 
 export const deleteItemAttachment = (req, res) =>
-  removeFile('tender_checklist_attachment', parseInt(req.params.id), res, req)
+  removeFile('tender_checklist_attachment', parseInt(req.params.id), res)
 export const viewAttachment = (req, res) =>
   serve(res, 'tender_checklist_attachment', parseInt(req.params.id), { inline: true })
 export const downloadAttachment = (req, res) =>
@@ -152,7 +152,7 @@ export async function uploadSummaryFile(req, res) {
 }
 
 export const deleteSummaryFile = (req, res) =>
-  removeFile('tender_summary_file', parseInt(req.params.id), res, req)
+  removeFile('tender_summary_file', parseInt(req.params.id), res)
 export const viewSummary = (req, res) =>
   serve(res, 'tender_summary_file', parseInt(req.params.id), { inline: true })
 export const downloadSummary = (req, res) =>

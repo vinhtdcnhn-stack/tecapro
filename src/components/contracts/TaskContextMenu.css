@@ -50,10 +50,16 @@
 
 .task-ctxmenu-item svg { flex-shrink: 0; color: #16a34a; }
 
+.task-ctxmenu-item.danger { color: #b91c1c; }
+.task-ctxmenu-item.danger:hover { background: #fef2f2; color: #b91c1c; }
+.task-ctxmenu-item:disabled { opacity: 0.5; cursor: default; }
+.task-ctxmenu-item:disabled:hover { background: transparent; color: inherit; }
+
 /* Thiết bị cảm ứng: chặn callout/bôi đen mặc định để ấn giữ gọi được menu Sao chép */
 @media (pointer: coarse) {
   .task-table tbody tr,
   .pm-track-table tbody tr,
+  .documents-table tbody tr,
   .tgantt-row--task {
     -webkit-touch-callout: none;
     -webkit-user-select: none;

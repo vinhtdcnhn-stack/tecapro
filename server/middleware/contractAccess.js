@@ -387,8 +387,16 @@ async function canWriteTenderDocs(userId, userRole, tenderIds) {
 // Quyền GHI tệp SẢN PHẨM (khoá item_id): Trưởng phòng, HOẶC người được giao / người
 // làm thầu của gói cho TẤT CẢ đầu việc liên quan (admin đã lọc trước đó).
 async function canWriteItemDocs(userId, userRole, itemIds) {
-  if (await userIsHead(userId, userRole)) return true
   const distinct = [...new Set(itemIds.map(String))]
+  // Đầu việc đã 'Hoàn thành' → đóng băng tệp sản phẩm: không ai sửa được (kể cả Trưởng
+  // phòng/người làm thầu) cho tới khi mở lại trạng thái. Chỉ admin được bỏ qua (lọc ở docGuard).
+  const { rows: locked } = await pool.query(
+    `SELECT 1 FROM tender_checklist_item
+      WHERE id = ANY($1::bigint[]) AND status = 'Hoàn thành' LIMIT 1`,
+    [distinct],
+  )
+  if (locked.length) return false
+  if (await userIsHead(userId, userRole)) return true
   const { rows } = await pool.query(
     `SELECT COUNT(*)::int AS n
        FROM tender_checklist_item i
@@ -432,7 +440,7 @@ export const docGuard = (key, param = 'id') => async function docGuardMw(req, re
     if (itRows.length) {
       const itemIds = itRows.map(r => r.item_id)
       if (!await canWriteItemDocs(req.user.id, req.user.role, itemIds)) {
-        res.status(403).json({ error: 'Chỉ người được giao việc (hoặc người làm thầu/Trưởng phòng) mới được sửa tệp này.' })
+        res.status(403).json({ error: 'Không thể sửa tệp sản phẩm: đầu việc đã hoàn thành (cần mở lại trạng thái) hoặc bạn không có quyền.' })
         return
       }
     }

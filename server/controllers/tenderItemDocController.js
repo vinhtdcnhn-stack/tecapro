@@ -52,14 +52,14 @@ export async function getItemFolders(req, res) {
     const { itemId } = req.params
     const { rows } = await pool.query(`
       WITH RECURSIVE folder_tree AS (
-        SELECT id, item_id, parent_id, folder_name, created_by, created_at,
+        SELECT id, item_id, parent_id, folder_name, review_excluded, created_by, created_at,
                0 AS level, ARRAY[id] AS path
         FROM public.document_folder
         WHERE item_id = $1 AND parent_id IS NULL
 
         UNION ALL
 
-        SELECT f.id, f.item_id, f.parent_id, f.folder_name, f.created_by, f.created_at,
+        SELECT f.id, f.item_id, f.parent_id, f.folder_name, f.review_excluded, f.created_by, f.created_at,
                ft.level + 1, ft.path || f.id
         FROM public.document_folder f
         INNER JOIN folder_tree ft ON f.parent_id = ft.id
@@ -109,9 +109,12 @@ export async function getItemFiles(req, res) {
     let query = `
       SELECT df.id, df.item_id, df.folder_id, df.file_name, df.file_path,
              df.file_size, df.mime_type, df.uploaded_by, df.uploaded_at,
+             df.review_excluded, df.replaces_file_id, orig.file_name AS replaces_file_name,
+             EXISTS (SELECT 1 FROM public.document_file r WHERE r.replaces_file_id = df.id) AS is_replaced,
              f.folder_name, u.full_name AS uploaded_by_name
       FROM public.document_file df
       LEFT JOIN public.document_folder f ON f.id = df.folder_id
+      LEFT JOIN public.document_file orig ON orig.id = df.replaces_file_id
       LEFT JOIN public.app_user u ON df.uploaded_by = u.id
       WHERE df.item_id = $1
     `

@@ -4,7 +4,6 @@ import { NavLink } from 'react-router-dom'
 const BASE = '/cong-viec/dau-thau'
 const ITEMS = [
   { label: 'Danh sách gói', section: 'list' },
-  { label: 'Hàng đợi phân công', section: 'queue', headOnly: true },
   { label: 'Việc của tôi', section: 'my' },
   { label: 'Mẫu checklist', section: 'template', headOnly: true },
   { label: 'Báo cáo', section: 'reports' },

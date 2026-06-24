@@ -2,6 +2,7 @@ import { pool } from '../db.js'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
+import archiver from 'archiver'
 import { fileURLToPath } from 'url'
 import { safeUploadFilter, UPLOAD_LIMITS, BLOCKED_EXT } from '../middleware/uploadFilter.js'
 
@@ -375,6 +376,93 @@ export async function downloadFile(req, res) {
   } catch (err) {
     console.error('downloadFile error:', err)
     res.status(500).json({ error: 'Failed to download file' })
+  }
+}
+
+// ── Folder: DOWNLOAD (zip toàn bộ cây thư mục) ────────────────────────────────
+// Generic theo folder_id nên dùng chung cho HĐ bán / HĐ nhập / đầu việc Đấu thầu
+// (đều dùng chung bảng document_file, document_folder). Giữ cấu trúc thư mục con
+// bên trong file zip. Không gắn guard riêng — đồng bộ với /files/:fileId/download.
+export async function downloadFolder(req, res) {
+  try {
+    const { folderId } = req.params
+
+    // Thư mục gốc (để đặt tên file zip + kiểm tra tồn tại)
+    const { rows: rootRows } = await pool.query(
+      'SELECT id, folder_name FROM public.document_folder WHERE id = $1',
+      [folderId]
+    )
+    if (rootRows.length === 0) return res.status(404).json({ error: 'Folder not found' })
+    const rootName = rootRows[0].folder_name
+
+    // Cây con: mỗi thư mục kèm rel_path = tiền tố đường dẫn cho file BÊN TRONG nó.
+    // Thư mục gốc → '' (file nằm ở gốc zip); thư mục con → 'Tên con/...'.
+    const { rows: folders } = await pool.query(`
+      WITH RECURSIVE subtree AS (
+        SELECT id, ''::text AS rel_path
+        FROM public.document_folder WHERE id = $1
+        UNION ALL
+        SELECT f.id, s.rel_path || f.folder_name || '/'
+        FROM public.document_folder f
+        INNER JOIN subtree s ON f.parent_id = s.id
+      )
+      SELECT id, rel_path FROM subtree
+    `, [folderId])
+
+    const relById = new Map(folders.map(f => [String(f.id), f.rel_path]))
+    const folderIds = folders.map(f => f.id)
+
+    const { rows: files } = await pool.query(
+      'SELECT folder_id, file_name, file_path FROM public.document_file WHERE folder_id = ANY($1)',
+      [folderIds]
+    )
+
+    // Lọc các file thực sự còn trên đĩa
+    const present = files
+      .map(f => {
+        try {
+          const abs = resolveFilePath(f.file_path)
+          if (!fs.existsSync(abs)) return null
+          return { abs, name: (relById.get(String(f.folder_id)) || '') + f.file_name }
+        } catch { return null }
+      })
+      .filter(Boolean)
+
+    if (present.length === 0) {
+      return res.status(404).json({ error: 'Thư mục không có tệp nào để tải.' })
+    }
+
+    const safeZipName = rootName.replace(/[^\p{L}\p{N}._-]+/gu, '_') || 'folder'
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(safeZipName)}.zip"`)
+
+    const archive = archiver('zip', { zlib: { level: 6 } })
+    archive.on('error', err => {
+      console.error('downloadFolder archive error:', err)
+      if (!res.headersSent) res.status(500).json({ error: 'Failed to zip folder' })
+      else res.destroy(err)
+    })
+    archive.pipe(res)
+
+    // Tránh trùng tên trong cùng một thư mục zip
+    const used = new Set()
+    for (const f of present) {
+      let entry = f.name
+      if (used.has(entry)) {
+        const dir = path.posix.dirname(entry)
+        const ext = path.extname(entry)
+        const base = path.basename(entry, ext)
+        let i = 1
+        do { entry = `${dir === '.' ? '' : dir + '/'}${base} (${i++})${ext}` } while (used.has(entry))
+      }
+      used.add(entry)
+      archive.file(f.abs, { name: entry })
+    }
+
+    await archive.finalize()
+  } catch (err) {
+    console.error('downloadFolder error:', err)
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to download folder' })
   }
 }
 

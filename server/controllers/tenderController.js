@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { notifyAction } from '../services/notify.js'
+import { userIsHead } from '../middleware/tenderAccess.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Gói thầu (16 trường) + phân công + trạng thái workflow. Module Ban Đấu thầu (dept 9).
@@ -111,18 +112,29 @@ export async function createTender(req, res) {
     return res.status(400).json({ error: `Nhập tỷ giá VNĐ/${v.currency_code} cho gói thầu ngoại tệ.` })
   try {
     await resolveInvestor(v)
+    // Phân công ngay khi tạo: chỉ Trưởng phòng/admin được giao người làm thầu/AM.
+    const head = await userIsHead(req.user.id, req.user.role)
+    const bidMaker = head && req.body?.bid_maker_id ? parseInt(req.body.bid_maker_id) : null
+    const am = head && req.body?.am_id ? parseInt(req.body.am_id) : null
+    const status = bidMaker ? 'Đã phân công' : 'Khởi tạo'
     const { rows } = await pool.query(
       `INSERT INTO tender
          (package_name, package_code, customer_id, investor, estimate, currency_code, exchange_rate,
-          submit_date, field, guarantee, pakd_no, uq_no, assign_decision, note, result, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          submit_date, field, guarantee, pakd_no, uq_no, assign_decision, note, result,
+          bid_maker_id, am_id, workflow_status, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING id`,
       [v.package_name, v.package_code, v.customer_id, v.investor, v.estimate, v.currency_code,
         v.exchange_rate, v.submit_date, v.field, v.guarantee, v.pakd_no, v.uq_no, v.assign_decision,
-        v.note, v.result, req.user.id],
+        v.note, v.result, bidMaker, am, status, req.user.id],
     )
     const id = rows[0].id
-    logActivity(id, req.user.id, 'create', `Tạo gói thầu "${v.package_name}"`)
+    logActivity(id, req.user.id, 'create',
+      `Tạo gói thầu "${v.package_name}"${bidMaker ? ` (giao người làm thầu ${bidMaker})` : ''}`)
+    // Báo người làm thầu được giao (khác chính mình).
+    if (bidMaker && bidMaker !== req.user.id) {
+      notifyAction([bidMaker], `Bạn được phân công làm gói thầu: "${v.package_name}"`)
+    }
     res.status(201).json({ success: true, id })
   } catch (err) {
     console.error('createTender:', err)
@@ -138,57 +150,45 @@ export async function updateTender(req, res) {
     return res.status(400).json({ error: `Nhập tỷ giá VNĐ/${v.currency_code} cho gói thầu ngoại tệ.` })
   try {
     await resolveInvestor(v)
+    const vals = [v.package_name, v.package_code, v.customer_id, v.investor, v.estimate,
+      v.currency_code, v.exchange_rate, v.submit_date, v.field, v.guarantee, v.pakd_no,
+      v.uq_no, v.assign_decision, v.note, v.result]
+    let sets = `package_name=$1, package_code=$2, customer_id=$3, investor=$4, estimate=$5,
+      currency_code=$6, exchange_rate=$7, submit_date=$8, field=$9, guarantee=$10,
+      pakd_no=$11, uq_no=$12, assign_decision=$13, note=$14, result=$15`
+
+    // Trưởng phòng/admin có thể đổi phân công ngay tại form sửa. Người làm thầu (không
+    // phải head) sửa gói mình phụ trách thì giữ nguyên người làm thầu/AM hiện tại.
+    const head = await userIsHead(req.user.id, req.user.role)
+    let bidMaker = null, prevBidMaker = null
+    if (head) {
+      const { rows: cur } = await pool.query(
+        'SELECT bid_maker_id, workflow_status FROM tender WHERE id=$1 AND is_deleted=false', [id])
+      if (!cur.length) return res.status(404).json({ error: 'Không tìm thấy gói thầu.' })
+      bidMaker = req.body?.bid_maker_id ? parseInt(req.body.bid_maker_id) : null
+      const am = req.body?.am_id ? parseInt(req.body.am_id) : null
+      prevBidMaker = cur[0].bid_maker_id
+      const newStatus = bidMaker && cur[0].workflow_status === 'Khởi tạo'
+        ? 'Đã phân công' : cur[0].workflow_status
+      vals.push(bidMaker, am, newStatus)
+      sets += ', bid_maker_id=$16, am_id=$17, workflow_status=$18'
+    }
+    vals.push(id)
     const { rows } = await pool.query(
-      `UPDATE tender SET
-         package_name=$1, package_code=$2, customer_id=$3, investor=$4, estimate=$5,
-         currency_code=$6, exchange_rate=$7, submit_date=$8,
-         field=$9, guarantee=$10, pakd_no=$11, uq_no=$12, assign_decision=$13,
-         note=$14, result=$15, updated_at=now()
-       WHERE id=$16 AND is_deleted=false
-       RETURNING id`,
-      [v.package_name, v.package_code, v.customer_id, v.investor, v.estimate, v.currency_code,
-        v.exchange_rate, v.submit_date, v.field, v.guarantee, v.pakd_no, v.uq_no, v.assign_decision,
-        v.note, v.result, id],
+      `UPDATE tender SET ${sets}, updated_at=now()
+       WHERE id=$${vals.length} AND is_deleted=false RETURNING id`,
+      vals,
     )
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy gói thầu.' })
     logActivity(id, req.user.id, 'update', `Cập nhật thông tin gói thầu`)
+    // Báo người làm thầu mới được giao (khác trước đó & khác chính mình).
+    if (head && bidMaker && bidMaker !== prevBidMaker && bidMaker !== req.user.id) {
+      notifyAction([bidMaker], `Bạn được phân công làm gói thầu: "${v.package_name}"`)
+    }
     res.json({ success: true, id })
   } catch (err) {
     console.error('updateTender:', err)
     res.status(500).json({ error: 'Không thể cập nhật gói thầu.' })
-  }
-}
-
-// Trưởng phòng phân công người làm thầu + AM. Đổi trạng thái sang "Đã phân công" và báo người làm thầu.
-export async function assignTender(req, res) {
-  const id = parseInt(req.params.id)
-  const bidMaker = req.body?.bid_maker_id ? parseInt(req.body.bid_maker_id) : null
-  const am = req.body?.am_id ? parseInt(req.body.am_id) : null
-  try {
-    const { rows: cur } = await pool.query(
-      'SELECT package_name, bid_maker_id, workflow_status FROM tender WHERE id=$1 AND is_deleted=false',
-      [id],
-    )
-    if (!cur.length) return res.status(404).json({ error: 'Không tìm thấy gói thầu.' })
-    const wasUnassigned = cur[0].workflow_status === 'Khởi tạo'
-    const newStatus = bidMaker && wasUnassigned ? 'Đã phân công' : cur[0].workflow_status
-
-    const { rows } = await pool.query(
-      `UPDATE tender SET bid_maker_id=$1, am_id=$2, workflow_status=$3, updated_at=now()
-        WHERE id=$4 RETURNING id`,
-      [bidMaker, am, newStatus, id],
-    )
-    logActivity(id, req.user.id, 'assign',
-      `Phân công người làm thầu (${bidMaker ?? '—'}) / AM (${am ?? '—'})`)
-
-    // Báo người làm thầu mới (khác chính mình).
-    if (bidMaker && bidMaker !== cur[0].bid_maker_id && bidMaker !== req.user.id) {
-      notifyAction([bidMaker], `Bạn được phân công làm gói thầu: "${cur[0].package_name}"`)
-    }
-    res.json({ success: true, id: rows[0].id })
-  } catch (err) {
-    console.error('assignTender:', err)
-    res.status(500).json({ error: 'Không thể phân công gói thầu.' })
   }
 }
 

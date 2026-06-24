@@ -6,15 +6,15 @@ import CustomerSelect from '../common/CustomerSelect'
 import { API } from '../../config/api'
 import { FIELDS, RESULTS, CURRENCIES } from './tenderUtils'
 
-// Form tạo / sửa gói thầu (16 trường của bảng theo dõi). Người làm thầu & AM được
-// phân công riêng qua AssignModal (Trưởng phòng), không nhập tay ở đây.
+// Form tạo / sửa gói thầu (16 trường của bảng theo dõi). Trưởng phòng (isHead) phân
+// công Người làm thầu & AM ngay tại form này; thành viên thường không thấy 2 trường đó.
 const EMPTY = {
   package_name: '', package_code: '', customer_id: '', investor: '', estimate: '',
   currency_code: 'VND', exchange_rate: '', submit_date: '',
   field: '', guarantee: '', pakd_no: '', uq_no: '', assign_decision: '', note: '', result: '',
 }
 
-export default function TenderModal({ tender, onClose, onSaved }) {
+export default function TenderModal({ tender, members = [], isHead = false, onClose, onSaved }) {
   const editing = !!tender?.id
   const [form, setForm] = useState(() => ({
     ...EMPTY,
@@ -27,6 +27,9 @@ export default function TenderModal({ tender, onClose, onSaved }) {
     result: tender?.result || '',
   }))
   const [customers, setCustomers] = useState([])
+  const [users, setUsers] = useState([])
+  const [bidMaker, setBidMaker] = useState(tender?.bid_maker_id || '')
+  const [am, setAm] = useState(tender?.am_id || '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -37,6 +40,20 @@ export default function TenderModal({ tender, onClose, onSaved }) {
       .then(data => setCustomers(Array.isArray(data) ? data : []))
       .catch(() => {})
   }, [])
+
+  // Danh sách người (cho ô phân công) chỉ cần khi là Trưởng phòng.
+  useEffect(() => {
+    if (!isHead) return
+    fetch(`${API}/users`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setUsers(Array.isArray(d) ? d : []))
+      .catch(() => setUsers([]))
+  }, [isHead])
+
+  // Người làm thầu: ưu tiên thành viên phòng; AM: mọi người dùng.
+  const memberIds = new Set(members.map(m => Number(m.user_id)))
+  const bidOptions = users.filter(u => memberIds.has(Number(u.id)))
+  const bidList = bidOptions.length ? bidOptions : users
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e?.target ? e.target.value : e }))
 
@@ -53,7 +70,11 @@ export default function TenderModal({ tender, onClose, onSaved }) {
       const res = await fetch(url, {
         method: editing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, exchange_rate: foreign ? form.exchange_rate : 1 }),
+        body: JSON.stringify({
+          ...form,
+          exchange_rate: foreign ? form.exchange_rate : 1,
+          ...(isHead ? { bid_maker_id: bidMaker || null, am_id: am || null } : {}),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lưu thất bại.')
@@ -111,6 +132,20 @@ export default function TenderModal({ tender, onClose, onSaved }) {
             <input value={form.uq_no} onChange={set('uq_no')} /></label>
           <label className="field"><span>QĐ giao nhiệm vụ</span>
             <input value={form.assign_decision} onChange={set('assign_decision')} /></label>
+          {isHead && (
+            <label className="field"><span>Người làm thầu</span>
+              <select value={bidMaker} onChange={e => setBidMaker(e.target.value)}>
+                <option value="">— Chưa giao —</option>
+                {bidList.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              </select></label>
+          )}
+          {isHead && (
+            <label className="field"><span>AM phụ trách</span>
+              <select value={am} onChange={e => setAm(e.target.value)}>
+                <option value="">— Không —</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              </select></label>
+          )}
           <label className="field"><span>Kết quả</span>
             <select value={form.result} onChange={set('result')}>
               <option value="">—</option>

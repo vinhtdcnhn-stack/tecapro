@@ -1,6 +1,7 @@
 import { pool } from '../db.js'
 import { notifyAction, notifyInfo, fmtDate } from '../services/notify.js'
 import { logActivity } from './tenderController.js'
+import { userIsHead, userIsBidMakerOfItem } from '../middleware/tenderAccess.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Checklist công việc của gói thầu (GĐ2). Đầu việc → phòng ban → người phụ trách,
@@ -13,6 +14,7 @@ const ITEM_COLS = `
   i.id, i.tender_id, i.title, i.description, i.department_id, d.name AS department_name,
   i.assignee_id, u.full_name AS assignee_name, i.due_date, i.status,
   i.parent_item_id, i.sort_order, i.completed_at, i.created_at,
+  i.rework_count, i.rework_reason, i.review_status, i.review_comment,
   (SELECT count(*)::int FROM document_file df WHERE df.item_id = i.id) AS attachment_count`
 
 // Nhãn gói thầu cho thông báo.
@@ -49,6 +51,7 @@ export async function getMyTask(req, res) {
   try {
     const { rows: itemRows } = await pool.query(
       `SELECT i.id, i.tender_id, i.title, i.description, i.due_date, i.status,
+              i.rework_count, i.rework_reason,
               d.name AS department_name, u.full_name AS assignee_name,
               t.package_name, t.package_code, t.investor
          FROM tender_checklist_item i
@@ -59,7 +62,10 @@ export async function getMyTask(req, res) {
       [itemId],
     )
     if (!itemRows.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
-    res.json({ item: itemRows[0] })
+    // can_manage: được mở lại trạng thái khi đã 'Hoàn thành' (Trưởng phòng / người làm thầu).
+    const canManage = await userIsHead(req.user.id, req.user.role)
+      || await userIsBidMakerOfItem(itemId, req.user.id)
+    res.json({ item: { ...itemRows[0], can_manage: canManage } })
   } catch (err) {
     console.error('getMyTask:', err)
     res.status(500).json({ error: 'Không thể tải công việc.' })
@@ -111,8 +117,11 @@ export async function updateItem(req, res) {
   const description = String(req.body?.description ?? '').trim() || null
   try {
     const { rows: cur } = await pool.query(
-      'SELECT tender_id, assignee_id, title FROM tender_checklist_item WHERE id = $1', [id])
+      'SELECT tender_id, assignee_id, title, review_status FROM tender_checklist_item WHERE id = $1', [id])
     if (!cur.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
+    if (cur[0].review_status === 'approved') {
+      return res.status(403).json({ error: 'Đầu việc đã được duyệt — không thể sửa. Trưởng ban cần thu hồi kết luận trước.' })
+    }
 
     const { rows } = await pool.query(
       `UPDATE tender_checklist_item SET
@@ -137,18 +146,59 @@ export async function updateItemStatus(req, res) {
   const id = parseInt(req.params.itemId)
   const status = String(req.body?.status ?? '').trim()
   if (!STATUSES.has(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' })
+  const reason = String(req.body?.reason ?? '').trim()
   try {
     const { rows: cur } = await pool.query(
-      'SELECT tender_id, title, created_by, assignee_id FROM tender_checklist_item WHERE id = $1', [id])
+      'SELECT tender_id, title, created_by, assignee_id, status, rework_count, review_status FROM tender_checklist_item WHERE id = $1', [id])
     if (!cur.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
-    const completedAt = status === 'Hoàn thành' ? 'now()' : 'NULL'
-    await pool.query(
-      `UPDATE tender_checklist_item SET status=$1, completed_at=${completedAt}, updated_at=now() WHERE id=$2`,
-      [status, id],
-    )
-    logActivity(cur[0].tender_id, req.user.id, 'status', `Đầu việc "${cur[0].title}" → ${status}`)
-    // Báo người làm thầu (created_by) khi người được giao cập nhật.
-    if (cur[0].created_by && cur[0].created_by !== req.user.id) {
+    // Đầu việc đã duyệt Đạt bị khoá: không đổi trạng thái cho tới khi Trưởng ban thu hồi kết luận.
+    if (cur[0].review_status === 'approved' && status !== cur[0].status) {
+      return res.status(403).json({ error: 'Đầu việc đã được duyệt — không thể đổi trạng thái. Trưởng ban cần thu hồi kết luận trước.' })
+    }
+    // Mở khoá trạng thái: thoát khỏi 'Hoàn thành' chỉ dành cho Trưởng phòng Kế hoạch
+    // Đấu thầu hoặc người làm thầu (nhân viên được giao phụ trách) gói này.
+    if (cur[0].status === 'Hoàn thành' && status !== 'Hoàn thành') {
+      const canUnlock = await userIsHead(req.user.id, req.user.role)
+        || await userIsBidMakerOfItem(id, req.user.id)
+      if (!canUnlock) {
+        return res.status(403).json({
+          error: 'Đầu việc đã hoàn thành — chỉ Trưởng phòng Kế hoạch Đấu thầu hoặc người làm thầu của gói mới được mở lại trạng thái.',
+        })
+      }
+    }
+    // Yêu cầu LÀM LẠI: 'Hoàn thành' → 'Đang thực hiện'. Bắt buộc kèm lý do, tăng số
+    // lần sửa và lưu lý do để hiển thị trong form làm việc của người nhận.
+    const isRework = cur[0].status === 'Hoàn thành' && status === 'Đang thực hiện'
+    if (isRework && !reason) {
+      return res.status(400).json({ error: 'Vui lòng nhập lý do yêu cầu làm lại.' })
+    }
+    const reworkCount = isRework ? Number(cur[0].rework_count || 0) + 1 : Number(cur[0].rework_count || 0)
+    if (isRework) {
+      await pool.query(
+        `UPDATE tender_checklist_item
+            SET status=$1, completed_at=NULL, rework_count=$2, rework_reason=$3, updated_at=now()
+          WHERE id=$4`,
+        [status, reworkCount, reason, id],
+      )
+    } else {
+      const completedAt = status === 'Hoàn thành' ? 'now()' : 'NULL'
+      await pool.query(
+        `UPDATE tender_checklist_item SET status=$1, completed_at=${completedAt}, updated_at=now() WHERE id=$2`,
+        [status, id],
+      )
+    }
+    logActivity(cur[0].tender_id, req.user.id, 'status',
+      isRework
+        ? `Yêu cầu làm lại (lần ${reworkCount}) đầu việc "${cur[0].title}": ${reason}`
+        : `Đầu việc "${cur[0].title}" → ${status}`)
+    if (isRework) {
+      // Báo người được giao: cần xử lý → notifyAction (🔔 + đậm).
+      if (cur[0].assignee_id && cur[0].assignee_id !== req.user.id) {
+        notifyAction([cur[0].assignee_id],
+          `🔁 Yêu cầu làm lại (lần ${reworkCount}) đầu việc "${cur[0].title}"\nLý do: ${reason}`)
+      }
+    } else if (cur[0].created_by && cur[0].created_by !== req.user.id) {
+      // Báo người làm thầu (created_by) khi người được giao cập nhật.
       notifyInfo([cur[0].created_by], `Đầu việc "${cur[0].title}" đã chuyển sang: ${status}`)
     }
     res.json({ success: true, id })
@@ -161,6 +211,12 @@ export async function updateItemStatus(req, res) {
 export async function deleteItem(req, res) {
   const id = parseInt(req.params.itemId)
   try {
+    const { rows: cur } = await pool.query(
+      'SELECT review_status FROM tender_checklist_item WHERE id = $1', [id])
+    if (!cur.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
+    if (cur[0].review_status === 'approved') {
+      return res.status(403).json({ error: 'Đầu việc đã được duyệt — không thể xoá. Trưởng ban cần thu hồi kết luận trước.' })
+    }
     const { rows } = await pool.query(
       'DELETE FROM tender_checklist_item WHERE id = $1 RETURNING tender_id, title', [id])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })

@@ -4,6 +4,7 @@ import './ContractDocumentsTab.css'
 
 import { getFolderPath } from './documentsUtils'
 import { useDocumentUpload } from './useDocumentUpload'
+import { useReviewCuration } from './useReviewCuration'
 import DocumentFolderTree from './DocumentFolderTree'
 import DocumentFileTable from './DocumentFileTable'
 import DocumentPreviewPanel from './DocumentPreviewPanel'
@@ -11,10 +12,11 @@ import { NewFolderModal, RenameFolderModal, DeleteFolderModal } from './Document
 import EditGuard from './EditGuard'
 import { useCanEdit } from '../../context/ContractPermContext'
 
-export default function ContractDocumentsTab({ contractId, basePath, allowRootUpload = false }) {
+export default function ContractDocumentsTab({ contractId, basePath, allowRootUpload = false, review = null }) {
   // basePath overrides the default "contracts/{contractId}" prefix.
   // allowRootUpload: cho phép tải tệp vào THƯ MỤC GỐC (không chọn thư mục) — dùng cho
   // tab Hồ sơ mời thầu (Đấu thầu). Mặc định false để HĐ giữ nguyên: phải chọn thư mục.
+  // review: { itemId } khi bật chế độ curate review (chỉ Đấu thầu); null ở mọi nơi khác.
   const resourcePath = basePath || `contracts/${contractId}`
   const [folders, setFolders] = useState([])
   const [selectedFolderId, setSelectedFolderId] = useState(null)
@@ -95,6 +97,21 @@ export default function ContractDocumentsTab({ contractId, basePath, allowRootUp
     handleUploadFile, handleUploadFolder,
     handleFileChange, handleFolderChange,
   } = useDocumentUpload({ resourcePath, selectedFolderId, loadFolders, loadFiles, allowRootUpload })
+
+  // ── Curate review (chỉ Đấu thầu, khi nhận prop `review`) ───────────────────
+  const refreshFiles = useCallback(() => {
+    if (selectedFolderId) loadFiles(selectedFolderId)
+    else if (allowRootUpload) loadFiles('root')
+  }, [selectedFolderId, allowRootUpload, loadFiles])
+
+  const curation = useReviewCuration({ itemId: review?.itemId, refreshFiles, refreshFolders: loadFolders })
+  const fileReviewProps = review ? {
+    busy: curation.busy,
+    onToggleExclude: curation.toggleFileExclude,
+    onUploadReplacement: curation.pickReplacement,
+    onDeleteReplacement: curation.deleteReplacement,
+  } : null
+  const folderReviewProps = review ? { busy: curation.busy, onToggleExclude: curation.toggleFolderExclude } : null
 
   // ── Folder tree helpers ──────────────────────────────────────────────────
 
@@ -238,6 +255,12 @@ export default function ContractDocumentsTab({ contractId, basePath, allowRootUp
     }
   }
 
+  // Tải nguyên thư mục đang chọn (zip, giữ cấu trúc thư mục con) — không cần chọn file.
+  const handleDownloadFolder = () => {
+    if (!selectedFolderId) { alert('Vui lòng chọn thư mục cần tải'); return }
+    window.open(`${API}/folders/${selectedFolderId}/download`, '_blank')
+  }
+
   const handleDelete = async () => {
     if (selectedFiles.size === 0) { alert('Vui lòng chọn file cần xóa'); return }
     if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedFiles.size} file đã chọn?`)) return
@@ -264,13 +287,18 @@ export default function ContractDocumentsTab({ contractId, basePath, allowRootUp
       <div className="documents-left-panel">
         <div className="panel-header">
           <h3>Thư mục</h3>
-          <EditGuard>
-            <button className="btn-icon" onClick={handleCreateFolder} title="Tạo thư mục mới">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/>
-              </svg>
+          <div className="panel-header-actions">
+            <button className="btn-icon" onClick={handleDownloadFolder} disabled={!selectedFolderId} title="Tải cả thư mục (.zip)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2zm1 9V9h2v4h2.5L12 16.5 8.5 13H11z"/></svg>
             </button>
-          </EditGuard>
+            <EditGuard>
+              <button className="btn-icon" onClick={handleCreateFolder} title="Tạo thư mục mới">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/>
+                </svg>
+              </button>
+            </EditGuard>
+          </div>
         </div>
         <div className="folder-tree">
           {folders.length === 0
@@ -283,6 +311,7 @@ export default function ContractDocumentsTab({ contractId, basePath, allowRootUp
                 onToggleExpand={toggleFolderExpand}
                 onRename={handleRenameFolder}
                 onDelete={handleDeleteFolder}
+                review={folderReviewProps}
               />
           }
         </div>
@@ -310,7 +339,7 @@ export default function ContractDocumentsTab({ contractId, basePath, allowRootUp
               </EditGuard>
             </div>
             <div className="toolbar-right">
-              <button className="btn-toolbar btn-icon-only" onClick={handleDownload} disabled={selectedFiles.size === 0} title={`Download${selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}`}>
+              <button className="btn-toolbar btn-icon-only" onClick={handleDownload} disabled={selectedFiles.size === 0} title={`Download file đã chọn${selectedFiles.size > 1 ? ` (${selectedFiles.size})` : ''}`}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
               </button>
               <EditGuard>
@@ -386,10 +415,14 @@ export default function ContractDocumentsTab({ contractId, basePath, allowRootUp
                 onSelectAll={handleSelectAll}
                 onFileClick={handleFileClick}
                 onToggleSelect={handleToggleFileSelect}
+                review={fileReviewProps}
               />
             )}
           </div>
         </div>
+
+        {/* Input ẩn để chọn tệp THAY THẾ (chế độ curate review) */}
+        {review && <input id={curation.inputId} type="file" hidden onChange={curation.onReplacementChosen} />}
 
         {/* Preview panel — always visible */}
         <DocumentPreviewPanel file={previewFile} />

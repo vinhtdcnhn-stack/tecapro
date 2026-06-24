@@ -2,7 +2,7 @@ import { Router } from 'express'
 import {
   getFolderTree, createFolder, updateFolder, deleteFolder,
   getContractFiles, getFolderFiles, upload, uploadFile,
-  downloadFile, viewFile, deleteFile,
+  downloadFile, downloadFolder, viewFile, deleteFile,
   getFolderTreeIn, createFolderIn, getContractInFiles, uploadFileIn, uploadIn,
 } from '../controllers/documentController.js'
 import { pmFromParam, docGuard, ownerOfContractIn } from '../middleware/contractAccess.js'
@@ -19,6 +19,7 @@ router.delete('/folders/:folderId', docGuard('folder', 'folderId'), deleteFolder
 // File routes (guard đặt TRƯỚC multer để request không có quyền không ghi file ra đĩa)
 router.get('/contracts/:contractId/files', getContractFiles)
 router.get('/folders/:folderId/files', getFolderFiles)
+router.get('/folders/:folderId/download', downloadFolder)   // zip cả cây thư mục (HĐ + Đấu thầu)
 router.post('/contracts/:contractId/files/upload', pmFromParam(), upload.single('file'), uploadFile)
 router.get('/files/:fileId/download', downloadFile)
 router.get('/files/:fileId/view', viewFile)
