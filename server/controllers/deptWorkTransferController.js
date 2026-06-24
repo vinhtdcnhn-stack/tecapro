@@ -146,10 +146,18 @@ export async function escalate(req, res) {
 export async function escalateResolve(req, res) {
   const taskId = parseInt(req.params.id)
   try {
-    const { rowCount } = await pool.query(
-      'UPDATE dept_work_task SET escalated = false, updated_at = now() WHERE id = $1', [taskId])
-    if (!rowCount) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
+    const { rows } = await pool.query(
+      'UPDATE dept_work_task SET escalated = false, updated_at = now() WHERE id = $1 RETURNING escalated_by, title',
+      [taskId])
+    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
     res.json({ success: true })
+
+    // Báo người đã đẩy việc lên rằng cấp trên đã xử lý (trừ chính họ).
+    const { escalated_by, title } = rows[0]
+    if (escalated_by && escalated_by !== req.user.id) {
+      const actor = await userName(req.user.id)
+      notifyInfo([escalated_by], `${actor} đã xử lý việc bạn đẩy lên cấp trên:\n${title}`)
+    }
   } catch (err) {
     console.error('deptWork escalateResolve:', err)
     res.status(500).json({ error: 'Không thể gỡ cờ.' })

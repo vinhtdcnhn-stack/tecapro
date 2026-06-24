@@ -1,6 +1,6 @@
 import { pool } from '../db.js'
 import { notifyHeads, userName } from '../services/deptWorkNotify.js'
-import { notifyAction, actionText } from '../services/notify.js'
+import { notifyAction, notifyInfo, actionText } from '../services/notify.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Báo cáo vấn đề khi triển khai công việc (dept_work_issue).
@@ -66,14 +66,23 @@ export async function addIssue(req, res) {
 export async function resolveIssue(req, res) {
   const id = parseInt(req.params.id)
   try {
-    const { rowCount } = await pool.query(
+    const { rows } = await pool.query(
       `UPDATE dept_work_issue
           SET status = 'resolved', resolved_by = $2, resolved_at = now(), updated_at = now()
-        WHERE id = $1 AND status = 'open'`,
+        WHERE id = $1 AND status = 'open'
+        RETURNING task_id, reported_by`,
       [id, req.user.id],
     )
-    if (!rowCount) return res.status(404).json({ error: 'Không tìm thấy vấn đề đang mở.' })
+    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy vấn đề đang mở.' })
     res.json({ success: true })
+
+    // Báo người đã báo vấn đề rằng vấn đề đã được xử lý (trừ chính họ tự xử lý).
+    const { task_id, reported_by } = rows[0]
+    if (reported_by && reported_by !== req.user.id) {
+      const t = await pool.query('SELECT title FROM dept_work_task WHERE id = $1', [task_id])
+      const actor = await userName(req.user.id)
+      notifyInfo([reported_by], `${actor} đã xử lý vấn đề bạn báo ở công việc:\n${t.rows[0]?.title || 'công việc'}`)
+    }
   } catch (err) {
     console.error('deptWork resolveIssue:', err)
     res.status(500).json({ error: 'Không thể cập nhật vấn đề.' })

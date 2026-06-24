@@ -30,6 +30,18 @@ export async function notifyHeads(text) {
   }
 }
 
+// Id những người đang được giao việc (lượt giao còn active). Dùng để báo cho
+// người liên quan khi việc thay đổi/bị xóa.
+export async function assigneeIds(taskId) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT assignee_id FROM dept_work_assignment WHERE task_id = $1 AND is_active',
+      [taskId],
+    )
+    return rows.map(r => r.assignee_id)
+  } catch { return [] }
+}
+
 // Tên người (để chèn vào thông báo). Trả '' nếu không có.
 export async function userName(userId) {
   try {

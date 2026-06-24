@@ -3,8 +3,8 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
 import { DEPT_KT_CO_DIEN, userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
-import { userName } from '../services/deptWorkNotify.js'
-import { notifyAction } from '../services/notify.js'
+import { userName, assigneeIds } from '../services/deptWorkNotify.js'
+import { notifyAction, notifyInfo } from '../services/notify.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const TASK_UPLOAD_ROOT = path.resolve(__dirname, '..', 'uploads', 'dept-work-tasks')
@@ -164,6 +164,11 @@ export async function updateTask(req, res) {
   const priority = PRIORITIES.has(b.priority) ? b.priority : 'Bình thường'
   const status = STATUSES.has(b.status) ? b.status : 'Chờ xử lý'
   try {
+    // Lấy trạng thái + người tạo cũ để so sánh và báo người liên quan.
+    const prev = await pool.query('SELECT status, created_by FROM dept_work_task WHERE id = $1', [id])
+    if (!prev.rows.length) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
+    const { status: oldStatus, created_by: createdBy } = prev.rows[0]
+
     // $8::varchar trong CASE để tránh lỗi 42P08 (suy kiểu text vs varchar khi dùng lại $8).
     const { rows } = await pool.query(
       `UPDATE dept_work_task SET
@@ -180,6 +185,14 @@ export async function updateTask(req, res) {
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     res.json(full.rows[0])
+
+    // Báo người được giao + người tạo (trừ người sửa) rằng việc đã được cập nhật.
+    const recipients = [...await assigneeIds(id), createdBy].filter(uid => uid && uid !== req.user.id)
+    if (recipients.length) {
+      const actor = await userName(req.user.id)
+      const changed = oldStatus !== status ? `\n${oldStatus} → ${status}` : ''
+      notifyInfo(recipients, `${actor} đã cập nhật công việc:\n${b.title.trim()}${changed}`)
+    }
   } catch (err) {
     console.error('deptWork updateTask:', err)
     res.status(500).json({ error: 'Không thể cập nhật công việc.' })
@@ -192,6 +205,10 @@ export async function updateTaskStatus(req, res) {
   const status = req.body?.status
   if (!STATUSES.has(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' })
   try {
+    const prev = await pool.query('SELECT status, title, created_by FROM dept_work_task WHERE id = $1', [id])
+    if (!prev.rows.length) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
+    const { status: oldStatus, title, created_by: createdBy } = prev.rows[0]
+
     const { rows } = await pool.query(
       `UPDATE dept_work_task SET
          status = $1,
@@ -203,6 +220,15 @@ export async function updateTaskStatus(req, res) {
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
     res.json(full.rows[0])
+
+    // Báo người được giao + người tạo (trừ người đổi) khi trạng thái thực sự thay đổi.
+    if (oldStatus !== status) {
+      const recipients = [...await assigneeIds(id), createdBy].filter(uid => uid && uid !== req.user.id)
+      if (recipients.length) {
+        const actor = await userName(req.user.id)
+        notifyInfo(recipients, `${actor} đổi trạng thái công việc:\n${title}\n${oldStatus} → ${status}`)
+      }
+    }
   } catch (err) {
     console.error('deptWork updateTaskStatus:', err)
     res.status(500).json({ error: 'Không thể đổi trạng thái.' })
@@ -214,6 +240,9 @@ export async function deleteTask(req, res) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    // Lấy tiêu đề + người được giao TRƯỚC khi xóa để còn báo cho họ.
+    const meta = await client.query('SELECT title FROM dept_work_task WHERE id = $1', [id])
+    const recipients = (await assigneeIds(id)).filter(uid => uid && uid !== req.user.id)
     // Nhật ký trỏ tới việc (FK không cascade) → gỡ liên kết trước khi xóa việc.
     await client.query('UPDATE dept_work_log SET task_id = NULL WHERE task_id = $1', [id])
     const { rowCount } = await client.query('DELETE FROM dept_work_task WHERE id = $1', [id])
@@ -225,6 +254,12 @@ export async function deleteTask(req, res) {
       fs.rmSync(dir, { recursive: true, force: true })
     }
     res.json({ success: true })
+
+    // Báo người được giao (trừ người xóa) rằng việc đã bị xóa.
+    if (recipients.length && meta.rows.length) {
+      const actor = await userName(req.user.id)
+      notifyInfo(recipients, `${actor} đã xóa công việc:\n${meta.rows[0].title}`)
+    }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {})
     console.error('deptWork deleteTask:', err)
