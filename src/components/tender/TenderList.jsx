@@ -5,7 +5,8 @@ import { useCopyMenu } from '../common/useCopyMenu'
 import TenderModal from './TenderModal'
 import { exportTenders } from './tenderExport'
 import {
-  FIELDS, RESULTS, WORKFLOW, statusColor, resultColor, fmtAmount, fmtDate, daysUntil,
+  FIELDS, RESULTS, WORKFLOW, BID_STATUSES, statusColor, resultColor, bidStatusColor,
+  fmtAmount, fmtDate, daysUntil,
 } from './tenderUtils'
 
 // Bảng danh sách gói thầu + bộ lọc + tạo mới + xuất Excel.
@@ -20,6 +21,7 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
   const [q, setQ] = useState('')
   const [field, setField] = useState('')
   const [status, setStatus] = useState('')
+  const [bidStatus, setBidStatus] = useState('')
   const [result, setResult] = useState('')
 
   const endpoint = mode === 'my' ? `${API}/tender/my` : `${API}/tender`
@@ -39,6 +41,7 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
     let r = rows
     if (field) r = r.filter(t => t.field === field)
     if (status) r = r.filter(t => t.workflow_status === status)
+    if (bidStatus) r = r.filter(t => (t.bid_status || '') === bidStatus)
     if (result) r = r.filter(t => (t.result || '') === result)
     if (q.trim()) {
       const s = q.trim().toLowerCase()
@@ -46,7 +49,7 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
         .some(v => String(v || '').toLowerCase().includes(s)))
     }
     return r
-  }, [rows, field, status, result, q])
+  }, [rows, field, status, bidStatus, result, q])
 
   const { getRowProps, copyMenu } = useCopyMenu(
     (t) => `Gói thầu: ${t.package_name}\nChủ đầu tư: ${t.investor || '—'}\nDự toán: ${fmtAmount(t.estimate, t.currency_code) || '—'}`
@@ -72,6 +75,10 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
           <option value="">Tình trạng: tất cả</option>
           {WORKFLOW.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        <select value={bidStatus} onChange={e => setBidStatus(e.target.value)}>
+          <option value="">Trạng thái: tất cả</option>
+          {BID_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
         <select value={result} onChange={e => setResult(e.target.value)}>
           <option value="">Kết quả: tất cả</option>
           {RESULTS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -96,12 +103,13 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
               <tr>
                 <th>STT</th><th>Tên gói thầu</th><th>Chủ đầu tư</th><th className="num">Dự toán</th>
                 <th>Ngày nộp</th><th>Lĩnh vực</th><th>Người làm thầu</th><th>AM</th>
-                <th>Tình trạng</th><th>Kết quả</th>
+                <th>Trạng thái</th><th>Tình trạng</th><th>Kết quả</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((t, i) => {
                 const sc = statusColor(t.workflow_status)
+                const bc = bidStatusColor(t.bid_status)
                 const rc = resultColor(t.result)
                 const d = daysUntil(t.submit_date)
                 const due = d != null && d <= 3 && !t.result
@@ -117,6 +125,7 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
                     <td>{t.field || ''}</td>
                     <td>{t.bid_maker_name || <span className="tender-muted">Chưa giao</span>}</td>
                     <td>{t.am_name || ''}</td>
+                    <td>{t.bid_status ? <span className="tender-badge" style={{ background: bc.bg, color: bc.fg }}>{t.bid_status}</span> : ''}</td>
                     <td><span className="tender-badge" style={{ background: sc.bg, color: sc.fg }}>{t.workflow_status}</span></td>
                     <td>{rc ? <span className="tender-badge" style={{ background: rc.bg, color: rc.fg }}>{t.result}</span> : ''}</td>
                   </tr>

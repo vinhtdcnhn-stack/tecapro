@@ -111,13 +111,13 @@ export default function ContractInvoiceTab({ contractId }) {
       ) : (
         <div className="inv-table-wrap">
           <table className="inv-list">
-            <thead><tr><th>Mặt hàng</th><th>ĐVT</th><th className="num">SL hợp đồng</th><th className="num">Đã xuất</th><th className="num">Tồn chưa xuất</th></tr></thead>
+            <thead><tr><th className="inv-item-name">Mặt hàng</th><th>ĐVT</th><th className="num">SL hợp đồng</th><th className="num">Đã xuất</th><th className="num">Tồn chưa xuất</th></tr></thead>
             <tbody>
               {summary.map(r => {
                 const remain = parseFloat(r.qty_remaining) || 0
                 return (
                   <tr key={r.boq_id}>
-                    <td>{r.item_name}</td><td>{r.unit}</td>
+                    <td className="inv-item-name">{r.item_name}</td><td>{r.unit}</td>
                     <td className="num">{fmt(r.qty_contract)}</td>
                     <td className="num">{fmt(r.qty_invoiced)}</td>
                     <td className={`num ${remain > 0 ? 'inv-remain' : 'inv-done'}`}>{fmt(remain)}</td>

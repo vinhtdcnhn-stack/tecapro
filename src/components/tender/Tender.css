@@ -58,9 +58,18 @@
 .tender-status-edit { display: flex; gap: 18px; padding-top: 14px; border-top: 1px solid #e5e7eb; }
 
 /* ── Form (modal) ────────────────────────────────────────────────────────── */
+/* Form cao hơn màn hình: giới hạn chiều cao modal theo viewport, giữ header/footer
+   cố định và chỉ cho phần thân (body) cuộn dọc — tránh form "vọt" khỏi trang. */
+.tender-form-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+}
+.tender-form-modal .modal-header,
+.tender-form-modal .modal-footer { flex-shrink: 0; }
 /* .modal-body mặc định là lưới 2 cột (App.css) → nó dồn .tender-form-grid vào
    nửa trái, để trống nửa phải. Trả về block để form chiếm trọn chiều rộng. */
-.tender-form-modal .modal-body { display: block; }
+.tender-form-modal .modal-body { display: block; flex: 1 1 auto; overflow-y: auto; }
 .tender-form-modal .modal-header h3 {
   margin: 0; font-size: 20px; font-weight: 700; color: #0f172a;
 }

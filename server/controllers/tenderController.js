@@ -8,8 +8,9 @@ import { userIsHead } from '../middleware/tenderAccess.js'
 // ──────────────────────────────────────────────────────────────────────────────
 
 const RESULTS = new Set(['Trúng', 'Trượt', 'Hủy'])
+const BID_STATUSES = new Set(['Đang làm thầu', 'Đã nộp thầu'])
 const WORKFLOW = new Set([
-  'Khởi tạo', 'Đã phân công', 'Lập checklist', 'Đang thực hiện', 'Tổng hợp',
+  'Khởi tạo', 'Đã phân công', 'Lập checklist', 'Đang thực hiện',
   'Chờ review', 'Đạt', 'Chưa đạt', 'Sẵn sàng in/ký', 'Có kết quả',
 ])
 
@@ -31,7 +32,7 @@ const SELECT_COLS = `
   t.field, t.guarantee, t.pakd_no, t.uq_no, t.assign_decision,
   t.bid_maker_id, bm.full_name AS bid_maker_name,
   t.am_id, am.full_name AS am_name,
-  t.note, t.result, t.workflow_status,
+  t.note, t.result, t.workflow_status, t.bid_status,
   t.created_by, cb.full_name AS created_by_name,
   t.created_at, t.updated_at`
 
@@ -93,6 +94,7 @@ function readBody(b) {
     assign_decision: str(b.assign_decision),
     note: str(b.note),
     result: result && RESULTS.has(result) ? result : null,
+    bid_status: BID_STATUSES.has(str(b.bid_status)) ? str(b.bid_status) : 'Đang làm thầu',
   }
 }
 
@@ -121,12 +123,12 @@ export async function createTender(req, res) {
       `INSERT INTO tender
          (package_name, package_code, customer_id, investor, estimate, currency_code, exchange_rate,
           submit_date, field, guarantee, pakd_no, uq_no, assign_decision, note, result,
-          bid_maker_id, am_id, workflow_status, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+          bid_maker_id, am_id, workflow_status, bid_status, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
        RETURNING id`,
       [v.package_name, v.package_code, v.customer_id, v.investor, v.estimate, v.currency_code,
         v.exchange_rate, v.submit_date, v.field, v.guarantee, v.pakd_no, v.uq_no, v.assign_decision,
-        v.note, v.result, bidMaker, am, status, req.user.id],
+        v.note, v.result, bidMaker, am, status, v.bid_status, req.user.id],
     )
     const id = rows[0].id
     logActivity(id, req.user.id, 'create',
@@ -152,10 +154,10 @@ export async function updateTender(req, res) {
     await resolveInvestor(v)
     const vals = [v.package_name, v.package_code, v.customer_id, v.investor, v.estimate,
       v.currency_code, v.exchange_rate, v.submit_date, v.field, v.guarantee, v.pakd_no,
-      v.uq_no, v.assign_decision, v.note, v.result]
+      v.uq_no, v.assign_decision, v.note, v.result, v.bid_status]
     let sets = `package_name=$1, package_code=$2, customer_id=$3, investor=$4, estimate=$5,
       currency_code=$6, exchange_rate=$7, submit_date=$8, field=$9, guarantee=$10,
-      pakd_no=$11, uq_no=$12, assign_decision=$13, note=$14, result=$15`
+      pakd_no=$11, uq_no=$12, assign_decision=$13, note=$14, result=$15, bid_status=$16`
 
     // Trưởng phòng/admin có thể đổi phân công ngay tại form sửa. Người làm thầu (không
     // phải head) sửa gói mình phụ trách thì giữ nguyên người làm thầu/AM hiện tại.
@@ -171,7 +173,7 @@ export async function updateTender(req, res) {
       const newStatus = bidMaker && cur[0].workflow_status === 'Khởi tạo'
         ? 'Đã phân công' : cur[0].workflow_status
       vals.push(bidMaker, am, newStatus)
-      sets += ', bid_maker_id=$16, am_id=$17, workflow_status=$18'
+      sets += ', bid_maker_id=$17, am_id=$18, workflow_status=$19'
     }
     vals.push(id)
     const { rows } = await pool.query(

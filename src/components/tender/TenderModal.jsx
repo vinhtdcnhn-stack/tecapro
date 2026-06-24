@@ -4,7 +4,7 @@ import DateInput from '../contracts/DateInput'
 import NumberInput from '../common/NumberInput'
 import CustomerSelect from '../common/CustomerSelect'
 import { API } from '../../config/api'
-import { FIELDS, RESULTS, CURRENCIES } from './tenderUtils'
+import { FIELDS, RESULTS, CURRENCIES, BID_STATUSES } from './tenderUtils'
 
 // Form tạo / sửa gói thầu (16 trường của bảng theo dõi). Trưởng phòng (isHead) phân
 // công Người làm thầu & AM ngay tại form này; thành viên thường không thấy 2 trường đó.
@@ -12,6 +12,7 @@ const EMPTY = {
   package_name: '', package_code: '', customer_id: '', investor: '', estimate: '',
   currency_code: 'VND', exchange_rate: '', submit_date: '',
   field: '', guarantee: '', pakd_no: '', uq_no: '', assign_decision: '', note: '', result: '',
+  bid_status: 'Đang làm thầu',
 }
 
 export default function TenderModal({ tender, members = [], isHead = false, onClose, onSaved }) {
@@ -146,6 +147,10 @@ export default function TenderModal({ tender, members = [], isHead = false, onCl
                 {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
               </select></label>
           )}
+          <label className="field"><span>Trạng thái</span>
+            <select value={form.bid_status} onChange={set('bid_status')}>
+              {BID_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select></label>
           <label className="field"><span>Kết quả</span>
             <select value={form.result} onChange={set('result')}>
               <option value="">—</option>

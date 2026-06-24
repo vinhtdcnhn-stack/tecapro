@@ -5,7 +5,7 @@ export const RESULTS = ['Trúng', 'Trượt', 'Hủy']
 
 // Trạng thái workflow của gói thầu (theo luồng nghiệp vụ).
 export const WORKFLOW = [
-  'Khởi tạo', 'Đã phân công', 'Lập checklist', 'Đang thực hiện', 'Tổng hợp',
+  'Khởi tạo', 'Đã phân công', 'Lập checklist', 'Đang thực hiện',
   'Chờ review', 'Đạt', 'Chưa đạt', 'Sẵn sàng in/ký', 'Có kết quả',
 ]
 
@@ -15,7 +15,6 @@ const STATUS_COLORS = {
   'Đã phân công':    { bg: '#e0f2fe', fg: '#0369a1' },
   'Lập checklist':   { bg: '#ede9fe', fg: '#6d28d9' },
   'Đang thực hiện':  { bg: '#fef9c3', fg: '#a16207' },
-  'Tổng hợp':        { bg: '#cffafe', fg: '#0e7490' },
   'Chờ review':      { bg: '#ffedd5', fg: '#c2410c' },
   'Đạt':             { bg: '#dcfce7', fg: '#15803d' },
   'Chưa đạt':        { bg: '#fee2e2', fg: '#b91c1c' },
@@ -24,6 +23,16 @@ const STATUS_COLORS = {
 }
 export function statusColor(status) {
   return STATUS_COLORS[status] || { bg: '#f1f5f9', fg: '#475569' }
+}
+
+// Trạng thái làm thầu (tiến độ nộp hồ sơ) — độc lập với WORKFLOW workflow_status.
+export const BID_STATUSES = ['Đang làm thầu', 'Đã nộp thầu']
+const BID_STATUS_COLORS = {
+  'Đang làm thầu': { bg: '#fef9c3', fg: '#a16207' },
+  'Đã nộp thầu':   { bg: '#dcfce7', fg: '#15803d' },
+}
+export function bidStatusColor(status) {
+  return BID_STATUS_COLORS[status] || { bg: '#f1f5f9', fg: '#475569' }
 }
 
 const RESULT_COLORS = {

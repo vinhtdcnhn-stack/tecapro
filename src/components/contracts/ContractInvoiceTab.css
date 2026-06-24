@@ -19,6 +19,8 @@
 .inv-list th, .inv-list td { padding: 8px 10px; border-bottom: 1px solid #f1f3f5; text-align: left; white-space: nowrap; }
 .inv-list th { background: #f9fafb; font-weight: 700; color: #374151; }
 .inv-list td.num, .inv-list th.num { text-align: right; }
+/* Cột "Mặt hàng" dài: giới hạn bề rộng và xuống dòng cho vừa khung. */
+.inv-list td.inv-item-name, .inv-list th.inv-item-name { white-space: normal; max-width: 480px; word-break: break-word; }
 .inv-row { cursor: pointer; }
 .inv-row:hover { background: #fafbfc; }
 .inv-subrow td { background: #fafbfc; color: #4b5563; font-size: 12px; }
@@ -28,26 +30,62 @@
 .inv-remain { color: #d97706; font-weight: 700; }
 .inv-done { color: #16a34a; }
 
-/* ── Modal đợt xuất hóa đơn ──────────────────────────────────────────────────── */
-.inv-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+/* ── Modal đợt xuất hóa đơn (toàn màn hình) ──────────────────────────────────── */
+.inv-batch-modal {
+  width: 95vw !important;
+  max-width: 1280px !important;
+  height: 92vh;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.inv-batch-modal .modal-header { margin-bottom: 16px; flex-shrink: 0; }
+.inv-batch-modal .modal-header h3 { margin: 0; font-size: 20px; font-weight: 700; color: #1f2937; }
+.inv-batch-modal .modal-footer { margin-top: 16px; flex-shrink: 0; }
+.inv-batch-modal .modal-close { border: none; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; color: #6b7280; }
+/* QUAN TRỌNG: .modal-body mặc định là lưới 2 cột — ở đây xếp dọc 1 cột, cuộn dọc. */
+.inv-batch-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.inv-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; flex-shrink: 0; }
 .inv-form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #6b7280; }
-.inv-form-grid input, .inv-form-grid select { font-size: 13px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 7px; }
+.inv-form-grid input, .inv-form-grid select { font-size: 13px; padding: 7px 9px; border: 1px solid #d1d5db; border-radius: 7px; }
 .inv-form-grid .inv-note { grid-column: 1 / -1; }
 
-.inv-items-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.inv-btn { padding: 6px 12px; font-size: 12px; font-weight: 600; color: #374151; background: #fff; border: 1px solid #d1d5db; border-radius: 7px; cursor: pointer; }
-.inv-import { padding: 6px 12px; font-size: 12px; font-weight: 600; color: #15803d; background: #f0fdf4; border: 1px solid #86efac; border-radius: 7px; cursor: pointer; }
-.inv-hint { font-size: 11px; color: #9ca3af; }
+.inv-items-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; flex-shrink: 0; }
+.inv-btn { padding: 7px 14px; font-size: 13px; font-weight: 600; color: #374151; background: #fff; border: 1px solid #d1d5db; border-radius: 7px; cursor: pointer; }
+.inv-btn:hover { background: #f9fafb; }
+.inv-import { display: inline-flex; align-items: center; padding: 7px 14px; font-size: 13px; font-weight: 600; color: #15803d; background: #f0fdf4; border: 1px solid #86efac; border-radius: 7px; cursor: pointer; }
+.inv-import:hover { background: #dcfce7; }
+.inv-export { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.inv-export:hover { background: #dbeafe; }
+.inv-hint { font-size: 12px; color: #9ca3af; flex: 1; min-width: 200px; }
 
-.inv-items-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
-.inv-items { width: 100%; border-collapse: collapse; font-size: 12px; }
-.inv-items th, .inv-items td { padding: 5px 6px; border-bottom: 1px solid #f1f3f5; }
-.inv-items th { background: #f9fafb; font-weight: 700; color: #374151; text-align: left; }
+.inv-items-wrap { border: 1px solid #e5e7eb; border-radius: 8px; overflow: auto; flex: 1; min-height: 120px; }
+.inv-items { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.inv-items th, .inv-items td { padding: 7px 10px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
+.inv-items thead th { position: sticky; top: 0; z-index: 1; background: #f9fafb; font-weight: 700; color: #374151; text-align: left; }
+.inv-items tfoot td { position: sticky; bottom: 0; background: #f9fafb; border-top: 2px solid #e5e7eb; }
 .inv-items td.num, .inv-items th.num { text-align: right; }
-.inv-items input, .inv-items select { width: 100%; font-size: 12px; padding: 4px 6px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box; }
-.inv-items .inv-unit { width: 60px; }
-.inv-del { background: none; border: none; color: #dc2626; cursor: pointer; font-weight: 700; }
-.inv-empty { text-align: center; color: #9ca3af; padding: 14px; }
+.inv-items td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-items .inv-name-sel { width: 100%; font-size: 13px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; background: #fff; }
+.inv-items td input { width: 100%; font-size: 13px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; text-align: right; }
+/* Ô chốt cứng theo bảng giá: hiển thị tĩnh, không phải ô nhập. */
+.inv-items td.inv-lock { color: #4b5563; background: #fafafa; }
+.inv-items td.inv-amount { font-weight: 600; color: #1f2937; }
+.inv-del { background: none; border: none; color: #dc2626; cursor: pointer; font-weight: 700; font-size: 14px; }
+.inv-del:hover { color: #b91c1c; }
+.inv-empty { text-align: center; color: #9ca3af; padding: 18px; }
 
-.inv-totals { margin-top: 10px; text-align: right; font-size: 13px; color: #374151; }
-.inv-error { margin-top: 10px; color: #dc2626; font-size: 13px; white-space: pre-line; }
+.inv-totals { margin-top: 12px; text-align: right; font-size: 14px; color: #374151; flex-shrink: 0; }
+.inv-error { margin-top: 12px; color: #dc2626; font-size: 13px; white-space: pre-line; flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .inv-batch-modal { width: 100vw !important; max-width: 100vw !important; height: 100vh; border-radius: 0; padding: 14px 16px; }
+}

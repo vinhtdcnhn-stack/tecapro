@@ -17,7 +17,7 @@ export default function TenderDashboard({ switcher, user }) {
   }, [])
 
   const stats = useMemo(() => {
-    const active = all.filter(t => ['Lập checklist', 'Đang thực hiện', 'Tổng hợp'].includes(t.workflow_status))
+    const active = all.filter(t => ['Lập checklist', 'Đang thực hiện'].includes(t.workflow_status))
     const review = all.filter(t => t.workflow_status === 'Chờ review')
     const fixing = all.filter(t => t.workflow_status === 'Chưa đạt')
     const ready = all.filter(t => t.workflow_status === 'Sẵn sàng in/ký')

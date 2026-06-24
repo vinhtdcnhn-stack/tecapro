@@ -8,7 +8,7 @@ export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen =
         { id: 'contract-pricing', label: 'Bảng giá' },
         { id: 'contract-progress', label: 'Tiến độ theo biên bản' },
 { id: 'contract-debt', label: 'Công nợ' },
-        { id: 'contract-invoice', label: 'Xuất hóa đơn' },
+        { id: 'contract-invoice', label: 'Quản lý hóa đơn' },
         { id: 'contract-warranty', label: 'Bảo hành' },
         { id: 'contract-guarantee', label: 'Bảo lãnh' },
         { id: 'contract-tasks', label: 'Công việc triển khai' }

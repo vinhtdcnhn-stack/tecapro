@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { API } from '../../config/api'
 import TenderModal from './TenderModal'
-import { WORKFLOW, RESULTS, statusColor, resultColor, fmtMoney, fmtAmount, fmtDate } from './tenderUtils'
+import { WORKFLOW, RESULTS, statusColor, resultColor, bidStatusColor, fmtMoney, fmtAmount, fmtDate } from './tenderUtils'
 
 // Tab "Thông tin chung": hiển thị 16 trường, sửa (người làm thầu/Trưởng phòng),
 // đổi trạng thái workflow & kết quả. Phân công người làm thầu/AM nằm trong form sửa
@@ -20,6 +20,7 @@ export default function TenderInfoTab({ tender, members, isHead, canEdit, onChan
   const [busy, setBusy] = useState(false)
   const sc = statusColor(tender.workflow_status)
   const rc = resultColor(tender.result)
+  const bc = bidStatusColor(tender.bid_status)
 
   async function patchStatus(body) {
     setBusy(true)
@@ -42,6 +43,7 @@ export default function TenderInfoTab({ tender, members, isHead, canEdit, onChan
     <div className="tender-info">
       <div className="tender-info-actions">
         <span className="tender-badge" style={{ background: sc.bg, color: sc.fg }}>{tender.workflow_status}</span>
+        {tender.bid_status && <span className="tender-badge" style={{ background: bc.bg, color: bc.fg }}>{tender.bid_status}</span>}
         {rc && <span className="tender-badge" style={{ background: rc.bg, color: rc.fg }}>{tender.result}</span>}
         <div className="tender-toolbar-spacer" />
         {canEdit && <button className="btn-secondary" onClick={() => setEditing(true)}>Sửa thông tin</button>}

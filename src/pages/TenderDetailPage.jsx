@@ -6,7 +6,6 @@ import TenderInfoTab from '../components/tender/TenderInfoTab'
 import TenderChecklistTab from '../components/tender/TenderChecklistTab'
 import ContractDocumentsTab from '../components/contracts/ContractDocumentsTab'
 import { ContractPermProvider } from '../context/ContractPermContext'
-import TenderSummaryTab from '../components/tender/TenderSummaryTab'
 import TenderReviewTab from '../components/tender/TenderReviewTab'
 import TenderActivityTab from '../components/tender/TenderActivityTab'
 import { isHeadUser } from '../components/tender/tenderUtils'
@@ -16,7 +15,6 @@ const TABS = [
   { key: 'info', label: 'Thông tin chung' },
   { key: 'invitation', label: 'Hồ sơ mời thầu' },
   { key: 'checklist', label: 'Checklist công việc' },
-  { key: 'summary', label: 'Tổng hợp hồ sơ' },
   { key: 'review', label: 'Review & Comment' },
   { key: 'activity', label: 'Lịch sử' },
 ]
@@ -80,9 +78,6 @@ export default function TenderDetailPage() {
             )}
             {tab === 'checklist' && (
               <TenderChecklistTab tenderId={tender.id} members={members} canEdit={canEdit} />
-            )}
-            {tab === 'summary' && (
-              <TenderSummaryTab tenderId={tender.id} canEdit={canEdit} />
             )}
             {tab === 'review' && (
               <TenderReviewTab tenderId={tender.id} canEdit={canEdit} isHead={isHead} />
