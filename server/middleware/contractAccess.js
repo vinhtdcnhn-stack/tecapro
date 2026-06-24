@@ -337,16 +337,18 @@ const LOCK_RESOLVERS = {
   deliverySerial: `SELECT d.locked FROM contract_in_delivery_serial s
                      JOIN contract_in_delivery_item it ON it.id = s.delivery_item_id
                      JOIN contract_in_delivery d ON d.id = it.delivery_id WHERE s.id = ANY($1::bigint[])`,
+  invoice:        `SELECT locked FROM contract_out_invoice WHERE id = ANY($1::bigint[])`,
 }
 
-function makeLockGuard(pick, resolverSql) {
+// label: tên hiển thị của loại đợt trong thông báo lỗi (mặc định "Đợt nhận").
+function makeLockGuard(pick, resolverSql, label = 'Đợt nhận') {
   return async function lockGuard(req, res, next) {
     try {
       const ids = toIdList(pick(req))
       if (!ids) { res.status(400).json({ error: 'Tham số id không hợp lệ.' }); return }
       const { rows } = await pool.query(resolverSql, [ids])
       if (rows.some(r => r.locked)) {
-        res.status(403).json({ error: 'Đợt nhận đã bị khóa. Mở khóa trước khi sửa.' })
+        res.status(403).json({ error: `${label} đã bị khóa. Mở khóa trước khi sửa.` })
         return
       }
       next()
@@ -354,8 +356,8 @@ function makeLockGuard(pick, resolverSql) {
   }
 }
 
-export const blockIfLockedVia = (key, param = 'id') => makeLockGuard(req => req.params[param], LOCK_RESOLVERS[key])
-export const blockIfLockedViaBody = (key) => makeLockGuard(req => req.body?.ids, LOCK_RESOLVERS[key])
+export const blockIfLockedVia = (key, param = 'id', label) => makeLockGuard(req => req.params[param], LOCK_RESOLVERS[key], label)
+export const blockIfLockedViaBody = (key, label) => makeLockGuard(req => req.body?.ids, LOCK_RESOLVERS[key], label)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tài liệu (folder/file) dùng chung cho HĐ bán / HĐ nhập / gói thầu → phân nhánh:

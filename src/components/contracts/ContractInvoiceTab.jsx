@@ -2,10 +2,16 @@ import { useState, useEffect, useCallback, Fragment } from 'react'
 import { API } from '../../config/api'
 import EditGuard from './EditGuard'
 import InvoiceBatchModal from './InvoiceBatchModal'
+import usePasswordPrompt from './usePasswordPrompt'
 import './ContractInvoiceTab.css'
 
 const fmt = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
+const fmtDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN') : ''
+
+// SVG ổ khóa (đóng / mở) — dùng cho nút khóa đợt
+const LockClosedIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 10 0h-2a3 3 0 0 0-6 0v2z"/></svg>
+const LockOpenIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h9V6a3 3 0 0 0-6 0H7a5 5 0 0 1 10 0v2z"/></svg>
 
 // Tab "Xuất hóa đơn" trong chi tiết HĐ bán (dưới "Công nợ"). Nhập theo từng đợt,
 // xem số lượng tồn chưa xuất hóa đơn theo bảng giá.
@@ -17,6 +23,7 @@ export default function ContractInvoiceTab({ contractId }) {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)   // null | { } (new) | invoice (edit)
   const [expanded, setExpanded] = useState(null)
+  const { promptPassword, passwordModal } = usePasswordPrompt()
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +56,28 @@ export default function ContractInvoiceTab({ contractId }) {
       if (!res.ok) throw new Error()
       load()
     } catch { alert('Không thể xóa.') }
+  }
+
+  // Khóa/mở khóa đợt — PM của HĐ/admin. Khi khóa, đợt không sửa/xóa được tới khi mở.
+  // MỞ KHÓA cần nhập lại mật khẩu để xác nhận.
+  const onToggleLock = async (inv) => {
+    let password
+    if (inv.locked) {
+      password = await promptPassword({
+        title: 'Mở khóa đợt xuất hóa đơn',
+        message: 'Nhập mật khẩu của bạn để mở khóa đợt này.',
+      })
+      if (password == null) return   // hủy
+    }
+    try {
+      const res = await fetch(`${API}/invoices/${inv.id}/lock`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locked: !inv.locked, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || 'Không thể đổi trạng thái khóa.'); return }
+      load()
+    } catch { alert('Không thể đổi trạng thái khóa.') }
   }
 
   if (loading) return <div className="inv-loading">Đang tải...</div>
@@ -84,9 +113,26 @@ export default function ContractInvoiceTab({ contractId }) {
                     <td className="num">{fmt(inv.total_after_vat)} {inv.currency_code}</td>
                     <td>{inv.note || '—'}</td>
                     <td className="inv-actions" onClick={e => e.stopPropagation()}>
+                      {inv.locked && (
+                        <span className="inv-locked-badge"
+                          title={inv.locked_by_name
+                            ? `Khóa bởi ${inv.locked_by_name}${inv.locked_at ? ` lúc ${fmtDateTime(inv.locked_at)}` : ''}`
+                            : 'Đợt đã khóa'}>
+                          🔒 Đã khóa{inv.locked_by_name ? ` · ${inv.locked_by_name}` : ''}
+                        </span>
+                      )}
                       <EditGuard>
-                        <button className="inv-link" onClick={() => setModal(inv)}>Sửa</button>
-                        <button className="inv-link inv-del-link" onClick={() => onDelete(inv)}>Xóa</button>
+                        {/* Nút khóa/mở khóa — luôn dùng được (để còn mở khóa) */}
+                        <button className={`inv-lock-btn${inv.locked ? ' locked' : ''}`} onClick={() => onToggleLock(inv)}
+                          title={inv.locked ? 'Mở khóa đợt' : 'Khóa đợt'}>
+                          {inv.locked ? <LockClosedIcon /> : <LockOpenIcon />}
+                          {inv.locked ? 'Mở khóa' : 'Khóa'}
+                        </button>
+                        {/* Sửa/Xóa — ẩn khi đã khóa */}
+                        {!inv.locked && <>
+                          <button className="inv-link" onClick={() => setModal(inv)}>Sửa</button>
+                          <button className="inv-link inv-del-link" onClick={() => onDelete(inv)}>Xóa</button>
+                        </>}
                       </EditGuard>
                     </td>
                   </tr>
@@ -137,6 +183,8 @@ export default function ContractInvoiceTab({ contractId }) {
           onSaved={() => { setModal(null); load() }}
         />
       )}
+
+      {passwordModal}
     </div>
   )
 }

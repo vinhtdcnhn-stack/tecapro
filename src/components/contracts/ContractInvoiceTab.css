@@ -30,6 +30,12 @@
 .inv-remain { color: #d97706; font-weight: 700; }
 .inv-done { color: #16a34a; }
 
+/* Khóa đợt — nút khóa/mở khóa + nhãn trạng thái đã khóa */
+.inv-lock-btn { display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid #e5e7eb; border-radius: 5px; padding: 3px 9px; color: #374151; cursor: pointer; font-size: 12px; font-weight: 500; margin-left: 8px; }
+.inv-lock-btn:hover { background: #f9fafb; }
+.inv-lock-btn.locked { background: #fffbeb; border-color: #fde68a; }
+.inv-locked-badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; cursor: help; white-space: nowrap; }
+
 /* ── Modal đợt xuất hóa đơn (toàn màn hình) ──────────────────────────────────── */
 .inv-batch-modal {
   width: 95vw !important;

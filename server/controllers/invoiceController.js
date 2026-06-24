@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { roundMoney } from '../utils/money.js'
+import { verifyUserPassword } from '../auth/verifyPassword.js'
 
 // Xuất hóa đơn (HĐ bán) — quản lý theo từng đợt. Số tiền lưu NGUYÊN TỆ của đợt; làm
 // tròn theo currency lúc lưu (roundMoney). amount_before/after_vat tính lại ở server
@@ -98,6 +99,7 @@ export async function getInvoices(req, res) {
   try {
     const { rows } = await pool.query(`
       SELECT i.id, i.contract_out_id, i.invoice_no, i.invoice_date, i.currency_code, i.exchange_rate, i.note,
+             i.locked, i.locked_at, lu.full_name AS locked_by_name,
              COALESCE((SELECT SUM(amount_after_vat) FROM contract_out_invoice_item WHERE invoice_id = i.id), 0) AS total_after_vat,
              COALESCE((SELECT json_agg(json_build_object(
                  'id', it.id, 'boq_id', it.boq_id, 'item_name', it.item_name, 'unit', it.unit,
@@ -106,6 +108,7 @@ export async function getInvoices(req, res) {
                  'amount_after_vat', it.amount_after_vat) ORDER BY it.sort_order, it.id)
                FROM contract_out_invoice_item it WHERE it.invoice_id = i.id), '[]') AS items
         FROM contract_out_invoice i
+        LEFT JOIN app_user lu ON lu.id = i.locked_by
        WHERE i.contract_out_id = $1
        ORDER BY i.invoice_date NULLS LAST, i.id`,
       [req.params.id])
@@ -203,5 +206,33 @@ export async function deleteInvoice(req, res) {
   } catch (err) {
     console.error('deleteInvoice:', err)
     res.status(500).json({ error: 'Không thể xóa đợt xuất hóa đơn.' })
+  }
+}
+
+// PATCH /invoices/:id/lock — khóa/mở khóa đợt xuất hóa đơn (PM của HĐ + admin, gác bởi
+// pmVia). Khi locked=true mọi thao tác sửa/xóa đợt bị chặn (blockIfLocked) cho tới khi mở.
+export async function setInvoiceLock(req, res) {
+  const { id } = req.params
+  const locked = !!req.body.locked
+  try {
+    // Mở khóa là thao tác nhạy cảm → buộc xác thực lại mật khẩu của người thực hiện.
+    if (!locked) {
+      const ok = await verifyUserPassword(req.user.id, req.body.password)
+      if (!ok) return res.status(401).json({ error: 'Mật khẩu không đúng.' })
+    }
+    const { rows } = await pool.query(`
+      WITH upd AS (
+        UPDATE contract_out_invoice
+          SET locked=$1, locked_by=$2, locked_at=$3, updated_at=now()
+        WHERE id=$4 RETURNING *
+      )
+      SELECT upd.id, upd.locked, upd.locked_at, lu.full_name AS locked_by_name
+      FROM upd LEFT JOIN app_user lu ON lu.id = upd.locked_by
+    `, [locked, locked ? req.user.id : null, locked ? new Date() : null, id])
+    if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy đợt.' })
+    res.json(rows[0])
+  } catch (err) {
+    console.error('setInvoiceLock:', err)
+    res.status(500).json({ error: 'Không thể đổi trạng thái khóa.' })
   }
 }

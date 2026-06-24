@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
 import { API } from '../../config/api'
-import { fmtDate, statusStyle } from './deliveryUtils'
+import { fmtDate, fmtDateTime, statusStyle } from './deliveryUtils'
 import DeliveryItemRow from './DeliveryItemRow'
 import DeliveryItemsMobile from './DeliveryItemsMobile'
 import useIsMobile from './useIsMobile'
@@ -107,7 +107,13 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
         </div>
 
         {locked
-          ? <span style={{ padding:'2px 10px', borderRadius:99, fontSize:11, fontWeight:700, background:'#fef3c7', color:'#92400e', border:'1px solid #fde68a' }}>🔒 Đã khóa</span>
+          ? <span
+              title={delivery.locked_by_name
+                ? `Khóa bởi ${delivery.locked_by_name}${delivery.locked_at ? ` lúc ${fmtDateTime(delivery.locked_at)}` : ''}`
+                : 'Đợt đã khóa'}
+              style={{ padding:'2px 10px', borderRadius:99, fontSize:11, fontWeight:700, background:'#fef3c7', color:'#92400e', border:'1px solid #fde68a', cursor:'help' }}>
+              🔒 Đã khóa{delivery.locked_by_name ? ` · ${delivery.locked_by_name}` : ''}
+            </span>
           : <span style={{ ...ss, padding:'2px 10px', borderRadius:99, fontSize:11, fontWeight:600 }}>{delivery.status}</span>}
 
         <div style={{ display:'flex', gap:6, alignItems:'center' }} onClick={e => e.stopPropagation()}>

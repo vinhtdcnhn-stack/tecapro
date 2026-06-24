@@ -131,6 +131,20 @@
 
 /* ── Table wrapper ────────────────────────────────────────────────────────── */
 
+/* Thanh cuộn ngang "nổi" — dính ở đầu bảng, đồng bộ với vùng cuộn của bảng để
+   xem/kéo ngang bảng rộng mà không phải cuộn xuống đáy bảng.
+   Sticky theo .contract-management-layout (vùng cuộn của trang). */
+.boq-scroll-top {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+.boq-scroll-top-inner { height: 1px; }
+
 .boq-table-wrapper {
   overflow-x: auto;
   background: white;

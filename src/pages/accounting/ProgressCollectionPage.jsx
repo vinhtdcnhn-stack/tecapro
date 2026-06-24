@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
+import NumberInput from '../../components/common/NumberInput.jsx'
 import './Accounting.css'
 
 const CAT_CLASS = {
@@ -21,9 +22,23 @@ function buildCopyText(r) {
 export default function ProgressCollectionPage() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [minRemaining, setMinRemaining] = useState('')   // lọc: Còn phải thu > minRemaining
+  const [maxRemaining, setMaxRemaining] = useState('')   // lọc: Còn phải thu ≤ maxRemaining
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng',
     (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
   const goContract = useContractNav()
+
+  // Lọc theo cột "Còn phải thu": lớn hơn min (>) và/hoặc nhỏ hơn hoặc bằng max (≤).
+  const filtered = useMemo(() => {
+    const min = minRemaining === '' ? null : parseFloat(minRemaining)
+    const max = maxRemaining === '' ? null : parseFloat(maxRemaining)
+    return rows.filter(r => {
+      const v = Number(r.remaining_vnd) || 0
+      if (min != null && !Number.isNaN(min) && !(v > min)) return false
+      if (max != null && !Number.isNaN(max) && !(v <= max)) return false
+      return true
+    })
+  }, [rows, minRemaining, maxRemaining])
 
   useEffect(() => {
     let alive = true
@@ -41,17 +56,30 @@ export default function ProgressCollectionPage() {
     { label: 'Đã thu (VNĐ)', value: r => Math.round(r.collected_vnd) },
     { label: 'Còn phải thu (VNĐ)', value: r => Math.round(r.remaining_vnd) },
     { label: 'Số ngày chậm', value: r => r.delay_days }, { label: 'Phân loại', value: r => r.category },
-  ], rows)
+  ], filtered)
+
+  const hasFilter = minRemaining !== '' || maxRemaining !== ''
 
   return (
     <div className="acc-report">
-      <div className="acc-report-toolbar">
-        <button className="acc-export" onClick={onExport} disabled={!rows.length}>⬇ Excel</button>
-        <span className="acc-report-total">{rows.length} hợp đồng</span>
+      <div className="acc-report-toolbar" style={{ alignItems: 'flex-end' }}>
+        <button className="acc-export" onClick={onExport} disabled={!filtered.length}>⬇ Excel</button>
+        <label className="acc-field">Còn phải thu &gt;
+          <NumberInput integer value={minRemaining} onChange={setMinRemaining} placeholder="0" style={{ width: 130 }} />
+        </label>
+        <label className="acc-field">Còn phải thu ≤
+          <NumberInput integer value={maxRemaining} onChange={setMaxRemaining} placeholder="∞" style={{ width: 130 }} />
+        </label>
+        {hasFilter && (
+          <button type="button" className="acc-export"
+            onClick={() => { setMinRemaining(''); setMaxRemaining('') }}>Xoá lọc</button>
+        )}
+        <span className="acc-report-total">{filtered.length} hợp đồng{hasFilter ? ` / ${rows.length}` : ''}</span>
       </div>
 
       {loading ? <p className="dash-empty">Đang tải...</p>
-        : rows.length === 0 ? <p className="dash-empty">Chưa có dữ liệu.</p> : (
+        : rows.length === 0 ? <p className="dash-empty">Chưa có dữ liệu.</p>
+        : filtered.length === 0 ? <p className="dash-empty">Không có hợp đồng nào khớp bộ lọc.</p> : (
         <div className="acc-table-wrap">
           <table className="acc-table">
             <thead><tr>
@@ -60,7 +88,7 @@ export default function ProgressCollectionPage() {
               <th className="num">Số ngày chậm</th><th>Phân loại</th>
             </tr></thead>
             <tbody>
-              {rows.map((r, i) => (
+              {filtered.map((r, i) => (
                 <tr key={r.contract_out_id} className="acc-row-link" title="Bấm để mở công nợ phải thu của hợp đồng"
                     {...getRowProps(r)} onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}>
                   <td>{i + 1}</td><td className="mono">{r.contract_no}</td><td>{r.customer_name || '—'}</td>

@@ -5,6 +5,7 @@ import BOQMobile from './BOQMobile'
 import { fmtNum } from './boqUtils'
 import { API } from '../../config/api'
 import useBOQTab from './useBOQTab'
+import useSyncedHScroll from './useSyncedHScroll'
 import EditGuard from './EditGuard'
 import { useCanEdit } from '../../context/ContractPermContext'
 
@@ -22,6 +23,9 @@ export default function ContractBOQTab({ contractId }) {
   } = useBOQTab(contractId)
 
   const canEdit = useCanEdit()
+
+  // Thanh cuộn ngang nổi (dính đầu bảng), đồng bộ với vùng cuộn của bảng
+  const { topRef, bodyRef, width, needed, onTop, onBody } = useSyncedHScroll([rows.length, isMobile, loading])
 
   if (loading) return <div className="boq-loading">Đang tải bảng giá...</div>
 
@@ -131,7 +135,13 @@ export default function ContractBOQTab({ contractId }) {
           totals={totals}
         />
       ) : (
-      <div className="boq-table-wrapper">
+      <>
+      {needed && (
+        <div className="boq-scroll-top" ref={topRef} onScroll={onTop}>
+          <div className="boq-scroll-top-inner" style={{ width }} />
+        </div>
+      )}
+      <div className="boq-table-wrapper" ref={bodyRef} onScroll={onBody}>
         <table className="boq-table">
           <thead>
             <tr>
@@ -207,6 +217,7 @@ export default function ContractBOQTab({ contractId }) {
           )}
         </table>
       </div>
+      </>
       )}
       </EditGuard>
 

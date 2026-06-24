@@ -7,6 +7,7 @@ import DeliveryCard from './DeliveryCard'
 import BatchModal from './DeliveryBatchModal'
 import useIsMobile from './useIsMobile'
 import EditGuard from './EditGuard'
+import usePasswordPrompt from './usePasswordPrompt'
 import { useCinHeaderSlot } from './cinHeaderSlot'
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -18,6 +19,7 @@ export default function ContractInDeliveryTab({ contractInId }) {
   const [expandedId, setExpandedId]   = useState(null)
   const [addBatchModal, setAddBatch]  = useState(false)
   const [editBatch, setEditBatch]     = useState(null)
+  const { promptPassword, passwordModal } = usePasswordPrompt()
 
   const load = useCallback(async () => {
     try {
@@ -61,10 +63,19 @@ export default function ContractInDeliveryTab({ contractInId }) {
   }
 
   // Khóa/mở khóa đợt nhận (chỉ người tạo HĐ + admin — backend gác bằng ownerVia).
+  // MỞ KHÓA cần nhập lại mật khẩu để xác nhận.
   async function handleToggleLock(d) {
+    let password
+    if (d.locked) {
+      password = await promptPassword({
+        title: 'Mở khóa đợt nhận hàng',
+        message: 'Nhập mật khẩu của bạn để mở khóa đợt này.',
+      })
+      if (password == null) return   // hủy
+    }
     const res = await fetch(`${API}/deliveries/${d.id}/lock`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locked: !d.locked }),
+      body: JSON.stringify({ locked: !d.locked, password }),
     })
     const data = await res.json()
     if (!res.ok) { alert(data.error || 'Không thể đổi trạng thái khóa'); return }
@@ -159,6 +170,8 @@ export default function ContractInDeliveryTab({ contractInId }) {
           onClose={() => { setAddBatch(false); setEditBatch(null) }}
         />
       )}
+
+      {passwordModal}
     </div>
   )
 }

@@ -3,6 +3,7 @@
 export const DELIVERY_STATUSES = ['Chờ nhận', 'Đang nhận', 'Đã nhận đủ', 'Nhận một phần']
 
 export const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
+export const fmtDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN') : '—'
 export const fmtNum  = (n) => new Intl.NumberFormat('vi-VN').format(parseFloat(n) || 0)
 
 export function statusStyle(s) {
