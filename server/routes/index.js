@@ -49,6 +49,7 @@ router.put('/users/:id', requireAdmin, authController.updateUser)
 router.post('/users/check-email', requireAdmin, authController.checkEmailExists)
 router.post('/users/check-username', requireAdmin, authController.checkUsernameExists)
 router.post('/users/check-employee-code', requireAdmin, authController.checkEmployeeCodeExists)
+router.post('/users/test-telegram', requireAdmin, authController.testTelegram)
 
 // Department routes — danh mục dùng chung: ghi chỉ admin
 router.get('/departments', authController.getAllDepartments)

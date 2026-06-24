@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { pool } from '../db.js'
-import { sendTelegramMessage } from '../services/telegram.js'
+import { sendTelegramMessage, sendTelegramNow } from '../services/telegram.js'
 import { signToken, AUTH_COOKIE, TOKEN_MAX_AGE_SEC, revokeToken } from '../auth/token.js'
 import { parseCookies } from '../middleware/auth.js'
 import { loginLimiter } from '../middleware/loginRateLimit.js'
@@ -215,6 +215,31 @@ export async function createUser(req, res) {
   } finally {
     client.release()
   }
+}
+
+// Gửi thử một tin chào mừng tới Telegram Chat ID để admin kiểm tra cấu hình.
+// Lấy chat id trực tiếp từ body (admin đang nhập trong form, có thể chưa lưu).
+export async function testTelegram(req, res) {
+  const chatId = String(req.body?.telegram_chat_id ?? '').trim()
+  const name = String(req.body?.full_name ?? '').trim()
+  if (!chatId) {
+    res.status(400).json({ error: 'Vui lòng nhập Telegram Chat ID trước khi gửi thử.' })
+    return
+  }
+
+  const greeting = name ? `${name} thân mến,` : 'Xin chào,'
+  const text =
+    `🎉 <b>Chào mừng bạn tham gia hệ thống TECAPRO!</b>\n\n` +
+    `${greeting}\n` +
+    `Đây là tin nhắn kiểm tra. Nếu bạn nhận được tin này, Telegram Chat ID đã được ` +
+    `cấu hình đúng và bạn sẽ nhận được các thông báo của hệ thống.`
+
+  const result = await sendTelegramNow(chatId, text)
+  if (!result.ok) {
+    res.status(400).json({ error: result.error || 'Không gửi được tin nhắn Telegram.' })
+    return
+  }
+  res.json({ success: true })
 }
 
 export async function checkEmailExists(req, res) {

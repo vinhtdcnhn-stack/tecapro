@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Modal from '../common/Modal'
+import { API_BASE } from '../../config/api'
 
 export default function UserModal({
   isOpen, 
@@ -35,9 +36,42 @@ export default function UserModal({
     employee_code: ''
   })
 
+  // Trạng thái gửi thử Telegram: idle | sending; tgResult = { ok, msg } | null
+  const [tgSending, setTgSending] = useState(false)
+  const [tgResult, setTgResult] = useState(null)
+
+  async function handleTestTelegram() {
+    const chatId = formData.telegram_chat_id?.trim()
+    if (!chatId) {
+      setTgResult({ ok: false, msg: 'Vui lòng nhập Telegram Chat ID trước.' })
+      return
+    }
+    setTgSending(true)
+    setTgResult(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/users/test-telegram`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram_chat_id: chatId, full_name: formData.full_name }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.success) {
+        setTgResult({ ok: true, msg: 'Đã gửi tin nhắn chào mừng. Kiểm tra Telegram nhé!' })
+      } else {
+        setTgResult({ ok: false, msg: data.error || 'Không gửi được tin nhắn.' })
+      }
+    } catch (err) {
+      console.error('test-telegram:', err)
+      setTgResult({ ok: false, msg: 'Lỗi kết nối tới máy chủ. Thử lại sau giây lát.' })
+    } finally {
+      setTgSending(false)
+    }
+  }
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset trạng thái gửi thử khi mở modal
+    setTgResult(null)
     if (user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ form từ prop user khi mở modal sửa
       setFormData({
         username: user.username || '',
         email: user.email || '',
@@ -247,9 +281,28 @@ export default function UserModal({
             <input
               type="text"
               value={formData.telegram_chat_id}
-              onChange={(e) => updateField('telegram_chat_id', e.target.value)}
+              onChange={(e) => { updateField('telegram_chat_id', e.target.value); setTgResult(null) }}
               placeholder="VD: 123456789"
             />
+            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleTestTelegram}
+                disabled={tgSending || !formData.telegram_chat_id?.trim()}
+                style={{
+                  padding: '6px 12px', fontSize: 13, borderRadius: 6, cursor: 'pointer',
+                  border: '1px solid #0ea5e9', background: '#fff', color: '#0369a1',
+                  opacity: (tgSending || !formData.telegram_chat_id?.trim()) ? 0.6 : 1,
+                }}
+              >
+                {tgSending ? 'Đang gửi…' : '📨 Gửi tin nhắn kiểm tra'}
+              </button>
+              {tgResult && (
+                <span style={{ fontSize: 12, color: tgResult.ok ? '#15803d' : '#dc2626' }}>
+                  {tgResult.ok ? '✓ ' : '✕ '}{tgResult.msg}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="field">

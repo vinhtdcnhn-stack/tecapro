@@ -52,3 +52,26 @@ export function sendTelegramToMany(chatIds, text) {
   const ids = [...new Set((chatIds || []).filter(Boolean))]
   for (const id of ids) sendTelegramMessage(id, text)
 }
+
+// Gửi NGAY tới một chat id và TRẢ VỀ kết quả ({ ok, error }) thay vì nuốt lỗi.
+// Không qua hàng đợi giãn cách — dùng cho thao tác kiểm tra thủ công cần phản hồi
+// tức thì (vd nút "Gửi thử" trong form người dùng). KHÔNG dùng cho thông báo hàng loạt.
+export async function sendTelegramNow(chatId, text) {
+  if (!BOT_TOKEN) return { ok: false, error: 'Server chưa cấu hình TELEGRAM_BOT_TOKEN.' }
+  if (!chatId) return { ok: false, error: 'Chưa có Telegram Chat ID.' }
+  try {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data?.ok) {
+      return { ok: false, error: data?.description || `Telegram trả về lỗi (HTTP ${res.status}).` }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Không gọi được Telegram API.' }
+  }
+}
