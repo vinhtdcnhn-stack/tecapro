@@ -6,6 +6,7 @@ import fallbackHero from '../assets/home-hero.png'
 import Dashboard from './Dashboard'
 import PMDashboard from './PMDashboard'
 import AssigneeDashboard from './AssigneeDashboard'
+import DeptWorkDashboard from './DeptWorkDashboard'
 import AccountingDashboard from './AccountingDashboard'
 import TenderDashboard from './TenderDashboard'
 import DashSwitcher from './DashSwitcher'
@@ -28,6 +29,7 @@ export default function HomePage() {
   ].filter(Boolean))
   const hasPMPosition = codes.has('PM_TEAM')
   const isDirector    = codes.has('GD') || codes.has('PGD')
+  const isDeptHead    = codes.has('TP') || codes.has('PP')   // Trưởng/Phó ban → xem việc cả phòng
   const isAdmin       = Number(user?.role) === 1
   const isAccountant  = user?.department_name === 'Ban Kế Toán'
   const isTenderPlanner = Number(user?.department_id) === 9
@@ -90,6 +92,7 @@ export default function HomePage() {
   if (isDirector)                             available.push({ key: 'director',  label: 'Tổng quan hệ thống' })
   if (isAccountant || isDirector || isAdmin)  available.push({ key: 'accounting', label: 'Kế toán' })
   if (isTenderPlanner)                        available.push({ key: 'tender',     label: 'Kế hoạch đấu thầu' })
+  if (isDeptHead)                             available.push({ key: 'dept',       label: 'Việc của phòng' })
   // "Việc của tôi" luôn khả dụng: gom mọi việc giao trực tiếp (gồm việc đấu thầu giao
   // cho người ngoài Ban Đấu thầu) với cửa sổ thời hạn không giới hạn → không bỏ sót.
   available.push({ key: 'assignee', label: 'Việc của tôi' })
@@ -115,6 +118,7 @@ export default function HomePage() {
       case 'director':   return <Dashboard switcher={switcher} user={user} contracts={contracts} customers={customers} users={users} />
       case 'accounting': return <AccountingDashboard switcher={switcher} user={user} />
       case 'tender':     return <TenderDashboard switcher={switcher} user={user} />
+      case 'dept':       return <DeptWorkDashboard switcher={switcher} user={user} />
       case 'assignee':   return <AssigneeDashboard switcher={switcher} user={user} />
       case 'pm':
       default:           return <PMDashboard switcher={switcher} user={user} />
