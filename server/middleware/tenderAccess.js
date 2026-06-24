@@ -206,6 +206,48 @@ export function isItemReviewCurator(kind = 'item', param = 'itemId') {
   }
 }
 
+// ── Lô + nhà thầu dự thầu ────────────────────────────────────────────────────
+// Sửa lô/nhà thầu = người làm thầu của gói HOẶC Trưởng phòng/admin (như sửa gói).
+// isLotEditor: param là id của lô → tra ngược tender.bid_maker_id.
+export function isLotEditor(param = 'lotId') {
+  return async (req, res, next) => {
+    try {
+      if (isAdmin(req)) return next()
+      if (await queryIsHead(req.user.id)) return next()
+      const lotId = paramId(req, param)
+      if (!lotId) return res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+      const { rows } = await pool.query(
+        `SELECT 1 FROM tender_lot l JOIN tender t ON t.id = l.tender_id
+          WHERE l.id = $1 AND t.bid_maker_id = $2 LIMIT 1`,
+        [lotId, req.user.id],
+      )
+      if (rows.length) return next()
+      FORBIDDEN(res, 'Chỉ người làm thầu của gói (hoặc Trưởng phòng) mới được sửa lô/nhà thầu.')
+    } catch (err) { next(err) }
+  }
+}
+
+// isBidderEditor: param là id của nhà thầu → tra ngược qua lô về tender.bid_maker_id.
+export function isBidderEditor(param = 'bidderId') {
+  return async (req, res, next) => {
+    try {
+      if (isAdmin(req)) return next()
+      if (await queryIsHead(req.user.id)) return next()
+      const bidderId = paramId(req, param)
+      if (!bidderId) return res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+      const { rows } = await pool.query(
+        `SELECT 1 FROM tender_bidder b
+           JOIN tender_lot l ON l.id = b.lot_id
+           JOIN tender t ON t.id = l.tender_id
+          WHERE b.id = $1 AND t.bid_maker_id = $2 LIMIT 1`,
+        [bidderId, req.user.id],
+      )
+      if (rows.length) return next()
+      FORBIDDEN(res, 'Chỉ người làm thầu của gói (hoặc Trưởng phòng) mới được sửa nhà thầu.')
+    } catch (err) { next(err) }
+  }
+}
+
 // Như isChecklistContributor nhưng param là id của TỆP đính kèm — tra ngược ra đầu việc
 // rồi kiểm tra quyền. Cho người được giao xem/tải/xoá tệp sản phẩm của đúng việc họ làm,
 // không cần là thành viên Ban Đấu thầu. Gác trang "Việc đấu thầu của tôi".

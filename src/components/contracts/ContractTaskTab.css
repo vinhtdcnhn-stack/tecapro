@@ -343,6 +343,24 @@
 .task-parent-start { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .task-parent-start-name { font-size: 12px; color: #374151; }
 
+/* Nhóm lịch trình: Bắt đầu → Hoàn thành */
+.task-sched-section {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 10px;
+  background: #fafbfc;
+}
+.task-sched-title {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: #6b7280;
+}
+.task-sched-summary {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 9px 12px; border-radius: 8px; background: #f0fdf4; border: 1px solid #dcfce7;
+  font-size: 12px; color: #374151;
+}
+.task-sched-summary strong { color: #15803d; }
+.task-sched-arrow { color: #9ca3af; font-weight: 700; }
+
 /* ── Mobile: bảng công việc → thẻ xếp dọc, form trong modal stack 1 cột ─────── */
 @media (max-width: 768px) {
   .task-table-wrapper { overflow-x: visible; }

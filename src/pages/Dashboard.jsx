@@ -17,6 +17,7 @@ import OverdueTasksDetail from './dashboard/details/OverdueTasksDetail'
 import RevenueDetail from './dashboard/details/RevenueDetail'
 import CashflowMonthDetail from './dashboard/details/CashflowMonthDetail'
 import MomentumDetail from './dashboard/details/MomentumDetail'
+import TenderListDetail from './dashboard/details/TenderListDetail'
 import { fmtDate } from './accounting/reportUtils'
 import './Dashboard.css'
 
@@ -28,6 +29,7 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
   const [byCustomer, setByCustomer] = useState(null)
   const [byContract, setByContract] = useState(null)
   const [overdueTasks, setOverdueTasks] = useState(null)
+  const [tender, setTender] = useState(null)
   // Danh sách HĐ dựng tại asOf (giá trị/ngày ký/trạng thái đúng quá khứ); null khi xem hiện tại.
   const [asOfContractList, setAsOfContractList] = useState(null)
   const [openCard, setOpenCard] = useState(null)
@@ -47,17 +49,18 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
     // overdue-tasks chỉ nhận asOf (không lọc theo khoảng năm ký).
     const tq = asOf ? `?asOf=${asOf}` : ''
     ;(async () => {
-      const [cf, bcu, bco, ot, cl] = await Promise.all([
+      const [cf, bcu, bco, ot, cl, td] = await Promise.all([
         get(`/reports/cashflow-summary${tq}`),
         get(`/reports/debt-by-customer${q}`),
         get(`/reports/debt-by-contract${q}`),
         get(`/reports/overdue-tasks${tq}`),
         // Chỉ cần danh sách HĐ as-of khi xem quá khứ; hiện tại dùng prop `contracts` (live).
         asOf ? get(`/reports/contracts-asof?asOf=${asOf}`) : Promise.resolve(null),
+        get(`/reports/tender-overview${q}`),
       ])
       if (cancelled) return
       setCashflow(cf); setByCustomer(bcu); setByContract(bco); setOverdueTasks(ot)
-      setAsOfContractList(cl?.rows || null)
+      setAsOfContractList(cl?.rows || null); setTender(td)
     })()
     return () => { cancelled = true }
   }, [range, asOf])
@@ -150,6 +153,36 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
       sub: `${signedThisYearCount(asOfContracts, year)} hợp đồng ký mới`,
       title: 'Đà ký hợp đồng',
       render: () => <MomentumDetail contracts={asOfContracts} />,
+    },
+    // ── Hàng 3: tổng quan Đấu thầu (BGĐ) ──
+    {
+      key: 'tenderActive', icon: '📋', accent: 'var(--brand)', label: 'Gói đang theo dõi',
+      value: tender ? String(tender.active?.count ?? 0) : '—',
+      sub: tender ? `Dự toán ${fmtCompact(tender.active?.estimate_vnd)}` : null,
+      title: 'Gói thầu đang theo dõi',
+      render: () => <TenderListDetail rows={tender?.active?.rows} variant="estimate" onClose={() => setOpenCard(null)} />,
+    },
+    {
+      key: 'tenderWinRate', icon: '🏆', accent: '#16a34a', label: 'Tỷ lệ trúng thầu',
+      value: tender ? `${tender.winrate?.rate ?? 0}%` : '—',
+      sub: tender ? `${tender.winrate?.won ?? 0}/${(tender.winrate?.won ?? 0) + (tender.winrate?.lost ?? 0)} gói có kết quả` : null,
+      title: 'Tỷ lệ trúng thầu',
+      render: () => <TenderListDetail rows={tender?.winrate?.rows} variant="result" onClose={() => setOpenCard(null)} />,
+    },
+    {
+      key: 'tenderWonValue', icon: '💵', accent: '#0891b2', label: 'Giá trị trúng thầu',
+      value: tender ? fmtCompact(tender.won?.estimate_vnd) : '—',
+      valueTitle: tender ? fmtFull(tender.won?.estimate_vnd) : undefined,
+      sub: tender ? `${tender.won?.count ?? 0} gói trúng` : null,
+      title: 'Giá trị trúng thầu',
+      render: () => <TenderListDetail rows={tender?.won?.rows} variant="result" onClose={() => setOpenCard(null)} />,
+    },
+    {
+      key: 'tenderDueSoon', icon: '⏰', danger: true, label: 'Gói sắp đến hạn nộp',
+      value: tender ? String(tender.upcoming?.count ?? 0) : '—',
+      sub: 'trong 7 ngày tới',
+      title: 'Gói sắp đến hạn nộp',
+      render: () => <TenderListDetail rows={tender?.upcoming?.rows} variant="due" onClose={() => setOpenCard(null)} />,
     },
   ]
 

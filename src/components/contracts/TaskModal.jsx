@@ -149,6 +149,10 @@ export default function TaskModal({ task, parentTask = null, departments, users,
       e.due_date = 'Vui lòng chọn thời hạn hoàn thành'
     }
     if (!form.department_id) e.department_id = 'Vui lòng chọn phòng ban'
+    // Ngày bắt đầu phải trước (hoặc bằng) ngày hoàn thành.
+    if (!e.due_date && previewStart && effectiveDue && previewStart > dayPart(effectiveDue)) {
+      e.due_date = 'Ngày hoàn thành phải sau ngày bắt đầu'
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -291,7 +295,7 @@ export default function TaskModal({ task, parentTask = null, departments, users,
             </div>
           </div>
 
-          {/* Priority + Due date */}
+          {/* Priority + Status */}
           <div className="task-form-row">
             <div className="task-form-group">
               <label>Mức độ ưu tiên</label>
@@ -300,138 +304,6 @@ export default function TaskModal({ task, parentTask = null, departments, users,
               </select>
             </div>
             <div className="task-form-group">
-              <label>Thời hạn hoàn thành *</label>
-              <div className="task-due-mode">
-                <label className={dueMode === 'fixed' ? 'active' : ''}>
-                  <input type="radio" name="dueMode" checked={dueMode === 'fixed'} onChange={() => setDueMode('fixed')} />
-                  Ngày cố định
-                </label>
-                <label className={dueMode === 'duration' ? 'active' : ''}>
-                  <input type="radio" name="dueMode" checked={dueMode === 'duration'} onChange={() => setDueMode('duration')} />
-                  Theo ngày bắt đầu
-                </label>
-              </div>
-
-              {dueMode === 'fixed' ? (
-                <DateInput
-                  value={form.due_date}
-                  onChange={e => set('due_date', e.target.value)}
-                  className={errors.due_date ? 'has-error' : ''}
-                />
-              ) : (
-                <>
-                  <div className="task-due-offset">
-                    <input
-                      type="number"
-                      min="1"
-                      value={duration}
-                      onChange={e => setDuration(e.target.value)}
-                      className={errors.due_date ? 'has-error' : ''}
-                    />
-                    <span>ngày (tính cả ngày bắt đầu)</span>
-                  </div>
-                  <div className="task-start-preview">
-                    Hạn dự kiến: <strong>{computedDue ? fmtDate(computedDue) : '—'}</strong>
-                  </div>
-                </>
-              )}
-              {errors.due_date && <span className="task-form-error">{errors.due_date}</span>}
-            </div>
-          </div>
-
-          {/* Lịch & ràng buộc bắt đầu */}
-          <div className="task-form-row">
-            <div className="task-form-group full">
-              <label>Bắt đầu</label>
-              <div className="task-start-mode">
-                <label className={startMode === 'fixed' ? 'active' : ''}>
-                  <input type="radio" name="startMode" checked={startMode === 'fixed'} onChange={() => setStartMode('fixed')} />
-                  Ngày cố định
-                </label>
-                <label className={startMode === 'deps' ? 'active' : ''}>
-                  <input type="radio" name="startMode" checked={startMode === 'deps'} onChange={() => setStartMode('deps')} />
-                  Sau khi bước trước hoàn thành
-                </label>
-                {hasParent && (
-                  <label className={startMode === 'parent' ? 'active' : ''}>
-                    <input type="radio" name="startMode" checked={startMode === 'parent'} onChange={() => setStartMode('parent')} />
-                    Theo việc cha
-                  </label>
-                )}
-              </div>
-
-              {startMode === 'fixed' ? (
-                <div style={{ maxWidth: 220, marginTop: 8 }}>
-                  <DateInput value={form.start_date} onChange={e => set('start_date', e.target.value)} />
-                </div>
-              ) : startMode === 'parent' ? (
-                <div className="task-parent-start">
-                  <div className="task-parent-start-name">
-                    Bám theo ngày bắt đầu của: <strong>{parentOf?.title || '—'}</strong>
-                  </div>
-                  <div className="task-due-offset">
-                    <input
-                      type="number"
-                      min="0"
-                      value={parentOffset}
-                      onChange={e => setParentOffset(e.target.value)}
-                    />
-                    <span>ngày sau khi việc cha bắt đầu (0 = cùng ngày)</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="task-deps">
-                  {deps.length === 0 && (
-                    <div className="task-deps-empty">Chưa có bước trước. Thêm bước để công việc tự bắt đầu sau khi bước đó xong.</div>
-                  )}
-                  {deps.map((d, i) => (
-                    <div key={i} className="task-dep-row">
-                      <select value={d.dep_type} onChange={e => setDep(i, 'dep_type', e.target.value)}>
-                        <option value="task">Công việc</option>
-                        <option value="milestone">Mốc tiến độ HĐ</option>
-                      </select>
-                      {d.dep_type === 'task' ? (
-                        <select value={d.dep_task_id} onChange={e => setDep(i, 'dep_task_id', e.target.value)}>
-                          <option value="">-- Chọn công việc --</option>
-                          {otherTasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                        </select>
-                      ) : (
-                        <select value={d.dep_progress_id} onChange={e => setDep(i, 'dep_progress_id', e.target.value)}>
-                          <option value="">-- Chọn mốc --</option>
-                          {milestones.map(m => (
-                            <option key={m.id} value={m.id}>
-                              {m.bb_name || m.bb_code || `Mốc #${m.id}`}{m.planned_date ? ` (${fmtDate(m.planned_date)})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <div className="task-dep-offset">
-                        <input type="number" value={d.offset_days}
-                          onChange={e => setDep(i, 'offset_days', e.target.value)} />
-                        <span>ngày sau</span>
-                      </div>
-                      <button type="button" className="task-dep-del" onClick={() => removeDep(i)} title="Xóa bước trước">✕</button>
-                    </div>
-                  ))}
-                  <button type="button" className="task-dep-add" onClick={addDep}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                    Thêm bước trước
-                  </button>
-                </div>
-              )}
-
-              <div className="task-start-preview">
-                Ngày bắt đầu dự kiến: <strong>{previewStart ? fmtDate(previewStart) : '—'}</strong>
-                {previewStart && effectiveDue && previewStart > dayPart(effectiveDue) && (
-                  <span className="task-start-warn"> ⚠ bắt đầu sau hạn hoàn thành</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Status */}
-          <div className="task-form-row">
-            <div className="task-form-group full">
               <label>Trạng thái</label>
               <div className="status-radio-group">
                 {STATUSES.map(s => (
@@ -444,6 +316,143 @@ export default function TaskModal({ task, parentTask = null, departments, users,
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* ── Lịch trình: Bắt đầu → Hoàn thành ─────────────────────── */}
+          <div className="task-sched-section">
+            <div className="task-sched-title">Lịch trình</div>
+
+            {/* 1) Bắt đầu */}
+            <div className="task-form-row">
+              <div className="task-form-group full">
+                <label>Bắt đầu</label>
+                <div className="task-start-mode">
+                  <label className={startMode === 'fixed' ? 'active' : ''}>
+                    <input type="radio" name="startMode" checked={startMode === 'fixed'} onChange={() => setStartMode('fixed')} />
+                    Ngày cố định
+                  </label>
+                  <label className={startMode === 'deps' ? 'active' : ''}>
+                    <input type="radio" name="startMode" checked={startMode === 'deps'} onChange={() => setStartMode('deps')} />
+                    Sau khi bước trước hoàn thành
+                  </label>
+                  {hasParent && (
+                    <label className={startMode === 'parent' ? 'active' : ''}>
+                      <input type="radio" name="startMode" checked={startMode === 'parent'} onChange={() => setStartMode('parent')} />
+                      Theo việc cha
+                    </label>
+                  )}
+                </div>
+
+                {startMode === 'fixed' ? (
+                  <div style={{ maxWidth: 220, marginTop: 8 }}>
+                    <DateInput value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+                  </div>
+                ) : startMode === 'parent' ? (
+                  <div className="task-parent-start">
+                    <div className="task-parent-start-name">
+                      Bám theo ngày bắt đầu của: <strong>{parentOf?.title || '—'}</strong>
+                    </div>
+                    <div className="task-due-offset">
+                      <input
+                        type="number"
+                        min="0"
+                        value={parentOffset}
+                        onChange={e => setParentOffset(e.target.value)}
+                      />
+                      <span>ngày sau khi việc cha bắt đầu (0 = cùng ngày)</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="task-deps">
+                    {deps.length === 0 && (
+                      <div className="task-deps-empty">Chưa có bước trước. Thêm bước để công việc tự bắt đầu sau khi bước đó xong.</div>
+                    )}
+                    {deps.map((d, i) => (
+                      <div key={i} className="task-dep-row">
+                        <select value={d.dep_type} onChange={e => setDep(i, 'dep_type', e.target.value)}>
+                          <option value="task">Công việc</option>
+                          <option value="milestone">Mốc tiến độ HĐ</option>
+                        </select>
+                        {d.dep_type === 'task' ? (
+                          <select value={d.dep_task_id} onChange={e => setDep(i, 'dep_task_id', e.target.value)}>
+                            <option value="">-- Chọn công việc --</option>
+                            {otherTasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                          </select>
+                        ) : (
+                          <select value={d.dep_progress_id} onChange={e => setDep(i, 'dep_progress_id', e.target.value)}>
+                            <option value="">-- Chọn mốc --</option>
+                            {milestones.map(m => (
+                              <option key={m.id} value={m.id}>
+                                {m.bb_name || m.bb_code || `Mốc #${m.id}`}{m.planned_date ? ` (${fmtDate(m.planned_date)})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <div className="task-dep-offset">
+                          <input type="number" value={d.offset_days}
+                            onChange={e => setDep(i, 'offset_days', e.target.value)} />
+                          <span>ngày sau</span>
+                        </div>
+                        <button type="button" className="task-dep-del" onClick={() => removeDep(i)} title="Xóa bước trước">✕</button>
+                      </div>
+                    ))}
+                    <button type="button" className="task-dep-add" onClick={addDep}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                      Thêm bước trước
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 2) Thời hạn hoàn thành */}
+            <div className="task-form-row">
+              <div className="task-form-group full">
+                <label>Thời hạn hoàn thành *</label>
+                <div className="task-due-mode">
+                  <label className={dueMode === 'fixed' ? 'active' : ''}>
+                    <input type="radio" name="dueMode" checked={dueMode === 'fixed'} onChange={() => setDueMode('fixed')} />
+                    Ngày cố định
+                  </label>
+                  <label className={dueMode === 'duration' ? 'active' : ''}>
+                    <input type="radio" name="dueMode" checked={dueMode === 'duration'} onChange={() => setDueMode('duration')} />
+                    Theo ngày bắt đầu
+                  </label>
+                </div>
+
+                {dueMode === 'fixed' ? (
+                  <div style={{ maxWidth: 220 }}>
+                    <DateInput
+                      value={form.due_date}
+                      onChange={e => set('due_date', e.target.value)}
+                      className={errors.due_date ? 'has-error' : ''}
+                    />
+                  </div>
+                ) : (
+                  <div className="task-due-offset">
+                    <input
+                      type="number"
+                      min="1"
+                      value={duration}
+                      onChange={e => setDuration(e.target.value)}
+                      className={errors.due_date ? 'has-error' : ''}
+                    />
+                    <span>ngày (tính cả ngày bắt đầu)</span>
+                  </div>
+                )}
+                {errors.due_date && <span className="task-form-error">{errors.due_date}</span>}
+              </div>
+            </div>
+
+            {/* Tóm tắt lịch dự kiến */}
+            <div className="task-sched-summary">
+              <span>Bắt đầu dự kiến: <strong>{previewStart ? fmtDate(previewStart) : '—'}</strong></span>
+              <span className="task-sched-arrow">→</span>
+              <span>Hạn hoàn thành: <strong>{effectiveDue ? fmtDate(effectiveDue) : '—'}</strong></span>
+              {previewStart && effectiveDue && previewStart > dayPart(effectiveDue) && (
+                <span className="task-start-warn"> ⚠ bắt đầu sau hạn hoàn thành</span>
+              )}
             </div>
           </div>
 

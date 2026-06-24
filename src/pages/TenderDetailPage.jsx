@@ -3,6 +3,7 @@ import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import { API } from '../config/api'
 import { useAuth } from '../context/AuthContext'
 import TenderInfoTab from '../components/tender/TenderInfoTab'
+import TenderLotsTab from '../components/tender/TenderLotsTab'
 import TenderChecklistTab from '../components/tender/TenderChecklistTab'
 import ContractDocumentsTab from '../components/contracts/ContractDocumentsTab'
 import { ContractPermProvider } from '../context/ContractPermContext'
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'checklist', label: 'Checklist công việc' },
   { key: 'review', label: 'Review & Comment' },
   { key: 'activity', label: 'Lịch sử' },
+  { key: 'bidders', label: 'Kết quả dự thầu' },
 ]
 
 export default function TenderDetailPage() {
@@ -70,6 +72,9 @@ export default function TenderDetailPage() {
           <div className="tender-tab-body">
             {tab === 'info' && (
               <TenderInfoTab tender={tender} members={members} isHead={isHead} canEdit={canEdit} onChanged={reload} />
+            )}
+            {tab === 'bidders' && (
+              <TenderLotsTab tender={tender} canEdit={canEdit} onChanged={reload} />
             )}
             {tab === 'invitation' && (
               <ContractPermProvider canEdit={canEdit}>

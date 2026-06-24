@@ -182,6 +182,13 @@ export async function updateTender(req, res) {
       vals,
     )
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy gói thầu.' })
+    // Gói CÓ lô → dự toán gói luôn = tổng dự toán các lô (ghi đè giá trị nhập tay ở form).
+    await pool.query(
+      `UPDATE tender t SET estimate = s.total, updated_at = now()
+         FROM (SELECT COUNT(*)::int AS cnt, SUM(estimate) AS total FROM tender_lot WHERE tender_id = $1) s
+        WHERE t.id = $1 AND s.cnt > 0`,
+      [id],
+    )
     logActivity(id, req.user.id, 'update', `Cập nhật thông tin gói thầu`)
     // Báo người làm thầu mới được giao (khác trước đó & khác chính mình).
     if (head && bidMaker && bidMaker !== prevBidMaker && bidMaker !== req.user.id) {

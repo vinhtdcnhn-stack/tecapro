@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import {
   isTenderMember, isHead, isBidMakerOrHead, isChecklistEditor, isChecklistContributor,
-  isItemDocEditor, isItemReviewCurator,
+  isItemDocEditor, isItemReviewCurator, isLotEditor, isBidderEditor,
 } from '../middleware/tenderAccess.js'
 import {
   getTenders, getTender, createTender, updateTender,
@@ -30,6 +30,10 @@ import {
   toggleFileExcluded, toggleFolderExcluded, uploadReplacement, deleteReplacement,
 } from '../controllers/tenderItemReviewController.js'
 import { getReports } from '../controllers/tenderReportController.js'
+import {
+  getLots, createLot, updateLot, deleteLot,
+  createBidder, updateBidder, deleteBidder,
+} from '../controllers/tenderLotController.js'
 
 // Tất cả route đã nằm sau requireAuth (mount trong routes/index.js).
 // Tiền tố /tender. Đọc cần là thành viên phòng; phân công/xoá cần Trưởng phòng.
@@ -58,6 +62,16 @@ router.put('/tender/:id/status', isBidMakerOrHead('id'), updateTenderStatus)
 
 // Nhật ký thao tác (audit).
 router.get('/tender/:id/activity', isTenderMember, getActivityLog)
+
+// ── Kết quả dự thầu: lô + nhà thầu (xếp hạng giá theo từng lô) ───────────────
+// Đọc cho thành viên ban; ghi cho người làm thầu của gói / Trưởng phòng / admin.
+router.get('/tender/:id/lots', isTenderMember, getLots)
+router.post('/tender/:id/lots', isBidMakerOrHead('id'), createLot)
+router.put('/tender/lots/:lotId', isLotEditor('lotId'), updateLot)
+router.delete('/tender/lots/:lotId', isLotEditor('lotId'), deleteLot)
+router.post('/tender/lots/:lotId/bidders', isLotEditor('lotId'), createBidder)
+router.put('/tender/bidders/:bidderId', isBidderEditor('bidderId'), updateBidder)
+router.delete('/tender/bidders/:bidderId', isBidderEditor('bidderId'), deleteBidder)
 
 // ── Checklist công việc ─────────────────────────────────────────────────────
 router.get('/tender/:id/checklist', isTenderMember, getChecklist)

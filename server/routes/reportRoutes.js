@@ -7,6 +7,7 @@ import {
 } from '../controllers/reportDebtController.js'
 import { getWarrantyReport } from '../controllers/reportWarrantyController.js'
 import { getOverdueTasks } from '../controllers/reportTaskController.js'
+import { getTenderOverview } from '../controllers/reportTenderController.js'
 
 const router = Router()
 
@@ -21,5 +22,6 @@ router.get('/reports/debt-by-customer',     requireAccountant, getDebtByCustomer
 router.get('/reports/warranty',             requireAccountant, getWarrantyReport)        // #10
 router.get('/reports/overdue-tasks',        requireAccountant, getOverdueTasks)          // dashboard điều hành
 router.get('/reports/contracts-asof',       requireAccountant, getContractsAsOf)         // danh sách HĐ tại 1 thời điểm
+router.get('/reports/tender-overview',      requireAccountant, getTenderOverview)        // tổng quan đấu thầu (dashboard điều hành)
 
 export default router

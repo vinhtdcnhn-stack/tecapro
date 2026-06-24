@@ -193,6 +193,73 @@
   .tender-status-edit { flex-direction: column; gap: 8px; }
 }
 
+/* ── Tab "Kết quả dự thầu": lô + nhà thầu (xếp hạng giá) ──────────────────── */
+.tlot { display: flex; flex-direction: column; gap: 16px; }
+/* btn-secondary chưa có style toàn cục → khai báo trong phạm vi tab này (+ form lô). */
+.tlot .btn-secondary, .tlot-form .btn-secondary {
+  background: #fff; border: 1px solid #d1d5db; color: #374151;
+  padding: 7px 14px; border-radius: 8px; font-weight: 500; cursor: pointer; font-size: 14px;
+}
+.tlot .btn-secondary:hover, .tlot-form .btn-secondary:hover { background: #f9fafb; }
+.tlot .btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
+
+.tlot-head { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+.tlot-head-title { font-size: 15px; font-weight: 700; color: #0f172a; }
+.tlot-total { font-size: 13px; color: #475569; }
+
+.tlot-form { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; background: #f8fafc; }
+.tlot-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.tlot-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+.tlot-card-section { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; }
+.tlot-lot-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.tlot-lot-titles { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tlot-lot-name { font-size: 15px; font-weight: 700; color: #0f172a; }
+.tlot-lot-code { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 1px 8px; border-radius: 6px; }
+.tlot-lot-meta { color: #475569; font-size: 13px; }
+.tlot-lot-actions { margin-left: auto; display: flex; gap: 8px; }
+.tlot-lot-note { margin: 6px 0 0; color: #475569; font-size: 13px; }
+
+.tlot-bidders { margin-top: 12px; }
+.tlot-self-summary {
+  background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a;
+  border-radius: 8px; padding: 7px 12px; font-size: 13px; margin-bottom: 10px;
+}
+.tlot-self-summary--muted { background: #f8fafc; border-color: #e5e7eb; color: #64748b; }
+
+.tlot-table-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
+.tlot-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
+.tlot-table th, .tlot-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.tlot-table th { background: #f8fafc; font-weight: 600; color: #475569; white-space: nowrap; }
+.tlot-table td.num, .tlot-table th.num { text-align: right; }
+.tlot-table input, .tlot-table select { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 7px; font-size: 13px; width: 100%; }
+.tlot-table input:focus, .tlot-table select:focus { outline: none; border-color: #15803d; }
+.tlot-rank { font-weight: 800; color: #1d4ed8; }
+.tlot-rank-cell { white-space: nowrap; }
+.tlot-name-cell { display: flex; align-items: center; gap: 8px; }
+.tlot-self-check { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #475569; white-space: nowrap; }
+.tlot-self-check input { width: auto; }
+.tlot-self-tag { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: #15803d; background: #dcfce7; padding: 1px 8px; border-radius: 999px; }
+.tlot-row--self { background: #f0fdf4; }
+.tlot-row--self:hover { background: #e6fbeb; }
+.tlot-row--dirty td { box-shadow: inset 3px 0 0 #f59e0b; }
+.tlot-act { white-space: nowrap; text-align: right; }
+.tlot-add { margin: 10px 0 0; }
+.tlot-empty { color: #94a3b8; text-align: center; padding: 14px; }
+
+/* Mobile: thẻ + sheet thay bảng */
+.tlot-cards { display: flex; flex-direction: column; gap: 8px; }
+.tlot-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.tlot-card--self { background: #f0fdf4; border-color: #bbf7d0; }
+.tlot-card--dirty { box-shadow: inset 3px 0 0 #f59e0b; }
+.tlot-card-top { display: flex; align-items: center; gap: 8px; }
+.tlot-card-name { font-weight: 600; color: #0f172a; flex: 1 1 auto; }
+.tlot-card-sub { margin-top: 4px; font-size: 13px; color: #475569; }
+
+@media (max-width: 760px) {
+  .tlot-form-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Trang "Việc đấu thầu của tôi" (người được giao ngoài Ban Đấu thầu) ─────── */
 /* Dùng lại bố cục trang chi tiết gói thầu: .content-area cuộn dọc, đầu trang (head +
    thẻ thông tin + tabs) cố định, thân tab (trình quản lý tệp) chiếm phần còn lại. */

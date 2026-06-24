@@ -44,6 +44,16 @@ export function resultColor(result) {
   return RESULT_COLORS[result] || null
 }
 
+// Màu badge kết quả đánh giá kỹ thuật của nhà thầu (Đạt/Trượt vòng kỹ thuật).
+const TECH_RESULT_COLORS = {
+  'Đạt':   { bg: '#dcfce7', fg: '#15803d' },
+  'Trượt': { bg: '#fee2e2', fg: '#b91c1c' },
+}
+export function techResultColor(result) {
+  return TECH_RESULT_COLORS[result] || null
+}
+export const TECH_RESULTS = ['Đạt', 'Trượt']
+
 // Đơn vị tiền tệ hỗ trợ cho dự toán gói thầu (VND + ngoại tệ cho gói quốc tế).
 export const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY']
 
