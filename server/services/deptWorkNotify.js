@@ -1,5 +1,5 @@
 import { pool } from '../db.js'
-import { sendTelegramMessage } from './telegram.js'
+import { sendTelegramToMany } from './telegram.js'
 import { DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -23,7 +23,8 @@ export async function notifyHeads(text) {
           AND u.telegram_chat_id IS NOT NULL`,
       [DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS],
     )
-    for (const r of rows) if (r.telegram_chat_id) sendTelegramMessage(r.telegram_chat_id, text)
+    // Gửi lần lượt từng trưởng/phó phòng cách nhau 3s (không gửi đồng loạt).
+    await sendTelegramToMany(rows.map(r => r.telegram_chat_id), text)
   } catch (err) {
     console.error('deptWork notifyHeads:', err)
   }

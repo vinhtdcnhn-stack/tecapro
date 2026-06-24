@@ -1,5 +1,5 @@
 import { pool } from '../db.js'
-import { sendTelegramMessage } from './telegram.js'
+import { sendTelegramToMany } from './telegram.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Dịch vụ thông báo Telegram dùng chung cho toàn app.
@@ -38,9 +38,10 @@ export async function chatIdsForUsers(userIds) {
 
 // Gửi text THÔ (đã tự lo HTML) tới danh sách user. Dùng cho thông điệp đã có sẵn
 // định dạng riêng (vd module công việc phòng). Code mới nên dùng notifyAction/Info.
+// Phát cho từng người LẦN LƯỢT cách nhau 3s (không gửi đồng loạt) qua sendTelegramToMany.
 export async function notifyUsers(userIds, text) {
   try {
-    for (const chat of await chatIdsForUsers(userIds)) sendTelegramMessage(chat, text)
+    await sendTelegramToMany(await chatIdsForUsers(userIds), text)
   } catch (err) {
     console.error('notifyUsers:', err)
   }
