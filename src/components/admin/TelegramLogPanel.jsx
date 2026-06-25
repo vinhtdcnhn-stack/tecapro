@@ -70,6 +70,7 @@ export default function TelegramLogPanel() {
       {error && <div style={{ color: '#c00', marginBottom: '10px' }}>{error}</div>}
 
       <div className="content-scrollable">
+        <div className="table-wrapper">
         <table className="user-table">
           <thead>
             <tr>
@@ -106,6 +107,7 @@ export default function TelegramLogPanel() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div style={{ textAlign: 'center', marginTop: '12px' }}>
