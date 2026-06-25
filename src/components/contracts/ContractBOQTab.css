@@ -294,7 +294,8 @@
 .td-vat { text-align: center; }
 
 /* Inputs inside cells */
-.boq-table td input {
+.boq-table td input,
+.boq-table td textarea {
   width: 100%;
   padding: 5px 7px;
   border: 1px solid transparent;
@@ -306,14 +307,27 @@
   box-sizing: border-box;
   color: #1f2937;
 }
-.boq-table td input:hover { border-color: #cbd5e1; background: white; }
-.boq-table td input:focus {
+.boq-table td input:hover,
+.boq-table td textarea:hover { border-color: #cbd5e1; background: white; }
+.boq-table td input:focus,
+.boq-table td textarea:focus {
   outline: none;
   border-color: #16a34a;
   background: white;
   box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
 }
 .boq-table td input[type="number"] { text-align: right; }
+
+/* Ô tên hàng hóa nhiều dòng: tự xuống dòng, không có tay kéo */
+.boq-table td textarea {
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: block;
+}
+.td-name { vertical-align: top; }
 
 /* Preview cells (import modal, read-only) */
 .preview-text {

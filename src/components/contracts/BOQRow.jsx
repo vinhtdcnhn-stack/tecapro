@@ -1,5 +1,6 @@
 import { fmtNum, calcAmounts } from './boqUtils'
 import NumberInput from '../common/NumberInput'
+import AutoTextarea from '../common/AutoTextarea'
 
 // Một dòng trong bảng giá (BOQ). Tách riêng để giữ ContractBOQTab gọn dưới 500 dòng.
 export default function BOQRow({
@@ -43,8 +44,7 @@ export default function BOQRow({
       </td>
 
       <td className="td-name">
-        <input
-          type="text"
+        <AutoTextarea
           value={row.item_name}
           onChange={e => set(row._key, 'item_name', e.target.value)}
           placeholder="Nhập tên hàng hóa..."
