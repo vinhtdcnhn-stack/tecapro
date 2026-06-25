@@ -1,12 +1,23 @@
 import { fmtNum, calcAmounts } from './boqUtils'
 import NumberInput from '../common/NumberInput'
 import AutoTextarea from '../common/AutoTextarea'
+import BOQZoneRow from './BOQZoneRow'
+import BOQGroupRow from './BOQGroupRow'
 
-// Một dòng trong bảng giá (BOQ). Tách riêng để giữ ContractBOQTab gọn dưới 500 dòng.
+// Một dòng trong bảng giá (BOQ). Phân nhánh theo row_kind: zone / group / leaf.
+// Tách riêng để giữ ContractBOQTab gọn dưới 500 dòng.
 export default function BOQRow({
-  row, idx, currency, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow,
-  canDrag, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
+  row, idx, depth = 0, rollupAmt, currency, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow, onAddChild, onToggleMultiply,
+  canDrag, canDrop, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
+  const kind = row.row_kind || 'leaf'
+  // Phần/Nhóm là điểm thả để gom dòng vào (canDrop), nhận thêm các handler kéo-thả.
+  const dropProps = { canDrop, isDragOver, onDragOver, onDragEnter, onDrop, onDragEnd }
+  if (kind === 'zone')
+    return <BOQZoneRow {...{ row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, rollupAmt, currency, ...dropProps }} />
+  if (kind === 'group')
+    return <BOQGroupRow {...{ row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, onToggleMultiply, rollupAmt, currency, ...dropProps }} />
+
   const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
   const isDiThang = row.item_type === 'di_thang'
 
@@ -14,10 +25,10 @@ export default function BOQRow({
     <tr
       draggable={canDrag}
       onDragStart={canDrag ? (e) => onDragStart(e, row._key) : undefined}
-      onDragOver={canDrag ? onDragOver : undefined}
-      onDragEnter={canDrag ? () => onDragEnter(row._key) : undefined}
-      onDrop={canDrag ? (e) => onDrop(e, row._key) : undefined}
-      onDragEnd={canDrag ? onDragEnd : undefined}
+      onDragOver={canDrop ? onDragOver : undefined}
+      onDragEnter={canDrop ? () => onDragEnter(row._key) : undefined}
+      onDrop={canDrop ? (e) => onDrop(e, row._key) : undefined}
+      onDragEnd={canDrop ? onDragEnd : undefined}
       className={[
         row._isNew  ? 'row-new'   : '',
         row._dirty  ? 'row-dirty' : '',
@@ -43,7 +54,7 @@ export default function BOQRow({
         <span className="stt-num">{idx + 1}</span>
       </td>
 
-      <td className="td-name">
+      <td className="td-name" style={depth ? { paddingLeft: 8 + depth * 22 } : undefined}>
         <AutoTextarea
           value={row.item_name}
           onChange={e => set(row._key, 'item_name', e.target.value)}

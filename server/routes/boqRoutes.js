@@ -9,9 +9,8 @@ import {
   bulkDeleteBOQItems,
   importBOQPreview,
   saveImportedBOQ,
-  downloadBOQTemplate,
-  excelUpload,
 } from '../controllers/boqController.js'
+import { downloadBOQTemplate, excelUpload } from '../controllers/boqExcel.js'
 import { pmFromParam, pmVia, pmViaBody } from '../middleware/contractAccess.js'
 
 const router = Router()

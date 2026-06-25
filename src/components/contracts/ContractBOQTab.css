@@ -224,10 +224,48 @@
 .boq-table tbody tr.row-selected { background: #eff6ff; }
 .boq-table tbody tr.row-selected:hover { background: #dbeafe; }
 
+/* ── Bảng giá phân cấp: dòng Zone (Phần) & Nhóm tổng hợp ───────────────────── */
+.boq-table tbody tr.boq-zone-row { background: #eef2ff; }
+.boq-table tbody tr.boq-zone-row:hover { background: #e0e7ff; }
+.boq-table tbody tr.boq-zone-row.row-dirty { background: #e8eaff; }
+.boq-table tbody tr.boq-group-row { background: #f8fafc; }
+.boq-table tbody tr.boq-group-row:hover { background: #f1f5f9; }
+.boq-table tbody tr.boq-group-row.row-dirty { background: #fffbeb; }
+
+.boq-zone-name { text-align: left !important; }
+.boq-zone-name, .boq-group-row .td-name { display: table-cell; }
+.boq-zone-name > * { vertical-align: middle; }
+.boq-zone-row .td-name textarea,
+.boq-group-row .td-name textarea { font-weight: 700; }
+.boq-zone-row .td-name textarea { text-transform: none; }
+.boq-zone-total { float: right; font-weight: 700; color: #3730a3; padding-left: 10px; }
+
+.boq-kind-badge {
+  display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+  padding: 1px 5px; border-radius: 4px; margin-right: 6px; vertical-align: middle;
+}
+.boq-badge-zone  { background: #4338ca; color: #fff; }
+.boq-badge-group { background: #cbd5e1; color: #1e293b; }
+
+/* Ô số tiền tổng hợp (read-only) của dòng nhóm */
+.boq-table td.td-rollup { color: #475569; font-weight: 700; background: #f8fafc; }
+
+/* Nhãn nhỏ cạnh icon trong nút thêm con */
+.act-label { font-size: 10px; margin-left: 2px; white-space: nowrap; }
+.act.insert .act-label { display: inline; }
+/* Nút có nhãn chữ (vd "Thêm hệ thống") tự giãn ngang, không bó về 26px */
+.act.insert { width: auto; min-width: 26px; padding: 0 6px; white-space: nowrap; }
+
 /* Kéo-thả đổi thứ tự */
 .boq-table tbody tr.row-dragging { opacity: 0.4; }
 .boq-table tbody tr.row-dragover td { box-shadow: inset 0 2px 0 0 #16a34a; }
 .boq-table tbody tr[draggable="true"] { cursor: default; }
+
+/* Thả dòng VÀO phần/nhóm (gom làm con): viền bao quanh + nền nhấn */
+.boq-table tbody tr.row-dropinto td {
+  box-shadow: inset 0 0 0 2px #16a34a;
+  background: #dcfce7 !important;
+}
 
 /* Select column */
 .td-select { text-align: center; }
@@ -393,6 +431,11 @@
 .act.insert { background: #dbeafe; color: #2563eb; }
 .act.insert:hover:not(:disabled) { background: #bfdbfe; }
 .act.delete:hover:not(:disabled) { background: #fee2e2; color: #dc2626; }
+/* Nút bật/tắt "nhân thành tiền theo SL hệ thống" — viền khi tắt, tô đậm khi bật */
+.act.mult { border: 1px solid #cbd5e1; color: #64748b; }
+.act.mult:hover:not(:disabled) { background: #f1f5f9; }
+.act.mult.active { background: #16a34a; color: #fff; border-color: #16a34a; }
+.act.mult.active:hover:not(:disabled) { background: #15803d; }
 
 .spin { display: inline-block; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

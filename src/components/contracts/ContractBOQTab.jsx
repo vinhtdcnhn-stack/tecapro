@@ -14,11 +14,11 @@ import { useCanEdit } from '../../context/ContractPermContext'
 
 export default function ContractBOQTab({ contractId }) {
   const {
-    rows, currency, loading, totals, isMobile,
+    rows, currency, loading, totals, isMobile, rollup,
     search, setSearch, typeFilter, setTypeFilter, isFiltering, visibleRows,
     selected, toggleSelect, allSelected, toggleSelectAll, selectableKeys, selectedCount,
     bulkDelete, bulkDeleting,
-    set, saveRow, deleteRow, insertAfter, addRow,
+    set, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply,
     dragKey, dragOverKey, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
     excelRef, handleExcelFile, importData, importMode, setImportMode, importSaving, confirmImport, setImportData,
   } = useBOQTab(contractId)
@@ -79,6 +79,18 @@ export default function ContractBOQTab({ contractId }) {
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
               </svg>
               Thêm dòng
+            </button>
+            <button className="boq-btn" onClick={addZone} title="Thêm phần / phân khu (dải tiêu đề gom nhóm)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 5h18v2H3V5zm0 6h12v2H3v-2zm0 6h18v2H3v-2z"/>
+              </svg>
+              Thêm phần
+            </button>
+            <button className="boq-btn" onClick={addGroup} title="Thêm hệ thống ở cấp gốc">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
+              </svg>
+              Thêm hệ thống
             </button>
           </EditGuard>
         </div>
@@ -159,12 +171,17 @@ export default function ContractBOQTab({ contractId }) {
       <EditGuard>
       {isMobile ? (
         <BOQMobile
-          rows={visibleRows.map(v => v.r)}
+          items={visibleRows}
+          rollup={rollup}
           currency={currency}
           set={set}
           saveRow={saveRow}
           deleteRow={deleteRow}
           addRow={addRow}
+          addZone={addZone}
+          addGroup={addGroup}
+          addChild={addChild}
+          toggleMultiply={toggleMultiply}
           totals={totals}
         />
       ) : (
@@ -213,11 +230,13 @@ export default function ContractBOQTab({ contractId }) {
               <tr>
                 <td colSpan="13" className="boq-empty">Không có dòng nào khớp bộ lọc.</td>
               </tr>
-            ) : visibleRows.map(({ r, idx }) => (
+            ) : visibleRows.map(({ r, idx, depth }) => (
               <BOQRow
                 key={r._key}
                 row={r}
                 idx={idx}
+                depth={depth}
+                rollupAmt={rollup.get(r._key)}
                 currency={currency}
                 selected={selected.has(r._key)}
                 onToggleSelect={toggleSelect}
@@ -225,7 +244,10 @@ export default function ContractBOQTab({ contractId }) {
                 saveRow={saveRow}
                 insertAfter={insertAfter}
                 deleteRow={deleteRow}
-                canDrag={canEdit && !isFiltering && !r._isNew && !!r.id}
+                onAddChild={addChild}
+                onToggleMultiply={toggleMultiply}
+                canDrag={canEdit && !isFiltering && !r._isNew && !!r.id && (r.row_kind || 'leaf') === 'leaf'}
+                canDrop={canEdit && !isFiltering && !r._isNew && !!r.id}
                 isDragging={dragKey === r._key}
                 isDragOver={dragOverKey === r._key}
                 onDragStart={handleDragStart}

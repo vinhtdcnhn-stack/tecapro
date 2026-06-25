@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { stripNum, calcAmounts, tmpId } from './boqUtils'
+import { buildTreeOrder, computeRollup, treeTotals, ROW_KIND } from './boqTree'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import { API } from '../../config/api'
@@ -9,14 +10,18 @@ import { API } from '../../config/api'
 function toLocalRow(r) {
   return {
     ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
+    row_kind: r.row_kind || ROW_KIND.LEAF,
+    parent_id: r.parent_id != null ? r.parent_id : null,
+    multiply_qty: !!r.multiply_qty,
     quantity: stripNum(r.quantity), unit_price: stripNum(r.unit_price), vat_rate: stripNum(r.vat_rate),
   }
 }
 
-function emptyRow(insertAfterRefId = null) {
+function emptyRow({ insertAfterRefId = null, parentId = null, rowKind = ROW_KIND.LEAF } = {}) {
   return {
     id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
     _insertAfterRefId: insertAfterRefId,
+    parent_id: parentId, row_kind: rowKind,
     item_name: '', hs_code: '', unit: '',
     quantity: '', unit_price: '', vat_rate: '', warranty_period: '',
     item_type: 'trong_nuoc',
@@ -75,6 +80,8 @@ export default function useBOQTab(contractId) {
 
     const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
     const body = {
+      parent_id:        row.parent_id ?? null,
+      row_kind:         row.row_kind || 'leaf',
       item_name:        row.item_name,
       hs_code:          row.hs_code,
       unit:             row.unit,
@@ -85,6 +92,7 @@ export default function useBOQTab(contractId) {
       amount_after_vat: after,
       warranty_period:  row.warranty_period,
       item_type:        row.item_type || 'trong_nuoc',
+      multiply_qty:     !!row.multiply_qty,
     }
 
     try {
@@ -142,7 +150,12 @@ export default function useBOQTab(contractId) {
   // ── Insert after ──────────────────────────────────────────────────────────────
 
   const insertAfter = (row) => {
-    const newRow = emptyRow(row._isNew ? null : row.id)
+    // Dòng mới là anh-em cùng cấp với dòng tham chiếu (kế thừa parent_id, row_kind).
+    const newRow = emptyRow({
+      insertAfterRefId: row._isNew ? null : row.id,
+      parentId: row.parent_id ?? null,
+      rowKind: row.row_kind || ROW_KIND.LEAF,
+    })
     setRows(prev => {
       const copy = [...prev]
       copy.splice(prev.findIndex(r => r._key === row._key) + 1, 0, newRow)
@@ -150,29 +163,65 @@ export default function useBOQTab(contractId) {
     })
   }
 
-  // ── Add row at end ────────────────────────────────────────────────────────────
+  // ── Add row / zone at end ──────────────────────────────────────────────────────
 
   const addRow = () => {
-    const r = emptyRow(null)
+    const r = emptyRow({})
     setRows(prev => [...prev, r])
     return r._key
+  }
+
+  const addZone = () => {
+    const r = emptyRow({ rowKind: ROW_KIND.ZONE })
+    setRows(prev => [...prev, r])
+    return r._key
+  }
+
+  // Thêm nhóm (Hệ thống) ở cấp gốc — không cần tạo "phần" trước.
+  const addGroup = () => {
+    const r = emptyRow({ rowKind: ROW_KIND.GROUP })
+    setRows(prev => [...prev, r])
+    return r._key
+  }
+
+  // Thêm con (nhóm hoặc dòng) cho 1 node đã lưu. Node cha phải có id thật.
+  const addChild = (parentRow, kind = ROW_KIND.LEAF) => {
+    if (!parentRow.id) { alert('Hãy lưu dòng cha trước khi thêm dòng con.'); return null }
+    const r = emptyRow({ parentId: parentRow.id, rowKind: kind })
+    setRows(prev => {
+      const copy = [...prev]
+      // chèn ngay sau cha để hiển thị liền mạch (cây vẫn dựng theo parent_id)
+      copy.splice(prev.findIndex(x => x._key === parentRow._key) + 1, 0, r)
+      return copy
+    })
+    return r._key
+  }
+
+  // Bật/tắt "nhân thành tiền theo SL hệ thống" cho dòng nhóm. Lưu ngay nếu đã có id.
+  const toggleMultiply = (row) => {
+    const updated = { ...row, multiply_qty: !row.multiply_qty, _dirty: true }
+    setRows(prev => prev.map(r => r._key === row._key ? updated : r))
+    if (updated.id) saveRow(updated)
   }
 
   // ── Kéo-thả đổi thứ tự ─────────────────────────────────────────────────────
   // Chỉ cho phép kéo dòng đã lưu khi không lọc (thứ tự hiển thị == thứ tự gốc).
 
+  // Gửi cả parent_id để server vừa đổi thứ tự vừa gán lại cha (kéo dòng vào phần/nhóm).
   const persistOrder = async (orderedRows) => {
-    const ids = orderedRows.filter(r => !r._isNew && r.id).map(r => r.id)
-    if (!ids.length) return
+    const items = orderedRows
+      .filter(r => !r._isNew && r.id)
+      .map(r => ({ id: r.id, parent_id: r.parent_id ?? null }))
+    if (!items.length) return
     try {
       await fetch(`${API}/contracts/${contractId}/boq/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ items }),
       })
     } catch (e) {
       console.error('reorder BOQ:', e)
-      load()  // khôi phục thứ tự từ server nếu lỗi
+      load()  // khôi phục thứ tự + cấu trúc từ server nếu lỗi
     }
   }
 
@@ -212,11 +261,25 @@ export default function useBOQTab(contractId) {
     setRows(prev => {
       const copy = [...prev]
       const from = copy.findIndex(r => r._key === dragKey)
-      if (from < 0) return prev
+      const tIdx = copy.findIndex(r => r._key === targetKey)
+      if (from < 0 || tIdx < 0) return prev
+      const target = copy[tIdx]
       const [moved] = copy.splice(from, 1)
-      const to = copy.findIndex(r => r._key === targetKey)
-      if (to < 0) return prev
-      copy.splice(after ? to + 1 : to, 0, moved)
+
+      // Gán cha theo loại dòng đích:
+      //   thả lên PHẦN/NHÓM → trở thành con của nó (chèn ngay sau đầu mục = con đầu tiên)
+      //   thả lên dòng LÁ   → thành anh-em cùng cấp (kế thừa parent_id của dòng đích)
+      const targetKind = target.row_kind || 'leaf'
+      let newParentId, insertAt
+      if (targetKind === 'zone' || targetKind === 'group') {
+        newParentId = target.id ?? null
+        insertAt = copy.findIndex(r => r._key === targetKey) + 1
+      } else {
+        newParentId = target.parent_id ?? null
+        const t = copy.findIndex(r => r._key === targetKey)
+        insertAt = after ? t + 1 : t
+      }
+      copy.splice(insertAt, 0, { ...moved, parent_id: newParentId })
       reordered = copy
       return copy
     })
@@ -231,21 +294,27 @@ export default function useBOQTab(contractId) {
 
   // ── Filter ──────────────────────────────────────────────────────────────────
 
-  // Lọc theo từ khóa (tên hàng / HScode) và loại hàng. Dòng mới (_isNew) luôn hiển
-  // thị để không bị ẩn khi đang lọc. Giữ số thứ tự gốc qua _idx.
+  const isFiltering = search.trim() !== '' || typeFilter !== 'all'
+
+  // Roll-up số tiền cho node nhóm/zone (hiển thị tức thời, không chờ server).
+  const rollup = useMemo(() => computeRollup(rows, currency), [rows, currency])
+
+  // Khi KHÔNG lọc: hiển thị theo cây (kèm depth để thụt lề). Khi lọc: danh sách phẳng
+  // các dòng khớp (mất phân cấp, depth 0). Dòng mới (_isNew) luôn hiển thị.
   const visibleRows = useMemo(() => {
     const kw = search.trim().toLowerCase()
-    return rows
-      .map((r, idx) => ({ r, idx }))
-      .filter(({ r }) => {
-        if (r._isNew) return true
-        if (typeFilter !== 'all' && (r.item_type || 'trong_nuoc') !== typeFilter) return false
-        if (!kw) return true
-        return `${r.item_name || ''} ${r.hs_code || ''}`.toLowerCase().includes(kw)
-      })
-  }, [rows, search, typeFilter])
-
-  const isFiltering = search.trim() !== '' || typeFilter !== 'all'
+    if (isFiltering) {
+      return rows
+        .map((r, idx) => ({ r, idx, depth: 0 }))
+        .filter(({ r }) => {
+          if (r._isNew) return true
+          if (typeFilter !== 'all' && (r.item_type || 'trong_nuoc') !== typeFilter) return false
+          if (!kw) return true
+          return `${r.item_name || ''} ${r.hs_code || ''}`.toLowerCase().includes(kw)
+        })
+    }
+    return buildTreeOrder(rows).map((n, idx) => ({ r: n.r, idx, depth: n.depth }))
+  }, [rows, search, typeFilter, isFiltering])
 
   // ── Selection ─────────────────────────────────────────────────────────────────
 
@@ -337,21 +406,19 @@ export default function useBOQTab(contractId) {
 
   // ── Totals ────────────────────────────────────────────────────────────────────
 
-  const totals = rows.reduce((acc, r) => {
-    const { before, after } = calcAmounts(r.quantity, r.unit_price, r.vat_rate, currency)
-    return { before: acc.before + before, after: acc.after + after }
-  }, { before: 0, after: 0 })
+  // Tổng HĐ = tổng số tiền các node gốc (đã roll-up + hệ số ×SL của nhóm).
+  const totals = useMemo(() => treeTotals(rows, rollup), [rows, rollup])
 
   return {
     // data
-    rows, currency, loading, totals, isMobile,
+    rows, currency, loading, totals, isMobile, rollup,
     // filter
     search, setSearch, typeFilter, setTypeFilter, isFiltering, visibleRows,
     // selection
     selected, toggleSelect, allSelected, toggleSelectAll, selectableKeys, selectedCount,
     bulkDelete, bulkDeleting,
     // row ops
-    set, saveRow, deleteRow, insertAfter, addRow,
+    set, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply,
     // drag-reorder
     dragKey, dragOverKey, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
     // excel import

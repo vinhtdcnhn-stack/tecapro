@@ -10,7 +10,7 @@ const norm = (s) => String(s || '').trim().toLowerCase()
 const num = (v) => parseFloat(v) || 0
 const fmt = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
 
-const blankRow = () => ({ _key: key(), boq_id: '', item_name: '', unit: '', quantity: '', unit_price: '', vat_rate: '' })
+const num0 = (v) => Math.max(0, parseFloat(v) || 0)
 
 // Modal tạo/sửa một ĐỢT xuất hóa đơn.
 // Tên hàng / ĐVT / Đơn giá / VAT của mỗi dòng CHỐT CỨNG theo bảng giá hợp đồng:
@@ -24,6 +24,24 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
 
   // Lấy dòng bảng giá cho 1 hàng (ưu tiên boq_id, fallback theo tên).
   const boqOf = (r) => (r.boq_id ? boqById.get(String(r.boq_id)) : boqByName.get(norm(r.item_name))) || null
+
+  // Tồn chưa xuất hóa đơn của 1 mặt hàng (theo bảng giá).
+  // Khi sửa đợt, cộng lại SL của chính đợt này (đã nằm trong qty_invoiced) để không bị trừ thừa.
+  const sumByBoq = new Map(summary.map(s => [String(s.boq_id), s]))
+  // Đường dẫn nhóm/phần (vd "Phần 1 › Hệ thống UPS") để phân biệt các mặt hàng trùng tên.
+  const pathOf = (id) => sumByBoq.get(String(id))?.group_path || ''
+  const label = (b) => { const p = pathOf(b.id); return p ? `${b.item_name} — ${p}` : b.item_name }
+  const initialByBoq = new Map()
+  for (const it of (initial?.items || [])) {
+    if (!it.boq_id) continue
+    initialByBoq.set(String(it.boq_id), (initialByBoq.get(String(it.boq_id)) || 0) + num(it.quantity))
+  }
+  const remainOf = (boqId) => {
+    const s = sumByBoq.get(String(boqId))
+    const contractQty = s ? num(s.qty_contract) : 0
+    const already = (s ? num(s.qty_invoiced) : 0) - (initialByBoq.get(String(boqId)) || 0)
+    return contractQty - already
+  }
 
   const [invoiceNo, setInvoiceNo] = useState(initial?.invoice_no || '')
   const [invoiceDate, setInvoiceDate] = useState(initial?.invoice_date ? String(initial.invoice_date).slice(0, 10) : '')
@@ -47,10 +65,37 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showPicker, setShowPicker] = useState(false)
+  const [picked, setPicked] = useState(() => new Set())
 
   const setRow = (k, patch) => setRows(prev => prev.map(r => r._key === k ? { ...r, ...patch } : r))
-  const addRow = () => setRows(prev => [...prev, blankRow()])
   const delRow = (k) => setRows(prev => prev.filter(r => r._key !== k))
+
+  // Mở bảng chọn hàng tồn chưa xuất.
+  const openPicker = () => { setPicked(new Set()); setShowPicker(true) }
+  const togglePick = (id) => setPicked(prev => {
+    const n = new Set(prev), k = String(id)
+    n.has(k) ? n.delete(k) : n.add(k)
+    return n
+  })
+  // Các mặt hàng còn tồn chưa xuất và CHƯA có trong danh sách dòng hiện tại.
+  const rowsBoqIds = new Set(rows.map(r => r.boq_id ? String(r.boq_id) : '').filter(Boolean))
+  const pickerItems = boqItems
+    .map(b => ({ b, remain: remainOf(b.id) }))
+    .filter(({ b, remain }) => remain > 1e-6 && !rowsBoqIds.has(String(b.id)))
+  const allChecked = pickerItems.length > 0 && pickerItems.every(({ b }) => picked.has(String(b.id)))
+  const toggleAll = () => setPicked(allChecked ? new Set() : new Set(pickerItems.map(({ b }) => String(b.id))))
+  // Thêm các mặt hàng đã chọn — SL mặc định = tồn chưa xuất (vẫn cho sửa lại ở bảng).
+  const addPicked = () => {
+    const toAdd = pickerItems
+      .filter(({ b }) => picked.has(String(b.id)))
+      .map(({ b, remain }) => ({
+        _key: key(), boq_id: b.id, item_name: b.item_name, unit: b.unit,
+        unit_price: b.unit_price, vat_rate: b.vat_rate, quantity: num0(remain),
+      }))
+    if (toAdd.length) setRows(prev => [...prev, ...toAdd])
+    setShowPicker(false)
+  }
 
   // Chọn mặt hàng từ bảng giá → chốt cứng tên/đvt/đơn giá/VAT, giữ nguyên SL.
   const pickBoq = (k, boqId) => {
@@ -143,12 +188,6 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
     if (notInCatalog.length)
       return `Có dòng chưa chọn mặt hàng trong bảng giá: ${[...new Set(notInCatalog)].join(', ')}.`
 
-    const sumByBoq = new Map(summary.map(s => [String(s.boq_id), s]))
-    const initialByBoq = new Map()
-    for (const it of (initial?.items || [])) {
-      if (!it.boq_id) continue
-      initialByBoq.set(String(it.boq_id), (initialByBoq.get(String(it.boq_id)) || 0) + num(it.quantity))
-    }
     const overflow = []
     for (const [boqId, qty] of newQty) {
       const s = sumByBoq.get(boqId)
@@ -214,7 +253,7 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
         </div>
 
         <div className="inv-items-toolbar">
-          <button type="button" className="inv-btn" onClick={addRow}>+ Thêm dòng</button>
+          <button type="button" className="inv-btn" onClick={openPicker}>+ Thêm hàng hóa</button>
           <label className="inv-import">⬆ Import Excel
             <input type="file" accept=".xlsx,.xls" onChange={onImport} hidden />
           </label>
@@ -242,12 +281,14 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
               {rows.map(r => {
                 const after = num(r.quantity) * num(r.unit_price) * (1 + num(r.vat_rate) / 100)
                 const picked = !!boqOf(r)
+                // Ẩn mặt hàng đã được chọn ở dòng khác; vẫn giữ mặt hàng của chính dòng này.
+                const options = boqItems.filter(b => !rowsBoqIds.has(String(b.id)) || String(b.id) === String(r.boq_id))
                 return (
                   <tr key={r._key}>
                     <td>
                       <select className="inv-name-sel" value={r.boq_id} onChange={e => pickBoq(r._key, e.target.value)}>
                         <option value="">— Chọn mặt hàng —</option>
-                        {boqItems.map(b => <option key={b.id} value={b.id}>{b.item_name}</option>)}
+                        {options.map(b => <option key={b.id} value={b.id}>{label(b)}</option>)}
                       </select>
                     </td>
                     <td className="inv-lock">{r.unit || '—'}</td>
@@ -259,7 +300,7 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
                   </tr>
                 )
               })}
-              {rows.length === 0 && <tr><td colSpan={7} className="inv-empty">Chưa có dòng nào. Thêm dòng hoặc import Excel.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={7} className="inv-empty">Chưa có dòng nào. Thêm hàng hóa hoặc import Excel.</td></tr>}
             </tbody>
             <tfoot><tr>
               <td colSpan={5} className="num"><strong>Tổng cộng (sau VAT)</strong></td>
@@ -276,6 +317,61 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
         <button className="btn-secondary" onClick={onClose}>Hủy</button>
         <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu đợt'}</button>
       </div>
+
+      {showPicker && (
+        <Modal isOpen onClose={() => setShowPicker(false)} className="inv-picker-modal" width={720}>
+          <div className="modal-header">
+            <h3>Chọn hàng hóa (tồn chưa xuất)</h3>
+            <button className="modal-close" onClick={() => setShowPicker(false)}>×</button>
+          </div>
+          <div className="modal-body">
+            {pickerItems.length === 0 ? (
+              <div className="inv-empty">Không còn mặt hàng nào để thêm (đã thêm hết hoặc đã xuất hết tồn).</div>
+            ) : (
+              <div className="inv-items-wrap">
+                <table className="inv-picker-table">
+                  <colgroup>
+                    <col style={{ width: '40px' }} />
+                    <col />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '16%' }} />
+                    <col style={{ width: '9%' }} />
+                    <col style={{ width: '16%' }} />
+                  </colgroup>
+                  <thead><tr>
+                    <th className="pk-check"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
+                    <th>Tên hàng</th><th>ĐVT</th>
+                    <th className="num">Đơn giá</th><th className="num">VAT%</th><th className="num">Tồn chưa xuất</th>
+                  </tr></thead>
+                  <tbody>
+                    {pickerItems.map(({ b, remain }) => {
+                      const on = picked.has(String(b.id))
+                      return (
+                        <tr key={b.id} className={on ? 'pk-on' : ''} onClick={() => togglePick(b.id)}>
+                          <td className="pk-check">
+                            <input type="checkbox" checked={on} onChange={() => togglePick(b.id)} onClick={e => e.stopPropagation()} />
+                          </td>
+                          <td>{b.item_name}{pathOf(b.id) && <span className="inv-group-path">{pathOf(b.id)}</span>}</td>
+                          <td>{b.unit || '—'}</td>
+                          <td className="num">{fmt(b.unit_price)}</td>
+                          <td className="num">{fmt(b.vat_rate)}</td>
+                          <td className="num"><strong>{fmt(remain)}</strong></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setShowPicker(false)}>Hủy</button>
+            <button className="btn-primary" onClick={addPicked} disabled={picked.size === 0}>
+              Thêm{picked.size ? ` (${picked.size})` : ''}
+            </button>
+          </div>
+        </Modal>
+      )}
     </Modal>
   )
 }

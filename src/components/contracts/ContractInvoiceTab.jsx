@@ -17,7 +17,6 @@ const LockOpenIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill=
 // xem số lượng tồn chưa xuất hóa đơn theo bảng giá.
 export default function ContractInvoiceTab({ contractId }) {
   const [contract, setContract] = useState(null)
-  const [boq, setBoq] = useState([])
   const [summary, setSummary] = useState([])
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
@@ -28,14 +27,12 @@ export default function ContractInvoiceTab({ contractId }) {
 
   const load = useCallback(async () => {
     try {
-      const [c, b, s, inv] = await Promise.all([
+      const [c, s, inv] = await Promise.all([
         fetch(`${API}/contracts/${contractId}`).then(r => r.json()),
-        fetch(`${API}/contracts/${contractId}/boq`).then(r => r.json()),
         fetch(`${API}/contracts/${contractId}/invoice-summary`).then(r => r.json()),
         fetch(`${API}/contracts/${contractId}/invoices`).then(r => r.json()),
       ])
       setContract(c && c.id ? c : null)
-      setBoq(Array.isArray(b) ? b : [])
       setSummary(Array.isArray(s) ? s : [])
       setInvoices(Array.isArray(inv) ? inv : [])
     } catch (e) { console.error('load invoices:', e) }
@@ -46,7 +43,14 @@ export default function ContractInvoiceTab({ contractId }) {
   useEffect(() => { load() }, [load])
 
   const cur = contract?.currency_code || 'VND'
-  const totalContract = boq.reduce((s, b) => s + (parseFloat(b.amount_after_vat) || 0), 0)
+  // Danh mục xuất hóa đơn = các đơn vị từ summary (lá rời + hệ thống nhân SL). Chốt cứng
+  // tên/ĐVT/đơn giá/VAT cho modal; id = boq_id của đơn vị.
+  const catalog = summary.map(s => ({
+    id: s.boq_id, item_name: s.item_name, unit: s.unit,
+    unit_price: s.unit_price, vat_rate: s.vat_rate, is_system: s.is_system,
+  }))
+  // Tổng giá trị HĐ = tổng giá trị hợp đồng đã đồng bộ (đã gồm hệ số ×SL của hệ thống).
+  const totalContract = parseFloat(contract?.amount_after_vat) || 0
   const totalInvoiced = invoices.reduce((s, i) => s + (parseFloat(i.total_after_vat) || 0), 0)
   const remainValue = summary.reduce((s, r) => s + (parseFloat(r.qty_remaining) || 0) * (parseFloat(r.unit_price) || 0), 0)
 
@@ -178,7 +182,10 @@ export default function ContractInvoiceTab({ contractId }) {
                 return (
                   <tr key={r.boq_id}>
                     <td className="inv-stt">{stt}</td>
-                    <td className="inv-item-name">{r.item_name}</td><td>{r.unit}</td>
+                    <td className="inv-item-name">
+                      {r.item_name}
+                      {r.group_path && <span className="inv-group-path">{r.group_path}</span>}
+                    </td><td>{r.unit}</td>
                     <td className="num">{fmt(r.qty_contract)}</td>
                     <td className="num">{fmt(r.qty_invoiced)}</td>
                     <td className={`num ${remain > 0 ? 'inv-remain' : 'inv-done'}`}>{fmt(remain)}</td>
@@ -193,7 +200,7 @@ export default function ContractInvoiceTab({ contractId }) {
 
       {modal && (
         <InvoiceBatchModal
-          contractId={contractId} contract={contract} boqItems={boq} summary={summary}
+          contractId={contractId} contract={contract} boqItems={catalog} summary={summary}
           initial={modal.id ? modal : null}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load() }}

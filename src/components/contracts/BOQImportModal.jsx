@@ -5,6 +5,10 @@ import { fmtNum, calcAmounts } from './boqUtils'
 // Số lượng KHÔNG làm tròn theo tiền tệ (có thể là số lẻ, vd 2,5).
 const fmtQty = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 4 }).format(num) }
 
+// Độ sâu của mỗi item theo chuỗi parent_idx (để thụt lề preview cây).
+const depthOf = (items, i) => { let d = 0, p = items[i]?.parent_idx; const seen = new Set(); while (p != null && !seen.has(p)) { seen.add(p); d++; p = items[p]?.parent_idx } return d }
+const KIND_LABEL = { zone: 'PHẦN', group: 'Hệ thống' }
+
 export default function BOQImportModal({ importData, importMode, importSaving, currency = 'VND', onModeChange, onConfirm, onClose }) {
   return (
     <Modal onClose={onClose} contentClassName="boq-import-modal" labelledBy="boq-import-title">
@@ -34,7 +38,8 @@ export default function BOQImportModal({ importData, importMode, importSaving, c
 
         <div className="boq-import-hint">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-          Định dạng cột Excel: A=Danh mục · B=HScode · C=ĐVT · D=Số lượng · E=Đơn giá · F=VAT(%) · G=Thời hạn bảo hành
+          Cột Excel: A=Danh mục · B=HScode · C=ĐVT · D=Số lượng · E=Đơn giá · F=VAT(%) · G=Bảo hành.
+          {' '}Trống ĐVT+SL → <strong>PHẦN</strong>; có ĐVT/SL nhưng trống Đơn giá → <strong>Hệ thống</strong>; có Đơn giá → dòng có giá.
         </div>
 
         <div className="boq-import-preview">
@@ -55,18 +60,24 @@ export default function BOQImportModal({ importData, importMode, importSaving, c
             </thead>
             <tbody>
               {importData.items.map((item, idx) => {
-                const { before, after } = calcAmounts(item.quantity, item.unit_price, item.vat_rate, currency)
+                const kind = item.row_kind || 'leaf'
+                const isLeaf = kind === 'leaf'
+                const { before, after } = isLeaf ? calcAmounts(item.quantity, item.unit_price, item.vat_rate, currency) : { before: 0, after: 0 }
+                const depth = depthOf(importData.items, idx)
                 return (
-                  <tr key={idx}>
+                  <tr key={idx} className={isLeaf ? '' : `boq-${kind}-row`}>
                     <td className="td-stt"><span className="stt-num">{idx + 1}</span></td>
-                    <td className="td-name"><span className="preview-text">{item.item_name}</span></td>
+                    <td className="td-name" style={depth ? { paddingLeft: 8 + depth * 18 } : undefined}>
+                      {!isLeaf && <span className={`boq-kind-badge boq-badge-${kind}`}>{KIND_LABEL[kind]}</span>}
+                      <span className="preview-text">{item.item_name}</span>
+                    </td>
                     <td className="td-hs"><span className="preview-text">{item.hs_code}</span></td>
                     <td className="td-unit"><span className="preview-text">{item.unit}</span></td>
-                    <td className="td-num"><span className="preview-text">{fmtQty(item.quantity)}</span></td>
-                    <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price, currency)}</span></td>
-                    <td className="td-amt computed">{fmtNum(before, currency)}</td>
-                    <td className="td-vat"><span className="preview-text">{item.vat_rate}%</span></td>
-                    <td className="td-amt computed">{fmtNum(after, currency)}</td>
+                    <td className="td-num"><span className="preview-text">{kind === 'zone' ? '' : fmtQty(item.quantity)}</span></td>
+                    <td className="td-num"><span className="preview-text">{isLeaf ? fmtNum(item.unit_price, currency) : ''}</span></td>
+                    <td className="td-amt computed">{isLeaf ? fmtNum(before, currency) : '—'}</td>
+                    <td className="td-vat"><span className="preview-text">{isLeaf ? `${item.vat_rate}%` : ''}</span></td>
+                    <td className="td-amt computed">{isLeaf ? fmtNum(after, currency) : '—'}</td>
                     <td className="td-warranty"><span className="preview-text">{item.warranty_period}</span></td>
                   </tr>
                 )

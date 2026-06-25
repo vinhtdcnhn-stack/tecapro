@@ -1,6 +1,11 @@
 import { pool } from '../db.js'
 import { roundMoney } from '../utils/money.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
+import { computeInvoiceUnits } from './boqTreeUtils.js'
+
+// Các cột bảng giá cần để suy ra đơn vị xuất hóa đơn (lá rời + hệ thống nhân SL).
+const BOQ_UNIT_COLS = `id, parent_id, row_kind, multiply_qty, item_name, unit, quantity,
+                       unit_price, vat_rate, amount_before_vat, amount_after_vat`
 
 // Xuất hóa đơn (HĐ bán) — quản lý theo từng đợt. Số tiền lưu NGUYÊN TỆ của đợt; làm
 // tròn theo currency lúc lưu (roundMoney). amount_before/after_vat tính lại ở server
@@ -16,27 +21,41 @@ async function validateItems(client, contractId, items, excludeInvoiceId = null)
     it => (it.item_name || '').trim() && (parseFloat(it.quantity) || 0) > 0)
   if (!list.length) return null
 
-  const { rows: boqRows } = await client.query(
-    'SELECT id, item_name, quantity FROM contract_out_boq WHERE contract_out_id=$1', [contractId])
-  const byId = new Map(boqRows.map(b => [String(b.id), b]))
-  const byName = new Map(boqRows.map(b => [norm(b.item_name), b]))
+  // Đơn vị xuất hóa đơn = dòng lá rời + hệ thống (nhóm bật multiply_qty). Con của hệ
+  // thống KHÔNG xuất riêng (cả hệ thống là 1 đơn vị).
+  const { rows: allRows } = await client.query(
+    `SELECT ${BOQ_UNIT_COLS} FROM contract_out_boq WHERE contract_out_id = $1`, [contractId])
+  const units = computeInvoiceUnits(allRows)
+  const byId = new Map(units.map(b => [String(b.boq_id), b]))
+
+  // byName chỉ dùng cho tên DUY NHẤT. Tên trùng (bảng giá phân cấp, cùng thiết bị ở
+  // nhiều phân khu) KHÔNG khớp theo tên → buộc chọn đúng đơn vị (boq_id).
+  const nameCount = new Map()
+  for (const b of units) nameCount.set(norm(b.item_name), (nameCount.get(norm(b.item_name)) || 0) + 1)
+  const byName = new Map(units.filter(b => nameCount.get(norm(b.item_name)) === 1).map(b => [norm(b.item_name), b]))
 
   const newQty = new Map()
   const notInCatalog = []
   const unitMismatch = []
+  const ambiguous = []
   for (const it of list) {
-    const b = it.boq_id ? byId.get(String(it.boq_id)) : byName.get(norm(it.item_name))
+    let b = it.boq_id ? byId.get(String(it.boq_id)) : byName.get(norm(it.item_name))
+    if (!b && !it.boq_id && nameCount.get(norm(it.item_name)) > 1) {
+      ambiguous.push((it.item_name || '').trim()); continue
+    }
     if (!b) { notInCatalog.push((it.item_name || '').trim()); continue }
     const bUnit = norm(b.unit)
     if (bUnit && norm(it.unit) !== bUnit) {
       unitMismatch.push(`${(it.item_name || '').trim()} (ĐVT "${(it.unit || '').trim()}" ≠ bảng giá "${b.unit}")`)
       continue
     }
-    it.boq_id = b.id   // khớp được → liên kết dòng bảng giá
-    newQty.set(String(b.id), (newQty.get(String(b.id)) || 0) + (parseFloat(it.quantity) || 0))
+    it.boq_id = b.boq_id   // khớp được → liên kết dòng bảng giá / hệ thống
+    newQty.set(String(b.boq_id), (newQty.get(String(b.boq_id)) || 0) + (parseFloat(it.quantity) || 0))
   }
   if (notInCatalog.length)
     return `Mặt hàng không có trong bảng giá hợp đồng: ${[...new Set(notInCatalog)].join(', ')}.`
+  if (ambiguous.length)
+    return `Tên trùng nhau trong bảng giá (có ở nhiều phân khu), hãy chọn đúng dòng cụ thể: ${[...new Set(ambiguous)].join(', ')}.`
   if (unitMismatch.length)
     return `Đơn vị tính không khớp bảng giá: ${unitMismatch.join('; ')}.`
 
@@ -54,7 +73,7 @@ async function validateItems(client, contractId, items, excludeInvoiceId = null)
   const overflow = []
   for (const [boqId, qty] of newQty) {
     const b = byId.get(boqId)
-    const remain = (parseFloat(b.quantity) || 0) - (invoiced.get(boqId) || 0)
+    const remain = (parseFloat(b.qty_contract) || 0) - (invoiced.get(boqId) || 0)
     if (qty > remain + 1e-6)
       overflow.push(`${b.item_name} (xuất ${qty}, tồn chưa xuất ${Math.max(0, remain)})`)
   }
@@ -119,22 +138,33 @@ export async function getInvoices(req, res) {
   }
 }
 
-// GET /contracts/:id/invoice-summary → mỗi dòng bảng giá: SL hợp đồng, đã xuất, tồn.
+// GET /contracts/:id/invoice-summary → mỗi đơn vị xuất hóa đơn: SL hợp đồng, đã xuất, tồn.
+// Đơn vị = dòng lá rời + hệ thống (nhóm bật multiply_qty xuất theo bộ).
 export async function getInvoiceSummary(req, res) {
   try {
-    const { rows } = await pool.query(`
-      SELECT b.id AS boq_id, b.item_name, b.unit, b.quantity AS qty_contract, b.unit_price,
-             COALESCE((SELECT SUM(it.quantity) FROM contract_out_invoice_item it
-                        JOIN contract_out_invoice i ON i.id = it.invoice_id
-                       WHERE it.boq_id = b.id AND i.contract_out_id = $1), 0) AS qty_invoiced
-        FROM contract_out_boq b
-       WHERE b.contract_out_id = $1
-       ORDER BY b.sort_order, b.id`,
-      [req.params.id])
-    res.json(rows.map(r => ({
-      ...r,
-      qty_remaining: Math.max(0, (parseFloat(r.qty_contract) || 0) - (parseFloat(r.qty_invoiced) || 0)),
-    })))
+    const { rows: allRows } = await pool.query(
+      `SELECT ${BOQ_UNIT_COLS}, sort_order FROM contract_out_boq
+        WHERE contract_out_id = $1 ORDER BY sort_order, id`, [req.params.id])
+    const units = computeInvoiceUnits(allRows)
+
+    const { rows: invRows } = await pool.query(
+      `SELECT it.boq_id, SUM(it.quantity) AS q
+         FROM contract_out_invoice_item it
+         JOIN contract_out_invoice i ON i.id = it.invoice_id
+        WHERE i.contract_out_id = $1 AND it.boq_id IS NOT NULL
+        GROUP BY it.boq_id`, [req.params.id])
+    const invMap = new Map(invRows.map(r => [String(r.boq_id), parseFloat(r.q) || 0]))
+
+    res.json(units.map(u => {
+      const invoiced = invMap.get(String(u.boq_id)) || 0
+      return {
+        boq_id: u.boq_id, item_name: u.item_name, unit: u.unit, qty_contract: u.qty_contract,
+        unit_price: u.unit_price, vat_rate: u.vat_rate, amount_after: u.amount_after,
+        is_system: u.is_system, group_path: u.group_path,
+        qty_invoiced: invoiced,
+        qty_remaining: Math.max(0, (parseFloat(u.qty_contract) || 0) - invoiced),
+      }
+    }))
   } catch (err) {
     console.error('getInvoiceSummary:', err)
     res.status(500).json({ error: 'Không thể tải tồn chưa xuất hóa đơn.' })

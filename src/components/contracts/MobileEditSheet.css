@@ -78,6 +78,15 @@
 }
 .mcard-add:active { background: #dcfce7; }
 
+/* Nút phụ trong thẻ nhóm/phần (thêm con, bật ×SL) */
+.mcard-subbtn {
+  border: 1px solid #cbd5e1; color: #475569; background: #fff;
+  border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.mcard-subbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.mcard-subbtn--on { background: #16a34a; color: #fff; border-color: #16a34a; }
+
 /* Chip serial trong thẻ hàng của đợt nhận (mở sheet serial) */
 .dlc-serial-chip {
   display: inline-flex; align-items: center; gap: 4px;

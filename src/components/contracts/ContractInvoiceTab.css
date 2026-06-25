@@ -25,6 +25,8 @@
 .inv-list td.inv-item-name, .inv-list th.inv-item-name { white-space: pre-wrap; max-width: 480px; overflow-wrap: break-word; }
 /* Cột STT: hẹp, căn giữa, trùng số # bên bảng giá. */
 .inv-list td.inv-stt, .inv-list th.inv-stt { width: 48px; text-align: center; color: #6b7280; vertical-align: top; }
+/* Đường dẫn nhóm/phần (phân biệt mặt hàng trùng tên) — chữ nhỏ, mờ, xuống dòng. */
+.inv-group-path { display: block; font-size: 11px; color: #94a3b8; margin-top: 2px; }
 .inv-row { cursor: pointer; }
 .inv-row:hover { background: #fafbfc; }
 .inv-subrow td { background: #fafbfc; color: #4b5563; font-size: 12px; }
@@ -92,6 +94,18 @@
 .inv-del { background: none; border: none; color: #dc2626; cursor: pointer; font-weight: 700; font-size: 14px; }
 .inv-del:hover { color: #b91c1c; }
 .inv-empty { text-align: center; color: #9ca3af; padding: 18px; }
+
+/* Bảng chọn hàng tồn chưa xuất (mở từ nút "Thêm hàng hóa"). */
+.inv-picker-modal .inv-items-wrap { max-height: 60vh; }
+.inv-picker-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.inv-picker-table th, .inv-picker-table td { padding: 8px 10px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-picker-table thead th { position: sticky; top: 0; z-index: 1; background: #f9fafb; font-weight: 700; color: #374151; text-align: left; }
+.inv-picker-table td.num, .inv-picker-table th.num { text-align: right; }
+.inv-picker-table .pk-check { text-align: center; }
+.inv-picker-table .pk-check input { cursor: pointer; }
+.inv-picker-table tbody tr { cursor: pointer; }
+.inv-picker-table tbody tr:hover { background: #f9fafb; }
+.inv-picker-table tbody tr.pk-on { background: #eff6ff; }
 
 .inv-totals { margin-top: 12px; text-align: right; font-size: 14px; color: #374151; flex-shrink: 0; }
 .inv-error { margin-top: 12px; color: #dc2626; font-size: 13px; white-space: pre-line; flex-shrink: 0; }
