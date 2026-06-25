@@ -41,7 +41,7 @@ export default function DeptWorkPage() {
         <section className="content-area">
           {section === 'board' && (
             <>
-              <h2 className="section-title">CÔNG VIỆC — BAN KT CƠ ĐIỆN</h2>
+              <h2 className="section-title">CÔNG VIỆC — DỰ ÁN VÀ CHUYỂN GIAO CÔNG NGHỆ</h2>
               <TaskBoard currentUser={user} members={members} teams={teams} canManage={canManage} />
             </>
           )}

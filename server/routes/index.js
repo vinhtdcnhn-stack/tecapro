@@ -45,6 +45,8 @@ router.get('/users/:id', requireSelfOrAdmin('id'), authController.getUserById)
 router.get('/me/:id', requireSelfOrAdmin('id'), authController.getUserById) // Alias for user info
 router.post('/users', requireAdmin, authController.createUser)
 router.put('/users/:id/change-password', requireSelfOrAdmin('id'), authController.changePassword)
+router.put('/users/:id/telegram', requireSelfOrAdmin('id'), authController.updateMyTelegram)
+router.post('/users/:id/test-telegram', requireSelfOrAdmin('id'), authController.testTelegram)
 router.put('/users/:id', requireAdmin, authController.updateUser)
 router.post('/users/check-email', requireAdmin, authController.checkEmailExists)
 router.post('/users/check-username', requireAdmin, authController.checkUsernameExists)

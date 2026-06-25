@@ -101,6 +101,7 @@ export async function login(req, res) {
     positions,
     position_code:   positions[0]?.code  || null,
     position_name:   positions.map(p => p.name).join(', ') || null,
+    telegram_chat_id: user.telegram_chat_id || null,
     has_projects:    user.has_projects,
   })
 }
@@ -495,6 +496,23 @@ export async function changePassword(req, res) {
   }
 
   res.json({ success: true })
+}
+
+// Người dùng tự cập nhật Telegram Chat ID của chính mình (id đã được requireSelfOrAdmin gác).
+export async function updateMyTelegram(req, res) {
+  const id = req.params.id
+  const tgChatId = String(req.body?.telegram_chat_id ?? '').trim() || null
+
+  const { rows } = await pool.query(
+    `UPDATE app_user SET telegram_chat_id = $1, updated_at = NOW()
+     WHERE id = $2 RETURNING id, telegram_chat_id`,
+    [tgChatId, id],
+  )
+  if (!rows.length) {
+    res.status(404).json({ error: 'Người dùng không tồn tại.' })
+    return
+  }
+  res.json({ success: true, telegram_chat_id: rows[0].telegram_chat_id })
 }
 
 // ==================== DEPARTMENT CONTROLLER ====================

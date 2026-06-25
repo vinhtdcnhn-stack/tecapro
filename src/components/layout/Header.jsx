@@ -14,7 +14,7 @@ const MENUS = [
   {
     label: 'Công việc',
     children: [
-      { label: 'KT Cơ điện', path: '/cong-viec/kt-co-dien', dept: 7 },
+      { label: 'Dự án và chuyển giao công nghệ', path: '/cong-viec/kt-co-dien', dept: 7 },
       { label: 'Kế hoạch đấu thầu', path: '/cong-viec/dau-thau', dept: 9 },
     ],
   },

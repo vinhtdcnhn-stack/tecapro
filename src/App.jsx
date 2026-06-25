@@ -41,6 +41,7 @@ function Layout() {
     <div className="shell">
       <Header onChangePassword={() => setShowChangePwModal(true)} />
       <ChangePasswordModal
+        key={showChangePwModal ? 'open' : 'closed'}
         isOpen={showChangePwModal}
         onClose={() => setShowChangePwModal(false)}
         onSave={handleChangePassword}

@@ -51,6 +51,7 @@ export function AuthProvider({ children }) {
       positions:       data.positions       || [],
       position_code:   data.position_code   || null,
       position_name:   data.position_name   || null,
+      telegram_chat_id: data.telegram_chat_id || null,
       has_projects:    data.has_projects,
     })
     // Phiên được giữ bằng cookie httpOnly do server đặt — không lưu gì nhạy cảm ở client.
@@ -71,8 +72,31 @@ export function AuthProvider({ children }) {
     if (!res.ok) throw new Error(data.error || 'Đổi mật khẩu thất bại!')
   }
 
+  // Người dùng tự cập nhật Telegram Chat ID của mình; đồng bộ vào state để UI khác dùng ngay.
+  async function updateTelegram(chatId) {
+    const res = await fetch(`${API}/api/users/${user.id}/telegram`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telegram_chat_id: chatId }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Cập nhật Telegram thất bại!')
+    setUser(prev => prev && { ...prev, telegram_chat_id: data.telegram_chat_id || null })
+  }
+
+  // Gửi thử tin nhắn tới Chat ID đang nhập (chưa cần lưu) để kiểm tra cấu hình.
+  async function testTelegram(chatId) {
+    const res = await fetch(`${API}/api/users/${user.id}/test-telegram`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telegram_chat_id: chatId, full_name: user.full_name }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Không gửi được tin nhắn.')
+  }
+
   return (
-    <AuthContext.Provider value={{ user, authLoading, login, logout, changePassword }}>
+    <AuthContext.Provider value={{ user, authLoading, login, logout, changePassword, updateTelegram, testTelegram }}>
       {children}
     </AuthContext.Provider>
   )

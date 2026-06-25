@@ -842,6 +842,45 @@ background:
   font-size: 14px;
 }
 
+.changepw-ok {
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.changepw-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.changepw-tabs {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.changepw-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 4px;
+  margin-bottom: -1px;
+  font-size: 14px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.changepw-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
 .cancel-btn {
   background: #e5e7eb;
   border: none;
