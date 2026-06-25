@@ -376,7 +376,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                   title="Chọn tất cả"
                 />
               </th>
-              <th className="th-stt">#</th>
+              <th className="th-stt">STT</th>
               <th className="th-name">Danh mục hàng hóa</th>
               <th className="th-unit">ĐVT</th>
               <th className="th-num">Số lượng</th>

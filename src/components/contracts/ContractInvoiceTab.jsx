@@ -23,6 +23,7 @@ export default function ContractInvoiceTab({ contractId }) {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)   // null | { } (new) | invoice (edit)
   const [expanded, setExpanded] = useState(null)
+  const [hideZeroRemain, setHideZeroRemain] = useState(false)
   const { promptPassword, passwordModal } = usePasswordPrompt()
 
   const load = useCallback(async () => {
@@ -151,18 +152,32 @@ export default function ContractInvoiceTab({ contractId }) {
         </div>
       )}
 
-      <div className="inv-section-head"><h3>Tồn chưa xuất hóa đơn theo bảng giá</h3></div>
+      <div className="inv-section-head">
+        <h3>Tồn chưa xuất hóa đơn theo bảng giá</h3>
+        {summary.length > 0 && (
+          <label className="inv-filter-zero">
+            <input type="checkbox" checked={hideZeroRemain} onChange={e => setHideZeroRemain(e.target.checked)} />
+            Ẩn hàng đã xuất hết (Tồn = 0)
+          </label>
+        )}
+      </div>
       {summary.length === 0 ? (
         <p className="inv-empty-box">Hợp đồng chưa có bảng giá.</p>
-      ) : (
+      ) : (() => {
+        const rows = summary
+          .map((r, idx) => ({ r, stt: idx + 1 }))
+          .filter(({ r }) => !hideZeroRemain || (parseFloat(r.qty_remaining) || 0) > 0)
+        if (rows.length === 0) return <p className="inv-empty-box">Tất cả mặt hàng đã xuất hóa đơn hết.</p>
+        return (
         <div className="inv-table-wrap">
           <table className="inv-list">
-            <thead><tr><th className="inv-item-name">Mặt hàng</th><th>ĐVT</th><th className="num">SL hợp đồng</th><th className="num">Đã xuất</th><th className="num">Tồn chưa xuất</th></tr></thead>
+            <thead><tr><th className="inv-stt">STT</th><th className="inv-item-name">Mặt hàng</th><th>ĐVT</th><th className="num">SL hợp đồng</th><th className="num">Đã xuất</th><th className="num">Tồn chưa xuất</th></tr></thead>
             <tbody>
-              {summary.map(r => {
+              {rows.map(({ r, stt }) => {
                 const remain = parseFloat(r.qty_remaining) || 0
                 return (
                   <tr key={r.boq_id}>
+                    <td className="inv-stt">{stt}</td>
                     <td className="inv-item-name">{r.item_name}</td><td>{r.unit}</td>
                     <td className="num">{fmt(r.qty_contract)}</td>
                     <td className="num">{fmt(r.qty_invoiced)}</td>
@@ -173,7 +188,8 @@ export default function ContractInvoiceTab({ contractId }) {
             </tbody>
           </table>
         </div>
-      )}
+        )
+      })()}
 
       {modal && (
         <InvoiceBatchModal

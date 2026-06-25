@@ -9,6 +9,8 @@
 
 .inv-section-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 10px; }
 .inv-section-head h3 { font-size: 15px; font-weight: 700; color: #374151; margin: 0; }
+.inv-filter-zero { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4b5563; cursor: pointer; user-select: none; }
+.inv-filter-zero input { cursor: pointer; }
 .inv-add { padding: 8px 14px; font-size: 13px; font-weight: 600; color: #fff; background: var(--brand); border: none; border-radius: 8px; cursor: pointer; }
 .inv-add:hover { background: #245530; }
 
@@ -21,6 +23,8 @@
 .inv-list td.num, .inv-list th.num { text-align: right; }
 /* Cột "Mặt hàng" dài: giới hạn bề rộng và xuống dòng cho vừa khung. */
 .inv-list td.inv-item-name, .inv-list th.inv-item-name { white-space: pre-wrap; max-width: 480px; overflow-wrap: break-word; }
+/* Cột STT: hẹp, căn giữa, trùng số # bên bảng giá. */
+.inv-list td.inv-stt, .inv-list th.inv-stt { width: 48px; text-align: center; color: #6b7280; vertical-align: top; }
 .inv-row { cursor: pointer; }
 .inv-row:hover { background: #fafbfc; }
 .inv-subrow td { background: #fafbfc; color: #4b5563; font-size: 12px; }

@@ -187,7 +187,7 @@ export default function ContractBOQTab({ contractId }) {
                   title="Chọn tất cả"
                 />
               </th>
-              <th className="th-stt">#</th>
+              <th className="th-stt">STT</th>
               <th className="th-name">Danh mục hàng hóa</th>
               <th className="th-hs">HScode</th>
               <th className="th-unit">ĐVT</th>
