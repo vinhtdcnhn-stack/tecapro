@@ -30,9 +30,11 @@ export async function listTelegramLogs(req, res) {
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, chat_id, message, ok, error, http_status, created_at
-         FROM telegram_send_log
-        ORDER BY created_at DESC, id DESC
+      `SELECT l.id, l.chat_id, l.message, l.ok, l.error, l.http_status, l.created_at,
+              u.full_name AS user_name, u.email AS user_email
+         FROM telegram_send_log l
+         LEFT JOIN app_user u ON u.telegram_chat_id = l.chat_id
+        ORDER BY l.created_at DESC, l.id DESC
         LIMIT $1 OFFSET $2`,
       [pageSize, offset],
     )

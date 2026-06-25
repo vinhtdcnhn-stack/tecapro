@@ -76,6 +76,7 @@ export default function TelegramLogPanel() {
             <tr>
               <th style={{ whiteSpace: 'nowrap' }}>Thời gian</th>
               <th style={{ whiteSpace: 'nowrap' }}>Chat ID</th>
+              <th style={{ whiteSpace: 'nowrap' }}>Người dùng</th>
               <th style={{ whiteSpace: 'nowrap' }}>Trạng thái</th>
               <th>Nội dung</th>
               <th>Lỗi</th>
@@ -84,7 +85,7 @@ export default function TelegramLogPanel() {
           <tbody>
             {items.length === 0 && !loading ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                   Chưa có nhật ký nào.
                 </td>
               </tr>
@@ -93,6 +94,7 @@ export default function TelegramLogPanel() {
                 <tr key={it.id}>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtDateTime(it.created_at)}</td>
                   <td>{it.chat_id || '-'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{it.user_name || it.user_email || '-'}</td>
                   <td style={{ whiteSpace: 'nowrap', fontWeight: 600, color: it.ok ? '#15803d' : '#c00' }}>
                     {it.ok ? '✅ Thành công' : '❌ Thất bại'}
                   </td>
