@@ -1,4 +1,5 @@
 import './ContractBOQTab.css'
+import { useState, useEffect } from 'react'
 import BOQImportModal from './BOQImportModal'
 import BOQRow from './BOQRow'
 import BOQMobile from './BOQMobile'
@@ -24,13 +25,28 @@ export default function ContractBOQTab({ contractId }) {
 
   const canEdit = useCanEdit()
 
+  // Phóng to bảng giá toàn màn hình (vẫn giữ thanh menu trình duyệt)
+  const [fullscreen, setFullscreen] = useState(false)
+
+  // Khóa cuộn nền + thoát bằng phím Esc khi đang toàn màn hình
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = e => { if (e.key === 'Escape') setFullscreen(false) }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [fullscreen])
+
   // Thanh cuộn ngang nổi (dính đầu bảng), đồng bộ với vùng cuộn của bảng
-  const { topRef, bodyRef, width, needed, onTop, onBody } = useSyncedHScroll([rows.length, isMobile, loading])
+  const { topRef, bodyRef, width, needed, onTop, onBody } = useSyncedHScroll([rows.length, isMobile, loading, fullscreen])
 
   if (loading) return <div className="boq-loading">Đang tải bảng giá...</div>
 
   return (
-    <div className="boq-tab">
+    <div className={`boq-tab${fullscreen ? ' boq-tab--fullscreen' : ''}`}>
 
       {/* ── Toolbar ── */}
       <div className="boq-toolbar">
@@ -75,6 +91,23 @@ export default function ContractBOQTab({ contractId }) {
             <span className="boq-summary-sep">|</span>
             Sau VAT: <strong>{fmtNum(totals.after, currency)}</strong>
           </span>
+
+          <button
+            className="boq-btn boq-btn-fs"
+            onClick={() => setFullscreen(v => !v)}
+            title={fullscreen ? 'Thoát toàn màn hình (Esc)' : 'Phóng to toàn màn hình'}
+          >
+            {fullscreen ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+              </svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+              </svg>
+            )}
+            {fullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+          </button>
         </div>
       </div>
 

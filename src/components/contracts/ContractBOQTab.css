@@ -6,6 +6,25 @@
   min-width: 0;
 }
 
+/* ── Toàn màn hình ─────────────────────────────────────────────────────────── */
+/* Phủ kín cửa sổ trình duyệt (vẫn giữ thanh menu trình duyệt) */
+.boq-tab--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: #fff;
+  overflow: hidden;
+}
+/* Cho bảng chiếm hết chiều cao còn lại và tự cuộn dọc bên trong */
+.boq-tab--fullscreen .boq-table-wrapper {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+.boq-tab--fullscreen .boq-toolbar,
+.boq-tab--fullscreen .boq-filterbar { flex-shrink: 0; }
+.boq-btn-fs { margin-left: 12px; }
+
 .boq-loading {
   display: flex;
   align-items: center;
