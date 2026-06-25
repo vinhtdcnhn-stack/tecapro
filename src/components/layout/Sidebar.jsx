@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const ITEMS = [
   { label: 'QUẢN LÝ NGƯỜI DÙNG',   section: 'users'       },
@@ -7,12 +8,16 @@ const ITEMS = [
   { label: 'QUẢN LÝ KHÁCH HÀNG',   section: 'customers'   },
   { label: 'QUẢN LÝ NHÀ CUNG CẤP', section: 'suppliers'   },
   { label: 'QUẢN LÝ LOẠI BIÊN BẢN', section: 'bb-types'   },
+  { label: 'NHẬT KÝ TELEGRAM',     section: 'telegram-log', adminOnly: true },
 ]
 
 export default function Sidebar() {
+  const { user } = useAuth()
+  const isAdmin = user?.role == 1
+  const items = ITEMS.filter(item => !item.adminOnly || isAdmin)
   return (
     <aside className="sidebar">
-      {ITEMS.map(item => (
+      {items.map(item => (
         <NavLink
           key={item.section}
           to={`/quantri/${item.section}`}

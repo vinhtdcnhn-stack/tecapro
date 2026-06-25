@@ -26,6 +26,7 @@ import tenderRoutes from './tenderRoutes.js'
 import approvalRoutes from './approvalRoutes.js'
 import reportRoutes from './reportRoutes.js'
 import invoiceRoutes from './invoiceRoutes.js'
+import { listTelegramLogs } from '../controllers/telegramLogController.js'
 
 const router = Router()
 
@@ -52,6 +53,9 @@ router.post('/users/check-email', requireAdmin, authController.checkEmailExists)
 router.post('/users/check-username', requireAdmin, authController.checkUsernameExists)
 router.post('/users/check-employee-code', requireAdmin, authController.checkEmployeeCodeExists)
 router.post('/users/test-telegram', requireAdmin, authController.testTelegram)
+
+// Nhật ký gửi Telegram — chỉ admin xem (tự dọn bản ghi > 3 ngày khi tải).
+router.get('/telegram-logs', requireAdmin, listTelegramLogs)
 
 // Department routes — danh mục dùng chung: ghi chỉ admin
 router.get('/departments', authController.getAllDepartments)

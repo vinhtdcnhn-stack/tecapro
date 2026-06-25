@@ -11,8 +11,11 @@ import CustomerModal from '../components/customers/CustomerModal'
 import SupplierTable from '../components/suppliers/SupplierTable'
 import SupplierModal from '../components/suppliers/SupplierModal'
 import CodeNameModal from '../components/common/CodeNameModal'
+import TelegramLogPanel from '../components/admin/TelegramLogPanel'
 
-const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types']
+const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types', 'telegram-log']
+// Các section chỉ admin (role==1) mới được xem.
+const ADMIN_ONLY_SECTIONS = ['telegram-log']
 
 export default function QuantriPage() {
   const { user } = useAuth()
@@ -181,6 +184,8 @@ export default function QuantriPage() {
   }
 
   if (!VALID_SECTIONS.includes(section)) return <Navigate to="/quantri/users" replace />
+  // Section dành riêng admin: người không phải admin bị đẩy về trang người dùng.
+  if (ADMIN_ONLY_SECTIONS.includes(section) && user?.role != 1) return <Navigate to="/quantri/users" replace />
 
   return (
     <main className="page admin-page">
@@ -347,6 +352,8 @@ export default function QuantriPage() {
               />
             </>
           )}
+
+          {section === 'telegram-log' && <TelegramLogPanel />}
 
         </section>
       </div>

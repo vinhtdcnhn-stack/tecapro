@@ -1,4 +1,18 @@
+import { pool } from '../db.js'
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
+
+// Ghi 1 dòng nhật ký gửi vào telegram_send_log. Fire-and-forget + tự nuốt lỗi:
+// logging KHÔNG bao giờ được làm đứt hàng đợi gửi hay luồng nghiệp vụ.
+function logSend({ chatId, text, ok, error = null, httpStatus = null }) {
+  pool
+    .query(
+      `INSERT INTO telegram_send_log (chat_id, message, ok, error, http_status)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [chatId == null ? null : String(chatId), text ?? null, ok, error, httpStatus],
+    )
+    .catch(err => console.error('telegram_send_log insert error:', err))
+}
 
 // Khoảng cách tối thiểu giữa HAI lần gửi liên tiếp: KHÔNG bao giờ gửi đồng loạt.
 // Mọi tin nhắn Telegram đi qua một HÀNG ĐỢI TOÀN CỤC và được phát lần lượt, cách
@@ -23,12 +37,17 @@ async function rawSend(chatId, text) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
     })
-    if (!res.ok) {
-      const err = await res.json()
-      console.error('Telegram sendMessage error:', err)
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data?.ok) {
+      const error = data?.description || `Telegram trả về lỗi (HTTP ${res.status}).`
+      console.error('Telegram sendMessage error:', data || res.status)
+      logSend({ chatId, text, ok: false, error, httpStatus: res.status })
+    } else {
+      logSend({ chatId, text, ok: true, httpStatus: res.status })
     }
   } catch (err) {
     console.error('Telegram fetch error:', err)
+    logSend({ chatId, text, ok: false, error: err?.message || 'fetch error' })
   }
 }
 
@@ -68,10 +87,15 @@ export async function sendTelegramNow(chatId, text) {
     })
     const data = await res.json().catch(() => null)
     if (!res.ok || !data?.ok) {
-      return { ok: false, error: data?.description || `Telegram trả về lỗi (HTTP ${res.status}).` }
+      const error = data?.description || `Telegram trả về lỗi (HTTP ${res.status}).`
+      logSend({ chatId, text, ok: false, error, httpStatus: res.status })
+      return { ok: false, error }
     }
+    logSend({ chatId, text, ok: true, httpStatus: res.status })
     return { ok: true }
   } catch (err) {
-    return { ok: false, error: err?.message || 'Không gọi được Telegram API.' }
+    const error = err?.message || 'Không gọi được Telegram API.'
+    logSend({ chatId, text, ok: false, error })
+    return { ok: false, error }
   }
 }
