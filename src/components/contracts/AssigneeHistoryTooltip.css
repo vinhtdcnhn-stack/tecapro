@@ -1,0 +1,69 @@
+/* Hint lịch sử giao/chuyển việc khi rê chuột vào tên người thực hiện */
+.assignee-hist {
+  position: relative;
+  display: inline-flex;
+  cursor: help;
+}
+
+.assignee-hist-pop {
+  position: fixed;
+  z-index: 4000;
+  min-width: 240px;
+  max-width: 340px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #374151;
+  white-space: normal;
+  cursor: default;
+}
+
+.assignee-hist-title {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.assignee-hist-empty {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.assignee-hist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.assignee-hist-list li {
+  padding-left: 10px;
+  border-left: 2px solid #d1d5db;
+}
+.assignee-hist-list li.is-transfer { border-left-color: #f59e0b; }
+.assignee-hist-list li.is-assign   { border-left-color: #3b82f6; }
+
+.assignee-hist-line { line-height: 1.35; }
+.assignee-hist-line strong { color: #111827; }
+
+.assignee-hist-meta {
+  color: #9ca3af;
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.assignee-hist-note {
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 2px;
+}

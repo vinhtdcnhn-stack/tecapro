@@ -1,7 +1,7 @@
 import { Router } from 'express'
-import { getTasks, createTask, updateTask, deleteTask, reorderTasks } from '../controllers/taskController.js'
+import { getTasks, createTask, updateTask, deleteTask, reorderTasks, transferTask, getAssignmentLog } from '../controllers/taskController.js'
 import { getAttachments, uploadAttachment, deleteAttachment, upload } from '../controllers/taskAttachmentController.js'
-import { pmVia, canCreateTask, canWriteTask, canReorderTasks } from '../middleware/contractAccess.js'
+import { pmVia, canCreateTask, canWriteTask, canReorderTasks, canTransferTask } from '../middleware/contractAccess.js'
 
 const router = Router()
 
@@ -10,6 +10,8 @@ router.get('/contracts/:id/tasks',  getTasks)
 router.post('/contracts/:id/tasks', canCreateTask('id'), createTask)
 router.put('/contracts/:id/tasks/reorder', canReorderTasks('id'), reorderTasks)
 router.put('/tasks/:id',            canWriteTask('id'), updateTask)
+router.put('/tasks/:id/transfer',   canTransferTask('id'), transferTask)
+router.get('/tasks/:id/assignment-log', getAssignmentLog)
 router.delete('/tasks/:id',         canWriteTask('id'), deleteTask)
 
 router.get('/tasks/:taskId/attachments',        getAttachments)

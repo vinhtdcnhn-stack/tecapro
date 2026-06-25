@@ -3,29 +3,32 @@ import { useMemo, useState } from 'react'
 import Modal from '../common/Modal'
 
 // ── Hộp thoại "Chuyển việc" ──────────────────────────────────────────────────────
-// Người được giao một công việc chọn người khác để chuyển việc cho họ. Hệ quả: tạo
-// một VIỆC CON với nội dung giống việc cha nhưng người thực hiện là người được chọn.
+// Người được giao (hoặc PM/admin, người tạo) chọn người khác để CHUYỂN việc cho họ.
+// Hệ quả: chỉ đổi NGƯỜI THỰC HIỆN của chính việc này (không tạo việc con) và ghi nhật ký.
 // Props:
-//   task        — công việc đang chuyển (việc cha của việc con sắp tạo)
+//   task        — công việc đang chuyển
 //   departments — [{ id, name }] để lọc người theo phòng ban
 //   users       — [{ id, full_name, department_id }] danh sách người nhận
 //   currentUser — người đang thao tác (loại khỏi danh sách để không tự chuyển cho mình)
-//   onConfirm({ department_id, assigned_to }) — tạo việc con; trả Promise, null khi lỗi
+//   onConfirm({ department_id, assigned_to, note }) — đổi người thực hiện; trả Promise<boolean>
 //   onClose()   — đóng hộp thoại
 export default function TaskTransferDialog({ task, departments = [], users = [], currentUser, onConfirm, onClose }) {
   const [deptId, setDeptId]   = useState(task?.department_id ? String(task.department_id) : '')
   const [assignTo, setAssign] = useState('')
+  const [note, setNote]       = useState('')
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
 
-  // Người nhận: lọc theo phòng ban đã chọn; luôn bỏ chính người đang chuyển.
+  // Người nhận: lọc theo phòng ban đã chọn; bỏ chính người đang chuyển và người đang
+  // thực hiện hiện tại (chuyển cho họ là vô nghĩa).
   const candidates = useMemo(() => {
     const uid = Number(currentUser?.id)
+    const cur = Number(task?.assigned_to)
     return users.filter(u =>
-      Number(u.id) !== uid &&
+      Number(u.id) !== uid && Number(u.id) !== cur &&
       (!deptId || String(u.department_id) === String(deptId))
     )
-  }, [users, deptId, currentUser])
+  }, [users, deptId, currentUser, task])
 
   function changeDept(val) {
     setDeptId(val)
@@ -39,6 +42,7 @@ export default function TaskTransferDialog({ task, departments = [], users = [],
     const ok = await onConfirm({
       department_id: deptId || null,
       assigned_to: Number(assignTo),
+      note: note.trim() || null,
     })
     setSaving(false)
     if (!ok) setError('Không thể chuyển việc. Vui lòng thử lại.')
@@ -60,8 +64,9 @@ export default function TaskTransferDialog({ task, departments = [], users = [],
         <div className="task-subtask-banner">
           Chuyển công việc: <strong>{task?.title}</strong>
           <div className="task-transfer-hint">
-            Hệ thống sẽ tạo một <strong>việc con</strong> với nội dung giống công việc này,
-            giao cho người bạn chọn.
+            Công việc này sẽ được <strong>giao lại</strong> cho người bạn chọn
+            {task?.assigned_to_name ? <> (hiện do <strong>{task.assigned_to_name}</strong> thực hiện)</> : null}.
+            Toàn bộ quá trình giao/chuyển việc được ghi lại.
           </div>
         </div>
 
@@ -92,6 +97,16 @@ export default function TaskTransferDialog({ task, departments = [], users = [],
             )}
             {error && <span className="task-form-error">{error}</span>}
           </div>
+        </div>
+
+        <div className="task-form-group">
+          <label>Lý do chuyển (tùy chọn)</label>
+          <textarea
+            rows={2}
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Ghi chú lý do chuyển việc — sẽ lưu vào nhật ký"
+          />
         </div>
       </div>
 

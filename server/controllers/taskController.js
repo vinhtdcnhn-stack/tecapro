@@ -42,6 +42,19 @@ const BASE_SELECT = `
   LEFT JOIN app_user   cb ON cb.id = t.created_by
 `
 
+// Ghi 1 dòng nhật ký giao/chuyển việc. Gọi trong cùng transaction (client) khi tạo việc
+// có người thực hiện hoặc khi đổi người thực hiện. action: 'assign' (giao lần đầu) |
+// 'transfer' (chuyển việc). Bỏ qua khi không có người nhận (to_user_id NULL vô nghĩa).
+async function logAssignment(client, { taskId, fromUserId, toUserId, action, actorId, note }) {
+  if (!toUserId) return
+  await client.query(
+    `INSERT INTO contract_task_assignment_log
+       (task_id, from_user_id, to_user_id, action, actor_id, note)
+     VALUES ($1,$2,$3,$4,$5,$6)`,
+    [taskId, fromUserId || null, toUserId, action, actorId || null, note?.trim() || null],
+  )
+}
+
 // Ghi lại toàn bộ phụ thuộc của 1 công việc (xoá hết rồi chèn lại) trong cùng transaction.
 // deps: [{ dep_type:'task'|'milestone', dep_task_id?, dep_progress_id?, offset_days? }].
 // Bỏ qua bản ghi không hợp lệ và phụ thuộc vào chính nó.
@@ -146,6 +159,13 @@ export async function createTask(req, res) {
     )
     const id = rows[0].id
     await replaceDependencies(client, id, dependencies)
+    // Ghi nhật ký "giao lần đầu" nếu việc được tạo đã có người thực hiện.
+    if (assigned_to) {
+      await logAssignment(client, {
+        taskId: id, fromUserId: null, toUserId: Number(assigned_to),
+        action: 'assign', actorId: created_by || req.user?.id,
+      })
+    }
     // Thêm 1 việc con đang mở có thể khiến việc cha (đang Hoàn thành) tự mở lại.
     const cascaded = parentId ? await cascadeCompletion(client, parentId) : []
     await client.query('COMMIT')
@@ -178,7 +198,7 @@ export async function updateTask(req, res) {
   const {
     title, description, department_id, assigned_to,
     priority, start_date, due_date, duration_days, status, completed_at, note, dependencies,
-    parent_start_offset,
+    parent_start_offset, assignment_note,
   } = req.body
 
   if (!title?.trim()) {
@@ -248,6 +268,14 @@ export async function updateTask(req, res) {
         parent_start_offset != null ? parseInt(parent_start_offset, 10) || 0 : null,
       ]
     )
+    // Đổi người thực hiện qua màn sửa → ghi nhật ký chuyển việc (kèm lý do nếu có).
+    if (reqAssignee !== curAssignee) {
+      await logAssignment(client, {
+        taskId: id, fromUserId: curAssignee, toUserId: reqAssignee,
+        action: curAssignee ? 'transfer' : 'assign', actorId: req.user?.id,
+        note: assignment_note,
+      })
+    }
     // Chỉ thay bộ phụ thuộc khi client gửi lên (tránh xoá nhầm khi caller không quan tâm).
     if (dependencies !== undefined) await replaceDependencies(client, id, dependencies)
     // Tự cập nhật trạng thái theo cây con: đánh giá chính việc này (nếu có con → ghi đè
@@ -349,5 +377,91 @@ export async function reorderTasks(req, res) {
     res.status(500).json({ error: 'Không thể sắp xếp công việc' })
   } finally {
     client.release()
+  }
+}
+
+// PUT /tasks/:id/transfer — Chuyển việc: chỉ đổi NGƯỜI THỰC HIỆN của chính việc này
+// (không tạo việc con). Quyền: PM/admin, người tạo việc, HOẶC người đang được giao
+// (đã kiểm ở middleware canTransferTask). Body: { assigned_to, department_id?, note? }.
+export async function transferTask(req, res) {
+  const id = parseInt(req.params.id)
+  const { assigned_to, department_id, note } = req.body
+  const toUser = Number(assigned_to) || null
+  if (!toUser) return res.status(400).json({ error: 'Vui lòng chọn người để chuyển việc.' })
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const prev = await client.query(
+      'SELECT contract_out_id, assigned_to, title FROM contract_task WHERE id = $1',
+      [id],
+    )
+    const old = prev.rows[0]
+    if (!old) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Không tìm thấy công việc' })
+    }
+    const fromUser = Number(old.assigned_to) || null
+    if (toUser === fromUser) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Người được chọn đã là người thực hiện hiện tại.' })
+    }
+
+    await client.query(
+      `UPDATE contract_task
+          SET assigned_to   = $1,
+              department_id = COALESCE($2, department_id),
+              updated_at    = NOW()
+        WHERE id = $3`,
+      [toUser, department_id || null, id],
+    )
+    await logAssignment(client, {
+      taskId: id, fromUserId: fromUser, toUserId: toUser,
+      action: fromUser ? 'transfer' : 'assign', actorId: req.user?.id, note,
+    })
+    await client.query('COMMIT')
+
+    // Việc vừa chuyển có thể đã tới ngày bắt đầu → tự kích hoạt; bỏ qua nếu lỗi.
+    try { await activateReadyTasks([id]) } catch (e) { console.error('activateReadyTasks(transfer):', e) }
+
+    const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
+    res.json(full.rows[0])
+
+    // Báo người được giao mới (việc cần xử lý 🔔). Không tự báo khi tự nhận.
+    if (toUser !== req.user?.id) {
+      const label = await contractLabel(old.contract_out_id)
+      notifyAction([toUser], `Bạn được chuyển công việc: "${old.title}" — HĐ ${label}`)
+    }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    console.error('transferTask:', err)
+    res.status(500).json({ error: 'Không thể chuyển việc' })
+  } finally {
+    client.release()
+  }
+}
+
+// GET /tasks/:id/assignment-log — nhật ký giao/chuyển việc (mới nhất sau cùng), kèm tên
+// người. Dùng cho hint khi di chuột vào tên người thực hiện.
+export async function getAssignmentLog(req, res) {
+  const id = parseInt(req.params.id)
+  try {
+    const { rows } = await pool.query(
+      `SELECT l.id, l.action, l.created_at, l.note,
+              l.from_user_id, fu.full_name AS from_name,
+              l.to_user_id,   tu.full_name AS to_name,
+              l.actor_id,     au.full_name AS actor_name
+         FROM contract_task_assignment_log l
+         LEFT JOIN app_user fu ON fu.id = l.from_user_id
+         LEFT JOIN app_user tu ON tu.id = l.to_user_id
+         LEFT JOIN app_user au ON au.id = l.actor_id
+        WHERE l.task_id = $1
+        ORDER BY l.created_at, l.id`,
+      [id],
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('getAssignmentLog:', err)
+    res.status(500).json({ error: 'Không thể tải nhật ký giao việc' })
   }
 }

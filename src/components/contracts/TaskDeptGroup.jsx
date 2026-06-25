@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { API } from '../../config/api'
 import { useLongPress } from './useLongPress'
+import AssigneeHistoryTooltip from './AssigneeHistoryTooltip'
 import {
   STATUSES, fmtDate, daysUntil, isOverdue, isWarning,
   priorityClass, statusClass, initials, flattenTree, reorderIds,
@@ -195,10 +196,12 @@ function TaskRow({
 
       <td>
         {task.assigned_to_name ? (
-          <div className="assignee-cell">
-            <div className="assignee-avatar">{initials(task.assigned_to_name)}</div>
-            <span className="assignee-name">{task.assigned_to_name}</span>
-          </div>
+          <AssigneeHistoryTooltip taskId={task.id}>
+            <div className="assignee-cell">
+              <div className="assignee-avatar">{initials(task.assigned_to_name)}</div>
+              <span className="assignee-name">{task.assigned_to_name}</span>
+            </div>
+          </AssigneeHistoryTooltip>
         ) : (
           <span className="assignee-empty">Chưa assign</span>
         )}

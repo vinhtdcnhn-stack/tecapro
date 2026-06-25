@@ -218,6 +218,33 @@ export function canWriteTask(param = 'id') {
   }
 }
 
+// PUT /tasks/:id/transfer — Chuyển việc (đổi người thực hiện). Nới rộng hơn canWriteTask:
+// cho phép PM/admin, NGƯỜI TẠO việc, hoặc NGƯỜI ĐANG ĐƯỢC GIAO (kể cả việc gốc) tự chuyển
+// việc của mình cho người khác.
+export function canTransferTask(param = 'id') {
+  return async function guard(req, res, next) {
+    try {
+      if (Number(req.user?.role) === 1) return next() // admin
+      const taskId = String(req.params[param] ?? '')
+      if (!ID_RE.test(taskId)) {
+        res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+        return
+      }
+      const { rows } = await pool.query(
+        'SELECT contract_out_id, assigned_to, created_by FROM contract_task WHERE id = $1',
+        [taskId],
+      )
+      const t = rows[0]
+      if (!t) { res.status(404).json({ error: 'Không tìm thấy công việc.' }); return }
+
+      const uid = Number(req.user.id)
+      if (Number(t.assigned_to) === uid || Number(t.created_by) === uid) return next()
+      if (await isPmOfContract(uid, String(t.contract_out_id))) return next()
+      res.status(403).json({ error: 'Chỉ PM/admin, người tạo hoặc người được giao mới được chuyển việc này.' })
+    } catch (err) { next(err) }
+  }
+}
+
 // Biến thể cho phép PM HOẶC Kỹ thuật (member_role='Technical') — dùng cho thao tác serial.
 export const pmOrTechVia = (key, param = 'id') => makeGuard(req => req.params[param], RESOLVERS[key], ['PM', 'Technical'])
 export const pmOrTechViaBody = (key) => makeGuard(req => req.body?.ids, RESOLVERS[key], ['PM', 'Technical'])

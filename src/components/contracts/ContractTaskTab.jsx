@@ -133,6 +133,9 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   // ── Quyền theo dòng (khớp backend canCreateTask/canWriteTask) ─────────────────
   const uid = Number(currentUser?.id)
   const canAddSub  = (task) => canEdit || Number(task.assigned_to) === uid
+  // Chuyển việc (đổi người thực hiện): khớp backend canTransferTask — PM/admin, người
+  // được giao, hoặc người tạo việc.
+  const canTransferRow = (task) => canEdit || Number(task.assigned_to) === uid || Number(task.created_by) === uid
   const canWriteRow = (task) => {
     if (canEdit) return true
     if (task.parent_task_id == null) return false           // việc gốc: chỉ PM/admin
@@ -238,38 +241,20 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
     return copyToClipboard(buildTaskCopyText(task, contract))
   }
 
-  // ── Chuyển việc: tạo việc con giống việc cha nhưng giao cho người được chọn ───────
-  // Cùng quyền với "thêm việc con" (canAddSub): PM/admin hoặc người được giao việc này.
-  async function handleTransfer({ department_id, assigned_to }) {
+  // ── Chuyển việc: chỉ đổi NGƯỜI THỰC HIỆN của chính việc này (không tạo việc con) ───
+  // Quyền: PM/admin, người tạo, hoặc người đang được giao (gác ở backend canTransferTask).
+  async function handleTransfer({ department_id, assigned_to, note }) {
     const task = transferTask
     if (!task) return false
     try {
-      const res = await fetch(`${API}/contracts/${contractId}/tasks`, {
-        method: 'POST',
+      const res = await fetch(`${API}/tasks/${task.id}/transfer`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title:         task.title,
-          description:   task.description,
-          department_id: department_id ?? task.department_id ?? null,
-          assigned_to,
-          created_by:    currentUser?.id,
-          priority:      task.priority,
-          // Giữ nguyên ràng buộc lịch của việc gốc (ngày cố định / bước trước / theo việc cha).
-          start_date:    task.start_date ? task.start_date.slice(0, 10) : null,
-          due_date:      task.due_date ? task.due_date.slice(0, 10) : null,
-          duration_days: task.duration_days ?? null,
-          dependencies:  Array.isArray(task.dependencies) ? task.dependencies : [],
-          parent_start_offset: task.parent_start_offset ?? null,
-          note:          task.note,
-          // Để "Chờ xử lý" — backend tự chuyển sang "Đang thực hiện" nếu đã tới ngày bắt đầu.
-          status:        'Chờ xử lý',
-          parent_task_id: task.id,
-        }),
+        body: JSON.stringify({ assigned_to, department_id: department_id ?? null, note }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lỗi chuyển việc')
-      setTasks(prev => [...prev, data])
-      setCollapsedTask(prev => ({ ...prev, [task.id]: false }))  // mở việc cha để thấy việc con mới
+      setTasks(prev => prev.map(t => t.id === task.id ? data : t))
       setTransferTask(null)
       return true
     } catch (e) {
@@ -321,7 +306,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
         key={ctxMenu ? `${ctxMenu.task.id}-${ctxMenu.x}-${ctxMenu.y}` : 'closed'}
         menu={ctxMenu}
         onCopy={copyTaskInfo}
-        canTransfer={!!ctxMenu && canAddSub(ctxMenu.task)}
+        canTransfer={!!ctxMenu && canTransferRow(ctxMenu.task)}
         onTransfer={(task) => setTransferTask(task)}
         onClose={() => setCtxMenu(null)}
       />

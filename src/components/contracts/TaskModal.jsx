@@ -39,6 +39,7 @@ export default function TaskModal({ task, parentTask = null, departments, users,
   })
   const [errors, setErrors]         = useState({})
   const [saving, setSaving]         = useState(false)
+  const [assignmentNote, setAssignmentNote] = useState('')   // lý do đổi người thực hiện (khi sửa)
   const [attachments, setAttachments] = useState([])   // existing (edit mode)
   const [pendingFiles, setPending]  = useState([])     // queued for upload
 
@@ -120,6 +121,10 @@ export default function TaskModal({ task, parentTask = null, departments, users,
     ? users.filter(u => String(u.department_id) === String(form.department_id))
     : users
 
+  // Đang SỬA và người thực hiện đã đổi so với ban đầu → cần ghi lý do (như nút Chuyển việc).
+  const assigneeChanged = isEdit && canEditAssignee
+    && String(form.assigned_to ?? '') !== String(task?.assigned_to ?? '')
+
   function set(field, val) {
     setForm(prev => {
       const next = { ...prev, [field]: val }
@@ -167,6 +172,8 @@ export default function TaskModal({ task, parentTask = null, departments, users,
       duration_days: dueMode === 'duration' ? durDays : null,
       dependencies: startMode === 'deps' ? cleanDeps : [],
       parent_start_offset: startMode === 'parent' ? (Number(parentOffset) || 0) : null,
+      // Lý do đổi người thực hiện (chỉ gửi khi thực sự đổi) → backend ghi vào nhật ký.
+      assignment_note: assigneeChanged ? (assignmentNote.trim() || null) : undefined,
     }
     const savedTask = await onSave(payload)
     if (!savedTask) { setSaving(false); return }
@@ -280,6 +287,17 @@ export default function TaskModal({ task, parentTask = null, departments, users,
                   )}
                   {!form.department_id && (
                     <span className="assign-hint">Chọn phòng ban để lọc nhân viên</span>
+                  )}
+                  {assigneeChanged && (
+                    <div className="task-assign-reason">
+                      <label>Lý do chuyển việc (tùy chọn)</label>
+                      <textarea
+                        rows={2}
+                        value={assignmentNote}
+                        onChange={e => setAssignmentNote(e.target.value)}
+                        placeholder="Ghi lý do đổi người thực hiện — sẽ lưu vào nhật ký & báo người được giao"
+                      />
+                    </div>
                   )}
                 </>
               ) : (

@@ -386,6 +386,11 @@
 /* Assign highlight */
 .assign-hint { font-size: 11px; color: #9ca3af; margin-top: 3px; }
 
+/* Lý do đổi người thực hiện (hiện khi sửa & đổi assignee) */
+.task-assign-reason { margin-top: 8px; }
+.task-assign-reason label { display: block; font-size: 12px; color: #b45309; font-weight: 600; margin-bottom: 4px; }
+.task-assign-reason textarea { width: 100%; }
+
 /* ── Task attachments ───────────────────────────────────────────────────── */
 .task-attach-badge {
   display: inline-flex; align-items: center; gap: 3px;
