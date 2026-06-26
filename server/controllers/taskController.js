@@ -92,6 +92,23 @@ export async function getTasks(req, res) {
        ORDER BY t.sort_order, t.id`,
       [contractId]
     )
+    // Số mục dòng thời gian CHƯA ĐỌC của user hiện tại cho mỗi việc (để dòng việc hiện chấm).
+    const uid = req.user?.id
+    if (uid) {
+      const { rows: ur } = await pool.query(
+        `SELECT e.task_id, COUNT(*)::int AS unread
+           FROM contract_task_entry e
+           JOIN contract_task t ON t.id = e.task_id
+           LEFT JOIN contract_task_read r ON r.task_id = e.task_id AND r.user_id = $2
+          WHERE t.contract_out_id = $1
+            AND e.author_id <> $2
+            AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
+          GROUP BY e.task_id`,
+        [contractId, uid],
+      )
+      const unreadByTask = new Map(ur.map(r => [String(r.task_id), r.unread]))
+      for (const row of rows) row.unread_count = unreadByTask.get(String(row.id)) || 0
+    }
     res.json(rows)
   } catch (err) {
     console.error('getTasks:', err)

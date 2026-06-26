@@ -9,6 +9,7 @@ import TaskModal from './TaskModal'
 import TaskGantt from './TaskGantt'
 import TaskContextMenu from './TaskContextMenu'
 import TaskTransferDialog from './TaskTransferDialog'
+import ContractTaskDetailDrawer from './ContractTaskDetailDrawer'
 import EditGuard from './EditGuard'
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   const [collapsedTask, setCollapsedTask] = useState({}) // task.id → bool (thu/mở việc con)
   const [ctxMenu, setCtxMenu]     = useState(null)  // { x, y, task } | null — menu chuột phải
   const [transferTask, setTransferTask] = useState(null)  // ≠ null = đang mở hộp thoại chuyển việc
+  const [detailTaskId, setDetailTaskId] = useState(null)  // ≠ null = đang mở khung chi tiết việc
   const [highlightId, setHighlightId] = useState(null)  // id việc cần làm nổi bật khi đến từ đường dẫn
   const jumpedFor = useRef(null)  // id đã nhảy tới (tránh nhảy lặp lại mỗi lần render)
   const canEdit = useCanEdit()
@@ -48,7 +50,11 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
       setUsers(Array.isArray(uData) ? uData : [])
       setMilestones(Array.isArray(pData) ? pData : [])
     } catch (e) { console.error('load tasks:', e) }
-    finally { setLoading(false) }
+    finally {
+      setLoading(false)
+      // Đồng bộ cảnh báo nền đỏ toàn trang (đọc xong → xóa cảnh báo ngay).
+      window.dispatchEvent(new Event('contracttask:refresh-unread'))
+    }
   }, [contractId])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
@@ -79,6 +85,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
     setFilter('all')
     setView('list')
     setHighlightId(String(target.id))
+    setDetailTaskId(target.id)  // mở luôn khung chi tiết việc khi đến từ đường dẫn
     /* eslint-enable react-hooks/set-state-in-effect */
 
     // Cuộn sau khi cây đã render lại (đợi mở nhánh + đổi chế độ).
@@ -155,6 +162,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   function openCreate()   { setEditTask(null); setParentTask(null); setModalOpen(true) }
   function openAddSub(t)  { setEditTask(null); setParentTask(t);    setModalOpen(true) }
   function openEdit(t)    { setEditTask(t);    setParentTask(null); setModalOpen(true) }
+  function openDetail(t)  { setDetailTaskId(t.id) }
   // Lật theo hiện trạng (override nếu có, ngược lại theo mặc định thu của nhánh chuyển việc).
   function toggleTask(id) {
     setCollapsedTask(prev => {
@@ -283,6 +291,9 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
 
   if (loading) return <div className="task-loading">Đang tải...</div>
 
+  // Việc đang mở khung chi tiết — tra từ state để luôn đồng bộ sau mỗi lần load().
+  const detailTask = detailTaskId != null ? tasks.find(t => String(t.id) === String(detailTaskId)) || null : null
+
   // Modal dùng chung cho cả 2 chế độ. Ở chế độ Gantt nó render BÊN TRONG <TaskGantt>
   // (để khi mở toàn màn hình vẫn nằm trên & thao tác được); chế độ Danh sách render ở cuối.
   // Modal + menu chuột phải render cùng chỗ: ở Gantt nằm BÊN TRONG <TaskGantt> (để toàn
@@ -318,6 +329,17 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           currentUser={currentUser}
           onConfirm={handleTransfer}
           onClose={() => setTransferTask(null)}
+        />
+      )}
+      {detailTask && (
+        <ContractTaskDetailDrawer
+          task={detailTask}
+          currentUser={currentUser}
+          canManage={canEdit}
+          canWrite={canWriteRow(detailTask)}
+          onEdit={(t) => { setDetailTaskId(null); openEdit(t) }}
+          onClose={() => setDetailTaskId(null)}
+          onChanged={load}
         />
       )}
     </>
@@ -387,6 +409,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           onReorder={handleReorder}
           canReorderRow={canReorderRow}
           onTaskContextMenu={openTaskCtxMenu}
+          onOpenDetail={openDetail}
         >
           {overlayNodes}
         </TaskGantt>
@@ -417,6 +440,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           onAddSub={openAddSub}
           onReorder={handleReorder}
           onTaskContextMenu={openTaskCtxMenu}
+          onOpenDetail={openDetail}
         />
       ))}
 

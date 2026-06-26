@@ -80,6 +80,9 @@
 .tgantt-row { display: flex; }
 .tgantt-row--group { background: #f9fafb; }
 .tgantt-row:not(.tgantt-row--group) { border-bottom: 1px solid #f3f4f6; }
+/* Việc có nội dung dòng thời gian chưa đọc → nền hổ phách (cả nhãn dính bên trái) */
+.tgantt-row--unread { background: #fde68a; }
+.tgantt-row--unread .tgantt-rowlabel { background: #fde68a; }
 
 /* Kéo-thả sắp xếp (chế độ "Không nhóm") */
 .tgantt-drag-hint { font-size: 11px; color: #9ca3af; font-style: italic; }

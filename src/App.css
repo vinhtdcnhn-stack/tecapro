@@ -275,6 +275,16 @@ body.dw-page-alert .page {
   body.dw-page-alert .page { animation: none; background-color: #fca5a5; }
 }
 
+/* Cảnh báo tương tự cho công việc HỢP ĐỒNG chưa đọc (useContractTaskAlert). */
+body.task-page-alert .page {
+  background-color: #f87171;
+  background-image: none;
+  animation: dw-page-alert-pulse 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.task-page-alert .page { animation: none; background-color: #fca5a5; }
+}
+
 /* Trang đăng nhập đứng độc lập (ngoài .shell) nên cần tự cao toàn màn hình
    để gradient phủ kín, tránh lộ nền trắng ở nửa dưới. */
 .page--auth {

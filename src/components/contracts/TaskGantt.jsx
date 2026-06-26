@@ -10,7 +10,7 @@ import { buildGanttModel, LABEL_W, HEAD_H, DAY_W } from './taskGanttUtils'
 // truyền) · onReorder(orderedIds): lưu thứ tự (anh-em) · canReorderRow(task): được phép
 // kéo việc đó hay không · children: modal/lớp phủ render BÊN TRONG khung Gantt để khi mở
 // toàn màn hình (Fullscreen API) vẫn nằm trên, thao tác được.
-export default function TaskGantt({ tasks, visibleIds = null, milestones = [], defaultCollapsedTaskIds = null, onEdit, onAdd, onAddSub, canAddSub = () => false, onReorder, canReorderRow = () => false, onTaskContextMenu, children }) {
+export default function TaskGantt({ tasks, visibleIds = null, milestones = [], defaultCollapsedTaskIds = null, onEdit, onAdd, onAddSub, canAddSub = () => false, onReorder, canReorderRow = () => false, onTaskContextMenu, onOpenDetail, children }) {
   const [groupBy, setGroupBy] = useState('department')   // 'department' | 'assignee' | 'none'
   const flat = groupBy === 'none'
   const canDrag = flat && typeof onReorder === 'function'   // bật theo từng dòng qua canReorderRow
@@ -222,6 +222,7 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], d
               <div
                 key={i}
                 className={`tgantt-row tgantt-row--${row.type}`
+                  + (row.type === 'task' && row.task.unread_count > 0 ? ' tgantt-row--unread' : '')
                   + (dragRow && overId === row.task.id ? ' tgantt-row--dragover' : '')
                   + (dragRow && dragId === row.task.id ? ' tgantt-row--dragging' : '')}
                 style={{ height: row.height }}
@@ -267,7 +268,15 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], d
                           row.depth > 0 && <span className="tgantt-subdot" aria-hidden>└</span>
                         )}
                         <i className="tgantt-ava">{initials(row.task.assigned_to_name)}</i>
-                        {row.task.title}
+                        {onOpenDetail ? (
+                          <button
+                            type="button"
+                            className="tgantt-tasklabel-link"
+                            onClick={(e) => { e.stopPropagation(); onOpenDetail(row.task) }}
+                            title="Xem chi tiết & trao đổi"
+                          >{row.task.title}</button>
+                        ) : row.task.title}
+                        {row.task.unread_count > 0 && <span className="task-unread-dot" title={`${row.task.unread_count} nội dung chưa đọc`} />}
                       </span>
                       {onAddSub && canAddSub(row.task) && (
                         <button

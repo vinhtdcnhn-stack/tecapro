@@ -12,7 +12,7 @@ import {
 export default function DeptGroup({
   group, flat = false, childrenByParent, visible, collapsed, onToggle,
   collapsedTask, onToggleTask, highlightId, canWriteRow, canAddSub, canReorderRow,
-  onEdit, onDelete, onStatusChange, onAddSub, onReorder, onTaskContextMenu,
+  onEdit, onDelete, onStatusChange, onAddSub, onReorder, onTaskContextMenu, onOpenDetail,
 }) {
   const [dragId, setDragId] = useState(null)
   const [overId, setOverId] = useState(null)
@@ -103,6 +103,7 @@ export default function DeptGroup({
                   onAddSub={() => onAddSub(task)}
                   onStatusChange={onStatusChange}
                   onContextMenu={(e) => onTaskContextMenu?.(task, e)}
+                  onOpenDetail={() => onOpenDetail?.(task)}
                 />
               ))}
             </tbody>
@@ -117,7 +118,7 @@ export default function DeptGroup({
 
 function TaskRow({
   idx, task, depth, hasChildren, collapsed, onToggle, highlight, canWrite, canAddSub, onEdit, onDelete, onAddSub, onStatusChange,
-  canReorder, dragging, dragOver, onDragStart, onDragEnd, onDragOver, onDrop, onContextMenu,
+  canReorder, dragging, dragOver, onDragStart, onDragEnd, onDragOver, onDrop, onContextMenu, onOpenDetail,
 }) {
   const overdue  = isOverdue(task)
   const warn     = isWarning(task)
@@ -127,22 +128,27 @@ function TaskRow({
   const longPress = useLongPress((x, y) => onContextMenu?.({ preventDefault() {}, clientX: x, clientY: y }))
 
   const rowClass = [
+    'task-row--clickable',
     depth > 0 ? 'task-row--child' : '',
     overdue ? 'task-row--overdue' : '',
     warn    ? 'task-row--warning' : '',
     task.status === 'Hoàn thành' ? 'task-row--done' : '',
+    task.unread_count > 0 ? 'task-row--unread' : '',
     dragging ? 'task-row--dragging' : '',
     dragOver ? 'task-row--dragover' : '',
     highlight ? 'task-row--highlight' : '',
   ].filter(Boolean).join(' ')
 
+  // Bấm bất kỳ đâu trên dòng → mở khung chi tiết (như thẻ việc bên phòng). Các ô có
+  // điều khiển riêng (mở/thu việc con, trạng thái, nút thao tác, kéo, tệp) tự chặn nổi bọt.
   return (
     <tr id={`task-row-${task.id}`} className={rowClass}
+      onClick={onOpenDetail}
       onContextMenu={onContextMenu}
       {...longPress}
       onDragOver={canReorder ? onDragOver : undefined}
       onDrop={canReorder ? onDrop : undefined}>
-      <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>
+      <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }} onClick={e => e.stopPropagation()}>
         {canReorder && (
           <span
             className="task-drag-grip"
@@ -160,11 +166,14 @@ function TaskRow({
         <div className="task-title-cell" style={{ paddingLeft: depth * 20 }}>
           <div className="task-title-line">
             {hasChildren ? (
-              <button className={`task-tree-toggle ${collapsed ? '' : 'open'}`} onClick={onToggle} title={collapsed ? 'Mở việc con' : 'Thu việc con'}>▶</button>
+              <button className={`task-tree-toggle ${collapsed ? '' : 'open'}`} onClick={e => { e.stopPropagation(); onToggle() }} title={collapsed ? 'Mở việc con' : 'Thu việc con'}>▶</button>
             ) : (
               <span className="task-tree-spacer" />
             )}
-            <span className="task-title">{task.title}</span>
+            <button type="button" className="task-title task-title--link" onClick={onOpenDetail} title="Xem chi tiết & trao đổi">
+              {task.title}
+            </button>
+            {task.unread_count > 0 && <span className="task-unread-dot" title={`${task.unread_count} nội dung chưa đọc`} />}
           </div>
           {task.description && <span className="task-desc-preview">{task.description}</span>}
           {Array.isArray(task.attachments) && task.attachments.map(att => {
@@ -228,7 +237,7 @@ function TaskRow({
         </div>
       </td>
 
-      <td>
+      <td onClick={e => e.stopPropagation()}>
         {locked ? (
           <span
             className={`status-badge-task ${statusClass(task.status)} status-badge-task--locked`}
@@ -250,7 +259,7 @@ function TaskRow({
         )}
       </td>
 
-      <td>
+      <td onClick={e => e.stopPropagation()}>
         <div className="task-actions">
           {canAddSub && (
             <button className="task-act-btn addsub" onClick={onAddSub} title="Thêm việc con">

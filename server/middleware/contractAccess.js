@@ -112,7 +112,7 @@ export const pmViaBody = (key) => makeGuard(req => req.body?.ids, RESOLVERS[key]
 // giao việc con đó HOẶC người được giao việc CHA của nó.
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function isPmOfContract(userId, contractId) {
+export async function isPmOfContract(userId, contractId) {
   const { rows } = await pool.query(
     `SELECT 1 FROM contract_out_member
       WHERE user_id = $1 AND member_role = 'PM' AND contract_out_id = $2 LIMIT 1`,

@@ -73,6 +73,17 @@
 .dw-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .dw-card-assignees { font-size: 13px; color: #374151; }
 
+/* Giới hạn chiều cao modal việc của phòng: thân cuộn, header/footer (nút Lưu) luôn hiện.
+   Trước đây form cao hơn màn hình → footer bị đẩy ra ngoài, mất nút lưu. */
+.modal.dw-task-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+.modal.dw-task-modal .modal-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.modal.dw-task-modal .modal-header,
+.modal.dw-task-modal .modal-footer { flex-shrink: 0; }
+
 /* Modal body desktop: lưới 2 cột (ghi đè .modal-body grid mặc định bằng specificity cao hơn).
    Trường dài (tiêu đề/mô tả/chỉ đạo/giao cho) span hết hàng. */
 .modal-body.dw-modal-body {

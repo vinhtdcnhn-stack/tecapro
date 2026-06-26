@@ -51,6 +51,15 @@
 .pm-track-table tbody tr:hover { background: #f9fafb; }
 .pm-row-pinned { background: #fffbeb; }
 .pm-row-pinned:hover { background: #fef3c7; }
+/* Việc có nội dung dòng thời gian chưa đọc → nền hổ phách (thắng cả nền ghim) */
+.pm-row-unread, .pm-row-unread.pm-row-pinned { background: #fde68a; }
+.pm-row-unread:hover, .pm-row-unread.pm-row-pinned:hover { background: #fcd34d; }
+.pm-unread-dot {
+  display: inline-block; width: 8px; height: 8px; margin-left: 2px; flex-shrink: 0;
+  border-radius: 50%; background: #dc2626;
+  animation: pm-unread-pulse 1.2s ease-in-out infinite;
+}
+@keyframes pm-unread-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 
 .pm-col-contract { width: 130px; }
 .pm-col-actions  { width: 190px; }
@@ -179,6 +188,8 @@
     background: #fff;
   }
   .pm-dashboard .pm-row-pinned { background: #fffbeb; border-color: #fcd34d; }
+  .pm-dashboard .pm-row-unread,
+  .pm-dashboard .pm-row-unread.pm-row-pinned { background: #fde68a; border-color: #f59e0b; }
 
   .pm-dashboard .pm-track-table tbody td { padding: 0; border: none; }
   .pm-dashboard .pm-col-contract,

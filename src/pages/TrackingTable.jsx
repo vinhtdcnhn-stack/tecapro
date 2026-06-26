@@ -136,7 +136,7 @@ export default function TrackingTable({
                 return (
                   <tr
                     key={`${it.source_type}:${it.source_id}`}
-                    className={it.pinned ? 'pm-row-pinned' : ''}
+                    className={[it.pinned ? 'pm-row-pinned' : '', it.unread_count > 0 ? 'pm-row-unread' : ''].filter(Boolean).join(' ')}
                     onContextMenu={(e) => openCtxMenu(it, e)}
                     {...getLongPress(it)}
                   >
@@ -161,6 +161,7 @@ export default function TrackingTable({
                         ) : (
                           <span className="pm-item-title">{it.title}</span>
                         )}
+                        {it.unread_count > 0 && <span className="pm-unread-dot" title={`${it.unread_count} nội dung chưa đọc`} />}
                       </div>
                       <div className="pm-item-meta">
                         <span className={`pm-due ${dueCls}`}>{isoToDisplay(it.due_date) || '—'} · {di.label}</span>

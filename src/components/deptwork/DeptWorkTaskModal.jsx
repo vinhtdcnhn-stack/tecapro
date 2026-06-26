@@ -208,7 +208,7 @@ export default function DeptWorkTaskModal({ task, members, teams, canManage, onS
   }
 
   return (
-    <Modal onClose={onClose} labelledBy="dw-task-modal-title" width="640px">
+    <Modal onClose={onClose} labelledBy="dw-task-modal-title" width="640px" className="dw-task-modal">
       <div className="modal-header">
         <h2 id="dw-task-modal-title">{title}</h2>
         <button className="close-btn" onClick={onClose} aria-label="Đóng">✕</button>

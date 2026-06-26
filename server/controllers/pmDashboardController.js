@@ -11,6 +11,33 @@ function fmtMoney(n, cur = 'VND') {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(num)
 }
 
+// Gắn unread_count cho các item là công việc HĐ ('task') và việc phòng ('dept_work_task')
+// — để dashboard tô nền hổ phách dòng việc khi có nội dung dòng thời gian chưa đọc
+// (song song chấm chưa đọc trong tab công việc / Gantt). Sửa items tại chỗ.
+async function attachUnread(items, userId) {
+  const taskIds = items.filter(i => i.source_type === 'task').map(i => i.source_id)
+  const dwIds   = items.filter(i => i.source_type === 'dept_work_task').map(i => i.source_id)
+  const countUnread = (entryTbl, readTbl, ids) =>
+    ids.length
+      ? pool.query(
+          `SELECT e.task_id, COUNT(*)::int AS c
+             FROM ${entryTbl} e
+             LEFT JOIN ${readTbl} r ON r.task_id = e.task_id AND r.user_id = $1
+            WHERE e.author_id <> $1 AND e.task_id = ANY($2)
+              AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
+            GROUP BY e.task_id`, [userId, ids])
+          .then(r => new Map(r.rows.map(x => [String(x.task_id), x.c])))
+      : Promise.resolve(new Map())
+  const [ctMap, dwMap] = await Promise.all([
+    countUnread('contract_task_entry', 'contract_task_read', taskIds),
+    countUnread('dept_work_entry', 'dept_work_task_read', dwIds),
+  ])
+  items.forEach(i => {
+    if (i.source_type === 'task') i.unread_count = ctMap.get(String(i.source_id)) || 0
+    else if (i.source_type === 'dept_work_task') i.unread_count = dwMap.get(String(i.source_id)) || 0
+  })
+}
+
 // GET /api/pm/:userId/dashboard
 export async function getPMDashboard(req, res) {
   const userId = parseInt(req.params.userId)
@@ -308,6 +335,8 @@ export async function getPMDashboard(req, res) {
     })
     const upcomingCount = items.filter(i => i.due_date && i.due_date <= soonISO).length
 
+    await attachUnread(items, userId)
+
     res.json({
       summary: { contractCount: contracts.length, totalVnd, totalUsd, upcomingCount },
       items,
@@ -386,7 +415,9 @@ export async function getAssignedTasks(req, res) {
       remind_at: t.remind_at ? iso(t.remind_at) : null,
     }))
 
-    res.json({ items: [...items, ...dwItems, ...tcItems] })
+    const allItems = [...items, ...dwItems, ...tcItems]
+    await attachUnread(allItems, userId)
+    res.json({ items: allItems })
   } catch (err) {
     console.error('getAssignedTasks:', err)
     res.status(500).json({ error: 'Không thể tải công việc được giao' })

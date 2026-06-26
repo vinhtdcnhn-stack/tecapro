@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext'
 import Header from './components/layout/Header'
 import ChangePasswordModal from './components/auth/ChangePasswordModal'
 import useDeptWorkAlert from './components/deptwork/useDeptWorkAlert'
+import useContractTaskAlert from './components/contracts/useContractTaskAlert'
 import HomePage from './pages/HomePage'
 import QldaPage from './pages/QldaPage'
 import QldaDetailPage from './pages/QldaDetailPage'
@@ -30,6 +31,8 @@ function Layout() {
 
   // Nền toàn trang chuyển đỏ khi có báo cáo/chỉ đạo công việc phòng chưa đọc.
   useDeptWorkAlert(user)
+  // Tương tự cho công việc hợp đồng (việc của user là PM/người tạo/người được giao).
+  useContractTaskAlert(user)
 
   async function handleChangePassword(current, next) {
     try {

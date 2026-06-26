@@ -52,6 +52,8 @@ export function targetUrl(it) {
     return `/qlda/${it.contract_id}?tab=purchase-contract-info&inId=${it.contract_in_id}&inTab=${inTab}`
   }
   const menu = SELL_MENU[it.source_type]
+  // Việc HĐ bán: kèm taskId để mở thẳng khung chi tiết việc (không chỉ nhảy tới tab).
+  if (it.source_type === 'task') return `/qlda/${it.contract_id}?tab=${menu}&taskId=${it.source_id}`
   return menu ? `/qlda/${it.contract_id}?tab=${menu}` : `/qlda/${it.contract_id}`
 }
 
