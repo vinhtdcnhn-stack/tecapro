@@ -30,6 +30,21 @@ export async function notifyHeads(text) {
   }
 }
 
+// Id trưởng/phó ban KT Cơ điện (theo chức danh). Dùng để gộp vào nhóm "người liên
+// quan" khi báo dòng thời gian (báo cáo/chỉ đạo/quyết định/trao đổi của việc).
+export async function headIds() {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT u.id
+         FROM app_user u
+         JOIN app_user_position ap ON ap.user_id = u.id
+        WHERE u.department_id = $1 AND ap.position_id = ANY($2::int[])`,
+      [DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS],
+    )
+    return rows.map(r => r.id)
+  } catch { return [] }
+}
+
 // Id những người đang được giao việc (lượt giao còn active). Dùng để báo cho
 // người liên quan khi việc thay đổi/bị xóa.
 export async function assigneeIds(taskId) {

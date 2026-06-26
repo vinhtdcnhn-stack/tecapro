@@ -27,7 +27,17 @@ const BASE_SELECT = `
     t.escalated, t.escalated_by, eb.full_name AS escalated_by_name,
     t.escalated_at, t.escalation_note, t.created_at, t.updated_at,
     (SELECT COUNT(*) FROM dept_work_task_attachment a WHERE a.task_id = t.id)::int AS attachment_count,
-    (SELECT COUNT(*) FROM dept_work_issue i WHERE i.task_id = t.id AND i.status = 'open')::int AS open_issue_count,
+    (
+      SELECT json_build_object(
+        'entry_type', le.entry_type, 'content', le.content,
+        'author_name', lau.full_name, 'created_at', le.created_at
+      )
+      FROM dept_work_entry le
+      LEFT JOIN app_user lau ON lau.id = le.author_id
+      WHERE le.task_id = t.id AND le.entry_type IN ('directive', 'decision')
+      ORDER BY le.created_at DESC, le.id DESC
+      LIMIT 1
+    ) AS latest_directive,
     COALESCE((
       SELECT json_agg(json_build_object(
         'id', asg.id, 'assignee_id', asg.assignee_id, 'assignee_name', au.full_name,
@@ -42,6 +52,33 @@ const BASE_SELECT = `
   LEFT JOIN app_user cb ON cb.id = t.created_by
   LEFT JOIN app_user eb ON eb.id = t.escalated_by
 `
+
+// Gắn unread_count (số mục dòng thời gian chưa đọc) cho viewer vào từng việc.
+// Chỉ tính cho việc viewer "liên quan" (người tạo / đang được giao / trưởng phó),
+// và chỉ mục do người khác đăng sau mốc đã đọc của viewer.
+async function attachUnread(rows, userId, userRole) {
+  if (!rows.length) return rows
+  const ids = rows.map(r => Number(r.id))
+  const isHead = await userIsHeadOrDeputy(userId, userRole)
+  const { rows: counts } = await pool.query(
+    `SELECT e.task_id, COUNT(*)::int AS unread
+       FROM dept_work_entry e
+       JOIN dept_work_task t ON t.id = e.task_id
+       LEFT JOIN dept_work_task_read r ON r.task_id = e.task_id AND r.user_id = $1
+      WHERE e.task_id = ANY($2::bigint[])
+        AND e.author_id <> $1
+        AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
+        AND ( $3
+              OR t.created_by = $1
+              OR EXISTS (SELECT 1 FROM dept_work_assignment a
+                          WHERE a.task_id = e.task_id AND a.is_active AND a.assignee_id = $1) )
+      GROUP BY e.task_id`,
+    [userId, ids, isHead],
+  )
+  const map = new Map(counts.map(c => [String(c.task_id), c.unread]))
+  for (const r of rows) r.unread_count = map.get(String(r.id)) || 0
+  return rows
+}
 
 // Chuẩn hóa danh sách người nhận → [{user_id, is_lead, instructions}], đúng MỘT nhóm trưởng.
 function normalizeAssignees(raw, fallbackLeadUserId) {
@@ -82,6 +119,7 @@ export async function getTasks(req, res) {
         ORDER BY t.escalated DESC, t.due_date NULLS LAST, t.id DESC`,
       params,
     )
+    await attachUnread(rows, req.user.id, req.user.role)
     res.json(rows)
   } catch (err) {
     console.error('deptWork getTasks:', err)
@@ -93,6 +131,7 @@ export async function getTask(req, res) {
   try {
     const { rows } = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [parseInt(req.params.id)])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
+    await attachUnread(rows, req.user.id, req.user.role)
     res.json(rows[0])
   } catch (err) {
     console.error('deptWork getTask:', err)

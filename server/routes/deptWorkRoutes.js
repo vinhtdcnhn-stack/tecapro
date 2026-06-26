@@ -16,8 +16,8 @@ import {
   handoff, acceptHandoff, rejectHandoff, escalate, escalateResolve,
 } from '../controllers/deptWorkTransferController.js'
 import {
-  getIssues, addIssue, resolveIssue,
-} from '../controllers/deptWorkIssueController.js'
+  getEntries, addEntry, deleteEntry, getUnreadCount,
+} from '../controllers/deptWorkEntryController.js'
 import {
   getLogs, addLog, updateLog, deleteLog, getCapacity,
 } from '../controllers/deptWorkLogController.js'
@@ -51,10 +51,14 @@ router.post('/dept-work/assignments/:id/reject', isHandoffRecipient('id'), rejec
 router.post('/dept-work/tasks/:id/escalate', isAssigneeOf('id'), escalate)
 router.post('/dept-work/tasks/:id/escalate-resolve', isHeadOrDeputy, escalateResolve)
 
-// Báo cáo vấn đề: đọc cho mọi thành viên; người được giao việc báo; head/deputy đánh dấu xử lý.
-router.get('/dept-work/tasks/:taskId/issues', isDeptMember, getIssues)
-router.post('/dept-work/tasks/:taskId/issues', isAssigneeOf('taskId'), addIssue)
-router.put('/dept-work/issues/:id/resolve', isHeadOrDeputy, resolveIssue)
+// Tổng số mục chưa đọc của người dùng (cho cảnh báo nền đỏ toàn trang).
+router.get('/dept-work/unread-count', isDeptMember, getUnreadCount)
+
+// Dòng thời gian trao đổi của việc (báo cáo/chỉ đạo/quyết định/trao đổi):
+// đọc cho mọi thành viên (tự ghi mốc đã đọc); thêm/xóa gác theo vai trò trong controller.
+router.get('/dept-work/tasks/:taskId/entries', isDeptMember, getEntries)
+router.post('/dept-work/tasks/:taskId/entries', isDeptMember, addEntry)
+router.delete('/dept-work/entries/:id', isDeptMember, deleteEntry)
 
 // Nhật ký công việc + báo cáo năng lực. Ghi cho chính mình; sửa/xóa chỉ chủ nhật ký.
 router.get('/dept-work/logs', isDeptMember, getLogs)

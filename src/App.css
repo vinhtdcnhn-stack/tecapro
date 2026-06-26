@@ -259,6 +259,22 @@ background:
 
 }
 
+/* ── Cảnh báo: có báo cáo/chỉ đạo công việc phòng chưa đọc → nền toàn trang đỏ ──
+   Class dw-page-alert do useDeptWorkAlert gắn lên <body>. Đè nền xanh của .page bằng
+   đỏ nhấp nháy (đặc hiệu hơn .page/.page--home nên thắng, không cần !important). */
+body.dw-page-alert .page {
+  background-color: #f87171;
+  background-image: none;
+  animation: dw-page-alert-pulse 1.5s ease-in-out infinite;
+}
+@keyframes dw-page-alert-pulse {
+  0%, 100% { background-color: #fecaca; }
+  50%      { background-color: #f87171; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.dw-page-alert .page { animation: none; background-color: #fca5a5; }
+}
+
 /* Trang đăng nhập đứng độc lập (ngoài .shell) nên cần tự cao toàn màn hình
    để gradient phủ kín, tránh lộ nền trắng ở nửa dưới. */
 .page--auth {

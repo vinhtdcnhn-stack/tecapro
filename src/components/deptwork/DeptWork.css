@@ -24,6 +24,19 @@
 .dw-link { background: none; border: none; color: #1d4ed8; font-weight: 600; cursor: pointer; padding: 0; text-align: left; }
 .dw-sub { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .dw-actions { white-space: nowrap; display: flex; gap: 6px; }
+
+/* Chỉ đạo / quyết định mới nhất hiển thị ngoài danh sách (1 dòng, cắt gọn) */
+.dw-latest-dir {
+  display: flex; align-items: center; gap: 6px; margin-top: 5px;
+  font-size: 13px; color: #475569; min-width: 0;
+}
+.dw-latest-dir .dw-tl-tag { flex: none; }
+.dw-latest-dir-text {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 360px;
+}
+.dw-task-card .dw-latest-dir { margin-top: 8px; }
+.dw-task-card .dw-latest-dir-text { max-width: 100%; }
 .dw-del-btn { background: #fee2e2; color: #b91c1c; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 
 /* Chip / badge */
@@ -247,4 +260,56 @@
     white-space: nowrap;
   }
   .dw-toolbar .add-btn { width: 100%; }
+}
+
+/* ── Dòng thời gian trao đổi của việc (báo cáo/chỉ đạo/quyết định/trao đổi) ── */
+.dw-tl-list { display: flex; flex-direction: column; gap: 10px; }
+.dw-tl-item {
+  border: 1px solid #e5e7eb; border-left: 3px solid #cbd5e1;
+  background: #fff; border-radius: 10px; padding: 10px 12px;
+}
+.dw-tl-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 12px; color: #6b7280; margin-bottom: 6px;
+}
+.dw-tl-author { font-weight: 600; color: #374151; }
+.dw-tl-time { color: #9ca3af; }
+.dw-tl-del {
+  margin-left: auto; border: none; background: none; color: #9ca3af;
+  cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px;
+}
+.dw-tl-del:hover { color: #dc2626; }
+.dw-tl-content { margin: 0; font-size: 14px; }
+.dw-tl-tag { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.dw-et-report     { background: #dbeafe; color: #1d4ed8; }
+.dw-et-directive  { background: #fef3c7; color: #b45309; }
+.dw-et-decision   { background: #ede9fe; color: #6d28d9; }
+.dw-et-discussion { background: #f1f5f9; color: #475569; }
+/* Viền trái theo loại để quét nhanh dòng thời gian */
+.dw-tl-item:has(.dw-et-report)    { border-left-color: #2563eb; }
+.dw-tl-item:has(.dw-et-directive) { border-left-color: #d97706; }
+.dw-tl-item:has(.dw-et-decision)  { border-left-color: #7c3aed; }
+
+.dw-tl-add { margin-top: 10px; }
+.dw-tl-type {
+  border: 1px solid #d1d5db; border-radius: 8px; padding: 6px 8px; font: inherit;
+  font-size: 14px; margin-bottom: 8px; background: #fff;
+}
+.dw-tl-add textarea {
+  width: 100%; min-height: 64px; box-sizing: border-box;
+  border: 1px solid #d1d5db; border-radius: 8px; padding: 8px; font: inherit; font-size: 14px;
+}
+.dw-tl-add-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* ── Cảnh báo "chưa đọc": chấm nhấp nháy + nền hàng nhẹ ── */
+.dw-unread-dot {
+  display: inline-block; width: 9px; height: 9px; margin-right: 7px;
+  border-radius: 50%; background: #ef4444; vertical-align: middle;
+  animation: dw-blink 1s steps(1, end) infinite;
+}
+.dw-table tr.dw-has-unread > td:first-child { box-shadow: inset 3px 0 0 #ef4444; }
+.dw-task-card.dw-has-unread { border-color: #fca5a5; }
+@keyframes dw-blink { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) {
+  .dw-unread-dot { animation: none; }
 }

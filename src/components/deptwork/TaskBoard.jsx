@@ -5,7 +5,21 @@ import DeptWorkTaskModal from './DeptWorkTaskModal'
 import TaskDetailDrawer from './TaskDetailDrawer'
 import {
   fmtDate, statusClass, priorityClass, isOverdue, assigneesSummary,
+  ENTRY_TYPE_LABEL, ENTRY_TYPE_CLASS,
 } from './deptWorkUtils'
+
+// Chỉ đạo / quyết định mới nhất của việc — hiển thị gọn ngoài danh sách.
+function LatestDirective({ entry }) {
+  if (!entry) return null
+  return (
+    <div className="dw-latest-dir" title={entry.content}>
+      <span className={`dw-tl-tag ${ENTRY_TYPE_CLASS[entry.entry_type] || ''}`}>
+        {ENTRY_TYPE_LABEL[entry.entry_type] || entry.entry_type}
+      </span>
+      <span className="dw-latest-dir-text">{entry.content}</span>
+    </div>
+  )
+}
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'Tất cả' },
@@ -27,7 +41,11 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
   const load = useCallback(async () => {
     try { setTasks(await fetch(`${API}/dept-work/tasks`).then(r => r.json())) }
     catch (e) { console.error('load dept-work tasks:', e) }
-    finally { setLoading(false) }
+    finally {
+      setLoading(false)
+      // Đồng bộ cảnh báo nền đỏ toàn trang (đọc xong → xóa cảnh báo ngay).
+      window.dispatchEvent(new Event('deptwork:refresh-unread'))
+    }
   }, [])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() async: setState sau await
@@ -104,9 +122,12 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
       ) : isMobile ? (
         <div className="dw-card-list">
           {visible.map(t => (
-            <div key={t.id} className={`dw-task-card${isOverdue(t) ? ' dw-overdue' : ''}`} onClick={() => openDetail(t)}>
+            <div key={t.id} className={`dw-task-card${isOverdue(t) ? ' dw-overdue' : ''}${t.unread_count > 0 ? ' dw-has-unread' : ''}`} onClick={() => openDetail(t)}>
               <div className="dw-card-top">
-                <span className="dw-card-title">{t.title}</span>
+                <span className="dw-card-title">
+                  {t.unread_count > 0 && <span className="dw-unread-dot" title={`${t.unread_count} nội dung chưa đọc`} />}
+                  {t.title}
+                </span>
                 <span className={`dw-badge ${statusClass(t.status)}`}>{t.status}</span>
               </div>
               <div className="dw-card-meta">
@@ -117,6 +138,7 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
                 {t.escalated && <span className="dw-badge dw-badge-esc">Đã đẩy cấp trên</span>}
               </div>
               <div className="dw-card-assignees">{assigneesSummary(t.assignees)}</div>
+              <LatestDirective entry={t.latest_directive} />
             </div>
           ))}
         </div>
@@ -131,15 +153,18 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
             </thead>
             <tbody>
               {visible.map(t => (
-                <tr key={t.id} className={isOverdue(t) ? 'dw-overdue' : ''}>
+                <tr key={t.id} className={`${isOverdue(t) ? 'dw-overdue' : ''}${t.unread_count > 0 ? ' dw-has-unread' : ''}`}>
                   <td>
-                    <button className="dw-link" onClick={() => openDetail(t)}>{t.title}</button>
+                    <button className="dw-link" onClick={() => openDetail(t)}>
+                      {t.unread_count > 0 && <span className="dw-unread-dot" title={`${t.unread_count} nội dung chưa đọc`} />}
+                      {t.title}
+                    </button>
                     <div className="dw-sub">
                       {t.origin === 'customer' && <span className="dw-badge dw-badge-cust">KH{t.customer_name ? `: ${t.customer_name}` : ''}</span>}
                       {t.team_name && <span className="dw-chip">{t.team_name}</span>}
                       {t.escalated && <span className="dw-badge dw-badge-esc">Đã đẩy cấp trên</span>}
-                      {t.open_issue_count > 0 && <span className="dw-chip">⚠ {t.open_issue_count} vấn đề</span>}
                     </div>
+                    <LatestDirective entry={t.latest_directive} />
                   </td>
                   <td>{assigneesSummary(t.assignees)}</td>
                   <td><span className={`dw-chip ${priorityClass(t.priority)}`}>{t.priority}</span></td>
@@ -164,7 +189,7 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
           currentUser={currentUser}
           canManage={canManage}
           members={members}
-          onClose={() => setDetailId(null)}
+          onClose={() => { setDetailId(null); load() }}
           onEdit={(t) => { setDetailId(null); openEdit(t) }}
           onChanged={load}
         />

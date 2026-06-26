@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Modal from '../common/Modal'
 import { Field } from '../contracts/MobileEditSheet'
 import HandoffModal from './HandoffModal'
-import IssuePanel from './IssuePanel'
+import TaskTimeline from './TaskTimeline'
 import { API, API_BASE } from '../../config/api'
 import {
   fmtDate, statusClass, priorityClass, ORIGIN_LABEL, ACCEPT_LABEL,
@@ -174,10 +174,11 @@ export default function TaskDetailDrawer({ taskId, currentUser, canManage, membe
             )}
           </Section>
 
-          <IssuePanel
+          <TaskTimeline
             taskId={taskId}
-            canReport={!!myAsg}
-            canResolve={canManage}
+            task={task}
+            currentUser={currentUser}
+            canManage={canManage}
             onChanged={onChanged}
           />
         </div>

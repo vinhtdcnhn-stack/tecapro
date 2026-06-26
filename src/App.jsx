@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Header from './components/layout/Header'
 import ChangePasswordModal from './components/auth/ChangePasswordModal'
+import useDeptWorkAlert from './components/deptwork/useDeptWorkAlert'
 import HomePage from './pages/HomePage'
 import QldaPage from './pages/QldaPage'
 import QldaDetailPage from './pages/QldaDetailPage'
@@ -24,8 +25,11 @@ function RequireAuth({ children }) {
 }
 
 function Layout() {
-  const { changePassword } = useAuth()
+  const { user, changePassword } = useAuth()
   const [showChangePwModal, setShowChangePwModal] = useState(false)
+
+  // Nền toàn trang chuyển đỏ khi có báo cáo/chỉ đạo công việc phòng chưa đọc.
+  useDeptWorkAlert(user)
 
   async function handleChangePassword(current, next) {
     try {

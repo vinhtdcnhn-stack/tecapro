@@ -17,6 +17,7 @@ server/uploads/
 # nên `git pull` không bao giờ đè lên logo/màu. Xem brand.example.json làm mẫu.
 public/brand.json
 public/brand/
+public/favicon.ico
 
 # Logs & temp
 *.log
