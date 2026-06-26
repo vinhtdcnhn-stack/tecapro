@@ -172,6 +172,7 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
         {isOwnView && <button className="save-btn dw-log-add" onClick={() => setForm(blankForm())}>+ Ghi nhật ký</button>}
       </div>
 
+      <div className="dw-scroll-area">
       {logs.length === 0 ? (
         <p className="dash-empty">Chưa có nhật ký trong khoảng này.</p>
       ) : isMobile ? (
@@ -208,6 +209,7 @@ export default function WorkLogView({ currentUser, members = [], canManage }) {
           </tbody>
         </table>
       )}
+      </div>
 
       {form && (
         isMobile ? (

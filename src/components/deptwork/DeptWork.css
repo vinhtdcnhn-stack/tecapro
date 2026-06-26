@@ -1,6 +1,7 @@
 /* Module Quản lý công việc — KT Cơ điện */
 
-.dw-board { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* flex:1 + min-height:0 để bảng việc nhận vùng cuộn riêng trong .content-area (overflow:hidden) */
+.dw-board { display: flex; flex-direction: column; gap: 12px; min-width: 0; flex: 1; min-height: 0; }
 
 .dw-toolbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -13,8 +14,8 @@
 }
 .dw-filter-btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }
 
-/* Bảng desktop */
-.dw-table-wrap { overflow-x: auto; min-width: 0; }
+/* Bảng desktop — cuộn cả dọc lẫn ngang để dùng được trên màn hình nhỏ */
+.dw-table-wrap { overflow: auto; min-width: 0; min-height: 0; flex: 1; }
 .dw-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .dw-table th, .dw-table td {
   text-align: left; padding: 10px 12px; border-bottom: 1px solid #eef0f2; vertical-align: top;
@@ -61,7 +62,7 @@
 .dw-status-select { border: 1px solid #d1d5db; border-radius: 8px; padding: 4px 8px; font-size: 13px; font-weight: 600; }
 
 /* Thẻ mobile */
-.dw-card-list { display: flex; flex-direction: column; gap: 10px; }
+.dw-card-list { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow-y: auto; }
 .dw-task-card {
   border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; background: #fff;
   cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
@@ -190,10 +191,13 @@
 .dw-issue-add-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 
 /* Nhật ký công việc + năng lực */
-.dw-log, .dw-cap { min-width: 0; }
+.dw-log, .dw-cap { min-width: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .dw-log-toolbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 14px;
+  flex-shrink: 0;
 }
+/* Vùng cuộn cho bảng/thẻ — cuộn cả dọc lẫn ngang để dùng được trên màn hình nhỏ */
+.dw-scroll-area { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
 .dw-log-toolbar label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #374151; font-weight: 600; }
 .dw-log-toolbar select { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; }
 .dw-log-total { font-size: 14px; color: #374151; }
@@ -203,7 +207,7 @@
 .dw-log-table .num, .dw-cap-table .num { text-align: right; white-space: nowrap; }
 .dw-log-edit { padding: 4px 10px; font-size: 12px; }
 
-.dw-log-form { margin-top: 16px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: #fafafa; }
+.dw-log-form { margin-top: 16px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: #fafafa; flex-shrink: 0; }
 .dw-log-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .dw-log-form-grid .msheet-field:nth-child(3),
 .dw-log-form-grid .msheet-field:nth-child(4) { grid-column: 1 / -1; }

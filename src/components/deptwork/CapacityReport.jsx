@@ -58,6 +58,7 @@ export default function CapacityReport({ canManage }) {
         <span className="dw-log-total">Số ngày công: <strong>{data.working_days}</strong></span>
       </div>
 
+      <div className="dw-scroll-area">
       {rows.length === 0 ? (
         <p className="dash-empty">Chưa có dữ liệu năng lực trong khoảng này.</p>
       ) : isMobile ? (
@@ -104,6 +105,7 @@ export default function CapacityReport({ canManage }) {
           </tbody>
         </table>
       )}
+      </div>
       {copyMenu}
     </div>
   )
