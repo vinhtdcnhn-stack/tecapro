@@ -128,6 +128,7 @@ export default function TrackingTable({
                 const di = dueInfo(it.due_date)
                 const remind = effRemind(it)
                 const reminding = remind && remind <= today
+                const url = targetUrl(it)
                 // Màu chữ hạn theo trạng thái: quá hạn → đỏ; còn hạn mà đang nhắc
                 // (chuông) → vàng; còn lại → xanh dương nhạt.
                 const overdue = di.days != null && di.days <= 0
@@ -140,16 +141,26 @@ export default function TrackingTable({
                     {...getLongPress(it)}
                   >
                     <td className="pm-col-contract">
-                      <button className="pm-contract-link" onClick={() => navigate(targetUrl(it))} title="Mở thẳng tới mục công việc này">
-                        {it.contract_no || '—'}
-                      </button>
+                      {url ? (
+                        <button className="pm-contract-link" onClick={() => navigate(url)} title="Mở thẳng tới mục công việc này">
+                          {it.contract_no || '—'}
+                        </button>
+                      ) : (
+                        <span className="pm-contract-plain">{it.contract_no || '—'}</span>
+                      )}
                     </td>
                     <td>
                       <div className="pm-item-head">
                         <span className={`pm-side ${it.side === 'Nhập' ? 'side-in' : 'side-out'}`}>{it.side || 'Bán'}</span>
                         <span className={`pm-kind ${KIND_META[it.kind] || ''}`}>{it.kind}</span>
                         {reminding && <span className="pm-bell" title="Đã tới ngày nhắc">🔔</span>}
-                        <span className="pm-item-title">{it.title}</span>
+                        {url ? (
+                          <button className="pm-item-title pm-item-title-link" onClick={() => navigate(url)} title="Mở thẳng tới mục công việc này">
+                            {it.title}
+                          </button>
+                        ) : (
+                          <span className="pm-item-title">{it.title}</span>
+                        )}
                       </div>
                       <div className="pm-item-meta">
                         <span className={`pm-due ${dueCls}`}>{isoToDisplay(it.due_date) || '—'} · {di.label}</span>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { API } from '../../config/api'
 import useIsMobile from '../contracts/useIsMobile'
 import DeptWorkTaskModal from './DeptWorkTaskModal'
@@ -50,6 +51,17 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() async: setState sau await
   useEffect(() => { load() }, [load])
+
+  // Deep-link từ dashboard "Công việc của phòng": ?task=<id> → mở thẳng việc đó.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const id = searchParams.get('task')
+    if (!id) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mở drawer một lần theo deep-link rồi xóa param ngay
+    setDetailId(Number(id))
+    searchParams.delete('task')
+    setSearchParams(searchParams, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const visible = tasks.filter(t => filter === 'all' || t.status === filter)
 

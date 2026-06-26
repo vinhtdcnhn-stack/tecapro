@@ -60,9 +60,15 @@
   color: #2563eb; font-weight: 700; font-size: 13px; font-family: inherit;
 }
 .pm-contract-link:hover { text-decoration: underline; }
+.pm-contract-plain { color: #9ca3af; font-weight: 700; font-size: 13px; }
 
 .pm-item-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .pm-item-title { font-weight: 600; color: #111827; }
+.pm-item-title-link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: inherit; text-align: left;
+}
+.pm-item-title-link:hover { color: #2563eb; text-decoration: underline; }
 .pm-bell { font-size: 13px; }
 .pm-item-meta { margin-top: 3px; font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
 .pm-sub { color: #6b7280; }
