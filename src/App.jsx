@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Header from './components/layout/Header'
 import ChangePasswordModal from './components/auth/ChangePasswordModal'
@@ -27,12 +27,29 @@ function RequireAuth({ children }) {
 
 function Layout() {
   const { user, changePassword } = useAuth()
+  const navigate = useNavigate()
   const [showChangePwModal, setShowChangePwModal] = useState(false)
 
   // Nền toàn trang chuyển đỏ khi có báo cáo/chỉ đạo công việc phòng chưa đọc.
   useDeptWorkAlert(user)
   // Tương tự cho công việc hợp đồng (việc của user là PM/người tạo/người được giao).
   useContractTaskAlert(user)
+
+  // Phím tắt toàn cục: Alt+C quay về trang chủ, Alt+B về danh sách Hợp đồng bán.
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault()
+        navigate('/')
+      } else if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault()
+        navigate('/qlda')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [navigate])
 
   async function handleChangePassword(current, next) {
     try {

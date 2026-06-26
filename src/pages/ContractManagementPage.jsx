@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { API_BASE } from '../config/api'
 import ContractHeader from '../components/contracts/ContractHeader'
 import ContractSidebar from '../components/contracts/ContractSidebar'
@@ -16,7 +15,6 @@ import ContractInTab from '../components/contracts/ContractInTab'
 import { ContractPermProvider, useCanEdit } from '../context/ContractPermContext'
 
 export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab, initialTaskId }) {
-  const navigate = useNavigate()
   const contractId = selectedContractId // dẫn xuất thẳng từ prop (trước đây mirror qua state + setContractId)
   const [contract, setContract] = useState(null)
   const [activeMenu, setActiveMenu] = useState(initialMenu || 'contract-info')
@@ -100,18 +98,6 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
     // eslint-disable-next-line react-hooks/set-state-in-effect -- áp menu theo deep-link khi mở/đổi hợp đồng
     if (initialMenu) setActiveMenu(initialMenu)
   }, [initialMenu, selectedContractId, initialTaskId])
-
-  // Ctrl+B từ bất kỳ tab nào trong chi tiết hợp đồng → quay về danh sách Hợp đồng bán.
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
-      if (e.key !== 'b' && e.key !== 'B') return
-      e.preventDefault()
-      navigate('/qlda')
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [navigate])
 
   // Phím Space cuộn từng trang nội dung; tới cuối nhấn Space lại quay về đầu (Shift+Space đảo chiều).
   useEffect(() => {
