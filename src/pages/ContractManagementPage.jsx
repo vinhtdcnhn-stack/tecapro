@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { API_BASE } from '../config/api'
 import ContractHeader from '../components/contracts/ContractHeader'
 import ContractSidebar from '../components/contracts/ContractSidebar'
@@ -15,11 +16,20 @@ import ContractInTab from '../components/contracts/ContractInTab'
 import { ContractPermProvider, useCanEdit } from '../context/ContractPermContext'
 
 export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab, initialTaskId }) {
+  const navigate = useNavigate()
   const contractId = selectedContractId // dẫn xuất thẳng từ prop (trước đây mirror qua state + setContractId)
   const [contract, setContract] = useState(null)
   const [activeMenu, setActiveMenu] = useState(initialMenu || 'contract-info')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const contentRef = useRef(null)
+
+  // Trả về phần tử cuộn thực sự của trang (vùng overflow-y:auto bao cả sidebar + nội dung).
+  const getScroller = () => {
+    const content = contentRef.current
+    if (!content) return null
+    return content.closest('.contract-management-layout') || content
+  }
   
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -90,6 +100,60 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
     // eslint-disable-next-line react-hooks/set-state-in-effect -- áp menu theo deep-link khi mở/đổi hợp đồng
     if (initialMenu) setActiveMenu(initialMenu)
   }, [initialMenu, selectedContractId, initialTaskId])
+
+  // Ctrl+B từ bất kỳ tab nào trong chi tiết hợp đồng → quay về danh sách Hợp đồng bán.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
+      if (e.key !== 'b' && e.key !== 'B') return
+      e.preventDefault()
+      navigate('/qlda')
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [navigate])
+
+  // Phím Space cuộn từng trang nội dung; tới cuối nhấn Space lại quay về đầu (Shift+Space đảo chiều).
+  useEffect(() => {
+    const scroller = getScroller()
+    if (!scroller) return
+    if (!scroller.hasAttribute('tabindex')) scroller.setAttribute('tabindex', '-1')
+
+    const onKeyDown = (e) => {
+      if (e.code !== 'Space' && e.key !== ' ') return
+      // Đừng cướp phím khi đang gõ trong ô nhập liệu hoặc đang focus nút/link.
+      const t = e.target
+      const tag = t.tagName
+      if (
+        t.isContentEditable ||
+        tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+        t.closest('button, a, [role="textbox"], [contenteditable="true"]')
+      ) return
+
+      e.preventDefault()
+      const page = Math.max(scroller.clientHeight * 0.9, 100)
+      const maxScroll = scroller.scrollHeight - scroller.clientHeight
+      if (e.shiftKey) {
+        if (scroller.scrollTop <= 2) scroller.scrollTo({ top: maxScroll, behavior: 'smooth' })
+        else scroller.scrollBy({ top: -page, behavior: 'smooth' })
+      } else {
+        if (scroller.scrollTop >= maxScroll - 2) scroller.scrollTo({ top: 0, behavior: 'smooth' })
+        else scroller.scrollBy({ top: page, behavior: 'smooth' })
+      }
+    }
+
+    scroller.addEventListener('keydown', onKeyDown)
+    return () => scroller.removeEventListener('keydown', onKeyDown)
+  }, [loading])
+
+  // Chọn một menu bên sidebar → chuyển focus sang vùng nội dung để Space cuộn ngay.
+  useEffect(() => {
+    if (loading) return
+    const scroller = getScroller()
+    if (!scroller) return
+    if (!scroller.hasAttribute('tabindex')) scroller.setAttribute('tabindex', '-1')
+    scroller.focus({ preventScroll: true })
+  }, [activeMenu, loading])
 
   const renderContent = () => {
     switch (activeMenu) {
@@ -166,7 +230,7 @@ default:
             mobileOpen={mobileNavOpen}
             onClose={() => setMobileNavOpen(false)}
           />
-          <div className="contract-management-content">
+          <div className="contract-management-content" ref={contentRef}>
             {renderContent()}
           </div>
         </div>

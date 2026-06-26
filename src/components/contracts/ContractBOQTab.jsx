@@ -1,5 +1,5 @@
 import './ContractBOQTab.css'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import BOQImportModal from './BOQImportModal'
 import BOQRow from './BOQRow'
 import BOQMobile from './BOQMobile'
@@ -43,6 +43,63 @@ export default function ContractBOQTab({ contractId }) {
   // Thanh cuộn ngang nổi (dính đầu bảng), đồng bộ với vùng cuộn của bảng
   const { topRef, bodyRef, width, needed, onTop, onBody } = useSyncedHScroll([rows.length, isMobile, loading, fullscreen])
 
+  // Sau khi thêm dòng/phần/hệ thống: cuộn dòng mới vào tầm nhìn + focus ô tên.
+  // Lưu _key vào ref; render kế tiếp (rows đổi) sẽ kích hoạt effect tìm & cuộn tới.
+  const pendingKeyRef = useRef(null)
+  useEffect(() => {
+    const key = pendingKeyRef.current
+    if (!key) return
+    pendingKeyRef.current = null
+    const el = bodyRef.current?.querySelector(`tr[data-key="${CSS.escape(key)}"]`)
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    el.querySelector('textarea, input[type="text"]')?.focus()
+  }, [rows, bodyRef])
+
+  const handleAddRow   = () => { pendingKeyRef.current = addRow() }
+  const handleAddZone  = () => { pendingKeyRef.current = addZone() }
+  const handleAddGroup = () => { pendingKeyRef.current = addGroup() }
+
+  // Phím tắt: Ctrl+Shift+Space cuộn ngang (về đầu khi tới cuối); Alt+N/P/H thêm dòng/phần/hệ thống.
+  // Dùng Ctrl+SHIFT+Space (không phải Ctrl+Space) vì Ctrl+Space bị bộ gõ tiếng Việt nuốt để bật/tắt IME.
+  useEffect(() => {
+    if (isMobile) return
+    const onKey = (e) => {
+      if (e.metaKey || e.isComposing) return
+      // Ctrl+Shift+Space: cuộn ngang theo từng nhịp, tới cuối thì quay về đầu.
+      // Chặn mặc định (cuộn dọc) SỚM bằng preventDefault + stopPropagation ở pha capture.
+      if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === 'Space') {
+        e.preventDefault()
+        e.stopPropagation()
+        const el = bodyRef.current
+        if (!el) return
+        const max = el.scrollWidth - el.clientWidth
+        if (max <= 1) return
+        const step = Math.max(160, el.clientWidth * 0.8)
+        const target = el.scrollLeft >= max - 1 ? 0 : Math.min(max, el.scrollLeft + step)
+        el.scrollTo({ left: target, behavior: 'smooth' })
+        return
+      }
+      // Alt+N / Alt+P / Alt+H: thêm dòng / phần / hệ thống (chỉ khi có quyền sửa)
+      if (!e.altKey || e.ctrlKey || !canEdit) return
+      if (e.code === 'KeyN')      { e.preventDefault(); handleAddRow() }
+      else if (e.code === 'KeyP') { e.preventDefault(); handleAddZone() }
+      else if (e.code === 'KeyH') { e.preventDefault(); handleAddGroup() }
+    }
+    // capture:true → chạy trước mọi handler khác và trước hành vi cuộn mặc định
+    window.addEventListener('keydown', onKey, { capture: true })
+    // Một số trình duyệt cuộn trang theo phím Space ở 'keypress' → chặn luôn cho chắc
+    const onKeyPress = (e) => {
+      if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === 'Space') e.preventDefault()
+    }
+    window.addEventListener('keypress', onKeyPress, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', onKey, { capture: true })
+      window.removeEventListener('keypress', onKeyPress, { capture: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, canEdit])
+
   if (loading) return <div className="boq-loading">Đang tải bảng giá...</div>
 
   return (
@@ -74,19 +131,19 @@ export default function ContractBOQTab({ contractId }) {
           </a>
 
           <EditGuard>
-            <button className="boq-btn" onClick={addRow}>
+            <button className="boq-btn" onClick={handleAddRow} title="Thêm dòng (Alt+N)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
               </svg>
               Thêm dòng
             </button>
-            <button className="boq-btn" onClick={addZone} title="Thêm phần / phân khu (dải tiêu đề gom nhóm)">
+            <button className="boq-btn" onClick={handleAddZone} title="Thêm phần / phân khu (Alt+P)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3 5h18v2H3V5zm0 6h12v2H3v-2zm0 6h18v2H3v-2z"/>
               </svg>
               Thêm phần
             </button>
-            <button className="boq-btn" onClick={addGroup} title="Thêm hệ thống ở cấp gốc">
+            <button className="boq-btn" onClick={handleAddGroup} title="Thêm hệ thống ở cấp gốc (Alt+H)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
               </svg>

@@ -27,9 +27,12 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const [filters, setFilters] = useState({ contract_no: '', project_name: '', customer_name: '', pm_name: '', status: '' })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
   const [openDropdown, setOpenDropdown] = useState(null)
+  // Hàng đang được chọn bằng bàn phím (Ctrl + ↑/↓); Space để mở chi tiết
+  const [selectedIndex, setSelectedIndex] = useState(-1)
   const currentDropdownRef = useRef(null)
   const tableWrapperRef = useRef(null)
-  const dragScroll = useRef({ active: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 })
+  const selectedRowRef = useRef(null)
+  const dragScroll = useRef({ active: false, moved: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 })
   
   // Modal state for adding contract
   const [showAddContractModal, setShowAddContractModal] = useState(false)
@@ -79,6 +82,60 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
     return 0
   })
+
+  // Giữ danh sách + chỉ số đang chọn mới nhất cho trình nghe phím (tránh gắn lại listener mỗi lần render)
+  const navRef = useRef({ list: [], selectedIndex: -1 })
+  useEffect(() => { navRef.current.list = filteredAndSortedContracts; navRef.current.selectedIndex = selectedIndex })
+
+  // Điều hướng bằng bàn phím: Ctrl + ↑/↓ chọn hàng, Space mở chi tiết hàng đang chọn
+  useEffect(() => {
+    if (isMobile) return
+    const onKeyDown = (e) => {
+      // Bỏ qua khi đang gõ trong ô nhập liệu / phần tử soạn thảo
+      const t = e.target
+      const tag = t.tagName
+      if (t.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const list = navRef.current.list
+      if (!list || list.length === 0) return
+      const cur = navRef.current.selectedIndex
+      if (e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault()
+        if (e.key === 'ArrowDown') {
+          setSelectedIndex(cur < 0 ? 0 : Math.min(cur + 1, list.length - 1))
+        } else {
+          setSelectedIndex(cur < 0 ? list.length - 1 : Math.max(cur - 1, 0))
+        }
+      } else if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+        // Alt + C: lọc theo chủ đầu tư của hàng đang chọn
+        if (cur >= 0 && cur < list.length) {
+          e.preventDefault()
+          const name = list[cur].customer_name || ''
+          setFilters(prev => ({ ...prev, customer_name: name }))
+        }
+      } else if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+        // Alt + P: lọc theo PM chính của hàng đang chọn
+        if (cur >= 0 && cur < list.length) {
+          e.preventDefault()
+          const name = list[cur].pm_name || ''
+          setFilters(prev => ({ ...prev, pm_name: name }))
+        }
+      } else if (e.code === 'Space' || e.key === ' ') {
+        if (cur >= 0 && cur < list.length) {
+          e.preventDefault()
+          if (onManage) onManage(list[cur])
+        }
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isMobile, onManage])
+
+  // Cuộn hàng đang chọn vào tầm nhìn
+  useEffect(() => {
+    if (selectedIndex >= 0 && selectedRowRef.current) {
+      selectedRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }, [selectedIndex])
 
   const clearAllFilters = () => { setFilters({ contract_no: '', project_name: '', customer_name: '', pm_name: '', status: '' }); setSortConfig({ key: null, direction: null }) }
   const handleSort = (key) => { setSortConfig(prev => { if (prev.key !== key) return { key, direction: 'asc' }; if (prev.direction === 'asc') return { key, direction: 'desc' }; return { key: null, direction: null } }) }
@@ -276,13 +333,15 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           onMouseDown={e => {
             if (e.button !== 0) return
             const el = tableWrapperRef.current
-            dragScroll.current = { active: true, startX: e.pageX, startY: e.pageY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop }
+            dragScroll.current = { active: true, moved: false, startX: e.pageX, startY: e.pageY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop }
             el.style.cursor = 'grabbing'
             el.style.userSelect = 'none'
           }}
           onMouseMove={e => {
             const ds = dragScroll.current
             if (!ds.active) return
+            // Đánh dấu là đã kéo (để phân biệt với click mở hợp đồng)
+            if (Math.abs(e.pageX - ds.startX) > 4 || Math.abs(e.pageY - ds.startY) > 4) ds.moved = true
             const el = tableWrapperRef.current
             el.scrollLeft = ds.scrollLeft - (e.pageX - ds.startX)
             el.scrollTop  = ds.scrollTop  - (e.pageY - ds.startY)
@@ -341,12 +400,26 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                   </td>
                 </tr>
               ) : (
-                filteredAndSortedContracts.map((c) => {
+                filteredAndSortedContracts.map((c, idx) => {
                   const jv = !!c.is_joint_venture
+                  const isSelected = idx === selectedIndex
                   // HĐ liên danh: tô nền cam nhạt để phân biệt (ghi đè cả nền trắng của cột dính)
-                  const jvBg = jv ? { background: '#fff7ed' } : undefined
+                  // Hàng đang chọn bằng bàn phím: tô nền xanh nhạt (ưu tiên hơn nền liên danh)
+                  const rowBg = isSelected ? { background: '#dbeafe' } : (jv ? { background: '#fff7ed' } : undefined)
+                  const jvBg = rowBg
                   return (
-                  <tr key={c.id} className="table-row" style={jvBg}>
+                  <tr
+                    key={c.id}
+                    ref={isSelected ? selectedRowRef : null}
+                    className={`table-row${isSelected ? ' contract-row-selected' : ''}`}
+                    style={jvBg}
+                    onClick={() => {
+                      // Bỏ qua nếu vừa kéo để cuộn bảng (không coi là click mở HĐ)
+                      if (dragScroll.current.moved) return
+                      setSelectedIndex(idx)
+                      if (onManage) onManage(c)
+                    }}
+                  >
                     <td className="sticky-col-1 px-4 py-3 whitespace-nowrap" style={jvBg}>
                       <button className="btn-manage" onClick={(e) => { e.stopPropagation(); if (onManage) onManage(c) }} title="Quản trị">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>

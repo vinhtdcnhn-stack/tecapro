@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen = false, onClose }) {
   const menuItems = [
     {
@@ -7,7 +9,7 @@ export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen =
         { id: 'contract-documents', label: 'Tài liệu hợp đồng' },
         { id: 'contract-pricing', label: 'Bảng giá' },
         { id: 'contract-progress', label: 'Tiến độ theo biên bản' },
-{ id: 'contract-debt', label: 'Công nợ' },
+        { id: 'contract-debt', label: 'Công nợ' },
         { id: 'contract-invoice', label: 'Quản lý hóa đơn' },
         { id: 'contract-warranty', label: 'Bảo hành' },
         { id: 'contract-guarantee', label: 'Bảo lãnh' },
@@ -21,6 +23,22 @@ export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen =
       ]
     }
   ]
+
+  // Ctrl+↓ / Ctrl+↑: chuyển nhanh giữa các mục sidebar (vòng tròn)
+  useEffect(() => {
+    const flatIds = menuItems.flatMap((section) => section.items.map((item) => item.id))
+    const handleKeyDown = (e) => {
+      if (!e.ctrlKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
+      e.preventDefault()
+      const current = flatIds.indexOf(activeMenu)
+      const base = current === -1 ? 0 : current
+      const len = flatIds.length
+      const next = e.key === 'ArrowUp' ? (base - 1 + len) % len : (base + 1) % len
+      onMenuChange(flatIds[next])
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeMenu, onMenuChange])
 
   const handleSelect = (id) => {
     onMenuChange(id)

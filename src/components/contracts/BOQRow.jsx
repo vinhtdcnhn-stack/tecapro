@@ -23,6 +23,7 @@ export default function BOQRow({
 
   return (
     <tr
+      data-key={row._key}
       draggable={canDrag}
       onDragStart={canDrag ? (e) => onDragStart(e, row._key) : undefined}
       onDragOver={canDrop ? onDragOver : undefined}

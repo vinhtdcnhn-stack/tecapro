@@ -956,6 +956,11 @@ background:
   overflow-y: auto;
 }
 
+/* Vùng cuộn nhận focus khi đổi menu (để Space cuộn trang) — không hiện viền focus */
+.contract-management-layout:focus {
+  outline: none;
+}
+
 .contract-management-page {
   flex: 1 0 auto;
   min-width: 0;

@@ -1,65 +1,18 @@
 import { pool } from '../db.js'
 import {
-  KIND, calc, normKind, recomputeTree, subtreeInvoicedQty, ancestorSystemInvoicedQty,
+  KIND, normKind, recomputeTree, subtreeInvoicedQty, ancestorSystemInvoicedQty,
 } from './boqTreeUtils.js'
-import { excelUpload, downloadBOQTemplate, parseBOQExcel } from './boqExcel.js'
+import { excelUpload, downloadBOQTemplate } from './boqExcel.js'
+import {
+  getContractCurrency, buildRowFields, promoteParentToGroup, invoicedQty, validateSiblingName,
+} from './boqHelpers.js'
 
 export { excelUpload, downloadBOQTemplate }
+export { importBOQPreview, saveImportedBOQ } from './boqImportController.js'
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-// Lấy đồng tiền của HĐ bán (mặc định VND)
-async function getContractCurrency(contractId, db = pool) {
-  const { rows } = await db.query(
-    'SELECT currency_code FROM public.contract_out WHERE id = $1', [contractId]
-  )
-  return rows[0]?.currency_code || 'VND'
-}
-
-// Chuẩn hóa các trường của 1 dòng theo row_kind:
-//   leaf  → tính SL × đơn giá như cũ.
-//   group → giữ ĐVT/SL mô tả, nhưng đơn giá & số tiền = 0 (recomputeTree sẽ roll-up từ con).
-//   zone  → bỏ hết số liệu (chỉ là tiêu đề phân vùng).
-function buildRowFields(body, kind, currency) {
-  const { item_name, hs_code, unit, quantity, unit_price, vat_rate, warranty_period, item_type } = body
-  const type = item_type === 'di_thang' ? 'di_thang' : 'trong_nuoc'
-  if (kind === KIND.LEAF) {
-    const { price, before, after } = calc(quantity, unit_price, vat_rate, currency)
-    return {
-      item_name: item_name || '', hs_code: hs_code || '', unit: unit || '',
-      quantity: parseFloat(quantity) || 0, price, before,
-      vat_rate: parseFloat(vat_rate) || 0, after, warranty_period: warranty_period || '', item_type: type,
-      multiply_qty: false,
-    }
-  }
-  const isGroup = kind === KIND.GROUP
-  return {
-    item_name: item_name || '', hs_code: hs_code || '', unit: isGroup ? (unit || '') : '',
-    quantity: isGroup ? (parseFloat(quantity) || 0) : 0, price: 0, before: 0,
-    vat_rate: 0, after: 0, warranty_period: warranty_period || '', item_type: type,
-    multiply_qty: isGroup ? !!body.multiply_qty : false,
-  }
-}
-
-// Khi thêm con cho một node đang là 'leaf', node đó trở thành nhóm tổng hợp.
-async function promoteParentToGroup(parentId, db = pool) {
-  if (!parentId) return
-  await db.query(
-    `UPDATE public.contract_out_boq SET row_kind = '${KIND.GROUP}', updated_at = now()
-      WHERE id = $1 AND row_kind = '${KIND.LEAF}'`, [parentId])
-}
-
-// Đồng bộ tổng + roll-up cây bảng giá → contract_out. recomputeTree (boqTreeUtils)
+// Đồng bộ tổng + roll-up cây bảng giá → contract_out qua recomputeTree (boqTreeUtils):
 // tính lại số tiền cho node nhóm/zone và đặt tổng HĐ = SUM các dòng lá.
-
-// Tổng SL đã xuất hóa đơn của 1 dòng bảng giá (để chặn sửa SL thấp hơn / xóa dòng đã xuất).
-async function invoicedQty(boqId, db = pool) {
-  const { rows } = await db.query(
-    'SELECT COALESCE(SUM(quantity), 0) AS q FROM public.contract_out_invoice_item WHERE boq_id = $1',
-    [boqId]
-  )
-  return parseFloat(rows[0]?.q) || 0
-}
+// Các helper dùng chung (currency, buildRowFields, validateSiblingName…) ở boqHelpers.js.
 
 // ── GET /contracts/:contractId/boq ────────────────────────────────────────────
 
@@ -83,6 +36,9 @@ export async function createBOQItem(req, res) {
     const { contractId } = req.params
     const { parent_id } = req.body
     const kind = normKind(req.body.row_kind)
+
+    const nameErr = await validateSiblingName({ contractId, parentId: parent_id || null, itemName: req.body.item_name })
+    if (nameErr) return res.status(400).json({ error: nameErr })
 
     // Next sort_order
     const { rows: mx } = await pool.query(
@@ -130,6 +86,9 @@ export async function insertBOQAfter(req, res) {
     const refSort = Number(ref[0].sort_order)
     const parentId = req.body.parent_id !== undefined ? (req.body.parent_id || null) : ref[0].parent_id
 
+    const nameErr = await validateSiblingName({ contractId, parentId, itemName: req.body.item_name })
+    if (nameErr) return res.status(400).json({ error: nameErr })
+
     // Shift all rows after the reference row
     await pool.query(
       'UPDATE public.contract_out_boq SET sort_order = sort_order + 1 WHERE contract_out_id = $1 AND sort_order > $2',
@@ -163,12 +122,19 @@ export async function insertBOQAfter(req, res) {
 export async function updateBOQItem(req, res) {
   try {
     const { rows: cur } = await pool.query(
-      `SELECT b.row_kind, b.multiply_qty, c.currency_code FROM public.contract_out_boq b
+      `SELECT b.row_kind, b.multiply_qty, b.contract_out_id, b.parent_id, c.currency_code FROM public.contract_out_boq b
        JOIN public.contract_out c ON c.id = b.contract_out_id
        WHERE b.id = $1`, [req.params.id]
     )
     if (!cur.length) return res.status(404).json({ error: 'Not found' })
     const currency = cur[0].currency_code || 'VND'
+
+    // Tên không trống + không trùng anh-em (cùng parent_id). Sửa không đổi cha → dùng parent_id hiện tại.
+    const nameErr = await validateSiblingName({
+      contractId: cur[0].contract_out_id, parentId: cur[0].parent_id,
+      itemName: req.body.item_name, excludeId: Number(req.params.id),
+    })
+    if (nameErr) return res.status(400).json({ error: nameErr })
     // row_kind giữ theo DB (không cho đổi qua update để tránh phá cấu trúc cây); nếu client gửi thì tôn trọng.
     const kind = req.body.row_kind ? normKind(req.body.row_kind) : normKind(cur[0].row_kind)
     const fields = buildRowFields(req.body, kind, currency)
@@ -367,6 +333,22 @@ export async function reorderBOQ(req, res) {
     }
 
     if (reparented) {
+      // Chặn trùng tên anh-em do kéo dòng vào phần/nhóm đã có dòng cùng tên.
+      const targetParents = [...new Set(items.filter(it => it.parent_id !== undefined).map(it => it.parent_id))]
+      for (const pid of targetParents) {
+        const { rows: dup } = await client.query(
+          `SELECT MIN(btrim(item_name)) AS nm FROM public.contract_out_boq
+            WHERE contract_out_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND btrim(item_name) <> ''
+            GROUP BY lower(regexp_replace(btrim(item_name), '\\s+', ' ', 'g'))
+           HAVING COUNT(*) > 1 LIMIT 1`,
+          [contractId, pid]
+        )
+        if (dup.length) {
+          await client.query('ROLLBACK')
+          return res.status(400).json({ error: `Không thể di chuyển: tên "${dup[0].nm}" sẽ trùng với một dòng khác trong cùng cành.` })
+        }
+      }
+
       // Lá vừa nhận con → trở thành nhóm tổng hợp; rồi tính lại roll-up + tổng HĐ.
       await client.query(
         `UPDATE public.contract_out_boq SET row_kind = '${KIND.GROUP}', updated_at = now()
@@ -386,93 +368,5 @@ export async function reorderBOQ(req, res) {
     res.status(500).json({ error: 'Failed to reorder BOQ' })
   } finally {
     client.release()
-  }
-}
-
-// ── POST /contracts/:contractId/boq/import  (parse Excel → preview) ──────────
-
-export async function importBOQPreview(req, res) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
-    const items = parseBOQExcel(req.file.buffer)
-    if (!items) return res.status(400).json({ error: 'Không tìm thấy dữ liệu hợp lệ trong file' })
-    res.json({ items, total: items.length })
-  } catch (err) {
-    console.error('importBOQPreview:', err)
-    // Không trả err.message thô cho client (có thể lộ chi tiết nội bộ) — log đầy đủ phía server là đủ.
-    res.status(500).json({ error: 'Không đọc được file Excel. Kiểm tra lại định dạng file.' })
-  }
-}
-
-// ── POST /contracts/:contractId/boq/save-import  (confirm & save) ────────────
-
-export async function saveImportedBOQ(req, res) {
-  try {
-    const { contractId } = req.params
-    const { items, replaceAll } = req.body
-
-    if (!Array.isArray(items) || !items.length) {
-      return res.status(400).json({ error: 'Không có dữ liệu để lưu' })
-    }
-
-    const client = await pool.connect()
-    try {
-      await client.query('BEGIN')
-
-      if (replaceAll) {
-        // Thay toàn bộ bảng giá = xóa hết dòng cũ → chặn nếu có dòng đã xuất hóa đơn.
-        const { rows: used } = await client.query(
-          `SELECT 1 FROM public.contract_out_invoice_item it
-             JOIN public.contract_out_boq b ON b.id = it.boq_id
-            WHERE b.contract_out_id = $1 LIMIT 1`,
-          [contractId]
-        )
-        if (used.length) {
-          await client.query('ROLLBACK')
-          return res.status(400).json({ error: 'Không thể thay toàn bộ bảng giá: đã có mặt hàng xuất hóa đơn. Hãy thêm bổ sung thay vì thay thế.' })
-        }
-        await client.query('DELETE FROM public.contract_out_boq WHERE contract_out_id = $1', [contractId])
-      }
-
-      const currency = await getContractCurrency(contractId, client)
-
-      const { rows: mx } = await client.query(
-        'SELECT COALESCE(MAX(sort_order), 0) AS m FROM public.contract_out_boq WHERE contract_out_id = $1',
-        [contractId]
-      )
-      let sortOrder = Number(mx[0].m) + 1
-
-      const saved = []
-      const idByIdx = []   // chỉ số item trong mảng → id đã chèn (để map parent_idx → parent_id)
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        const kind = normKind(item.row_kind)
-        const f = buildRowFields(item, kind, currency)
-        const parentId = (item.parent_idx != null && idByIdx[item.parent_idx]) ? idByIdx[item.parent_idx] : null
-        const { rows } = await client.query(`
-          INSERT INTO public.contract_out_boq
-            (contract_out_id, sort_order, parent_id, row_kind, item_name, hs_code, unit, quantity,
-             unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-          RETURNING *
-        `, [contractId, sortOrder++, parentId, kind,
-            f.item_name, f.hs_code, f.unit, f.quantity,
-            f.price, f.before, f.vat_rate, f.after, f.warranty_period, f.item_type, f.multiply_qty])
-        idByIdx[i] = rows[0].id
-        saved.push(rows[0])
-      }
-
-      await recomputeTree(contractId, client)
-      await client.query('COMMIT')
-      res.json({ saved: saved.length, items: saved })
-    } catch (err) {
-      await client.query('ROLLBACK')
-      throw err
-    } finally {
-      client.release()
-    }
-  } catch (err) {
-    console.error('saveImportedBOQ:', err)
-    res.status(500).json({ error: 'Failed to save imported BOQ' })
   }
 }

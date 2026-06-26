@@ -7,6 +7,12 @@ import { API } from '../../config/api'
 
 // ── Helpers thuần (không phụ thuộc state) ─────────────────────────────────────
 
+// Chuẩn hóa tên để so trùng: bỏ hoa-thường + gộp khoảng trắng (khớp logic backend).
+const normName = (s) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+
+// Khóa cha so sánh anh-em (cùng parent_id). null = cấp gốc.
+const parentKey = (r) => (r.parent_id != null ? String(r.parent_id) : null)
+
 function toLocalRow(r) {
   return {
     ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
@@ -73,9 +79,25 @@ export default function useBOQTab(contractId) {
   const set = (key, field, value) =>
     setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: value, _dirty: true } : r))
 
+  // ── Validate tên (trống / trùng anh-em cùng cành) ─────────────────────────────
+
+  // Trả chuỗi lỗi nếu tên trống hoặc trùng dòng khác cùng parent_id; null nếu hợp lệ.
+  const siblingNameError = (row) => {
+    const norm = normName(row.item_name)
+    if (!norm) return 'Tên không được để trống.'
+    const pk = parentKey(row)
+    const dup = rows.some(r =>
+      r._key !== row._key && parentKey(r) === pk && normName(r.item_name) === norm
+    )
+    return dup ? `Tên "${String(row.item_name).trim()}" đã trùng với một dòng khác trong cùng cành (cùng cấp).` : null
+  }
+
   // ── Save row ─────────────────────────────────────────────────────────────────
 
   const saveRow = async (row) => {
+    const nameErr = siblingNameError(row)
+    if (nameErr) { alert(nameErr); return }
+
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
 
     const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
@@ -214,11 +236,17 @@ export default function useBOQTab(contractId) {
       .map(r => ({ id: r.id, parent_id: r.parent_id ?? null }))
     if (!items.length) return
     try {
-      await fetch(`${API}/contracts/${contractId}/boq/reorder`, {
+      const res = await fetch(`${API}/contracts/${contractId}/boq/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items }),
       })
+      if (!res.ok) {
+        // VD: kéo dòng vào nhóm đã có tên trùng → server từ chối, khôi phục lại cấu trúc cũ.
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'Không thể sắp xếp lại bảng giá.')
+        load()
+      }
     } catch (e) {
       console.error('reorder BOQ:', e)
       load()  // khôi phục thứ tự + cấu trúc từ server nếu lỗi

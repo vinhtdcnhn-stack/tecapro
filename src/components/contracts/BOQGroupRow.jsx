@@ -11,6 +11,7 @@ export default function BOQGroupRow({
   const mult = !!row.multiply_qty
   return (
     <tr
+      data-key={row._key}
       onDragOver={canDrop ? onDragOver : undefined}
       onDragEnter={canDrop ? () => onDragEnter(row._key) : undefined}
       onDrop={canDrop ? (e) => onDrop(e, row._key) : undefined}

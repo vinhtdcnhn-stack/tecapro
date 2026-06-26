@@ -286,6 +286,29 @@
 .th-item-type { width: 110px; }
 .th-action    { width: 90px; }
 
+/* ── Đóng băng cột trái (Chọn + STT + Danh mục hàng hóa) khi cuộn ngang ────────
+   Ô dính cần nền đặc để che nội dung cuộn phía dưới → cho mỗi dòng một nền đặc,
+   ô dính dùng background:inherit để bám đúng màu trạng thái dòng (dirty/new/zone…). */
+.boq-table tbody tr { background: #fff; }
+
+.boq-table th.th-select, .boq-table td.td-select { position: sticky; left: 0;    }
+.boq-table th.th-stt,    .boq-table td.td-stt    { position: sticky; left: 36px; }
+.boq-table th.th-name,   .boq-table td.td-name   { position: sticky; left: 80px; }
+
+/* Ô thân dính: nền theo dòng + nổi trên ô thường (z-index 1), nhưng dưới header */
+.boq-table tbody td.td-select,
+.boq-table tbody td.td-stt,
+.boq-table tbody td.td-name { background: inherit; z-index: 1; }
+
+/* Header dính cả trên lẫn trái → phải nổi trên mọi ô khác */
+.boq-table thead th.th-select,
+.boq-table thead th.th-stt,
+.boq-table thead th.th-name { z-index: 6; }
+
+/* Đường kẻ phân tách vùng đóng băng (bỏ qua dải "Phần" vì ô tên trải dài) */
+.boq-table th.th-name,
+.boq-table td.td-name:not(.boq-zone-name) { box-shadow: 1px 0 0 0 #e5e7eb; }
+
 /* ── Cell types ───────────────────────────────────────────────────────────── */
 
 .td-stt {
