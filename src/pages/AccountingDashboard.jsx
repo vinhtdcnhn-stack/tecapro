@@ -66,9 +66,20 @@ function renderTab(tab) {
   }
 }
 
+const TAB_STORE_KEY = 'accounting_tab'
+
 // Trang chủ kế toán: hub xem báo cáo (dashboard + sub-nav sang từng báo cáo).
 export default function AccountingDashboard({ user, switcher = null }) {
-  const [tab, setTab] = useState('overview')
+  // Nhớ tab đang xem qua localStorage để khi rời trang (vào HĐ chi tiết) rồi quay lại
+  // bằng phím 'z' không bị nhảy về 'Tổng quan'.
+  const [tab, setTab] = useState(() => {
+    const stored = (typeof localStorage !== 'undefined') ? localStorage.getItem(TAB_STORE_KEY) : null
+    return TABS.some(t => t.key === stored) ? stored : 'overview'
+  })
+  const pickTab = (key) => {
+    setTab(key)
+    try { localStorage.setItem(TAB_STORE_KEY, key) } catch { /* ignore */ }
+  }
 
   return (
     <div className="dashboard acc-dashboard">
@@ -81,7 +92,7 @@ export default function AccountingDashboard({ user, switcher = null }) {
 
       <div className="acc-subnav">
         {TABS.map(t => (
-          <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
+          <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => pickTab(t.key)}>{t.label}</button>
         ))}
       </div>
 
