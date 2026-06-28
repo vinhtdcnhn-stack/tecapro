@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import ContractDocumentsTab from './ContractDocumentsTab'
 import ContractInBOQTab from './ContractInBOQTab'
@@ -25,6 +25,32 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
   const [headerSlot, setHeaderSlot] = useState(null)
   const sc = statusCfg[item.status] || { label: item.status, cls: '' }
   const isMobile = useIsMobile()
+
+  // Ctrl+← / Ctrl+→: chuyển qua lại giữa các tab (bỏ qua khi đang gõ trong ô nhập).
+  useEffect(() => {
+    if (isMobile) return
+    function isTyping(el) {
+      if (!el) return false
+      const tag = el.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+    }
+    function handleKeyDown(e) {
+      if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (isTyping(e.target)) return
+      e.preventDefault()
+      setActiveTab(cur => {
+        const i = SUB_TABS.findIndex(t => t.key === cur)
+        if (i === -1) return cur
+        const next = e.key === 'ArrowRight'
+          ? (i + 1) % SUB_TABS.length
+          : (i - 1 + SUB_TABS.length) % SUB_TABS.length
+        return SUB_TABS[next].key
+      })
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isMobile])
 
   return (
     <CinHeaderSlotContext.Provider value={headerSlot}>

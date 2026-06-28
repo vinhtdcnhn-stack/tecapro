@@ -28,7 +28,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const [filters, setFilters] = useState({ contract_no: '', project_name: '', customer_name: '', pm_name: '', status: '' })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null })
   const [openDropdown, setOpenDropdown] = useState(null)
-  // Hàng đang được chọn bằng bàn phím (Ctrl + ↑/↓); Space để mở chi tiết
+  // Hàng đang được chọn bằng bàn phím (↑/↓); Space để mở chi tiết
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const currentDropdownRef = useRef(null)
   const tableWrapperRef = useRef(null)
@@ -92,7 +92,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const navRef = useRef({ list: [], selectedIndex: -1 })
   useEffect(() => { navRef.current.list = filteredAndSortedContracts; navRef.current.selectedIndex = selectedIndex })
 
-  // Điều hướng bằng bàn phím: Ctrl + ↑/↓ chọn hàng, Space mở chi tiết hàng đang chọn
+  // Điều hướng bằng bàn phím: ↑/↓ chọn hàng, Space mở chi tiết hàng đang chọn
   useEffect(() => {
     if (isMobile) return
     const onKeyDown = (e) => {
@@ -103,7 +103,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
       const list = navRef.current.list
       if (!list || list.length === 0) return
       const cur = navRef.current.selectedIndex
-      if (e.ctrlKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault()
         if (e.key === 'ArrowDown') {
           setSelectedIndex(cur < 0 ? 0 : Math.min(cur + 1, list.length - 1))

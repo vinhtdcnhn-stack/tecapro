@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
 import { API } from '../../config/api'
 import { thStyle, tdStyle, fmtDate, fmtNum, statusCfg } from './contractInUtils'
@@ -18,7 +18,16 @@ export default function ContractInTab({ contractId, initialContractInId, initial
   const [addModalOpen, setAddModal] = useState(false)
   const [search, setSearch]         = useState('')
   const [autoOpened, setAutoOpened] = useState(false)
+  const [highlightIdx, setHighlightIdx] = useState(0)
+  const hlRowRef                    = useRef(null)
   const isMobile                    = useIsMobile()
+
+  const filtered = useMemo(() => items.filter(c => {
+    const t = search.toLowerCase()
+    return !t || c.contract_no?.toLowerCase().includes(t) ||
+      c.goods_type?.toLowerCase().includes(t) ||
+      c.supplier_name?.toLowerCase().includes(t)
+  }), [items, search])
 
   // Phân quyền HĐ nhập (khớp chốt chặn server-side):
   //   - TẠO: admin / PM / Xuất nhập khẩu của HĐ bán.
@@ -56,6 +65,37 @@ export default function ContractInTab({ contractId, initialContractInId, initial
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mở đúng HĐ theo deep-link một lần khi danh sách đã tải
     if (found) { setSelected(found); setAutoOpened(true) }
   }, [items, initialContractInId, autoOpened])
+
+  // Chỉ số dòng đang chọn, kẹp trong phạm vi danh sách hiện tại (tránh lệch khi lọc).
+  const curIdx = filtered.length ? Math.min(highlightIdx, filtered.length - 1) : 0
+  useEffect(() => { hlRowRef.current?.scrollIntoView({ block: 'nearest' }) }, [curIdx])
+
+  // Phím ↑/↓ chọn HĐ nhập, Space mở chi tiết (desktop, danh sách, không khi đang gõ).
+  useEffect(() => {
+    if (isMobile || selectedItem) return
+    function isTyping(el) {
+      if (!el) return false
+      const tag = el.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+    }
+    function handleKeyDown(e) {
+      if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+      if (isTyping(e.target)) return
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setHighlightIdx(Math.min(curIdx + 1, filtered.length - 1))
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setHighlightIdx(Math.max(curIdx - 1, 0))
+      } else if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault()
+        const c = filtered[curIdx]
+        if (c) setSelected(c)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isMobile, selectedItem, filtered, curIdx])
 
   // When returning from detail, refresh the specific item if edited
   function handleItemUpdated(updated) {
@@ -101,12 +141,6 @@ export default function ContractInTab({ contractId, initialContractInId, initial
   }
 
   // ── List view ────────────────────────────────────────────────────────────────
-  const filtered    = items.filter(c => {
-    const t = search.toLowerCase()
-    return !t || c.contract_no?.toLowerCase().includes(t) ||
-      c.goods_type?.toLowerCase().includes(t) ||
-      c.supplier_name?.toLowerCase().includes(t)
-  })
   const totalAmount = items.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0)
   const active      = items.filter(c => c.status === 'Active').length
   const completed   = items.filter(c => c.status === 'Completed').length
@@ -196,12 +230,15 @@ export default function ContractInTab({ contractId, initialContractInId, initial
               <tr><td colSpan="10" style={{ padding: '48px', textAlign: 'center', color: '#9ca3af' }}>
                 Chưa có hợp đồng nhập nào. Nhấn <strong>Thêm HĐ nhập</strong> để tạo mới.
               </td></tr>
-            ) : filtered.map(c => {
+            ) : filtered.map((c, idx) => {
               const sc = statusCfg[c.status] || { label: c.status, cls: '' }
+              const isHl = idx === curIdx
               return (
                 <tr key={c.id}
-                  onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-                  onMouseLeave={e => e.currentTarget.style.background = ''}>
+                  ref={isHl ? hlRowRef : null}
+                  style={{ background: isHl ? '#eff6ff' : '' }}
+                  onMouseEnter={e => { if (!isHl) e.currentTarget.style.background = '#fafafa' }}
+                  onMouseLeave={e => { if (!isHl) e.currentTarget.style.background = '' }}>
                   <td style={tdStyle('center')}>
                     <button className="btn-manage" onClick={() => setSelected(c)} title="Quản trị hợp đồng nhập">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
