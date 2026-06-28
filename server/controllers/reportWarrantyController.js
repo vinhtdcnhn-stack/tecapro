@@ -1,6 +1,10 @@
 import { pool } from '../db.js'
 import { vnToday } from '../utils/reportLoaders.js'
 import { diffDays } from '../utils/receivableDue.js'
+import { cacheWrap } from '../cache.js'
+import { reportKey } from '../services/cacheKeys.js'
+
+const REPORT_TTL = 2 * 60 * 60 // 2h — nhóm 'warranty', invalidate khi equipment/case đổi
 
 // #10 — Báo cáo tình trạng bảo hành (đọc-only). KHÔNG có trường BH cấp HĐ: roll-up từ
 // dữ liệu BH theo từng thiết bị (contract_equipment.warranty_from/to). Trạng thái HĐ
@@ -11,6 +15,8 @@ const RESOLVED = new Set(['Hoàn thành', 'Đóng'])
 export async function getWarrantyReport(req, res) {
   try {
     const today = vnToday()
+    const key = await reportKey('warranty', 'warranty', { asOf: today })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
 
     // Thiết bị có ngày hết BH + ngữ cảnh hợp đồng.
     const { rows: eq } = await pool.query(`
@@ -83,7 +89,7 @@ export async function getWarrantyReport(req, res) {
         JOIN contract_equipment e ON e.id = ce.equipment_id
        GROUP BY e.name ORDER BY n DESC, e.name LIMIT 10`)
 
-    res.json({
+    return {
       asOf: today, summary, top_products: top,
       contracts,
       cases: caseRows.map(c => ({
@@ -93,7 +99,9 @@ export async function getWarrantyReport(req, res) {
         resolved_date: iso(c.resolved_date), status: c.status,
         resolved: RESOLVED.has(c.status) || !!c.resolved_date,
       })),
+    }
     })
+    res.json(payload)
   } catch (err) {
     console.error('getWarrantyReport:', err)
     res.status(500).json({ error: 'Không thể tải báo cáo bảo hành.' })

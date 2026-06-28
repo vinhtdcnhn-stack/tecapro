@@ -1,6 +1,8 @@
 import { pool } from '../db.js'
 import { isPmOfContract } from '../middleware/contractAccess.js'
 import { notifyAction, notifyInfo, contractLabel, pmUserIds } from '../services/notify.js'
+import { contractTaskUnread } from '../services/liveCounts.js'
+import { bumpLive } from '../services/eventBus.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Dòng thời gian trao đổi của một CÔNG VIỆC HỢP ĐỒNG (contract_task_entry): Báo cáo /
@@ -82,21 +84,7 @@ export async function getEntries(req, res) {
 // liên quan (người tạo / người được giao / PM của HĐ). Dùng cho cảnh báo nền đỏ toàn trang.
 export async function getUnreadCount(req, res) {
   try {
-    const { rows } = await pool.query(
-      `SELECT COUNT(*)::int AS count
-         FROM contract_task_entry e
-         JOIN contract_task t ON t.id = e.task_id
-         LEFT JOIN contract_task_read r ON r.task_id = e.task_id AND r.user_id = $1
-        WHERE e.author_id <> $1
-          AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
-          AND ( t.created_by = $1
-                OR t.assigned_to = $1
-                OR EXISTS (SELECT 1 FROM contract_out_member m
-                            WHERE m.contract_out_id = t.contract_out_id
-                              AND m.member_role = 'PM' AND m.user_id = $1) )`,
-      [req.user.id],
-    )
-    res.json({ count: rows[0]?.count || 0 })
+    res.json({ count: await contractTaskUnread(req.user.id) })
   } catch (err) {
     console.error('contractTask getUnreadCount:', err)
     res.status(500).json({ error: 'Không thể lấy số chưa đọc.' })
@@ -127,6 +115,9 @@ export async function addEntry(req, res) {
     const actor = me.rows[0]?.full_name || null
     entry.author_name = actor
     res.status(201).json(entry)
+
+    // Đánh thức các long-poll đang treo: có mục mới → số "chưa đọc" của người liên quan đổi.
+    bumpLive('contract-task')
 
     // Tác giả coi như đã đọc (không tự báo với mình).
     markRead(taskId, req.user.id).catch(e => console.error('contractTask markRead:', e))

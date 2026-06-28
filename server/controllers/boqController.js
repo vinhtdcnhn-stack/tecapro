@@ -6,9 +6,22 @@ import { excelUpload, downloadBOQTemplate } from './boqExcel.js'
 import {
   getContractCurrency, buildRowFields, promoteParentToGroup, invoicedQty, validateSiblingName,
 } from './boqHelpers.js'
+import { cacheWrap } from '../cache.js'
+import { contractKey, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
 
 export { excelUpload, downloadBOQTemplate }
 export { importBOQPreview, saveImportedBOQ } from './boqImportController.js'
+
+const BOQ_TTL = 30 * 60 // 30'
+
+// BOQ đổi → tab boq + tóm tắt hóa đơn (SL còn lại) + thông tin HĐ (tổng tiền recomputeTree)
+// + báo cáo công nợ (tổng HĐ) + dashboard thành viên. Dùng cho mọi thao tác ghi BOQ.
+export function invalidateBOQ(contractId) {
+  if (contractId == null) return
+  invalidateContract(contractId, 'boq', 'invoice-summary', 'info')
+  invalidateContractMembers(contractId)
+  invalidateReports('debt')
+}
 
 // Đồng bộ tổng + roll-up cây bảng giá → contract_out qua recomputeTree (boqTreeUtils):
 // tính lại số tiền cho node nhóm/zone và đặt tổng HĐ = SUM các dòng lá.
@@ -18,10 +31,13 @@ export { importBOQPreview, saveImportedBOQ } from './boqImportController.js'
 
 export async function getBOQ(req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM public.contract_out_boq WHERE contract_out_id = $1 ORDER BY sort_order, id',
-      [req.params.contractId]
-    )
+    const rows = await cacheWrap(contractKey(req.params.contractId, 'boq'), BOQ_TTL, async () => {
+      const { rows } = await pool.query(
+        'SELECT * FROM public.contract_out_boq WHERE contract_out_id = $1 ORDER BY sort_order, id',
+        [req.params.contractId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getBOQ:', err)
@@ -62,6 +78,7 @@ export async function createBOQItem(req, res) {
 
     await promoteParentToGroup(parent_id, pool)
     await recomputeTree(contractId)
+    invalidateBOQ(contractId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createBOQItem:', err)
@@ -110,6 +127,7 @@ export async function insertBOQAfter(req, res) {
 
     await promoteParentToGroup(parentId, pool)
     await recomputeTree(contractId)
+    invalidateBOQ(contractId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('insertBOQAfter:', err)
@@ -189,6 +207,7 @@ export async function updateBOQItem(req, res) {
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     await recomputeTree(rows[0].contract_out_id)
+    invalidateBOQ(rows[0].contract_out_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updateBOQItem:', err)
@@ -216,6 +235,7 @@ export async function deleteBOQItem(req, res) {
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     await recomputeTree(rows[0].contract_out_id)
+    invalidateBOQ(rows[0].contract_out_id)
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deleteBOQItem:', err)
@@ -280,6 +300,7 @@ export async function bulkDeleteBOQItems(req, res) {
     const contractIds = [...new Set(rows.map(r => r.contract_out_id))]
     for (const cid of contractIds) await recomputeTree(cid, client)
     await client.query('COMMIT')
+    for (const cid of contractIds) invalidateBOQ(cid)
     res.json({ message: 'Deleted', count: rows.length })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -361,6 +382,7 @@ export async function reorderBOQ(req, res) {
     }
 
     await client.query('COMMIT')
+    invalidateBOQ(contractId)
     res.json({ message: 'Reordered', count: items.length })
   } catch (err) {
     await client.query('ROLLBACK')

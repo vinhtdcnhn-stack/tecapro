@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { API } from '../../config/api'
+import { useQueryClient } from '@tanstack/react-query'
+import { useTenders, qk } from '../../lib/queries'
+import { prefetchTender } from '../../lib/idlePrefetch'
 import { useCopyMenu } from '../common/useCopyMenu'
 import TenderModal from './TenderModal'
 import { exportTenders } from './tenderExport'
@@ -15,8 +17,7 @@ import {
 // Trưởng phòng (isHead) phân công người làm thầu/AM ngay trong form tạo/sửa.
 export default function TenderList({ mode = 'all', canCreate = true, isHead = false, members = [] }) {
   const navigate = useNavigate()
-  const [rows, setRows] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [modal, setModal] = useState(null)   // null | { } (tender being edited) | 'new'
   const [q, setQ] = useState('')
   const [field, setField] = useState('')
@@ -24,18 +25,10 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
   const [bidStatus, setBidStatus] = useState('')
   const [result, setResult] = useState('')
 
-  const endpoint = mode === 'my' ? `${API}/tender/my` : `${API}/tender`
-
-  function load() {
-    setLoading(true)
-    fetch(endpoint)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setRows(Array.isArray(d) ? d : []))
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false))
-  }
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() async: setState sau await
-  useEffect(load, [endpoint])
+  // Danh sách gói thầu qua TanStack Query (cache theo mode all/my): render ngay từ cache,
+  // làm mới ngầm. Sau khi thêm/sửa trong modal thì invalidate để tải lại.
+  const { data: rows = [], isLoading: loading } = useTenders(mode)
+  const load = () => queryClient.invalidateQueries({ queryKey: qk.tenders(mode) })
 
   const filtered = useMemo(() => {
     let r = rows
@@ -59,6 +52,8 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
   )
 
   const open = (t) => navigate(`/cong-viec/dau-thau/goi/${t.id}`)
+  // Rê chuột/chạm vào hàng: nạp sẵn chi tiết gói + chunk trang chi tiết → mở gần như tức thì.
+  const prefetchDetail = (id) => { prefetchTender(id); import('../../pages/TenderDetailPage') }
 
   return (
     <div className="tender-list">
@@ -114,7 +109,7 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
                 const d = daysUntil(t.submit_date)
                 const due = d != null && d <= 3 && !t.result
                 return (
-                  <tr key={t.id} {...getRowProps(t)} onClick={() => open(t)} className="tender-row">
+                  <tr key={t.id} {...getRowProps(t)} onMouseEnter={() => prefetchDetail(t.id)} onClick={() => open(t)} className="tender-row">
                     <td>{i + 1}</td>
                     <td className="tender-name">{t.package_name}{t.package_code ? ` (${t.package_code})` : ''}</td>
                     <td>{t.investor || ''}</td>

@@ -1,5 +1,9 @@
 import { pool } from '../db.js'
 import { TABLE_DELIVERY, TABLE_EQUIPMENT, serialExists, getReplacementChain } from './serialUtils.js'
+import { cacheWrap } from '../cache.js'
+import { serialLookupKey, invalidateSerialLookup, invalidateContract, invalidateContractIn } from '../services/cacheKeys.js'
+
+const LOOKUP_TTL = 10 * 60 // 10' — tra cứu serial toàn hệ thống (nặng)
 
 // Tra cứu bảo hành theo số serial — nối phía bán (HĐ bán → khách hàng) và
 // phía nhập (HĐ nhập → nhà cung cấp) qua CHÍNH chuỗi serial_no.
@@ -8,6 +12,7 @@ export async function lookupSerial(req, res) {
   if (!serial) return res.status(400).json({ error: 'Chưa nhập số serial' })
 
   try {
+    const payload = await cacheWrap(serialLookupKey(serial), LOOKUP_TTL, async () => {
     // Phía bán: serial → thiết bị → hợp đồng bán → khách hàng
     const saleQ = pool.query(
       `SELECT
@@ -76,7 +81,9 @@ export async function lookupSerial(req, res) {
       ...imp.rows.map(async r => { r.replacement = await getReplacementChain(pool, TABLE_DELIVERY, r.serial_id) }),
     ])
 
-    res.json({ serial, sale: sale.rows, import: imp.rows })
+    return { serial, sale: sale.rows, import: imp.rows }
+    })
+    res.json(payload)
   } catch (err) {
     console.error('lookupSerial:', err)
     res.status(500).json({ error: 'Không thể tra cứu serial' })
@@ -129,6 +136,13 @@ export async function replaceSerial(req, res) {
     )
 
     await client.query('COMMIT')
+    invalidateSerialLookup(oldSerial.serial_no, newSerial.serial_no)
+    // Serial mới/cũ thuộc 1 thiết bị → tab thiết bị của HĐ bán cha cần làm mới.
+    try {
+      const { rows: c } = await pool.query(
+        'SELECT contract_out_id FROM contract_equipment WHERE id=$1', [oldSerial.equipment_id])
+      if (c[0]) invalidateContract(c[0].contract_out_id, 'equipment')
+    } catch { /* bỏ qua */ }
     res.json({ old: updatedOld[0], new: newSerial })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -183,6 +197,14 @@ export async function replaceDeliverySerial(req, res) {
     )
 
     await client.query('COMMIT')
+    invalidateSerialLookup(oldSerial.serial_no, newSerial.serial_no)
+    // Serial nhập mới/cũ thuộc 1 delivery_item → tab serial tổng hợp của HĐ nhập cần làm mới.
+    try {
+      const { rows: c } = await pool.query(
+        `SELECT d.contract_in_id FROM contract_in_delivery_item di
+           JOIN contract_in_delivery d ON d.id = di.delivery_id WHERE di.id=$1`, [oldSerial.delivery_item_id])
+      if (c[0]) invalidateContractIn(c[0].contract_in_id, 'all-serials', 'all-items')
+    } catch { /* bỏ qua */ }
     res.json({ old: updatedOld[0], new: newSerial })
   } catch (err) {
     await client.query('ROLLBACK')

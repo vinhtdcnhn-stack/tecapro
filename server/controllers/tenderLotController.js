@@ -1,6 +1,17 @@
 import { pool } from '../db.js'
 import { logActivity } from './tenderController.js'
 import { roundMoney } from '../utils/money.js'
+import { cacheWrap } from '../cache.js'
+import { tenderKey, invalidateTender, invalidateLookup, invalidateReports } from '../services/cacheKeys.js'
+
+const LOTS_TTL = 5 * 60 // 5'
+
+// Lô đổi → tab lots + dự toán gói (info + danh sách + báo cáo đấu thầu, do syncTenderEstimate).
+function invalidateLot(tenderId) {
+  invalidateTender(tenderId, 'lots', 'info')
+  invalidateLookup('tender-list')
+  invalidateReports('tender')
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Lô/phần của gói thầu + nhà thầu dự thầu (module Ban Đấu thầu, dept 9).
@@ -52,6 +63,7 @@ async function lotAndTenderOfBidder(bidderId) {
 export async function getLots(req, res) {
   const tenderId = parseInt(req.params.id)
   try {
+    const out = await cacheWrap(tenderKey(tenderId, 'lots'), LOTS_TTL, async () => {
     const { rows: lots } = await pool.query(
       `SELECT id, tender_id, lot_name, lot_code, estimate, result, sort_order, note
          FROM tender_lot WHERE tender_id = $1
@@ -74,7 +86,8 @@ export async function getLots(req, res) {
       if (!byLot.has(k)) byLot.set(k, [])
       byLot.get(k).push(b)
     }
-    const out = lots.map(l => ({ ...l, bidders: byLot.get(String(l.id)) || [] }))
+    return lots.map(l => ({ ...l, bidders: byLot.get(String(l.id)) || [] }))
+    })
     res.json(out)
   } catch (err) {
     console.error('getLots:', err)
@@ -99,6 +112,7 @@ export async function createLot(req, res) {
         str(req.body?.note)],
     )
     await syncTenderEstimate(tenderId)
+    invalidateLot(tenderId)
     logActivity(tenderId, req.user.id, 'lot', `Thêm lô "${name}"`)
     res.status(201).json({ success: true, id: rows[0].id })
   } catch (err) {
@@ -125,6 +139,7 @@ export async function updateLot(req, res) {
         str(req.body?.note), lotId],
     )
     await syncTenderEstimate(tenderId)
+    invalidateLot(tenderId)
     logActivity(tenderId, req.user.id, 'lot', `Cập nhật lô "${name}"`)
     res.json({ success: true, id: lotId })
   } catch (err) {
@@ -140,6 +155,7 @@ export async function deleteLot(req, res) {
     if (!tenderId) return res.status(404).json({ error: 'Không tìm thấy lô.' })
     await pool.query('DELETE FROM tender_lot WHERE id = $1', [lotId])
     await syncTenderEstimate(tenderId)
+    invalidateLot(tenderId)
     logActivity(tenderId, req.user.id, 'lot', `Xoá lô #${lotId}`)
     res.json({ success: true })
   } catch (err) {
@@ -189,6 +205,7 @@ export async function createBidder(req, res) {
       [lotId, v.bidder_name, v.bid_price, v.is_self, v.tech_result, v.note],
     )
     await client.query('COMMIT')
+    invalidateTender(tenderId, 'lots')
     logActivity(tenderId, req.user.id, 'bidder', `Thêm nhà thầu "${v.bidder_name}"`)
     res.status(201).json({ success: true, id: rows[0].id })
   } catch (err) {
@@ -217,6 +234,7 @@ export async function updateBidder(req, res) {
       [v.bidder_name, v.bid_price, v.is_self, v.tech_result, v.note, bidderId],
     )
     await client.query('COMMIT')
+    invalidateTender(ref.tender_id, 'lots')
     logActivity(ref.tender_id, req.user.id, 'bidder', `Cập nhật nhà thầu "${v.bidder_name}"`)
     res.json({ success: true, id: bidderId })
   } catch (err) {
@@ -234,6 +252,7 @@ export async function deleteBidder(req, res) {
     const ref = await lotAndTenderOfBidder(bidderId)
     if (!ref) return res.status(404).json({ error: 'Không tìm thấy nhà thầu.' })
     await pool.query('DELETE FROM tender_bidder WHERE id = $1', [bidderId])
+    invalidateTender(ref.tender_id, 'lots')
     logActivity(ref.tender_id, req.user.id, 'bidder', `Xoá nhà thầu #${bidderId}`)
     res.json({ success: true })
   } catch (err) {

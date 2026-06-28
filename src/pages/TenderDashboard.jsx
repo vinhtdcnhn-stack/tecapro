@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { API } from '../config/api'
+import { useTenders } from '../lib/queries'
 import { statusColor, fmtDate, fmtMoney, daysUntil } from '../components/tender/tenderUtils'
 import '../components/tender/Tender.css'
 
@@ -8,13 +8,9 @@ import '../components/tender/Tender.css'
 // Thẻ tổng quan + danh sách gói sắp đến hạn nộp + "Việc của tôi".
 export default function TenderDashboard({ switcher, user }) {
   const navigate = useNavigate()
-  const [all, setAll] = useState([])
-  const [mine, setMine] = useState([])
-
-  useEffect(() => {
-    fetch(`${API}/tender`).then(r => r.ok ? r.json() : []).then(d => setAll(Array.isArray(d) ? d : [])).catch(() => {})
-    fetch(`${API}/tender/my`).then(r => r.ok ? r.json() : []).then(d => setMine(Array.isArray(d) ? d : [])).catch(() => {})
-  }, [])
+  // Dùng chung cache với danh sách Đấu thầu (TenderList) → vào module là có ngay, ngược lại.
+  const { data: all = [] } = useTenders('all')
+  const { data: mine = [] } = useTenders('my')
 
   const stats = useMemo(() => {
     const active = all.filter(t => ['Lập checklist', 'Đang thực hiện'].includes(t.workflow_status))

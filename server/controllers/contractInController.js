@@ -1,4 +1,15 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { contractKey, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
+
+const TAB_TTL = 15 * 60 // 15'
+
+// Danh sách HĐ nhập đổi → tab contract-ins của HĐ bán + dashboard thành viên + báo cáo công nợ phải trả.
+function invalidateContractIns(contractOutId) {
+  invalidateContract(contractOutId, 'contract-ins')
+  invalidateContractMembers(contractOutId)
+  invalidateReports('debt')
+}
 
 // Giá trị HĐ nhập do bảng giá mua quyết định (xem syncContractInTotal). Tính thẳng
 // từ tổng BOQ ở đây để list/header luôn khớp bảng giá, kể cả dữ liệu cũ chưa sync
@@ -20,10 +31,13 @@ const BASE_SELECT = `
 export async function getContractIns(req, res) {
   const contractOutId = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query(
-      `${BASE_SELECT} WHERE ci.contract_out_id = $1 ORDER BY ci.contract_date DESC, ci.id DESC`,
-      [contractOutId]
-    )
+    const rows = await cacheWrap(contractKey(contractOutId, 'contract-ins'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        `${BASE_SELECT} WHERE ci.contract_out_id = $1 ORDER BY ci.contract_date DESC, ci.id DESC`,
+        [contractOutId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getContractIns:', err)
@@ -47,6 +61,7 @@ export async function createContractIn(req, res) {
        purchase_type||'Trong nước', status||'Active', note?.trim()||null, req.user?.id || null]
     )
     const full = await pool.query(`${BASE_SELECT} WHERE ci.id = $1`, [rows[0].id])
+    invalidateContractIns(contractOutId)
     res.json(full.rows[0])
   } catch (err) {
     console.error('createContractIn:', err)
@@ -73,6 +88,7 @@ export async function updateContractIn(req, res) {
     )
     const full = await pool.query(`${BASE_SELECT} WHERE ci.id = $1`, [id])
     if (!full.rows[0]) return res.status(404).json({ error: 'Không tìm thấy hợp đồng nhập' })
+    invalidateContractIns(full.rows[0].contract_out_id)
     res.json(full.rows[0])
   } catch (err) {
     console.error('updateContractIn:', err)
@@ -83,7 +99,8 @@ export async function updateContractIn(req, res) {
 export async function deleteContractIn(req, res) {
   const id = parseInt(req.params.id)
   try {
-    await pool.query('DELETE FROM contract_in WHERE id=$1', [id])
+    const { rows } = await pool.query('DELETE FROM contract_in WHERE id=$1 RETURNING contract_out_id', [id])
+    if (rows[0]) invalidateContractIns(rows[0].contract_out_id)
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa hợp đồng nhập' })

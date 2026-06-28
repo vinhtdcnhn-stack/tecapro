@@ -2,6 +2,10 @@ import { pool } from '../db.js'
 import { notifyAction, notifyInfo, fmtDate } from '../services/notify.js'
 import { logActivity } from './tenderController.js'
 import { userIsHead, userIsBidMakerOfItem } from '../middleware/tenderAccess.js'
+import { cacheWrap } from '../cache.js'
+import { tenderKey, invalidateTender } from '../services/cacheKeys.js'
+
+const CHECKLIST_TTL = 5 * 60 // 5'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Checklist công việc của gói thầu (GĐ2). Đầu việc → phòng ban → người phụ trách,
@@ -26,15 +30,18 @@ async function tenderLabel(tenderId) {
 export async function getChecklist(req, res) {
   const tenderId = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query(
-      `SELECT ${ITEM_COLS}
-         FROM tender_checklist_item i
-         LEFT JOIN department d ON d.id = i.department_id
-         LEFT JOIN app_user u ON u.id = i.assignee_id
-        WHERE i.tender_id = $1
-        ORDER BY i.parent_item_id NULLS FIRST, i.sort_order, i.id`,
-      [tenderId],
-    )
+    const rows = await cacheWrap(tenderKey(tenderId, 'checklist'), CHECKLIST_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT ${ITEM_COLS}
+           FROM tender_checklist_item i
+           LEFT JOIN department d ON d.id = i.department_id
+           LEFT JOIN app_user u ON u.id = i.assignee_id
+          WHERE i.tender_id = $1
+          ORDER BY i.parent_item_id NULLS FIRST, i.sort_order, i.id`,
+        [tenderId],
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getChecklist:', err)
@@ -94,6 +101,7 @@ export async function createItem(req, res) {
       [tenderId, title, description, departmentId, assigneeId, dueDate, parentId, ord[0].n, req.user.id],
     )
     const id = rows[0].id
+    invalidateTender(tenderId, 'checklist')
     logActivity(tenderId, req.user.id, 'update', `Thêm đầu việc "${title}"`)
     if (assigneeId && assigneeId !== req.user.id) {
       const label = await tenderLabel(tenderId)
@@ -129,6 +137,7 @@ export async function updateItem(req, res) {
        WHERE id=$6 RETURNING id`,
       [title, description, departmentId, assigneeId, dueDate, id],
     )
+    invalidateTender(cur[0].tender_id, 'checklist')
     logActivity(cur[0].tender_id, req.user.id, 'update', `Sửa đầu việc "${title}"`)
     if (assigneeId && assigneeId !== cur[0].assignee_id && assigneeId !== req.user.id) {
       const label = await tenderLabel(cur[0].tender_id)
@@ -187,6 +196,7 @@ export async function updateItemStatus(req, res) {
         [status, id],
       )
     }
+    invalidateTender(cur[0].tender_id, 'checklist')
     logActivity(cur[0].tender_id, req.user.id, 'status',
       isRework
         ? `Yêu cầu làm lại (lần ${reworkCount}) đầu việc "${cur[0].title}": ${reason}`
@@ -220,6 +230,7 @@ export async function deleteItem(req, res) {
     const { rows } = await pool.query(
       'DELETE FROM tender_checklist_item WHERE id = $1 RETURNING tender_id, title', [id])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
+    invalidateTender(rows[0].tender_id, 'checklist')
     logActivity(rows[0].tender_id, req.user.id, 'update', `Xoá đầu việc "${rows[0].title}"`)
     res.json({ success: true })
   } catch (err) {

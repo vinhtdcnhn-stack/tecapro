@@ -1,13 +1,25 @@
 import { pool } from '../db.js'
 import { activateReadyTasksSafe } from '../services/taskAutoStart.js'
+import { cacheWrap } from '../cache.js'
+import {
+  lookupKey, invalidateLookup, contractKey, contractInKey,
+  invalidateContract, invalidateContractIn, invalidateContractMembers,
+  invalidateContractInMembers, invalidateReports,
+} from '../services/cacheKeys.js'
+
+const BB_TTL = 24 * 60 * 60      // loại biên bản: danh mục ít đổi
+const TAB_TTL = 30 * 60         // tab chi tiết HĐ: 30'
 
 // ── BB Type master ────────────────────────────────────────────────────────────
 
 export async function getBBTypes(_req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM public.contract_bb_type WHERE is_active = true ORDER BY sort_order, id'
-    )
+    const rows = await cacheWrap(lookupKey('bb-types'), BB_TTL, async () => {
+      const { rows } = await pool.query(
+        'SELECT * FROM public.contract_bb_type WHERE is_active = true ORDER BY sort_order, id'
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getBBTypes:', err)
@@ -29,6 +41,7 @@ export async function createBBType(req, res) {
       'INSERT INTO public.contract_bb_type (code, name, sort_order) VALUES ($1, $2, $3) RETURNING *',
       [code.trim().toUpperCase(), name.trim(), Number(mx[0].m) + 10]
     )
+    invalidateLookup('bb-types')
     res.status(201).json(rows[0])
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Mã loại BB đã tồn tại' })
@@ -45,6 +58,7 @@ export async function updateBBType(req, res) {
       [code.trim().toUpperCase(), name.trim(), req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    invalidateLookup('bb-types')
     res.json(rows[0])
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Mã loại BB đã tồn tại' })
@@ -64,6 +78,7 @@ export async function deleteBBType(req, res) {
       return res.status(400).json({ error: 'Loại BB đang được sử dụng, không thể xóa' })
     }
     await pool.query('DELETE FROM public.contract_bb_type WHERE id = $1', [req.params.id])
+    invalidateLookup('bb-types')
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deleteBBType:', err)
@@ -81,15 +96,25 @@ const PROGRESS_SELECT = `
 
 export async function getProgress(req, res) {
   try {
-    const { rows } = await pool.query(
-      PROGRESS_SELECT + ' WHERE p.contract_out_id = $1 ORDER BY p.sort_order, p.id',
-      [req.params.contractId]
-    )
+    const rows = await cacheWrap(contractKey(req.params.contractId, 'progress'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        PROGRESS_SELECT + ' WHERE p.contract_out_id = $1 ORDER BY p.sort_order, p.id',
+        [req.params.contractId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getProgress:', err)
     res.status(500).json({ error: 'Failed to get progress' })
   }
+}
+
+// Tiến độ đổi → tab progress + dashboard thành viên + báo cáo công nợ (ngày đến hạn neo theo mốc).
+function invalidateProgressOut(contractId) {
+  invalidateContract(contractId, 'progress')
+  invalidateContractMembers(contractId)
+  invalidateReports('debt')
 }
 
 export async function createProgress(req, res) {
@@ -123,6 +148,7 @@ export async function createProgress(req, res) {
     const { rows: full } = await pool.query(
       PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id]
     )
+    invalidateProgressOut(contractId)
     res.status(201).json(full[0])
   } catch (err) {
     console.error('createProgress:', err)
@@ -165,6 +191,7 @@ export async function updateProgress(req, res) {
     const { rows: full } = await pool.query(
       PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id]
     )
+    invalidateProgressOut(rows[0].contract_out_id)
     res.json(full[0])
 
     // Mốc tiến độ vừa có ngày thực tế → mở khóa các công việc phụ thuộc mốc này.
@@ -178,10 +205,11 @@ export async function updateProgress(req, res) {
 export async function deleteProgress(req, res) {
   try {
     const { rows } = await pool.query(
-      'DELETE FROM public.contract_out_progress WHERE id = $1 RETURNING id',
+      'DELETE FROM public.contract_out_progress WHERE id = $1 RETURNING id, contract_out_id',
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    invalidateProgressOut(rows[0].contract_out_id)
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deleteProgress:', err)
@@ -199,15 +227,24 @@ const IN_PROGRESS_SELECT = `
 
 export async function getProgressIn(req, res) {
   try {
-    const { rows } = await pool.query(
-      IN_PROGRESS_SELECT + ' WHERE p.contract_in_id = $1 ORDER BY p.sort_order, p.id',
-      [req.params.contractInId]
-    )
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'progress'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        IN_PROGRESS_SELECT + ' WHERE p.contract_in_id = $1 ORDER BY p.sort_order, p.id',
+        [req.params.contractInId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getProgressIn:', err)
     res.status(500).json({ error: 'Không thể tải tiến độ' })
   }
+}
+
+// Tiến độ HĐ nhập đổi → tab ci progress + dashboard thành viên HĐ bán cha.
+function invalidateProgressIn(contractInId) {
+  invalidateContractIn(contractInId, 'progress')
+  invalidateContractInMembers(contractInId)
 }
 
 export async function createProgressIn(req, res) {
@@ -226,6 +263,7 @@ export async function createProgressIn(req, res) {
        planned_date||null, actual_date||null, reason||'', penalty_note||'']
     )
     const { rows: full } = await pool.query(IN_PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id])
+    invalidateProgressIn(contractInId)
     res.status(201).json(full[0])
   } catch (err) {
     console.error('createProgressIn:', err)
@@ -246,6 +284,7 @@ export async function updateProgressIn(req, res) {
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     const { rows: full } = await pool.query(IN_PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id])
+    invalidateProgressIn(rows[0].contract_in_id)
     res.json(full[0])
   } catch (err) {
     console.error('updateProgressIn:', err)
@@ -256,10 +295,11 @@ export async function updateProgressIn(req, res) {
 export async function deleteProgressIn(req, res) {
   try {
     const { rows } = await pool.query(
-      'DELETE FROM contract_in_progress WHERE id = $1 RETURNING id',
+      'DELETE FROM contract_in_progress WHERE id = $1 RETURNING id, contract_in_id',
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    invalidateProgressIn(rows[0].contract_in_id)
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deleteProgressIn:', err)

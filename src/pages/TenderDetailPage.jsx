@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
-import { API } from '../config/api'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
+import { useTender, useTenderMembers, qk } from '../lib/queries'
 import TenderInfoTab from '../components/tender/TenderInfoTab'
 import TenderLotsTab from '../components/tender/TenderLotsTab'
 import TenderChecklistTab from '../components/tender/TenderChecklistTab'
@@ -25,29 +26,20 @@ export default function TenderDetailPage() {
   const { user } = useAuth()
   const { id } = useParams()
   const navigate = useNavigate()
-  const [tender, setTender] = useState(null)
-  const [members, setMembers] = useState([])
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState('info')
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
 
-  const reload = useCallback(() => {
-    fetch(`${API}/tender/${id}`)
-      .then(r => { if (r.status === 404) { setNotFound(true); return null } return r.ok ? r.json() : null })
-      .then(d => { if (d) setTender(d) })
-      .finally(() => setLoading(false))
-  }, [id])
-
-  useEffect(() => {
-    reload()
-    fetch(`${API}/tender/members`).then(r => r.ok ? r.json() : []).then(m => setMembers(Array.isArray(m) ? m : [])).catch(() => {})
-  }, [reload])
+  // Chi tiết gói + danh sách thành viên qua TanStack Query: nếu đã rê chuột ở danh sách thì
+  // hiển thị NGAY từ cache. reload (gọi sau khi sửa tab con) = invalidate để tải lại ngầm.
+  const { data: tender = null, isLoading: loading, isError } = useTender(id)
+  const { data: members = [] } = useTenderMembers()
+  const reload = () => queryClient.invalidateQueries({ queryKey: qk.tender(id) })
 
   const canAccess = Number(user?.role) === 1 || Number(user?.department_id) === 9
   if (!canAccess) return <Navigate to="/" replace />
 
   if (loading) return <main className="page admin-page"><p className="dash-empty">Đang tải…</p></main>
-  if (notFound || !tender) return <main className="page admin-page"><p className="dash-empty">Không tìm thấy gói thầu.</p></main>
+  if (isError || !tender) return <main className="page admin-page"><p className="dash-empty">Không tìm thấy gói thầu.</p></main>
 
   const isHead = isHeadUser(user, members)
   const canEdit = isHead || Number(tender.bid_maker_id) === Number(user?.id)

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
-import { API } from '../../config/api'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
+import { useApprovalsBrowse, qk } from '../../lib/queries'
 import useIsMobile from '../contracts/useIsMobile'
 import RequestDetail from './RequestDetail'
 import FormTypeFilter, { useFormTypeFilter } from './FormTypeFilter'
@@ -20,17 +21,12 @@ export default function RequestBrowseList({
 }) {
   const { user } = useAuth()
   const isMobile = useIsMobile()
-  const [rows, setRows] = useState([])
+  const queryClient = useQueryClient()
   const [openId, setOpenId] = useState(null)
+  // Danh sách chỉ đọc (sắp đến lượt / theo dõi) qua TanStack Query theo endpoint.
+  const { data: rows = [] } = useApprovalsBrowse(endpoint)
+  const load = () => queryClient.invalidateQueries({ queryKey: qk.approvalsBrowse(endpoint) })
   const { formId, setFormId, options, filtered } = useFormTypeFilter(rows)
-
-  const load = useCallback(() => {
-    fetch(`${API}${endpoint}`)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setRows(Array.isArray(d) ? d : []))
-      .catch(() => setRows([]))
-  }, [endpoint])
-  useEffect(() => { load() }, [load])
 
   return (
     <div>

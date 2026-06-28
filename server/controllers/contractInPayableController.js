@@ -1,4 +1,8 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { contractInKey, invalidateContractIn, invalidateContractInMembers, invalidateReports } from '../services/cacheKeys.js'
+
+const TAB_TTL = 15 * 60 // 15'
 
 function calcVND(amount, rate, currency) {
   const a = parseFloat(amount) || 0
@@ -6,14 +10,29 @@ function calcVND(amount, rate, currency) {
   return currency === 'VND' ? a : a * r
 }
 
+// Phải trả / thanh toán NCC đổi → tab tương ứng + báo cáo công nợ phải trả + dashboard.
+function invalidatePayable(contractInId) {
+  invalidateContractIn(contractInId, 'payables')
+  invalidateReports('debt')
+  invalidateContractInMembers(contractInId)
+}
+function invalidatePay(contractInId) {
+  invalidateContractIn(contractInId, 'payments')
+  invalidateReports('debt')
+  invalidateContractInMembers(contractInId)
+}
+
 // ── Payable schedule ──────────────────────────────────────────────────────────
 
 export async function getPayables(req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM contract_in_payable WHERE contract_in_id=$1 ORDER BY id',
-      [req.params.contractInId]
-    )
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'payables'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        'SELECT * FROM contract_in_payable WHERE contract_in_id=$1 ORDER BY id',
+        [req.params.contractInId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getPayables:', err)
@@ -35,6 +54,7 @@ export async function createPayable(req, res) {
        parseFloat(exchange_rate)||1, vnd,
        due_date||null, delay_reason||null]
     )
+    invalidatePayable(contractInId)
     res.json(rows[0])
   } catch (err) {
     console.error('createPayable:', err)
@@ -58,6 +78,7 @@ export async function updatePayable(req, res) {
        due_date||null, delay_reason||null, id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    invalidatePayable(rows[0].contract_in_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updatePayable:', err)
@@ -67,7 +88,8 @@ export async function updatePayable(req, res) {
 
 export async function deletePayable(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_payable WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_payable WHERE id=$1 RETURNING contract_in_id', [req.params.id])
+    if (rows[0]) invalidatePayable(rows[0].contract_in_id)
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa' })
@@ -78,10 +100,13 @@ export async function deletePayable(req, res) {
 
 export async function getPayments(req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM contract_in_payment WHERE contract_in_id=$1 ORDER BY payment_date, id',
-      [req.params.contractInId]
-    )
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'payments'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        'SELECT * FROM contract_in_payment WHERE contract_in_id=$1 ORDER BY payment_date, id',
+        [req.params.contractInId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     res.status(500).json({ error: 'Không thể tải lịch thanh toán' })
@@ -101,6 +126,7 @@ export async function createPayment(req, res) {
        parseFloat(amount)||0, parseFloat(exchange_rate)||1, vnd,
        payment_ratio ? parseFloat(payment_ratio) : null, note||null]
     )
+    invalidatePay(contractInId)
     res.json(rows[0])
   } catch (err) {
     console.error('createPayment:', err)
@@ -123,6 +149,7 @@ export async function updatePayment(req, res) {
        payment_ratio ? parseFloat(payment_ratio) : null, note||null, id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    invalidatePay(rows[0].contract_in_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updatePayment:', err)
@@ -132,7 +159,8 @@ export async function updatePayment(req, res) {
 
 export async function deletePayment(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_payment WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_payment WHERE id=$1 RETURNING contract_in_id', [req.params.id])
+    if (rows[0]) invalidatePay(rows[0].contract_in_id)
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa' })

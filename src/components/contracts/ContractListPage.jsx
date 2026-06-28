@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { API_BASE } from '../../config/api'
+import { prefetchContract } from '../../lib/idlePrefetch'
 import ContractModal from './ContractModal'
 import DateInput from './DateInput'
 import useIsMobile from './useIsMobile'
@@ -40,9 +41,13 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const isMobile = useIsMobile()
   const isPM = currentUser?.positions?.some(p => p.code === 'PM_TEAM')
            || currentUser?.position_code === 'PM_TEAM'
+
+  // Tỏ ý sắp mở 1 HĐ (rê chuột/chạm): nạp sẵn DỮ LIỆU chi tiết + CHUNK trang chi tiết
+  // → khi bấm vào gần như mở tức thì. import() được module-cache nên gọi lại vô hại.
+  const prefetchDetail = (id) => { prefetchContract(id); import('../../pages/QldaDetailPage') }
   
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lần đầu khi mount; QldaPage tự tải lại khi user đổi
-  useEffect(() => { if (onLoadContracts) onLoadContracts() }, [])
+  // Danh sách HĐ do QldaPage cấp qua TanStack Query (tự nạp + cache); không cần tự tải lúc mount.
+  // onLoadContracts giờ chỉ dùng để làm mới sau khi thêm/sửa HĐ.
   useEffect(() => { try { localStorage.setItem(DATE_RANGE_KEY, JSON.stringify({ from: dateFrom, to: dateTo })) } catch { /* ignore */ } }, [dateFrom, dateTo])
   // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ state nội bộ từ prop (để lọc/sửa cục bộ) khi prop đổi
   useEffect(() => { setLocalContracts(contracts || []) }, [contracts])
@@ -305,6 +310,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
             const jv = !!c.is_joint_venture
             return (
               <button key={c.id} type="button" className="clp-card" style={jv ? { background: '#fff7ed' } : undefined}
+                onTouchStart={() => prefetchDetail(c.id)}
                 onClick={() => onManage && onManage(c)}>
                 <div className="clp-card-top">
                   <span className="clp-card-no">
@@ -413,6 +419,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                     ref={isSelected ? selectedRowRef : null}
                     className={`table-row${isSelected ? ' contract-row-selected' : ''}`}
                     style={jvBg}
+                    onMouseEnter={() => prefetchDetail(c.id)}
                     onClick={() => {
                       // Bỏ qua nếu vừa kéo để cuộn bảng (không coi là click mở HĐ)
                       if (dragScroll.current.moved) return

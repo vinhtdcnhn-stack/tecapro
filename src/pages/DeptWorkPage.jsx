@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
-import { API } from '../config/api'
 import { useAuth } from '../context/AuthContext'
+import { useDeptTeams, useDeptMembers } from '../lib/queries'
 import DeptWorkSidebar from '../components/deptwork/DeptWorkSidebar'
 import TaskBoard from '../components/deptwork/TaskBoard'
 import WorkLogView from '../components/deptwork/WorkLogView'
@@ -14,18 +13,8 @@ const VALID = ['board', 'logs', 'capacity']
 export default function DeptWorkPage() {
   const { user } = useAuth()
   const { section } = useParams()
-  const [teams, setTeams] = useState([])
-  const [members, setMembers] = useState([])
-
-  useEffect(() => {
-    Promise.all([
-      fetch(`${API}/dept-work/teams`).then(r => r.ok ? r.json() : []),
-      fetch(`${API}/dept-work/members`).then(r => r.ok ? r.json() : []),
-    ]).then(([t, m]) => {
-      setTeams(Array.isArray(t) ? t : [])
-      setMembers(Array.isArray(m) ? m : [])
-    }).catch(console.error)
-  }, [])
+  const { data: teams = [] } = useDeptTeams()
+  const { data: members = [] } = useDeptMembers()
 
   // Chỉ thành viên Ban KT Cơ điện (department 7) hoặc admin được vào module.
   const canAccess = Number(user?.role) === 1 || Number(user?.department_id) === 7

@@ -1,4 +1,8 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { lookupKey, invalidateLookup } from '../services/cacheKeys.js'
+
+const SUPPLIERS_TTL = 12 * 60 * 60 // 12h — danh mục ít đổi
 
 const SELECT_FIELDS = `
   SELECT id, code, name, tax_code, address, contact_person, phone, email, note, is_active, created_at, updated_at
@@ -7,7 +11,10 @@ const SELECT_FIELDS = `
 
 export async function getAllSuppliers(req, res) {
   try {
-    const { rows } = await pool.query(`${SELECT_FIELDS} WHERE is_active = true OR is_active = false ORDER BY name ASC`)
+    const rows = await cacheWrap(lookupKey('suppliers'), SUPPLIERS_TTL, async () => {
+      const { rows } = await pool.query(`${SELECT_FIELDS} WHERE is_active = true OR is_active = false ORDER BY name ASC`)
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getAllSuppliers:', err)
@@ -57,6 +64,7 @@ export async function createSupplier(req, res) {
         created_by || null,
       ]
     )
+    invalidateLookup('suppliers')
     res.json({ success: true, id: rows[0].id, code: rows[0].code, name: rows[0].name })
   } catch (err) {
     if (err.code === '23505') {
@@ -98,6 +106,7 @@ export async function updateSupplier(req, res) {
       ]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy nhà cung cấp' })
+    invalidateLookup('suppliers')
     res.json({ success: true, id: rows[0].id, code: rows[0].code, name: rows[0].name })
   } catch (err) {
     if (err.code === '23505') {

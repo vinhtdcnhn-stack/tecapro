@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { API_BASE as API } from '../config/api'
+import { useState } from 'react'
+import { useCashflowSummary } from '../lib/queries'
 import OverdueAlertsPage from './accounting/OverdueAlertsPage'
 import ReceivablesReportPage from './accounting/ReceivablesReportPage'
 import PayablesReportPage from './accounting/PayablesReportPage'
@@ -23,17 +23,7 @@ function StatCard({ label, value, color, hint }) {
 
 // Tổng quan dòng tiền cho kế toán.
 function Overview() {
-  const [sum, setSum] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let alive = true
-    fetch(`${API}/api/reports/cashflow-summary`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (alive) { setSum(d); setLoading(false) } })
-      .catch(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
-  }, [])
+  const { data: sum = null, isLoading: loading } = useCashflowSummary()
 
   if (loading) return <p className="dash-empty">Đang tải tổng quan dòng tiền...</p>
   if (!sum) return <p className="dash-empty">Không tải được dữ liệu.</p>

@@ -1,11 +1,22 @@
 import { pool } from '../db.js'
 import { SHOW_ITEM } from './contractInDeliveryShared.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
+import { cacheWrap } from '../cache.js'
+import { contractInKey, invalidateContractIn, invalidateContractInMembers } from '../services/cacheKeys.js'
+
+const TAB_TTL = 15 * 60 // 15'
+
+// Đợt nhận hàng đổi → tab deliveries + dashboard thành viên (giao hàng nhập hiển thị dashboard).
+function invalidateDel(contractInId) {
+  invalidateContractIn(contractInId, 'deliveries')
+  invalidateContractInMembers(contractInId)
+}
 
 // ── Đợt nhận hàng (delivery batches) ───────────────────────────────────────────
 
 export async function getDeliveries(req, res) {
   try {
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'deliveries'), TAB_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT
         d.*,
@@ -19,6 +30,8 @@ export async function getDeliveries(req, res) {
       GROUP BY d.id, lu.full_name
       ORDER BY d.receive_date DESC, d.id DESC
     `, [req.params.contractInId])
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getDeliveries:', err)
@@ -37,6 +50,7 @@ export async function createDelivery(req, res) {
       RETURNING *, 0 AS item_count, 0 AS total_received
     `, [contractInId, batch_name?.trim()||null, receive_date||null,
         warehouse?.trim()||null, status||'Chờ nhận', note?.trim()||null])
+    invalidateDel(contractInId)
     res.json(rows[0])
   } catch (err) {
     console.error('createDelivery:', err)
@@ -55,6 +69,7 @@ export async function updateDelivery(req, res) {
     `, [batch_name?.trim()||null, receive_date||null,
         warehouse?.trim()||null, status||'Chờ nhận', note?.trim()||null, id])
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy đợt nhận' })
+    invalidateDel(rows[0].contract_in_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updateDelivery:', err)
@@ -64,7 +79,8 @@ export async function updateDelivery(req, res) {
 
 export async function deleteDelivery(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_delivery WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_delivery WHERE id=$1 RETURNING contract_in_id', [req.params.id])
+    if (rows[0]) invalidateDel(rows[0].contract_in_id)
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa đợt nhận hàng' })
@@ -92,6 +108,7 @@ export async function setDeliveryLock(req, res) {
       FROM upd LEFT JOIN app_user lu ON lu.id = upd.locked_by
     `, [locked, locked ? req.user.id : null, locked ? new Date() : null, id])
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy đợt nhận' })
+    invalidateContractIn(rows[0].contract_in_id, 'deliveries') // chỉ trạng thái khóa, không đụng dashboard
     res.json(rows[0])
   } catch (err) {
     console.error('setDeliveryLock:', err)

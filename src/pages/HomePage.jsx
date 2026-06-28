@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { API_BASE as API } from '../config/api'
 import { useAuth } from '../context/AuthContext'
+import { useContracts, useCustomers, useUsers } from '../lib/queries'
 import { getBrand } from '../config/brand'
 import fallbackHero from '../assets/home-hero.png'
 import Dashboard from './Dashboard'
@@ -16,11 +16,15 @@ const STORE_KEY = 'home_dashboard'
 
 export default function HomePage() {
   const { user } = useAuth()
-  const [contracts, setContracts] = useState([])
-  const [customers, setCustomers] = useState([])
-  const [users, setUsers] = useState([])
-  const [loaded, setLoaded] = useState(false)
   const [selected, setSelected] = useState(null)
+
+  // Phím tắt toàn cục (App.jsx) phát 'home-dashboard' để đổi dashboard khi đang ở
+  // trang chủ. Lần mount mới đã đọc lựa chọn từ localStorage nên không cần ở đây.
+  useEffect(() => {
+    function onSwitch(e) { setSelected(e.detail) }
+    window.addEventListener('home-dashboard', onSwitch)
+    return () => window.removeEventListener('home-dashboard', onSwitch)
+  }, [])
 
   // Vai trò → các dashboard khả dụng. Một user có thể giữ nhiều vị trí (nhiều vai).
   const codes = new Set([
@@ -34,33 +38,14 @@ export default function HomePage() {
   const isAccountant  = user?.department_name === 'Ban Kế Toán'
   const isTenderPlanner = Number(user?.department_id) === 9
 
-  useEffect(() => {
-    if (!user) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        // /api/contracts đã lọc theo thành viên cho non-admin → biết user có tham gia dự án không.
-        const c = await fetch(`${API}/api/contracts`).then(r => r.json())
-        if (cancelled) return
-        setContracts(Array.isArray(c) ? c : [])
-        if (isDirector) {
-          const [cu, u] = await Promise.all([
-            fetch(`${API}/api/customers`).then(r => r.json()),
-            fetch(`${API}/api/users`).then(r => r.json()),
-          ])
-          if (!cancelled) {
-            setCustomers(Array.isArray(cu) ? cu : [])
-            setUsers(Array.isArray(u) ? u : [])
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load home data:', err)
-      } finally {
-        if (!cancelled) setLoaded(true)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [user, isDirector])
+  // Dữ liệu trang chủ qua TanStack Query — chính là HOT_QUERIES đã nạp sẵn lúc rảnh nên
+  // dashboard thường hiện NGAY. /contracts đã lọc theo thành viên (biết user có dự án không).
+  // customers/users chỉ Giám đốc mới cần (bảng tổng quan hệ thống).
+  const dirEnabled = !!user && isDirector
+  const { data: contracts = [], isLoading: cLoading } = useContracts({ enabled: !!user })
+  const { data: customers = [], isLoading: cuLoading } = useCustomers({ enabled: dirEnabled })
+  const { data: users = [], isLoading: uLoading } = useUsers({ enabled: dirEnabled })
+  const loaded = !!user && !cLoading && !cuLoading && !uLoading
 
   if (!user) {
     return (

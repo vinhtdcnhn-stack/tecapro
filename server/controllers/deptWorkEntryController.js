@@ -2,6 +2,8 @@ import { pool } from '../db.js'
 import { userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
 import { userName, assigneeIds, headIds } from '../services/deptWorkNotify.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
+import { deptWorkUnread } from '../services/liveCounts.js'
+import { bumpLive } from '../services/eventBus.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Dòng thời gian trao đổi của một việc phòng (dept_work_entry): Báo cáo / Chỉ đạo /
@@ -82,21 +84,7 @@ export async function getEntries(req, res) {
 // Dùng cho cảnh báo toàn trang (đổi nền đỏ) khi có báo cáo/chỉ đạo mới chưa xem.
 export async function getUnreadCount(req, res) {
   try {
-    const isHead = await userIsHeadOrDeputy(req.user.id, req.user.role)
-    const { rows } = await pool.query(
-      `SELECT COUNT(*)::int AS count
-         FROM dept_work_entry e
-         JOIN dept_work_task t ON t.id = e.task_id
-         LEFT JOIN dept_work_task_read r ON r.task_id = e.task_id AND r.user_id = $1
-        WHERE e.author_id <> $1
-          AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
-          AND ( $2
-                OR t.created_by = $1
-                OR EXISTS (SELECT 1 FROM dept_work_assignment a
-                            WHERE a.task_id = e.task_id AND a.is_active AND a.assignee_id = $1) )`,
-      [req.user.id, isHead],
-    )
-    res.json({ count: rows[0]?.count || 0 })
+    res.json({ count: await deptWorkUnread(req.user.id, req.user.role) })
   } catch (err) {
     console.error('deptWork getUnreadCount:', err)
     res.status(500).json({ error: 'Không thể lấy số chưa đọc.' })
@@ -126,6 +114,9 @@ export async function addEntry(req, res) {
     const me = await pool.query('SELECT full_name FROM app_user WHERE id = $1', [req.user.id])
     entry.author_name = me.rows[0]?.full_name || null
     res.status(201).json(entry)
+
+    // Đánh thức các long-poll đang treo: có mục mới → số "chưa đọc" của người liên quan đổi.
+    bumpLive('dept-work')
 
     // Tác giả coi như đã đọc (không tự nhấp nháy với mình).
     markRead(taskId, req.user.id).catch(e => console.error('deptWork markRead:', e))

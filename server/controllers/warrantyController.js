@@ -2,6 +2,52 @@ import { pool } from '../db.js'
 import { TABLE_EQUIPMENT, TABLE_DELIVERY, serialExists, findExistingSerials } from './serialUtils.js'
 import { pullImportComponents } from './importComponentSync.js'
 import { notifyAction, pmUserIds, contractLabel } from '../services/notify.js'
+import { cacheWrap } from '../cache.js'
+import { contractKey, invalidateContract, invalidateReports, invalidateSerialLookup } from '../services/cacheKeys.js'
+
+const TAB_TTL = 30 * 60 // 30'
+
+// Thiết bị/serial đổi → tab equipment (serial nhúng trong getEquipment) + đợt giao (đếm
+// thiết bị) + báo cáo bảo hành.
+function invalidateEquip(contractId) {
+  if (contractId == null) return
+  invalidateContract(contractId, 'equipment', 'deliveries')
+  invalidateReports('warranty')
+}
+// Case bảo hành đổi → tab warranty-cases + báo cáo bảo hành.
+function invalidateCases(contractId) {
+  if (contractId == null) return
+  invalidateContract(contractId, 'warranty-cases')
+  invalidateReports('warranty')
+}
+// Nhật ký bảo hành đổi → tab activities + đếm hoạt động ở tab cases.
+function invalidateActs(contractId) {
+  if (contractId == null) return
+  invalidateContract(contractId, 'warranty-activities', 'warranty-cases')
+}
+// Tra HĐ bán từ id thiết bị / id case (khi handler chỉ có id con).
+async function contractOfEquipment(equipmentId) {
+  const { rows } = await pool.query('SELECT contract_out_id FROM contract_equipment WHERE id=$1', [equipmentId])
+  return rows[0]?.contract_out_id
+}
+async function contractOfCase(caseId) {
+  const { rows } = await pool.query('SELECT contract_out_id FROM warranty_case WHERE id=$1', [caseId])
+  return rows[0]?.contract_out_id
+}
+// Tra danh sách HĐ bán từ nhiều id serial (cho thao tác hàng loạt).
+async function contractsOfSerials(serialIds) {
+  if (!serialIds?.length) return []
+  const { rows } = await pool.query(
+    `SELECT DISTINCT e.contract_out_id FROM equipment_serial s
+       JOIN contract_equipment e ON e.id = s.equipment_id WHERE s.id = ANY($1::int[])`, [serialIds])
+  return rows.map(r => r.contract_out_id)
+}
+async function contractsOfEquipment(equipmentIds) {
+  if (!equipmentIds?.length) return []
+  const { rows } = await pool.query(
+    'SELECT DISTINCT contract_out_id FROM contract_equipment WHERE id = ANY($1::int[])', [equipmentIds])
+  return rows.map(r => r.contract_out_id)
+}
 
 // POST /serials/check-import — kiểm tra danh sách serial có trong hệ thống NHẬP chưa
 // (contract_in_delivery_serial, đối chiếu toàn hệ thống, không phân biệt hoa/thường).
@@ -35,20 +81,23 @@ export async function checkImportSerials(req, res) {
 export async function getEquipment(req, res) {
   const contractId = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query(
-      `SELECT
-         e.*,
-         COALESCE(
-           json_agg(s ORDER BY s.serial_no) FILTER (WHERE s.id IS NOT NULL),
-           '[]'
-         ) AS serials
-       FROM contract_equipment e
-       LEFT JOIN equipment_serial s ON s.equipment_id = e.id
-       WHERE e.contract_out_id = $1
-       GROUP BY e.id
-       ORDER BY e.name, e.brand`,
-      [contractId]
-    )
+    const rows = await cacheWrap(contractKey(contractId, 'equipment'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT
+           e.*,
+           COALESCE(
+             json_agg(s ORDER BY s.serial_no) FILTER (WHERE s.id IS NOT NULL),
+             '[]'
+           ) AS serials
+         FROM contract_equipment e
+         LEFT JOIN equipment_serial s ON s.equipment_id = e.id
+         WHERE e.contract_out_id = $1
+         GROUP BY e.id
+         ORDER BY e.name, e.brand`,
+        [contractId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getEquipment:', err)
@@ -79,6 +128,7 @@ export async function createEquipment(req, res) {
        warranty_from||null, warranty_to||null, has_serial||false, note?.trim()||null,
        intOrNull(warranty_bb_id), intOrNull(warranty_months), intOrNull(delivery_id)]
     )
+    invalidateEquip(contractId)
     res.json({ ...rows[0], serials: [] })
   } catch (err) {
     console.error('createEquipment:', err)
@@ -105,6 +155,7 @@ export async function updateEquipment(req, res) {
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy thiết bị' })
     const serials = await pool.query('SELECT * FROM equipment_serial WHERE equipment_id=$1 ORDER BY serial_no', [id])
+    invalidateEquip(rows[0].contract_out_id)
     res.json({ ...rows[0], serials: serials.rows })
   } catch (err) {
     console.error('updateEquipment:', err)
@@ -115,7 +166,8 @@ export async function updateEquipment(req, res) {
 export async function deleteEquipment(req, res) {
   const id = parseInt(req.params.id)
   try {
-    await pool.query('DELETE FROM contract_equipment WHERE id=$1', [id])
+    const { rows } = await pool.query('DELETE FROM contract_equipment WHERE id=$1 RETURNING contract_out_id', [id])
+    if (rows[0]) invalidateEquip(rows[0].contract_out_id)
     res.json({ success: true })
   } catch (err) {
     console.error('deleteEquipment:', err)
@@ -207,6 +259,8 @@ export async function createSerial(req, res) {
     }])
 
     await client.query('COMMIT')
+    invalidateEquip(contractId)
+    invalidateSerialLookup(saved.serial_no)
     res.json({ ...saved, pulled_components: pulled.added })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -232,6 +286,8 @@ export async function updateSerial(req, res) {
        parent_serial_id||null, id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy serial' })
+    invalidateEquip(await contractOfEquipment(rows[0].equipment_id))
+    invalidateSerialLookup(rows[0].serial_no)
     res.json(rows[0])
   } catch (err) {
     console.error('updateSerial:', err)
@@ -242,7 +298,11 @@ export async function updateSerial(req, res) {
 export async function deleteSerial(req, res) {
   const id = parseInt(req.params.id)
   try {
-    await pool.query('DELETE FROM equipment_serial WHERE id=$1', [id])
+    const { rows } = await pool.query('DELETE FROM equipment_serial WHERE id=$1 RETURNING serial_no, equipment_id', [id])
+    if (rows[0]) {
+      invalidateEquip(await contractOfEquipment(rows[0].equipment_id))
+      invalidateSerialLookup(rows[0].serial_no)
+    }
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa serial' })
@@ -254,8 +314,11 @@ export async function bulkDeleteSerials(req, res) {
   const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : []
   if (!ids.length) return res.status(400).json({ error: 'Chưa chọn dòng nào' })
   try {
-    const { rowCount } = await pool.query('DELETE FROM equipment_serial WHERE id = ANY($1::int[])', [ids])
-    res.json({ success: true, count: rowCount })
+    const contracts = await contractsOfSerials(ids)
+    const { rows } = await pool.query('DELETE FROM equipment_serial WHERE id = ANY($1::int[]) RETURNING serial_no', [ids])
+    contracts.forEach(invalidateEquip)
+    invalidateSerialLookup(rows.map(r => r.serial_no))
+    res.json({ success: true, count: rows.length })
   } catch (err) {
     console.error('bulkDeleteSerials:', err)
     res.status(500).json({ error: 'Không thể xóa các serial đã chọn' })
@@ -307,6 +370,8 @@ async function bulkWarranty(table, req, res) {
     const { rowCount } = await pool.query(
       `UPDATE ${table} SET ${sets.join(', ')} WHERE id = ANY($${i})`, params
     )
+    const contracts = isEquip ? await contractsOfEquipment(ids.map(Number)) : await contractsOfSerials(ids.map(Number))
+    contracts.forEach(invalidateEquip)
     res.json({ success: true, updated: rowCount })
   } catch (err) {
     console.error('bulkWarranty:', err)
@@ -324,16 +389,19 @@ export const bulkWarrantyEquipment = (req, res) => bulkWarranty('contract_equipm
 export async function getCases(req, res) {
   const contractId = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query(
-      `SELECT
-         wc.*,
-         (SELECT COUNT(*) FROM warranty_case_equipment wce WHERE wce.case_id = wc.id) AS equipment_count,
-         (SELECT COUNT(*) FROM warranty_activity wa WHERE wa.case_id = wc.id) AS activity_count
-       FROM warranty_case wc
-       WHERE wc.contract_out_id = $1
-       ORDER BY wc.reported_date DESC, wc.id DESC`,
-      [contractId]
-    )
+    const rows = await cacheWrap(contractKey(contractId, 'warranty-cases'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT
+           wc.*,
+           (SELECT COUNT(*) FROM warranty_case_equipment wce WHERE wce.case_id = wc.id) AS equipment_count,
+           (SELECT COUNT(*) FROM warranty_activity wa WHERE wa.case_id = wc.id) AS activity_count
+         FROM warranty_case wc
+         WHERE wc.contract_out_id = $1
+         ORDER BY wc.reported_date DESC, wc.id DESC`,
+        [contractId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getCases:', err)
@@ -356,6 +424,7 @@ export async function createCase(req, res) {
        reported_date||new Date().toISOString().slice(0,10),
        priority||'Bình thường', status||'Tiếp nhận', note?.trim()||null]
     )
+    invalidateCases(contractId)
     res.json({ ...rows[0], equipment_count: '0', activity_count: '0' })
 
     // Case bảo hành mới → báo PM hợp đồng (việc cần xử lý 🔔). Bỏ qua người tự tạo.
@@ -386,6 +455,7 @@ export async function updateCase(req, res) {
        resolved_date||null, note?.trim()||null, id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy case' })
+    invalidateCases(rows[0].contract_out_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updateCase:', err)
@@ -396,7 +466,8 @@ export async function updateCase(req, res) {
 export async function deleteCase(req, res) {
   const id = parseInt(req.params.id)
   try {
-    await pool.query('DELETE FROM warranty_case WHERE id=$1', [id])
+    const { rows } = await pool.query('DELETE FROM warranty_case WHERE id=$1 RETURNING contract_out_id', [id])
+    if (rows[0]) invalidateCases(rows[0].contract_out_id)
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa case' })
@@ -437,6 +508,7 @@ export async function linkEquipment(req, res) {
        VALUES ($1,$2,$3,$4) RETURNING id`,
       [caseId, parseInt(equipment_id), serial_id||null, note?.trim()||null]
     )
+    invalidateCases(await contractOfCase(caseId))
     res.json({ success: true, link_id: rows[0].id })
   } catch (err) {
     console.error('linkEquipment:', err)
@@ -447,7 +519,8 @@ export async function linkEquipment(req, res) {
 export async function unlinkEquipment(req, res) {
   const linkId = parseInt(req.params.id)
   try {
-    await pool.query('DELETE FROM warranty_case_equipment WHERE id=$1', [linkId])
+    const { rows } = await pool.query('DELETE FROM warranty_case_equipment WHERE id=$1 RETURNING case_id', [linkId])
+    if (rows[0]) invalidateCases(await contractOfCase(rows[0].case_id))
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa liên kết' })
@@ -482,6 +555,7 @@ export async function createActivity(req, res) {
       [caseId, activity_type?.trim()||null, description.trim(),
        performed_by?.trim()||null, performed_at||new Date().toISOString()]
     )
+    invalidateActs(await contractOfCase(caseId))
     res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: 'Không thể thêm nhật ký' })
@@ -491,7 +565,8 @@ export async function createActivity(req, res) {
 export async function deleteActivity(req, res) {
   const id = parseInt(req.params.id)
   try {
-    await pool.query('DELETE FROM warranty_activity WHERE id=$1', [id])
+    const { rows } = await pool.query('DELETE FROM warranty_activity WHERE id=$1 RETURNING case_id', [id])
+    if (rows[0]) invalidateActs(await contractOfCase(rows[0].case_id))
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa nhật ký' })
@@ -502,14 +577,17 @@ export async function deleteActivity(req, res) {
 export async function getAllActivities(req, res) {
   const contractId = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query(
-      `SELECT wa.*, wc.case_no, wc.title AS case_title
-       FROM warranty_activity wa
-       JOIN warranty_case wc ON wc.id = wa.case_id
-       WHERE wc.contract_out_id = $1
-       ORDER BY wa.performed_at DESC`,
-      [contractId]
-    )
+    const rows = await cacheWrap(contractKey(contractId, 'warranty-activities'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT wa.*, wc.case_no, wc.title AS case_title
+         FROM warranty_activity wa
+         JOIN warranty_case wc ON wc.id = wa.case_id
+         WHERE wc.contract_out_id = $1
+         ORDER BY wa.performed_at DESC`,
+        [contractId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     res.status(500).json({ error: 'Không thể tải nhật ký tổng hợp' })

@@ -1,5 +1,11 @@
 import { pool } from '../db.js'
 import { MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
+import { cacheWrap } from '../cache.js'
+import { deptDashKey } from '../services/cacheKeys.js'
+
+// Dashboard phòng tổng hợp việc của cả phòng — invalidation chính xác theo head phức tạp;
+// dùng TTL ngắn để giới hạn độ trễ khi việc của thành viên đổi (badge real-time vẫn riêng).
+const DASH_TTL = 5 * 60 // 5'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Dashboard cho Trưởng/Phó phòng: gom HẾT công việc từ mọi module được phân công
@@ -46,6 +52,7 @@ export async function getDeptWorkDashboard(req, res) {
     }
     const deptId = me.department_id
 
+    const payload = await cacheWrap(deptDashKey(userId), DASH_TTL, async () => {
     // Nhân sự đang hoạt động thuộc phòng → tập user_id để lọc người được giao việc.
     const { rows: members } = await pool.query(
       `SELECT id, full_name FROM app_user
@@ -53,7 +60,7 @@ export async function getDeptWorkDashboard(req, res) {
       [deptId],
     )
     const memberIds = members.map(m => m.id)
-    if (!memberIds.length) return res.json({ summary: emptySummary(), items: [], department_id: deptId })
+    if (!memberIds.length) return { summary: emptySummary(), items: [], department_id: deptId }
 
     // Nạp 3 nguồn việc + bản ghi ghim/nhắc của người xem song song.
     const [
@@ -150,11 +157,13 @@ export async function getDeptWorkDashboard(req, res) {
     const soonISO = soon.toISOString().slice(0, 10)
     const upcomingCount = items.filter(i => i.due_date && i.due_date <= soonISO).length
 
-    res.json({
+    return {
       department_id: deptId,
       summary: { taskCount: items.length, memberCount: memberIds.length, upcomingCount },
       items,
+    }
     })
+    res.json(payload)
   } catch (err) {
     console.error('getDeptWorkDashboard:', err)
     res.status(500).json({ error: 'Không thể tải dashboard công việc phòng' })

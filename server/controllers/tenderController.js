@@ -1,6 +1,23 @@
 import { pool } from '../db.js'
 import { notifyAction } from '../services/notify.js'
 import { userIsHead } from '../middleware/tenderAccess.js'
+import { cacheWrap } from '../cache.js'
+import {
+  lookupKey, invalidateLookup, tenderKey, invalidateTender,
+  tenderMyKey, invalidateTenderMy, invalidateReports,
+} from '../services/cacheKeys.js'
+
+const LIST_TTL = 10 * 60   // danh sách gói thầu
+const INFO_TTL = 10 * 60   // chi tiết/của tôi
+const ACT_TTL = 30 * 60    // nhật ký (append-only)
+
+// Gói thầu đổi (tạo/sửa/trạng thái/xóa) → danh sách + của-tôi + báo cáo đấu thầu + nhật ký gói.
+function invalidateTenderMeta(id) {
+  invalidateLookup('tender-list')
+  invalidateTenderMy()
+  invalidateReports('tender')
+  if (id != null) invalidateTender(id, 'info', 'activity')
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Gói thầu (16 trường) + phân công + trạng thái workflow. Module Ban Đấu thầu (dept 9).
@@ -21,6 +38,7 @@ export async function logActivity(tenderId, userId, action, detail) {
       'INSERT INTO tender_activity_log (tender_id, user_id, action, detail) VALUES ($1,$2,$3,$4)',
       [tenderId, userId || null, action, detail || null],
     )
+    invalidateTender(tenderId, 'activity') // nhật ký mới → làm mới tab nhật ký gói
   } catch (err) {
     console.error('tender logActivity:', err)
   }
@@ -43,11 +61,14 @@ const JOINS = `
 
 export async function getTenders(_req, res) {
   try {
-    const { rows } = await pool.query(
-      `SELECT ${SELECT_COLS} FROM tender t ${JOINS}
-        WHERE t.is_deleted = false
-        ORDER BY t.submit_date DESC NULLS LAST, t.id DESC`,
-    )
+    const rows = await cacheWrap(lookupKey('tender-list'), LIST_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT ${SELECT_COLS} FROM tender t ${JOINS}
+          WHERE t.is_deleted = false
+          ORDER BY t.submit_date DESC NULLS LAST, t.id DESC`,
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getTenders:', err)
@@ -58,12 +79,15 @@ export async function getTenders(_req, res) {
 export async function getTender(req, res) {
   const id = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query(
-      `SELECT ${SELECT_COLS} FROM tender t ${JOINS} WHERE t.id = $1 AND t.is_deleted = false`,
-      [id],
-    )
-    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy gói thầu.' })
-    res.json(rows[0])
+    const row = await cacheWrap(tenderKey(id, 'info'), INFO_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT ${SELECT_COLS} FROM tender t ${JOINS} WHERE t.id = $1 AND t.is_deleted = false`,
+        [id],
+      )
+      return rows[0] ?? null
+    })
+    if (!row) return res.status(404).json({ error: 'Không tìm thấy gói thầu.' })
+    res.json(row)
   } catch (err) {
     console.error('getTender:', err)
     res.status(500).json({ error: 'Không thể tải thông tin gói thầu.' })
@@ -137,6 +161,7 @@ export async function createTender(req, res) {
     if (bidMaker && bidMaker !== req.user.id) {
       notifyAction([bidMaker], `Bạn được phân công làm gói thầu: "${v.package_name}"`)
     }
+    invalidateTenderMeta(id)
     res.status(201).json({ success: true, id })
   } catch (err) {
     console.error('createTender:', err)
@@ -194,6 +219,7 @@ export async function updateTender(req, res) {
     if (head && bidMaker && bidMaker !== prevBidMaker && bidMaker !== req.user.id) {
       notifyAction([bidMaker], `Bạn được phân công làm gói thầu: "${v.package_name}"`)
     }
+    invalidateTenderMeta(id)
     res.json({ success: true, id })
   } catch (err) {
     console.error('updateTender:', err)
@@ -221,6 +247,7 @@ export async function updateTenderStatus(req, res) {
     )
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy gói thầu.' })
     logActivity(id, req.user.id, 'status', `Trạng thái: ${status || '—'}${result ? ` / Kết quả: ${result}` : ''}`)
+    invalidateTenderMeta(id)
     res.json({ success: true, id })
   } catch (err) {
     console.error('updateTenderStatus:', err)
@@ -237,6 +264,7 @@ export async function deleteTender(req, res) {
     )
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy gói thầu.' })
     logActivity(id, req.user.id, 'delete', 'Xoá gói thầu')
+    invalidateTenderMeta(id)
     res.json({ success: true })
   } catch (err) {
     console.error('deleteTender:', err)
@@ -247,14 +275,17 @@ export async function deleteTender(req, res) {
 export async function getActivityLog(req, res) {
   const id = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query(
-      `SELECT l.id, l.action, l.detail, l.created_at, l.user_id, u.full_name AS user_name
-         FROM tender_activity_log l
-         LEFT JOIN app_user u ON u.id = l.user_id
-        WHERE l.tender_id = $1
-        ORDER BY l.created_at DESC, l.id DESC`,
-      [id],
-    )
+    const rows = await cacheWrap(tenderKey(id, 'activity'), ACT_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT l.id, l.action, l.detail, l.created_at, l.user_id, u.full_name AS user_name
+           FROM tender_activity_log l
+           LEFT JOIN app_user u ON u.id = l.user_id
+          WHERE l.tender_id = $1
+          ORDER BY l.created_at DESC, l.id DESC`,
+        [id],
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getActivityLog:', err)
@@ -265,13 +296,16 @@ export async function getActivityLog(req, res) {
 // Thành viên ban (cho UI biết ai là HEAD + đổ danh sách người làm thầu).
 export async function getMembers(_req, res) {
   try {
-    const { rows } = await pool.query(
-      `SELECT m.id, m.user_id, u.full_name, m.dept_role, m.is_active
-         FROM tender_member m
-         JOIN app_user u ON u.id = m.user_id
-        WHERE m.department_id = 9 AND m.is_active
-        ORDER BY CASE m.dept_role WHEN 'HEAD' THEN 0 ELSE 1 END, u.full_name`,
-    )
+    const rows = await cacheWrap(lookupKey('tender-members'), 6 * 60 * 60, async () => {
+      const { rows } = await pool.query(
+        `SELECT m.id, m.user_id, u.full_name, m.dept_role, m.is_active
+           FROM tender_member m
+           JOIN app_user u ON u.id = m.user_id
+          WHERE m.department_id = 9 AND m.is_active
+          ORDER BY CASE m.dept_role WHEN 'HEAD' THEN 0 ELSE 1 END, u.full_name`,
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('tender getMembers:', err)
@@ -282,12 +316,16 @@ export async function getMembers(_req, res) {
 // "Việc của tôi" cho người làm thầu: các gói mình phụ trách.
 export async function getMyTenders(req, res) {
   try {
-    const { rows } = await pool.query(
-      `SELECT ${SELECT_COLS} FROM tender t ${JOINS}
-        WHERE t.is_deleted=false AND t.bid_maker_id = $1
-        ORDER BY t.submit_date DESC NULLS LAST, t.id DESC`,
-      [req.user.id],
-    )
+    const key = await tenderMyKey(req.user.id)
+    const rows = await cacheWrap(key, INFO_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT ${SELECT_COLS} FROM tender t ${JOINS}
+          WHERE t.is_deleted=false AND t.bid_maker_id = $1
+          ORDER BY t.submit_date DESC NULLS LAST, t.id DESC`,
+        [req.user.id],
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getMyTenders:', err)

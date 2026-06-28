@@ -1,5 +1,9 @@
 import { pool } from '../db.js'
 import { computeForecasts } from '../utils/progressForecast.js'
+import { cacheWrap } from '../cache.js'
+import { pmDashKey, assignedTasksKey, invalidateUserDashboards } from '../services/cacheKeys.js'
+
+const DASH_TTL = 5 * 60 // 5' — tổng hợp nặng; chấp nhận unread trễ tối đa 5' (badge real-time riêng)
 
 const iso = (v) => (v ? String(v).slice(0, 10) : null)
 const todayISO = () => new Date(new Date().toDateString()).toISOString().slice(0, 10)
@@ -43,6 +47,7 @@ export async function getPMDashboard(req, res) {
   const userId = parseInt(req.params.userId)
   if (!userId) return res.status(400).json({ error: 'userId không hợp lệ' })
   try {
+    const payload = await cacheWrap(pmDashKey(userId), DASH_TTL, async () => {
     // 1+2. Các HĐ (chưa xóa) mà user được phân công BẤT KỲ vai trò nào (PM, kinh
     // doanh, presale, kỹ thuật, kế toán, người theo dõi) — DISTINCT khử trùng nếu
     // user giữ nhiều vai trò trong cùng một HĐ.
@@ -53,7 +58,7 @@ export async function getPMDashboard(req, res) {
          JOIN contract_out_member m ON m.contract_out_id = co.id AND m.user_id = $1
         WHERE COALESCE(co.is_deleted, false) = false`, [userId])
     const ids = contracts.map(c => c.id)
-    if (!ids.length) return res.json({ summary: emptySummary(), items: [] })
+    if (!ids.length) return { summary: emptySummary(), items: [] }
     // Key theo String vì contract_out.id (bigint→chuỗi) vs *.contract_out_id (integer→số) khác kiểu
     const cmap = new Map(contracts.map(c => [String(c.id), c]))
     const getC = (cid) => cmap.get(String(cid))
@@ -337,10 +342,12 @@ export async function getPMDashboard(req, res) {
 
     await attachUnread(items, userId)
 
-    res.json({
+    return {
       summary: { contractCount: contracts.length, totalVnd, totalUsd, upcomingCount },
       items,
+    }
     })
+    res.json(payload)
   } catch (err) {
     console.error('getPMDashboard:', err)
     res.status(500).json({ error: 'Không thể tải dashboard PM' })
@@ -356,6 +363,7 @@ export async function getAssignedTasks(req, res) {
   const userId = parseInt(req.params.userId)
   if (!userId) return res.status(400).json({ error: 'userId không hợp lệ' })
   try {
+    const payload = await cacheWrap(assignedTasksKey(userId), DASH_TTL, async () => {
     const { rows } = await pool.query(
       `SELECT t.id, t.title, t.due_date, t.contract_out_id, co.contract_no,
               tr.pinned, tr.remind_at
@@ -417,7 +425,9 @@ export async function getAssignedTasks(req, res) {
 
     const allItems = [...items, ...dwItems, ...tcItems]
     await attachUnread(allItems, userId)
-    res.json({ items: allItems })
+    return { items: allItems }
+    })
+    res.json(payload)
   } catch (err) {
     console.error('getAssignedTasks:', err)
     res.status(500).json({ error: 'Không thể tải công việc được giao' })
@@ -438,6 +448,8 @@ export async function upsertTracking(req, res) {
          pinned = $4, remind_at = $5, updated_at = now()
        RETURNING source_type, source_id, pinned, remind_at`,
       [userId, source_type, parseInt(source_id), !!pinned, remind_at || null])
+    // Ghim/nhắc đổi → dashboard của chính user (pinned/remind_at nhúng trong payload đã cache).
+    invalidateUserDashboards(userId)
     res.json(rows[0])
   } catch (err) {
     console.error('upsertTracking:', err)

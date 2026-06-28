@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE as API } from '../config/api'
 import { useParams, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import {
+  useUsers, useCustomers, useSuppliers, useDepartments, usePositions, useManagers, useBbTypes, qk,
+} from '../lib/queries'
 import Sidebar from '../components/layout/Sidebar'
 import UserTable from '../components/users/UserTable'
 import UserModal from '../components/users/UserModal'
@@ -21,15 +25,21 @@ export default function QuantriPage() {
   const { user } = useAuth()
   const { section } = useParams()
 
-  const [users, setUsers] = useState([])
+  const queryClient = useQueryClient()
+  // Tất cả danh sách quản trị lấy qua TanStack Query: render NGAY từ cache (nhiều cái dùng
+  // chung với module HĐ nên thường đã được nạp sẵn), làm mới ngầm theo SWR. Sửa/thêm xong
+  // thì invalidate đúng key thay vì gọi loader thủ công.
+  const { data: users = [] } = useUsers()
+  const { data: customers = [] } = useCustomers()
+  const { data: suppliers = [] } = useSuppliers()
+  const { data: departments = [] } = useDepartments()
+  const { data: positions = [] } = usePositions()
+  const { data: managers = [] } = useManagers()
+  const { data: bbTypes = [] } = useBbTypes()
+
   const [searchTerm, setSearchTerm] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
-  const [departments, setDepartments] = useState([])
-  const [positions, setPositions] = useState([])
-  const [managers, setManagers] = useState([])
-  const [customers, setCustomers] = useState([])
   const [customerSearchTerm, setCustomerSearchTerm] = useState('')
-  const [suppliers, setSuppliers] = useState([])
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('')
 
   const [showAddModal, setShowAddModal] = useState(false)
@@ -45,41 +55,11 @@ export default function QuantriPage() {
   const [editingDept, setEditingDept] = useState(null)
   const [showPositionModal, setShowPositionModal] = useState(false)
   const [editingPosition, setEditingPosition] = useState(null)
-  const [bbTypes, setBBTypes] = useState([])
   const [showBBTypeModal, setShowBBTypeModal] = useState(false)
   const [editingBBType, setEditingBBType] = useState(null)
 
-  async function loadUsers() {
-    try { setUsers(await fetch(`${API}/api/users`).then(r => r.json())) } catch (e) { console.error(e) }
-  }
-  async function loadCustomers() {
-    try { setCustomers(await fetch(`${API}/api/customers`).then(r => r.json())) } catch (e) { console.error(e) }
-  }
-  async function loadSuppliers() {
-    try { setSuppliers(await fetch(`${API}/api/suppliers`).then(r => r.json())) } catch (e) { console.error(e) }
-  }
-  async function loadDepartments() {
-    try { setDepartments(await fetch(`${API}/api/departments`).then(r => r.json())) } catch (e) { console.error(e) }
-  }
-  async function loadPositions() {
-    try { setPositions(await fetch(`${API}/api/positions`).then(r => r.json())) } catch (e) { console.error(e) }
-  }
-  async function loadBBTypes() {
-    try { setBBTypes(await fetch(`${API}/api/bb-types`).then(r => r.json())) } catch (e) { console.error(e) }
-  }
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- các loader async: setState xảy ra SAU await
-    loadUsers()
-    loadCustomers()
-    loadSuppliers()
-    loadBBTypes()
-    Promise.all([
-      fetch(`${API}/api/departments`).then(r => r.json()),
-      fetch(`${API}/api/positions`).then(r => r.json()),
-      fetch(`${API}/api/managers`).then(r => r.json()),
-    ]).then(([d, p, m]) => { setDepartments(d); setPositions(p); setManagers(m) }).catch(console.error)
-  }, [])
+  // Làm mới một danh sách trong cache sau khi thêm/sửa (tương đương loadXxx() cũ).
+  const invalidate = (key) => queryClient.invalidateQueries({ queryKey: key })
 
   async function checkEmailExists(emailToCheck, callback) {
     if (!emailToCheck?.includes('@')) { callback(false); return }
@@ -113,7 +93,7 @@ export default function QuantriPage() {
       const data   = await res.json()
       if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
       alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
-      await loadUsers()
+      invalidate(qk.users)
       setShowAddModal(false); setShowEditModal(false); setEditingUserId(null)
     } catch { alert('Có lỗi xảy ra.') }
   }
@@ -126,7 +106,7 @@ export default function QuantriPage() {
       const data   = await res.json()
       if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
       alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
-      await loadCustomers()
+      invalidate(qk.customers)
       setShowAddCustomerModal(false); setShowEditCustomerModal(false); setEditingCustomerId(null)
     } catch { alert('Có lỗi xảy ra.') }
   }
@@ -139,7 +119,7 @@ export default function QuantriPage() {
       const data   = await res.json()
       if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
       alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
-      await loadSuppliers()
+      invalidate(qk.suppliers)
       setShowAddSupplierModal(false); setShowEditSupplierModal(false); setEditingSupplierId(null)
     } catch { alert('Có lỗi xảy ra.') }
   }
@@ -152,7 +132,7 @@ export default function QuantriPage() {
       const data   = await res.json()
       if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
       alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
-      await loadDepartments()
+      invalidate(qk.departments)
       setShowDeptModal(false); setEditingDept(null)
     } catch { alert('Có lỗi xảy ra.') }
   }
@@ -165,7 +145,7 @@ export default function QuantriPage() {
       const data   = await res.json()
       if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
       alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
-      await loadPositions()
+      invalidate(qk.positions)
       setShowPositionModal(false); setEditingPosition(null)
     } catch { alert('Có lỗi xảy ra.') }
   }
@@ -178,7 +158,7 @@ export default function QuantriPage() {
       const data   = await res.json()
       if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
       alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
-      await loadBBTypes()
+      invalidate(qk.bbTypes)
       setShowBBTypeModal(false); setEditingBBType(null)
     } catch { alert('Có lỗi xảy ra.') }
   }

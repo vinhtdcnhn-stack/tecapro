@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE as API } from '../config/api'
+import { useDeptWorkDashboard, qk } from '../lib/queries'
 import TrackingTable from './TrackingTable'
 import './Dashboard.css'
 import './PMDashboard.css'
@@ -9,28 +10,19 @@ import './PMDashboard.css'
 // cùng làm đã được backend gộp về một dòng (cột "Người thực hiện" liệt kê đủ người).
 // Tái dùng TrackingTable + ghim/nhắc (pm_dashboard_tracking theo userId người xem).
 export default function DeptWorkDashboard({ user, switcher = null }) {
-  const [items, setItems]     = useState([])
-  const [summary, setSummary] = useState({ taskCount: 0, memberCount: 0, upcomingCount: 0 })
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data, isLoading: loading } = useDeptWorkDashboard(user?.id)
+  const items = Array.isArray(data?.items) ? data.items : []
+  const summary = data?.summary || { taskCount: 0, memberCount: 0, upcomingCount: 0 }
 
-  const load = useCallback(async () => {
-    if (!user?.id) return
-    try {
-      const res  = await fetch(`${API}/api/dept/${user.id}/work-dashboard`)
-      const data = await res.json()
-      setItems(Array.isArray(data.items) ? data.items : [])
-      if (data.summary) setSummary(data.summary)
-    } catch (e) { console.error('load dept work dashboard:', e) }
-    finally { setLoading(false) }
-  }, [user])
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
-  useEffect(() => { load() }, [load])
-
-  // Lưu ghim/nhắc (dùng chung endpoint tracking) rồi cập nhật cục bộ
+  // Lưu ghim/nhắc: cập nhật LẠC QUAN trong cache, lỗi thì tải lại.
   const saveTracking = async (it, patch) => {
     const next = { ...it, ...patch }
-    setItems(prev => prev.map(x => (x.source_type === it.source_type && x.source_id === it.source_id) ? next : x))
+    const key = qk.deptWorkDashboard(user.id)
+    queryClient.setQueryData(key, (old) => old ? {
+      ...old,
+      items: (old.items || []).map(x => (x.source_type === it.source_type && x.source_id === it.source_id) ? next : x),
+    } : old)
     try {
       await fetch(`${API}/api/pm/${user.id}/tracking`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -39,7 +31,7 @@ export default function DeptWorkDashboard({ user, switcher = null }) {
           pinned: next.pinned, remind_at: next.remind_at || null,
         }),
       })
-    } catch (e) { console.error('saveTracking:', e); load() }
+    } catch (e) { console.error('saveTracking:', e); queryClient.invalidateQueries({ queryKey: key }) }
   }
 
   if (loading) return <div className="dashboard"><p className="dash-empty">Đang tải công việc của phòng...</p></div>

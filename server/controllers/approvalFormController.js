@@ -2,6 +2,11 @@
 // Quản lý approval_form + các trường (approval_form_field), chuỗi bước duyệt
 // (approval_form_step) và người duyệt cấu hình cho từng bước (approval_form_step_approver).
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { lookupKey, approvalFormOptsKey, invalidateApprovalForms } from '../services/cacheKeys.js'
+
+const FORMS_TTL = 12 * 60 * 60     // 12h — admin cấu hình ít đổi
+const FORM_OPTS_TTL = 6 * 60 * 60  // 6h
 
 const FIELD_TYPES = new Set([
   'text', 'textarea', 'number', 'money', 'date', 'date_range',
@@ -15,13 +20,16 @@ const CONDITION_MODES = new Set(['always', 'include', 'exclude'])
 // ── Danh sách loại đơn ────────────────────────────────────────────────────────
 export async function getForms(req, res) {
   try {
-    const { rows } = await pool.query(
-      `SELECT f.id, f.code, f.name, f.description, f.icon, f.is_active, f.sort_order,
-              (SELECT COUNT(*) FROM approval_form_field ff WHERE ff.form_id = f.id)::int AS field_count,
-              (SELECT COUNT(*) FROM approval_form_step fs WHERE fs.form_id = f.id)::int  AS step_count
-         FROM approval_form f
-        ORDER BY f.sort_order, f.name`
-    )
+    const rows = await cacheWrap(lookupKey('approval-forms'), FORMS_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT f.id, f.code, f.name, f.description, f.icon, f.is_active, f.sort_order,
+                (SELECT COUNT(*) FROM approval_form_field ff WHERE ff.form_id = f.id)::int AS field_count,
+                (SELECT COUNT(*) FROM approval_form_step fs WHERE fs.form_id = f.id)::int  AS step_count
+           FROM approval_form f
+          ORDER BY f.sort_order, f.name`
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getForms:', err)
@@ -33,9 +41,12 @@ export async function getForms(req, res) {
 // Cố ý lộ email phục vụ tìm kiếm khi chọn người duyệt (khác /users vốn ẩn email với non-admin).
 export async function getUserOptions(req, res) {
   try {
-    const { rows } = await pool.query(
-      `SELECT id, full_name, email FROM app_user ORDER BY full_name, id`
-    )
+    const rows = await cacheWrap(lookupKey('approval-users'), FORMS_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT id, full_name, email FROM app_user ORDER BY full_name, id`
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getUserOptions:', err)
@@ -50,19 +61,24 @@ export async function getUserOptions(req, res) {
 export async function getActiveForms(req, res) {
   const isAdmin = Number(req.user.role) === 1
   try {
-    const { rows } = await pool.query(
-      `SELECT f.id, f.code, f.name, f.description, f.icon, f.sort_order
-         FROM approval_form f
-        WHERE f.is_active = true
-          AND ( $2::boolean
-             OR NOT EXISTS (SELECT 1 FROM approval_form_department d WHERE d.form_id = f.id)
-             OR EXISTS (
-                  SELECT 1 FROM approval_form_department d
-                    JOIN app_user u ON u.id = $1
-                   WHERE d.form_id = f.id AND d.department_id = u.department_id) )
-        ORDER BY f.sort_order, f.name`,
-      [req.user.id, isAdmin]
-    )
+    // Per-user (lọc theo phòng ban); version-namespace bump khi cấu hình loại đơn đổi.
+    const key = await approvalFormOptsKey(`${req.user.id}:${isAdmin ? 'a' : 'u'}`)
+    const rows = await cacheWrap(key, FORM_OPTS_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT f.id, f.code, f.name, f.description, f.icon, f.sort_order
+           FROM approval_form f
+          WHERE f.is_active = true
+            AND ( $2::boolean
+               OR NOT EXISTS (SELECT 1 FROM approval_form_department d WHERE d.form_id = f.id)
+               OR EXISTS (
+                    SELECT 1 FROM approval_form_department d
+                      JOIN app_user u ON u.id = $1
+                     WHERE d.form_id = f.id AND d.department_id = u.department_id) )
+          ORDER BY f.sort_order, f.name`,
+        [req.user.id, isAdmin]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getActiveForms:', err)
@@ -219,6 +235,7 @@ export async function createForm(req, res) {
       [code.trim().toUpperCase(), name.trim(), description?.trim() || null,
        icon?.trim() || null, Number(sort_order) || 0, req.user.id]
     )
+    invalidateApprovalForms()
     res.status(201).json(rows[0])
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Mã loại đơn đã tồn tại.' })
@@ -242,6 +259,7 @@ export async function updateForm(req, res) {
        is_active !== false, Number(sort_order) || 0, id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy loại đơn.' })
+    invalidateApprovalForms()
     res.json(rows[0])
   } catch (err) {
     console.error('updateForm:', err)
@@ -256,6 +274,7 @@ export async function deleteForm(req, res) {
   try {
     const { rowCount } = await pool.query(`DELETE FROM approval_form WHERE id = $1`, [id])
     if (!rowCount) return res.status(404).json({ error: 'Không tìm thấy loại đơn.' })
+    invalidateApprovalForms()
     res.json({ success: true })
   } catch (err) {
     if (err.code === '23503') {
@@ -305,6 +324,7 @@ export async function saveFields(req, res) {
     }
     await client.query(`UPDATE approval_form SET updated_at = now() WHERE id = $1`, [id])
     await client.query('COMMIT')
+    invalidateApprovalForms() // đổi field_count hiển thị ở danh sách loại đơn
     res.json({ success: true })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -384,6 +404,7 @@ export async function saveSteps(req, res) {
     }
     await client.query(`UPDATE approval_form SET updated_at = now() WHERE id = $1`, [id])
     await client.query('COMMIT')
+    invalidateApprovalForms() // đổi step_count hiển thị ở danh sách loại đơn
     res.json({ success: true })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -456,6 +477,7 @@ export async function saveDepartments(req, res) {
     }
     await client.query(`UPDATE approval_form SET updated_at = now() WHERE id = $1`, [id])
     await client.query('COMMIT')
+    invalidateApprovalForms() // đổi phạm vi phòng ban → danh sách loại đơn user được tạo đổi
     res.json({ success: true })
   } catch (err) {
     await client.query('ROLLBACK')

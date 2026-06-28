@@ -5,9 +5,24 @@ import fs from 'fs'
 import archiver from 'archiver'
 import { fileURLToPath } from 'url'
 import { safeUploadFilter, UPLOAD_LIMITS, BLOCKED_EXT } from '../middleware/uploadFilter.js'
+import { cacheWrap } from '../cache.js'
+import {
+  contractKey, contractInKey, invalidateContract, invalidateContractIn, invalidateTender,
+} from '../services/cacheKeys.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+const DOC_TTL = 30 * 60 // 30'
+
+// Thư mục/tệp đổi → tab folders + files của đúng chủ sở hữu: HĐ bán (contract_id),
+// HĐ nhập (contract_in_id) hoặc gói thầu (tender_id). Rename/xóa folder, xóa file của
+// gói thầu đi qua route global của controller này nên phải phủ cả tender_id.
+function invalidateDocRow(row) {
+  if (row?.contract_id != null) invalidateContract(row.contract_id, 'folders', 'files')
+  if (row?.contract_in_id != null) invalidateContractIn(row.contract_in_id, 'folders', 'files')
+  if (row?.tender_id != null) invalidateTender(row.tender_id, 'folders', 'files')
+}
 
 const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
 
@@ -107,27 +122,30 @@ export async function getFolderTree(req, res) {
   try {
     const { contractId } = req.params
 
-    // Recursive CTE to fetch all folders for this contract in tree order.
-    // No is_deleted column in schema — filter is omitted.
-    const { rows } = await pool.query(`
-      WITH RECURSIVE folder_tree AS (
-        SELECT id, contract_id, parent_id, folder_name, created_by, created_at,
-               0 AS level, ARRAY[id] AS path
-        FROM public.document_folder
-        WHERE contract_id = $1 AND parent_id IS NULL
+    const tree = await cacheWrap(contractKey(contractId, 'folders'), DOC_TTL, async () => {
+      // Recursive CTE to fetch all folders for this contract in tree order.
+      // No is_deleted column in schema — filter is omitted.
+      const { rows } = await pool.query(`
+        WITH RECURSIVE folder_tree AS (
+          SELECT id, contract_id, parent_id, folder_name, created_by, created_at,
+                 0 AS level, ARRAY[id] AS path
+          FROM public.document_folder
+          WHERE contract_id = $1 AND parent_id IS NULL
 
-        UNION ALL
+          UNION ALL
 
-        SELECT f.id, f.contract_id, f.parent_id, f.folder_name, f.created_by, f.created_at,
-               ft.level + 1, ft.path || f.id
-        FROM public.document_folder f
-        INNER JOIN folder_tree ft ON f.parent_id = ft.id
-        WHERE f.contract_id = $1
-      )
-      SELECT * FROM folder_tree ORDER BY path
-    `, [contractId])
+          SELECT f.id, f.contract_id, f.parent_id, f.folder_name, f.created_by, f.created_at,
+                 ft.level + 1, ft.path || f.id
+          FROM public.document_folder f
+          INNER JOIN folder_tree ft ON f.parent_id = ft.id
+          WHERE f.contract_id = $1
+        )
+        SELECT * FROM folder_tree ORDER BY path
+      `, [contractId])
+      return buildTree(rows)
+    })
 
-    res.json(buildTree(rows))
+    res.json(tree)
   } catch (err) {
     console.error('getFolderTree error:', err)
     res.status(500).json({ error: 'Failed to get folder tree' })
@@ -154,6 +172,7 @@ export async function createFolder(req, res) {
       RETURNING *
     `, [contractId, parentId || null, folderName.trim(), createdBy])
 
+    invalidateDocRow(rows[0])
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createFolder error:', err)
@@ -177,6 +196,7 @@ export async function updateFolder(req, res) {
     `, [folderName.trim(), folderId])
 
     if (rows.length === 0) return res.status(404).json({ error: 'Folder not found' })
+    invalidateDocRow(rows[0])
     res.json(rows[0])
   } catch (err) {
     console.error('updateFolder error:', err)
@@ -189,6 +209,10 @@ export async function updateFolder(req, res) {
 export async function deleteFolder(req, res) {
   try {
     const { folderId } = req.params
+
+    // HĐ/gói sở hữu thư mục (để invalidate đúng tab sau khi xóa).
+    const { rows: own } = await pool.query(
+      'SELECT contract_id, contract_in_id, tender_id FROM public.document_folder WHERE id = $1', [folderId])
 
     // Collect all folder IDs in the subtree (including the target folder)
     const { rows: subtree } = await pool.query(`
@@ -218,6 +242,7 @@ export async function deleteFolder(req, res) {
     await pool.query('DELETE FROM public.document_file WHERE folder_id = ANY($1)', [folderIds])
     await pool.query('DELETE FROM public.document_folder WHERE id = ANY($1)', [folderIds])
 
+    invalidateDocRow(own[0])
     res.json({ message: 'Folder deleted' })
   } catch (err) {
     console.error('deleteFolder error:', err)
@@ -232,24 +257,29 @@ export async function getContractFiles(req, res) {
     const { contractId } = req.params
     const { folderId } = req.query
 
-    let query = `
-      SELECT df.id, df.contract_id, df.folder_id, df.file_name, df.file_path,
-             df.file_size, df.mime_type, df.uploaded_by, df.uploaded_at,
-             u.full_name AS uploaded_by_name
-      FROM public.document_file df
-      LEFT JOIN public.app_user u ON df.uploaded_by = u.id
-      WHERE df.contract_id = $1
-    `
-    const params = [contractId]
-
-    if (folderId) {
-      query += ' AND df.folder_id = $2'
-      params.push(folderId)
+    const load = async () => {
+      let query = `
+        SELECT df.id, df.contract_id, df.folder_id, df.file_name, df.file_path,
+               df.file_size, df.mime_type, df.uploaded_by, df.uploaded_at,
+               u.full_name AS uploaded_by_name
+        FROM public.document_file df
+        LEFT JOIN public.app_user u ON df.uploaded_by = u.id
+        WHERE df.contract_id = $1
+      `
+      const params = [contractId]
+      if (folderId) {
+        query += ' AND df.folder_id = $2'
+        params.push(folderId)
+      }
+      query += ' ORDER BY df.uploaded_at DESC'
+      const { rows } = await pool.query(query, params)
+      return rows
     }
 
-    query += ' ORDER BY df.uploaded_at DESC'
-
-    const { rows } = await pool.query(query, params)
+    // Chỉ cache biến thể "toàn bộ tệp HĐ" (không lọc folderId) — đây là lần nạp phổ biến.
+    const rows = folderId
+      ? await load()
+      : await cacheWrap(contractKey(contractId, 'files'), DOC_TTL, load)
     res.json(rows)
   } catch (err) {
     console.error('getContractFiles error:', err)
@@ -314,6 +344,7 @@ export async function uploadFile(req, res) {
       RETURNING *
     `, [contractId, folderId, fileName, filePath, req.file.size, req.file.mimetype, uploadedBy])
 
+    invalidateDocRow(rows[0])
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('uploadFile error:', err)
@@ -345,6 +376,7 @@ export async function deleteFile(req, res) {
     // Remove from DB
     await pool.query('DELETE FROM public.document_file WHERE id = $1', [fileId])
 
+    invalidateDocRow(file)
     res.json({ message: 'File deleted' })
   } catch (err) {
     console.error('deleteFile error:', err)
@@ -471,24 +503,27 @@ export async function downloadFolder(req, res) {
 export async function getFolderTreeIn(req, res) {
   try {
     const { contractInId } = req.params
-    const { rows } = await pool.query(`
-      WITH RECURSIVE folder_tree AS (
-        SELECT id, contract_in_id, parent_id, folder_name, created_by, created_at,
-               0 AS level, ARRAY[id] AS path
-        FROM public.document_folder
-        WHERE contract_in_id = $1 AND parent_id IS NULL
+    const tree = await cacheWrap(contractInKey(contractInId, 'folders'), DOC_TTL, async () => {
+      const { rows } = await pool.query(`
+        WITH RECURSIVE folder_tree AS (
+          SELECT id, contract_in_id, parent_id, folder_name, created_by, created_at,
+                 0 AS level, ARRAY[id] AS path
+          FROM public.document_folder
+          WHERE contract_in_id = $1 AND parent_id IS NULL
 
-        UNION ALL
+          UNION ALL
 
-        SELECT f.id, f.contract_in_id, f.parent_id, f.folder_name, f.created_by, f.created_at,
-               ft.level + 1, ft.path || f.id
-        FROM public.document_folder f
-        INNER JOIN folder_tree ft ON f.parent_id = ft.id
-        WHERE f.contract_in_id = $1
-      )
-      SELECT * FROM folder_tree ORDER BY path
-    `, [contractInId])
-    res.json(buildTree(rows))
+          SELECT f.id, f.contract_in_id, f.parent_id, f.folder_name, f.created_by, f.created_at,
+                 ft.level + 1, ft.path || f.id
+          FROM public.document_folder f
+          INNER JOIN folder_tree ft ON f.parent_id = ft.id
+          WHERE f.contract_in_id = $1
+        )
+        SELECT * FROM folder_tree ORDER BY path
+      `, [contractInId])
+      return buildTree(rows)
+    })
+    res.json(tree)
   } catch (err) {
     console.error('getFolderTreeIn error:', err)
     res.status(500).json({ error: 'Failed to get folder tree' })
@@ -504,6 +539,7 @@ export async function createFolderIn(req, res) {
       INSERT INTO public.document_folder (contract_in_id, parent_id, folder_name, created_by)
       VALUES ($1, $2, $3, $4) RETURNING *
     `, [contractInId, parentId || null, folderName.trim(), req.user?.id || null])
+    invalidateDocRow(rows[0])
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createFolderIn error:', err)
@@ -526,7 +562,10 @@ export async function getContractInFiles(req, res) {
     const params = [contractInId]
     if (folderId) { query += ' AND df.folder_id = $2'; params.push(folderId) }
     query += ' ORDER BY df.uploaded_at DESC'
-    const { rows } = await pool.query(query, params)
+    const load = async () => (await pool.query(query, params)).rows
+    const rows = folderId
+      ? await load()
+      : await cacheWrap(contractInKey(contractInId, 'files'), DOC_TTL, load)
     res.json(rows)
   } catch (err) {
     console.error('getContractInFiles error:', err)
@@ -557,6 +596,7 @@ export async function uploadFileIn(req, res) {
       INSERT INTO public.document_file (contract_in_id, folder_id, file_name, file_path, file_size, mime_type, uploaded_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
     `, [contractInId, folderId, fileName, filePath, req.file.size, req.file.mimetype, req.user?.id || null])
+    invalidateDocRow(rows[0])
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('uploadFileIn error:', err)

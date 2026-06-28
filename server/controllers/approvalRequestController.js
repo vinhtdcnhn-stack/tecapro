@@ -3,6 +3,7 @@
 // Phase 5 bổ sung approve/reject (file riêng: approvalDecisionController.js).
 import { pool } from '../db.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
+import { bumpLive } from '../services/eventBus.js'
 
 // SELECT dùng chung cho danh sách đơn (join loại đơn + người gửi).
 const LIST_SELECT = `
@@ -402,6 +403,9 @@ export async function submitRequest(req, res) {
       }
     }
     res.json({ success: true, status: autoApproved ? 'approved' : 'pending' })
+
+    // Inbox của người duyệt bước đầu thay đổi → đánh thức long-poll.
+    bumpLive('approval')
   } catch (err) {
     await client.query('ROLLBACK')
     console.error('submitRequest:', err)
@@ -564,6 +568,8 @@ export async function cancelRequest(req, res) {
       [id, req.user.id]
     )
     res.json({ success: true })
+    // Đơn rời khỏi inbox của người duyệt hiện tại → đánh thức long-poll.
+    bumpLive('approval')
   } catch (err) {
     console.error('cancelRequest:', err)
     res.status(500).json({ error: 'Không thể hủy đơn.' })

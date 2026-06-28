@@ -4,6 +4,12 @@ import {
   vnToday, lastDayOfMonth, toVnd, loadReceivables, loadProgressByContract, revenueOfYear,
   loadPayables, loadPaymentsByContractIn,
 } from '../utils/reportLoaders.js'
+import { cacheWrap } from '../cache.js'
+import { reportKey } from '../services/cacheKeys.js'
+
+// Báo cáo tài chính: đọc nhiều, dùng chung. TTL trung bình + invalidate theo nhóm 'debt'
+// (version-namespace) khi receivable/payment/HĐ/hóa đơn đổi.
+const REPORT_TTL = 2 * 60 * 60 // 2h
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Báo cáo tài chính cho kế toán (đọc-only). Tính trên giá trị NGUYÊN TỆ; khi gộp
@@ -19,33 +25,38 @@ export async function getOverdueReceivables(req, res) {
     const pit   = !!explicitAsOf
     const basis = req.query.basis === 'plan' ? 'plan' : 'actual'
 
-    const [receivables, progressByContract] = await Promise.all([loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit })])
-    const computed = computeReceivableDues(receivables, progressByContract, basis, asOf)
+    const key = await reportKey('debt', 'overdue-receivables', { asOf, basis, pit })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
+      const [receivables, progressByContract] = await Promise.all([loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit })])
+      const computed = computeReceivableDues(receivables, progressByContract, basis, asOf)
 
-    const rows = computed
-      .filter(r => r.remaining > 0)
-      .map(r => ({
-        id: r.id,
-        contract_out_id: r.contract_out_id,
-        contract_no: r.contract_no,
-        project_name: r.project_name,
-        customer_code: r.customer_code,
-        customer_name: r.customer_name,
-        description: r.description,
-        currency_code: r.currency_code,
-        amount: r.amount,
-        paid: r.paid,
-        remaining: r.remaining,
-        remaining_vnd: toVnd(r.remaining, r.exchange_rate, r.currency_code),
-        due_date: r.effective_due,
-        days_overdue: r.days_overdue,
-        tier: r.tier,
-        tier_label: r.tier ? TIER_LABEL[r.tier] : null,
-        recovery_ratio: (parseFloat(r.amount) || 0) > 0 ? r.paid / (parseFloat(r.amount) || 1) : 0,
-      }))
-      .sort((a, b) => b.days_overdue - a.days_overdue)
+      const rows = computed
+        .filter(r => r.remaining > 0)
+        .map(r => ({
+          id: r.id,
+          contract_out_id: r.contract_out_id,
+          contract_no: r.contract_no,
+          project_name: r.project_name,
+          customer_code: r.customer_code,
+          customer_name: r.customer_name,
+          description: r.description,
+          currency_code: r.currency_code,
+          amount: r.amount,
+          paid: r.paid,
+          remaining: r.remaining,
+          remaining_vnd: toVnd(r.remaining, r.exchange_rate, r.currency_code),
+          due_date: r.effective_due,
+          days_overdue: r.days_overdue,
+          tier: r.tier,
+          tier_label: r.tier ? TIER_LABEL[r.tier] : null,
+          recovery_ratio: (parseFloat(r.amount) || 0) > 0 ? r.paid / (parseFloat(r.amount) || 1) : 0,
+        }))
+        .sort((a, b) => b.days_overdue - a.days_overdue)
 
-    res.json({ asOf, basis, rows })
+      return { asOf, basis, rows }
+    })
+
+    res.json(payload)
   } catch (err) {
     console.error('getOverdueReceivables:', err)
     res.status(500).json({ error: 'Không thể tải báo cáo cảnh báo nợ.' })
@@ -98,32 +109,37 @@ export async function getCashflowSummary(req, res) {
     const eom  = lastDayOfMonth(asOf)
     const year = asOf.slice(0, 4)
 
-    const [receivables, progressByContract] = await Promise.all([loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit })])
-    const computed = computeReceivableDues(receivables, progressByContract, 'actual', asOf)
+    const key = await reportKey('debt', 'cashflow-summary', { asOf, pit })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
+      const [receivables, progressByContract] = await Promise.all([loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit })])
+      const computed = computeReceivableDues(receivables, progressByContract, 'actual', asOf)
 
-    let expectedReceiptMonth = 0, overdueTotal = 0, overdueCount = 0
-    for (const r of computed) {
-      if (r.remaining <= 0) continue
-      const vnd = toVnd(r.remaining, r.exchange_rate, r.currency_code)
-      if (r.effective_due && r.effective_due <= eom) expectedReceiptMonth += vnd   // tới hạn trong/đến tháng này, chưa thu
-      if (r.days_overdue > 0) { overdueTotal += vnd; overdueCount++ }
-    }
+      let expectedReceiptMonth = 0, overdueTotal = 0, overdueCount = 0
+      for (const r of computed) {
+        if (r.remaining <= 0) continue
+        const vnd = toVnd(r.remaining, r.exchange_rate, r.currency_code)
+        if (r.effective_due && r.effective_due <= eom) expectedReceiptMonth += vnd   // tới hạn trong/đến tháng này, chưa thu
+        if (r.days_overdue > 0) { overdueTotal += vnd; overdueCount++ }
+      }
 
-    // Dự kiến chi NCC tháng này (xấp xỉ cấp hợp đồng nhập: phải trả đến hạn − đã trả).
-    // Đã trả chỉ tính tới asOf để khớp khi xem lại 1 thời điểm trong quá khứ.
-    const expectedPaymentMonth = await computeExpectedPaymentMonth(asOf, eom, pit)
+      // Dự kiến chi NCC tháng này (xấp xỉ cấp hợp đồng nhập: phải trả đến hạn − đã trả).
+      // Đã trả chỉ tính tới asOf để khớp khi xem lại 1 thời điểm trong quá khứ.
+      const expectedPaymentMonth = await computeExpectedPaymentMonth(asOf, eom, pit)
 
-    // Doanh thu đã xuất hóa đơn lũy kế từ đầu năm tới asOf (quy VND).
-    const revenueYtd = await revenueOfYear(year, pool, asOf, pit)
+      // Doanh thu đã xuất hóa đơn lũy kế từ đầu năm tới asOf (quy VND).
+      const revenueYtd = await revenueOfYear(year, pool, asOf, pit)
 
-    res.json({
-      asOf, year,
-      revenue_ytd: revenueYtd,
-      expected_receipt_month: expectedReceiptMonth,
-      expected_payment_month: expectedPaymentMonth,
-      overdue_total_vnd: overdueTotal,
-      overdue_count: overdueCount,
+      return {
+        asOf, year,
+        revenue_ytd: revenueYtd,
+        expected_receipt_month: expectedReceiptMonth,
+        expected_payment_month: expectedPaymentMonth,
+        overdue_total_vnd: overdueTotal,
+        overdue_count: overdueCount,
+      }
     })
+
+    res.json(payload)
   } catch (err) {
     console.error('getCashflowSummary:', err)
     res.status(500).json({ error: 'Không thể tải tổng quan dòng tiền.' })

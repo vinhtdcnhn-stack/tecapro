@@ -260,7 +260,7 @@ background:
 }
 
 /* ── Cảnh báo: có báo cáo/chỉ đạo công việc phòng chưa đọc → nền toàn trang đỏ ──
-   Class dw-page-alert do useDeptWorkAlert gắn lên <body>. Đè nền xanh của .page bằng
+   Class dw-page-alert do useLiveAlerts gắn lên <body>. Đè nền xanh của .page bằng
    đỏ nhấp nháy (đặc hiệu hơn .page/.page--home nên thắng, không cần !important). */
 body.dw-page-alert .page {
   background-color: #f87171;
@@ -275,7 +275,7 @@ body.dw-page-alert .page {
   body.dw-page-alert .page { animation: none; background-color: #fca5a5; }
 }
 
-/* Cảnh báo tương tự cho công việc HỢP ĐỒNG chưa đọc (useContractTaskAlert). */
+/* Cảnh báo tương tự cho công việc HỢP ĐỒNG chưa đọc (useLiveAlerts). */
 body.task-page-alert .page {
   background-color: #f87171;
   background-image: none;

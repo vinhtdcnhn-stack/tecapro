@@ -2,6 +2,7 @@ import { pool } from '../db.js'
 import { normKind, recomputeTree } from './boqTreeUtils.js'
 import { parseBOQExcel } from './boqExcel.js'
 import { getContractCurrency, buildRowFields, validateSiblingName } from './boqHelpers.js'
+import { invalidateBOQ } from './boqController.js'
 
 // Import Excel cho bảng giá HĐ bán (preview + lưu). Tách khỏi boqController.js để giữ file dưới 500 dòng.
 
@@ -88,6 +89,7 @@ export async function saveImportedBOQ(req, res) {
 
       await recomputeTree(contractId, client)
       await client.query('COMMIT')
+      invalidateBOQ(contractId)
       res.json({ saved: saved.length, items: saved })
     } catch (err) {
       await client.query('ROLLBACK')

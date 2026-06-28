@@ -5,6 +5,12 @@ import { signToken, AUTH_COOKIE, TOKEN_MAX_AGE_SEC, revokeToken } from '../auth/
 import { parseCookies } from '../middleware/auth.js'
 import { loginLimiter } from '../middleware/loginRateLimit.js'
 import { logger } from '../utils/logger.js'
+import { cacheWrap } from '../cache.js'
+import { lookupKey, invalidateLookup } from '../services/cacheKeys.js'
+
+// TTL danh mục ít đổi. Đổi user/phòng/vị trí đã invalidate ngay nên TTL dài là an toàn.
+const USERS_TTL = 6 * 60 * 60        // 6h
+const LOOKUP_TTL = 24 * 60 * 60      // 24h (departments/positions rất ổn định)
 
 // Số vòng bcrypt khi băm mật khẩu. Mật khẩu cũ băm ở cost thấp hơn vẫn xác thực
 // bình thường (cost được nhúng trong hash); chỉ hash mới dùng cost này.
@@ -180,6 +186,8 @@ export async function createUser(req, res) {
       )
     }
     await client.query('COMMIT')
+    // Tạo user đổi danh sách users/managers; gán vị trí có thể đổi thành viên phòng KT cơ điện.
+    invalidateLookup('users', 'managers', 'dw-members', 'approval-users')
     res.json({
       success: true,
       id: userId,
@@ -304,30 +312,34 @@ export async function checkEmployeeCodeExists(req, res) {
 }
 
 export async function getAllUsers(req, res) {
-  const { rows } = await pool.query(`
-    SELECT
-      u.id, u.full_name, u.email, u.phone, u.role, u.username, u.employee_code,
-      u.department_id, u.manager_id, u.telegram_chat_id,
-      d.name AS department_name,
-      m.full_name AS manager_name,
-      COALESCE((
-        SELECT json_agg(json_build_object('id', p.id, 'name', p.name) ORDER BY p.id)
-        FROM app_user_position up JOIN position p ON p.id = up.position_id
-        WHERE up.user_id = u.id
-      ), '[]') AS positions
-    FROM app_user u
-    LEFT JOIN department d ON d.id = u.department_id
-    LEFT JOIN app_user m   ON m.id = u.manager_id
-    ORDER BY u.id
-  `)
+  // Cache bản THÔ (đầy đủ field) dùng chung; redaction theo role làm trên BẢN SAO mỗi
+  // request để không mutate object đang nằm trong cache.
+  const rows = await cacheWrap(lookupKey('users'), USERS_TTL, async () => {
+    const { rows } = await pool.query(`
+      SELECT
+        u.id, u.full_name, u.email, u.phone, u.role, u.username, u.employee_code,
+        u.department_id, u.manager_id, u.telegram_chat_id,
+        d.name AS department_name,
+        m.full_name AS manager_name,
+        COALESCE((
+          SELECT json_agg(json_build_object('id', p.id, 'name', p.name) ORDER BY p.id)
+          FROM app_user_position up JOIN position p ON p.id = up.position_id
+          WHERE up.user_id = u.id
+        ), '[]') AS positions
+      FROM app_user u
+      LEFT JOIN department d ON d.id = u.department_id
+      LEFT JOIN app_user m   ON m.id = u.manager_id
+      ORDER BY u.id
+    `)
+    return rows
+  })
 
   // Non-admin chỉ cần id/tên/phòng ban/vị trí để hiển thị & phân công thành viên —
   // KHÔNG lộ thông tin liên hệ/định danh (email, sđt, mã NV, telegram, username).
   if (Number(req.user?.role) !== 1) {
-    for (const u of rows) {
-      delete u.email; delete u.phone; delete u.employee_code
-      delete u.telegram_chat_id; delete u.username
-    }
+    const redacted = rows.map(({ email, phone, employee_code, telegram_chat_id, username, ...rest }) => rest)
+    res.json(redacted)
+    return
   }
 
   res.json(rows)
@@ -433,6 +445,8 @@ export async function updateUser(req, res) {
       setAuthCookie(res, { id, role: rows[0].role, token_version: rows[0].token_version })
     }
 
+    // Sửa user (tên/phòng/vị trí) đổi users/managers + có thể đổi thành viên phòng KT cơ điện.
+    invalidateLookup('users', 'managers', 'dw-members', 'approval-users')
     res.json({ success: true, id: rows[0].id })
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {})
@@ -518,15 +532,18 @@ export async function updateMyTelegram(req, res) {
 // ==================== DEPARTMENT CONTROLLER ====================
 
 export async function getAllDepartments(req, res) {
-  const { rows } = await pool.query(`
-    SELECT
-      id,
-      code,
-      name
-    FROM department
-    WHERE is_active = true
-    ORDER BY id
-  `)
+  const rows = await cacheWrap(lookupKey('departments'), LOOKUP_TTL, async () => {
+    const { rows } = await pool.query(`
+      SELECT
+        id,
+        code,
+        name
+      FROM department
+      WHERE is_active = true
+      ORDER BY id
+    `)
+    return rows
+  })
 
   res.json(rows)
 }
@@ -543,6 +560,7 @@ export async function createDepartment(req, res) {
       `INSERT INTO department (code, name) VALUES ($1, $2) RETURNING id, code, name`,
       [code, name],
     )
+    invalidateLookup('departments')
     res.json({ success: true, ...rows[0] })
   } catch (err) {
     if (err.code === '23505') {
@@ -568,6 +586,7 @@ export async function updateDepartment(req, res) {
       [code, name, id],
     )
     if (!rows.length) { res.status(404).json({ error: 'Không tìm thấy phòng ban.' }); return }
+    invalidateLookup('departments')
     res.json({ success: true, ...rows[0] })
   } catch (err) {
     if (err.code === '23505') {
@@ -582,14 +601,17 @@ export async function updateDepartment(req, res) {
 // ==================== POSITION CONTROLLER ====================
 
 export async function getAllPositions(req, res) {
-  const { rows } = await pool.query(`
-    SELECT
-      id,
-      code,
-      name
-    FROM position
-    ORDER BY id
-  `)
+  const rows = await cacheWrap(lookupKey('positions'), LOOKUP_TTL, async () => {
+    const { rows } = await pool.query(`
+      SELECT
+        id,
+        code,
+        name
+      FROM position
+      ORDER BY id
+    `)
+    return rows
+  })
 
   res.json(rows)
 }
@@ -609,6 +631,7 @@ export async function createPosition(req, res) {
        RETURNING id, code, name`,
       [code, name],
     )
+    invalidateLookup('positions')
     res.json({ success: true, ...rows[0] })
   } catch (err) {
     if (err.code === '23505') {
@@ -634,6 +657,7 @@ export async function updatePosition(req, res) {
       [code, name, id],
     )
     if (!rows.length) { res.status(404).json({ error: 'Không tìm thấy vị trí.' }); return }
+    invalidateLookup('positions')
     res.json({ success: true, ...rows[0] })
   } catch (err) {
     if (err.code === '23505') {
@@ -648,13 +672,16 @@ export async function updatePosition(req, res) {
 // ==================== MANAGER CONTROLLER ====================
 
 export async function getAllManagers(req, res) {
-  const { rows } = await pool.query(`
-    SELECT
-      id,
-      full_name
-    FROM app_user
-    ORDER BY full_name
-  `)
+  const rows = await cacheWrap(lookupKey('managers'), USERS_TTL, async () => {
+    const { rows } = await pool.query(`
+      SELECT
+        id,
+        full_name
+      FROM app_user
+      ORDER BY full_name
+    `)
+    return rows
+  })
 
   res.json(rows)
 }

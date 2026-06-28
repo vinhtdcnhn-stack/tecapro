@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
-import { API } from '../../config/api'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
+import { useApprovalsInbox, qk } from '../../lib/queries'
 import useIsMobile from '../contracts/useIsMobile'
 import RequestDetail from './RequestDetail'
 import FormTypeFilter, { useFormTypeFilter } from './FormTypeFilter'
@@ -11,17 +12,12 @@ const fmt = (s) => (s ? new Date(s).toLocaleDateString('vi-VN') : '')
 export default function Inbox() {
   const { user } = useAuth()
   const isMobile = useIsMobile()
-  const [rows, setRows] = useState([])
+  const queryClient = useQueryClient()
   const [openId, setOpenId] = useState(null)
+  // Danh sách "chờ tôi duyệt" qua TanStack Query; load() (sau khi xử lý đơn) = invalidate.
+  const { data: rows = [] } = useApprovalsInbox()
+  const load = () => queryClient.invalidateQueries({ queryKey: qk.approvalsInbox })
   const { formId, setFormId, options, filtered } = useFormTypeFilter(rows)
-
-  const load = useCallback(() => {
-    fetch(`${API}/approvals/requests/inbox`)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setRows(Array.isArray(d) ? d : []))
-      .catch(() => setRows([]))
-  }, [])
-  useEffect(() => { load() }, [load])
 
   return (
     <div>

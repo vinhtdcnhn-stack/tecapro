@@ -1,5 +1,23 @@
 import { pool } from '../db.js'
 import { notifyInfo, pmUserIds, contractLabel, fmtDate } from '../services/notify.js'
+import { cacheWrap } from '../cache.js'
+import { contractKey, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
+
+const TAB_TTL = 30 * 60 // 30'
+
+// Lịch phải thu đổi (có thể kèm đồng bộ tỷ giá toàn HĐ) → tab receivable + payments + info
+// + dashboard thành viên + báo cáo công nợ.
+function invalidateScheduleTabs(contractId) {
+  invalidateContract(contractId, 'receivable', 'receivable-payments', 'info')
+  invalidateContractMembers(contractId)
+  invalidateReports('debt')
+}
+// Tiền về đổi → tab payments + dashboard + báo cáo công nợ.
+function invalidatePaymentTabs(contractId) {
+  invalidateContract(contractId, 'receivable-payments')
+  invalidateContractMembers(contractId)
+  invalidateReports('debt')
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,10 +48,13 @@ async function syncContractRate(contractId, currency, rate, db = pool) {
 
 export async function getSchedule(req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM public.contract_receivable WHERE contract_out_id = $1 ORDER BY sort_order, id',
-      [req.params.contractId]
-    )
+    const rows = await cacheWrap(contractKey(req.params.contractId, 'receivable'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        'SELECT * FROM public.contract_receivable WHERE contract_out_id = $1 ORDER BY sort_order, id',
+        [req.params.contractId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getSchedule:', err)
@@ -68,6 +89,7 @@ export async function createSchedule(req, res) {
         due_base_anchor || null])
 
     await syncContractRate(contractId, currency, exchange_rate)
+    invalidateScheduleTabs(contractId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createSchedule:', err)
@@ -96,6 +118,7 @@ export async function updateSchedule(req, res) {
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     await syncContractRate(rows[0].contract_out_id, currency, exchange_rate)
+    invalidateScheduleTabs(rows[0].contract_out_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updateSchedule:', err)
@@ -106,10 +129,11 @@ export async function updateSchedule(req, res) {
 export async function deleteSchedule(req, res) {
   try {
     const { rows } = await pool.query(
-      'DELETE FROM public.contract_receivable WHERE id=$1 RETURNING id',
+      'DELETE FROM public.contract_receivable WHERE id=$1 RETURNING id, contract_out_id',
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    invalidateScheduleTabs(rows[0].contract_out_id)
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deleteSchedule:', err)
@@ -121,10 +145,13 @@ export async function deleteSchedule(req, res) {
 
 export async function getPayments(req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM public.contract_receivable_payment WHERE contract_out_id=$1 ORDER BY sort_order, payment_date, id',
-      [req.params.contractId]
-    )
+    const rows = await cacheWrap(contractKey(req.params.contractId, 'receivable-payments'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        'SELECT * FROM public.contract_receivable_payment WHERE contract_out_id=$1 ORDER BY sort_order, payment_date, id',
+        [req.params.contractId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getPayments:', err)
@@ -154,6 +181,7 @@ export async function createPayment(req, res) {
         parseFloat(payment_ratio) || 0, note || '',
         schedule_id ? parseInt(schedule_id) : null])
 
+    invalidatePaymentTabs(contractId)
     res.status(201).json(rows[0])
 
     // Báo PM hợp đồng đã ghi nhận một khoản tiền về (thông tin, không cần xử lý).
@@ -186,6 +214,7 @@ export async function updatePayment(req, res) {
         schedule_id ? parseInt(schedule_id) : null, req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    invalidatePaymentTabs(rows[0].contract_out_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updatePayment:', err)
@@ -196,10 +225,11 @@ export async function updatePayment(req, res) {
 export async function deletePayment(req, res) {
   try {
     const { rows } = await pool.query(
-      'DELETE FROM public.contract_receivable_payment WHERE id=$1 RETURNING id',
+      'DELETE FROM public.contract_receivable_payment WHERE id=$1 RETURNING id, contract_out_id',
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
+    invalidatePaymentTabs(rows[0].contract_out_id)
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deletePayment:', err)

@@ -3,6 +3,25 @@ import * as XLSX from 'xlsx'
 import { TABLE_DELIVERY, serialExists, findDuplicatesInList, findExistingSerials } from './serialUtils.js'
 import { parseSerialMatrix } from '../utils/serialMatrix.js'
 import { norm } from './contractInDeliveryShared.js'
+import { cacheWrap } from '../cache.js'
+import { contractInKey, invalidateContractIn, invalidateSerialLookup } from '../services/cacheKeys.js'
+
+const TAB_TTL = 10 * 60 // 10' — danh sách serial tập trung (nặng)
+
+async function ciOfDelivery(deliveryId) {
+  const { rows } = await pool.query('SELECT contract_in_id FROM contract_in_delivery WHERE id=$1', [deliveryId])
+  return rows[0]?.contract_in_id
+}
+async function ciOfDeliveryItem(itemId) {
+  const { rows } = await pool.query(
+    `SELECT d.contract_in_id FROM contract_in_delivery_item di
+       JOIN contract_in_delivery d ON d.id = di.delivery_id WHERE di.id=$1`, [itemId])
+  return rows[0]?.contract_in_id
+}
+// Serial nhập đổi → các danh sách serial/hàng tập trung + đếm hàng ở đợt nhận.
+function invalidateSerials(ci) {
+  invalidateContractIn(ci, 'all-serials', 'all-items', 'deliveries')
+}
 
 // ── Serial của đợt nhận hàng ───────────────────────────────────────────────────
 
@@ -32,6 +51,8 @@ export async function createDeliverySerial(req, res) {
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [itemId, serial_no.trim(), note?.trim()||null, parent_serial_id||null, status||'Đang hoạt động']
     )
+    invalidateSerials(await ciOfDeliveryItem(itemId))
+    invalidateSerialLookup(serial_no.trim())
     res.json(rows[0])
   } catch (err) {
     console.error('createDeliverySerial:', err)
@@ -100,6 +121,8 @@ export async function saveScanBatch(req, res) {
     }
 
     await client.query('COMMIT')
+    invalidateSerials(await ciOfDelivery(deliveryId))
+    invalidateSerialLookup(allSerials)
     res.json({ ok: true, machineSerialId: machineId, inserted: 1 + components.length })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -141,6 +164,8 @@ export async function saveScanStandalone(req, res) {
        VALUES ($1,$2,'Đang hoạt động') RETURNING *`,
       [itemId, serial.trim()]
     )
+    invalidateSerials(await ciOfDelivery(deliveryId))
+    invalidateSerialLookup(serial.trim())
     res.json({ ok: true, serial: ins.rows[0] })
   } catch (err) {
     console.error('saveScanStandalone:', err)
@@ -207,10 +232,14 @@ export async function getSerialComponents(req, res) {
 export async function deleteDeliverySerial(req, res) {
   try {
     // Xóa máy thì xóa luôn linh kiện thuộc máy đó (serial con: parent_serial_id = id).
-    await pool.query(
-      'DELETE FROM contract_in_delivery_serial WHERE id=$1 OR parent_serial_id=$1',
+    const { rows } = await pool.query(
+      'DELETE FROM contract_in_delivery_serial WHERE id=$1 OR parent_serial_id=$1 RETURNING serial_no, delivery_item_id',
       [req.params.id]
     )
+    if (rows.length) {
+      invalidateSerials(await ciOfDeliveryItem(rows[0].delivery_item_id))
+      invalidateSerialLookup(rows.map(r => r.serial_no))
+    }
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa serial' })
@@ -223,18 +252,21 @@ export async function deleteDeliverySerial(req, res) {
 // kèm chủng loại hàng (delivery_item) và đợt nhận (delivery batch).
 export async function getAllDeliverySerials(req, res) {
   try {
-    const { rows } = await pool.query(`
-      SELECT
-        ds.id, ds.serial_no, ds.note, ds.status, ds.parent_serial_id,
-        ds.replaced_by_serial_id, ds.replaced_at, ds.delivery_item_id,
-        di.item_name, di.unit,
-        d.id AS delivery_id, d.batch_name, d.receive_date, d.locked AS batch_locked
-      FROM contract_in_delivery_serial ds
-      JOIN contract_in_delivery_item di ON di.id = ds.delivery_item_id
-      JOIN contract_in_delivery       d  ON d.id  = di.delivery_id
-      WHERE d.contract_in_id = $1
-      ORDER BY di.item_name, ds.serial_no
-    `, [req.params.contractInId])
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'all-serials'), TAB_TTL, async () => {
+      const { rows } = await pool.query(`
+        SELECT
+          ds.id, ds.serial_no, ds.note, ds.status, ds.parent_serial_id,
+          ds.replaced_by_serial_id, ds.replaced_at, ds.delivery_item_id,
+          di.item_name, di.unit,
+          d.id AS delivery_id, d.batch_name, d.receive_date, d.locked AS batch_locked
+        FROM contract_in_delivery_serial ds
+        JOIN contract_in_delivery_item di ON di.id = ds.delivery_item_id
+        JOIN contract_in_delivery       d  ON d.id  = di.delivery_id
+        WHERE d.contract_in_id = $1
+        ORDER BY di.item_name, ds.serial_no
+      `, [req.params.contractInId])
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getAllDeliverySerials:', err)
@@ -246,13 +278,16 @@ export async function getAllDeliverySerials(req, res) {
 // (để chọn khi thêm linh kiện / import vào màn quản lý serial tập trung).
 export async function getAllDeliveryItems(req, res) {
   try {
-    const { rows } = await pool.query(`
-      SELECT di.id, di.item_name, di.unit, d.id AS delivery_id, d.batch_name, d.receive_date, d.locked AS batch_locked
-      FROM contract_in_delivery_item di
-      JOIN contract_in_delivery d ON d.id = di.delivery_id
-      WHERE d.contract_in_id = $1
-      ORDER BY d.receive_date DESC NULLS LAST, di.item_name
-    `, [req.params.contractInId])
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'all-items'), TAB_TTL, async () => {
+      const { rows } = await pool.query(`
+        SELECT di.id, di.item_name, di.unit, d.id AS delivery_id, d.batch_name, d.receive_date, d.locked AS batch_locked
+        FROM contract_in_delivery_item di
+        JOIN contract_in_delivery d ON d.id = di.delivery_id
+        WHERE d.contract_in_id = $1
+        ORDER BY d.receive_date DESC NULLS LAST, di.item_name
+      `, [req.params.contractInId])
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getAllDeliveryItems:', err)
@@ -277,6 +312,8 @@ export async function updateDeliverySerial(req, res) {
       [serial_no.trim(), note?.trim()||null, status||'Đang hoạt động', parent_serial_id||null, id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    invalidateSerials(await ciOfDeliveryItem(rows[0].delivery_item_id))
+    invalidateSerialLookup(rows[0].serial_no)
     res.json(rows[0])
   } catch (err) {
     console.error('updateDeliverySerial:', err)
@@ -290,10 +327,14 @@ export async function bulkDeleteDeliverySerials(req, res) {
   if (!ids.length) return res.status(400).json({ error: 'No ids provided' })
   try {
     // Xóa máy nào thì xóa luôn linh kiện con của máy đó (parent_serial_id ∈ ids).
-    const { rowCount } = await pool.query(
-      'DELETE FROM contract_in_delivery_serial WHERE id = ANY($1::int[]) OR parent_serial_id = ANY($1::int[])', [ids]
+    const { rows } = await pool.query(
+      'DELETE FROM contract_in_delivery_serial WHERE id = ANY($1::int[]) OR parent_serial_id = ANY($1::int[]) RETURNING serial_no, delivery_item_id', [ids]
     )
-    res.json({ success: true, count: rowCount })
+    if (rows.length) {
+      invalidateSerials(await ciOfDeliveryItem(rows[0].delivery_item_id))
+      invalidateSerialLookup(rows.map(r => r.serial_no))
+    }
+    res.json({ success: true, count: rows.length })
   } catch (err) {
     console.error('bulkDeleteDeliverySerials:', err)
     res.status(500).json({ error: 'Không thể xóa các serial đã chọn' })
@@ -329,6 +370,8 @@ export async function replaceDeliverySerial(req, res) {
       [newSerial.id, replaced_at || new Date().toISOString().slice(0,10), id]
     )
     await client.query('COMMIT')
+    invalidateSerials(await ciOfDeliveryItem(o.delivery_item_id))
+    invalidateSerialLookup(o.serial_no, newSerial.serial_no)
     res.json({ new_serial: newSerial })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -421,6 +464,8 @@ export async function importDeliverySerials(req, res) {
       }
 
       await client.query('COMMIT')
+      invalidateSerials(await ciOfDelivery(deliveryId))
+      invalidateSerialLookup(allSerials)
       res.json({ imported: allSerials.length, machines: insertedMachines.length, items: insertedMachines })
     } catch (err) {
       await client.query('ROLLBACK')

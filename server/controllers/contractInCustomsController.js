@@ -1,4 +1,13 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { contractInKey, invalidateContractIn, invalidateContractInMembers } from '../services/cacheKeys.js'
+
+const TAB_TTL = 30 * 60 // 30'
+
+function invalidateCustoms(contractInId) {
+  invalidateContractIn(contractInId, 'customs')
+  invalidateContractInMembers(contractInId)
+}
 
 const FIELDS = [
   'shipment_type', 'declaration_no', 'declaration_date', 'bl_awb_no',
@@ -26,10 +35,13 @@ function bodyToValues(body) {
 
 export async function getContractInCustoms(req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM contract_in_customs WHERE contract_in_id=$1 ORDER BY id',
-      [req.params.contractInId]
-    )
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'customs'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        'SELECT * FROM contract_in_customs WHERE contract_in_id=$1 ORDER BY id',
+        [req.params.contractInId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getContractInCustoms:', err)
@@ -46,6 +58,7 @@ export async function createContractInCustoms(req, res) {
        VALUES ($1,${FIELDS.map((_,i)=>`$${i+2}`).join(',')}) RETURNING *`,
       [req.params.contractInId, ...vals]
     )
+    invalidateCustoms(req.params.contractInId)
     res.json(rows[0])
   } catch (err) {
     console.error('createContractInCustoms:', err)
@@ -63,6 +76,7 @@ export async function updateContractInCustoms(req, res) {
       [...vals, req.params.id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy lô hàng' })
+    invalidateCustoms(rows[0].contract_in_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updateContractInCustoms:', err)
@@ -72,7 +86,8 @@ export async function updateContractInCustoms(req, res) {
 
 export async function deleteContractInCustoms(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_customs WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_customs WHERE id=$1 RETURNING contract_in_id', [req.params.id])
+    if (rows[0]) invalidateCustoms(rows[0].contract_in_id)
     res.json({ success: true })
   } catch (err) {
     console.error('deleteContractInCustoms:', err)

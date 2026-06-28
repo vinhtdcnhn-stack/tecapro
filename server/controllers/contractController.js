@@ -1,6 +1,25 @@
 import { pool } from '../db.js'
 import { insertContractMembers, MEMBER_ROLE_VN } from './contractMemberController.js'
 import { notifyAction, notifyInfo, contractLabel } from '../services/notify.js'
+import { cacheWrap } from '../cache.js'
+import {
+  contractKey, contractListKey, invalidateContractAll, invalidateContractList,
+  invalidateContractMembers, invalidateUserDashboards, invalidateReports,
+} from '../services/cacheKeys.js'
+
+const INFO_TTL = 30 * 60      // tab thông tin HĐ
+const LIST_TTL = 10 * 60      // danh sách HĐ (per-user)
+
+// Tạo/sửa HĐ ảnh hưởng: danh sách HĐ (mọi user), dashboard thành viên, và báo cáo có dùng
+// metadata HĐ (công nợ theo HĐ/KH + khoảng ngày + trạng thái; bảo hành & việc quá hạn hiển
+// thị số HĐ/tên KH). Gọi sau khi ghi thành công.
+function invalidateContractMeta(contractId) {
+  invalidateContractList()
+  invalidateContractMembers(contractId)
+  invalidateReports('debt')
+  invalidateReports('warranty')
+  invalidateReports('task')
+}
 
 // Gửi thông báo Telegram cho các thành viên vừa được thêm vào hợp đồng.
 // PM → việc cần xử lý (🔔 in đậm); vai trò khác → thông tin. Bỏ qua người tự thêm mình.
@@ -26,6 +45,8 @@ export async function getAllContracts(req, res) {
     // người theo dõi) — tức toàn bộ dự án mình tham gia.
     const restrictMemberUserId = Number(req.user?.role) === 1 ? null : (req.user?.id ?? null)
 
+    const listKey = await contractListKey(restrictMemberUserId ?? 'all')
+    const rows = await cacheWrap(listKey, LIST_TTL, async () => {
     const params = []
     let memberFilter = ''
     if (restrictMemberUserId) {
@@ -70,7 +91,9 @@ export async function getAllContracts(req, res) {
     `
 
     const result = await pool.query(sql, params)
-    res.json(result.rows)
+    return result.rows
+    })
+    res.json(rows)
   } catch (err) {
     console.error('Failed to load contracts:', err)
     res.status(500).json({ error: 'Không thể tải danh sách hợp đồng' })
@@ -80,7 +103,8 @@ export async function getAllContracts(req, res) {
 export async function getContractById(req, res) {
   try {
     const contractId = parseInt(req.params.id)
-    
+
+    const payload = await cacheWrap(contractKey(contractId, 'info'), INFO_TTL, async () => {
     // Get contract basic info
     const contractSql = `
       SELECT
@@ -104,12 +128,9 @@ export async function getContractById(req, res) {
     `
     
     const contractResult = await pool.query(contractSql, [contractId])
-    
-    if (contractResult.rows.length === 0) {
-      res.status(404).json({ error: 'Không tìm thấy hợp đồng' })
-      return
-    }
-    
+
+    if (contractResult.rows.length === 0) return null
+
     const contract = contractResult.rows[0]
     
     // Get all members grouped by role
@@ -194,7 +215,7 @@ export async function getContractById(req, res) {
       }
     })
     
-    res.json({
+    return {
       ...contract,
       sale_members: saleMembers,
       sale_member_ids: saleMemberIds,
@@ -211,7 +232,14 @@ export async function getContractById(req, res) {
       accounting_member_ids: accountingMemberIds,
       follower_members: followerMembers,
       follower_member_ids: followerMemberIds
+    }
     })
+
+    if (!payload) {
+      res.status(404).json({ error: 'Không tìm thấy hợp đồng' })
+      return
+    }
+    res.json(payload)
   } catch (err) {
     console.error('Failed to load contract details:', err)
     res.status(500).json({ error: 'Không thể tải thông tin hợp đồng' })
@@ -344,6 +372,8 @@ export async function createContract(req, res) {
 
       await client.query('COMMIT')
 
+      invalidateContractMeta(contractId)
+
       res.json({
         success: true,
         id: contractId,
@@ -471,6 +501,12 @@ export async function updateContract(req, res) {
       const inserted = await insertContractMembers(client, parseInt(contractId), { pm_primary_id, pm_team, sale_team, presale_team, technical_team, import_export_team, accounting_team, followers })
 
       await client.query('COMMIT')
+
+      // Đổi thông tin gốc (currency/exchange/customer/date/status) ảnh hưởng nhiều tab → xóa cả.
+      invalidateContractAll(parseInt(contractId))
+      invalidateContractMeta(parseInt(contractId))
+      // Thành viên BỊ GỠ cũng cần làm mới dashboard (không còn HĐ này).
+      for (const uid of oldIds) invalidateUserDashboards(uid)
 
       res.json({
         success: true,

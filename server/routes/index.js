@@ -26,6 +26,7 @@ import tenderRoutes from './tenderRoutes.js'
 import approvalRoutes from './approvalRoutes.js'
 import reportRoutes from './reportRoutes.js'
 import invoiceRoutes from './invoiceRoutes.js'
+import liveRoutes from './liveRoutes.js'
 import { listTelegramLogs } from '../controllers/telegramLogController.js'
 
 const router = Router()
@@ -141,5 +142,8 @@ router.use('/', invoiceRoutes)
 
 // Báo cáo tài chính (kế toán / BGĐ / admin)
 router.use('/', reportRoutes)
+
+// Long-poll hợp nhất cho cảnh báo/badge (thay 3 vòng poll cũ)
+router.use('/', liveRoutes)
 
 export default router

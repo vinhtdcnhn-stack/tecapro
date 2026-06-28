@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE as API } from '../config/api'
+import { useAssignedTasks, qk } from '../lib/queries'
 import TrackingTable from './TrackingTable'
 import './Dashboard.css'
 import './PMDashboard.css'
@@ -9,26 +10,18 @@ import './PMDashboard.css'
 // ghim/nhắc như bảng dưới của PMDashboard. windowDays=Infinity → hiện mọi việc được
 // giao (không giới hạn 30 ngày) để họ thấy đầy đủ đầu việc của mình.
 export default function AssigneeDashboard({ user, switcher = null }) {
-  const [items, setItems]     = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data, isLoading: loading } = useAssignedTasks(user?.id)
+  const items = Array.isArray(data?.items) ? data.items : []
 
-  const load = useCallback(async () => {
-    if (!user?.id) return
-    try {
-      const res  = await fetch(`${API}/api/pm/${user.id}/assigned-tasks`)
-      const data = await res.json()
-      setItems(Array.isArray(data.items) ? data.items : [])
-    } catch (e) { console.error('load assigned tasks:', e) }
-    finally { setLoading(false) }
-  }, [user])
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
-  useEffect(() => { load() }, [load])
-
-  // Lưu ghim/nhắc (dùng chung endpoint tracking) rồi cập nhật cục bộ
+  // Lưu ghim/nhắc: cập nhật LẠC QUAN trong cache, lỗi thì tải lại.
   const saveTracking = async (it, patch) => {
     const next = { ...it, ...patch }
-    setItems(prev => prev.map(x => (x.source_type === it.source_type && x.source_id === it.source_id) ? next : x))
+    const key = qk.assignedTasks(user.id)
+    queryClient.setQueryData(key, (old) => old ? {
+      ...old,
+      items: (old.items || []).map(x => (x.source_type === it.source_type && x.source_id === it.source_id) ? next : x),
+    } : old)
     try {
       await fetch(`${API}/api/pm/${user.id}/tracking`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -37,7 +30,7 @@ export default function AssigneeDashboard({ user, switcher = null }) {
           pinned: next.pinned, remind_at: next.remind_at || null,
         }),
       })
-    } catch (e) { console.error('saveTracking:', e); load() }
+    } catch (e) { console.error('saveTracking:', e); queryClient.invalidateQueries({ queryKey: key }) }
   }
 
   if (loading) return <div className="dashboard"><p className="dash-empty">Đang tải công việc...</p></div>

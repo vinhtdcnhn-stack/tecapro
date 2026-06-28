@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { API } from '../../config/api'
 import { useAuth } from '../../context/AuthContext'
+import { useApprovalsMy, qk } from '../../lib/queries'
 import useIsMobile from '../contracts/useIsMobile'
 import MobileEditSheet from '../contracts/MobileEditSheet'
 import RequestForm from './RequestForm'
@@ -34,21 +36,16 @@ function ActionButtons({ r, busy, onAct, onEdit, size = '' }) {
 export default function RequestList() {
   const { user } = useAuth()
   const isMobile = useIsMobile()
-  const [rows, setRows] = useState([])
+  const queryClient = useQueryClient()
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)   // đơn nháp đang sửa
   const [sheet, setSheet] = useState(null)        // đơn đang mở sheet (mobile)
   const [detailId, setDetailId] = useState(null)  // đơn đang xem chi tiết
   const [busy, setBusy] = useState(false)
+  // Danh sách đơn của tôi qua TanStack Query; load() (sau khi gửi/hủy/xóa/sửa) = invalidate.
+  const { data: rows = [] } = useApprovalsMy()
+  const load = () => queryClient.invalidateQueries({ queryKey: qk.approvalsMy })
   const { formId, setFormId, options, filtered } = useFormTypeFilter(rows)
-
-  const load = useCallback(() => {
-    fetch(`${API}/approvals/requests/my`)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setRows(Array.isArray(d) ? d : []))
-      .catch(() => setRows([]))
-  }, [])
-  useEffect(() => { load() }, [load])
 
   function openCreate() { setEditing(null); setFormOpen(true) }
   async function openEdit(r) {

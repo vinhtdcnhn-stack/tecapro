@@ -1,24 +1,31 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { lookupKey, invalidateLookup } from '../services/cacheKeys.js'
 
 // ==================== CUSTOMER CONTROLLER ====================
 
+const CUSTOMERS_TTL = 12 * 60 * 60 // 12h — danh mục ít đổi
+
 export async function getAllCustomers(req, res) {
-  const { rows } = await pool.query(`
-    SELECT
-      id,
-      code,
-      name,
-      tax_code,
-      address,
-      contact_person,
-      phone,
-      email,
-      is_active,
-      created_at,
-      updated_at
-    FROM customer
-    ORDER BY id DESC
-  `)
+  const rows = await cacheWrap(lookupKey('customers'), CUSTOMERS_TTL, async () => {
+    const { rows } = await pool.query(`
+      SELECT
+        id,
+        code,
+        name,
+        tax_code,
+        address,
+        contact_person,
+        phone,
+        email,
+        is_active,
+        created_at,
+        updated_at
+      FROM customer
+      ORDER BY id DESC
+    `)
+    return rows
+  })
 
   res.json(rows)
 }
@@ -128,6 +135,7 @@ export async function createCustomer(req, res) {
       ]
     )
 
+    invalidateLookup('customers')
     res.json({
       success: true,
       id: rows[0].id,
@@ -137,7 +145,7 @@ export async function createCustomer(req, res) {
   } catch (err) {
     if (err.code === '23505') {
       const constraint = err.constraint || err.detail || ''
-      
+
       if (constraint.includes('code') || constraint.includes('customer_code_key')) {
         res.status(400).json({
           error: 'Mã khách hàng này đã tồn tại trong hệ thống.'
@@ -149,7 +157,7 @@ export async function createCustomer(req, res) {
       }
       return
     }
-    
+
     console.error('Lỗi khi tạo customer:', err)
     res.status(500).json({
       error: 'Có lỗi xảy ra khi tạo khách hàng.'
@@ -217,6 +225,7 @@ export async function updateCustomer(req, res) {
       return
     }
 
+    invalidateLookup('customers')
     res.json({
       success: true,
       id: rows[0].id,
@@ -226,7 +235,7 @@ export async function updateCustomer(req, res) {
   } catch (err) {
     if (err.code === '23505') {
       const constraint = err.constraint || err.detail || ''
-      
+
       if (constraint.includes('code') || constraint.includes('customer_code_key')) {
         res.status(400).json({
           error: 'Mã khách hàng này đã tồn tại trong hệ thống.'
@@ -238,7 +247,7 @@ export async function updateCustomer(req, res) {
       }
       return
     }
-    
+
     console.error('Lỗi khi cập nhật customer:', err)
     res.status(500).json({
       error: 'Có lỗi xảy ra khi cập nhật khách hàng.'

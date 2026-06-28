@@ -1,12 +1,25 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { contractKey, invalidateContract, invalidateContractMembers } from '../services/cacheKeys.js'
+
+const TAB_TTL = 60 * 60 // 60' — bảo lãnh đổi rất ít
+
+// Bảo lãnh đổi → tab guarantees + dashboard thành viên (dashboard có cảnh báo hạn bảo lãnh).
+function invalidateGuarantee(contractId) {
+  invalidateContract(contractId, 'guarantees')
+  invalidateContractMembers(contractId)
+}
 
 export async function getGuarantees(req, res) {
   const contractId = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query(
-      `SELECT * FROM contract_guarantee WHERE contract_out_id = $1 ORDER BY id`,
-      [contractId]
-    )
+    const rows = await cacheWrap(contractKey(contractId, 'guarantees'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT * FROM contract_guarantee WHERE contract_out_id = $1 ORDER BY id`,
+        [contractId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getGuarantees:', err)
@@ -33,6 +46,7 @@ export async function createGuarantee(req, res) {
         note?.trim() || null,
       ]
     )
+    invalidateGuarantee(contractId)
     res.json(rows[0])
   } catch (err) {
     console.error('createGuarantee:', err)
@@ -66,6 +80,7 @@ export async function updateGuarantee(req, res) {
       ]
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy bảo lãnh' })
+    invalidateGuarantee(rows[0].contract_out_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updateGuarantee:', err)
@@ -76,7 +91,8 @@ export async function updateGuarantee(req, res) {
 export async function deleteGuarantee(req, res) {
   const id = parseInt(req.params.id)
   try {
-    await pool.query('DELETE FROM contract_guarantee WHERE id = $1', [id])
+    const { rows } = await pool.query('DELETE FROM contract_guarantee WHERE id = $1 RETURNING contract_out_id', [id])
+    if (rows[0]) invalidateGuarantee(rows[0].contract_out_id)
     res.json({ success: true })
   } catch (err) {
     console.error('deleteGuarantee:', err)

@@ -2,6 +2,7 @@
 // đang 'pending' của bước hiện tại mới thao tác được.
 import { pool } from '../db.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
+import { bumpLive } from '../services/eventBus.js'
 
 // Id người theo dõi (snapshot) của một đơn — để báo diễn biến.
 async function followerIds(requestId) {
@@ -124,6 +125,9 @@ export async function approveRequest(req, res) {
     }
 
     res.json({ success: true, status: completed ? 'approved' : 'pending', advanced, completed })
+
+    // Inbox của tôi giảm, của người duyệt bước kế tăng → đánh thức long-poll.
+    bumpLive('approval')
   } catch (err) {
     await client.query('ROLLBACK')
     console.error('approveRequest:', err)
@@ -162,6 +166,9 @@ export async function rejectRequest(req, res) {
     notifyInfo(await followerIds(id), `Đề xuất bạn theo dõi bị từ chối ở bước "${step.name}": ${reqRow.title}`)
 
     res.json({ success: true, status: 'rejected' })
+
+    // Đơn rời khỏi inbox của tôi → đánh thức long-poll.
+    bumpLive('approval')
   } catch (err) {
     await client.query('ROLLBACK')
     console.error('rejectRequest:', err)

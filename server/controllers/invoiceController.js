@@ -2,6 +2,16 @@ import { pool } from '../db.js'
 import { roundMoney } from '../utils/money.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
 import { computeInvoiceUnits } from './boqTreeUtils.js'
+import { cacheWrap } from '../cache.js'
+import { contractKey, invalidateContract, invalidateReports } from '../services/cacheKeys.js'
+
+const TAB_TTL = 30 * 60 // 30'
+
+// Hóa đơn đổi → tab invoices + invoice-summary (tồn) + báo cáo công nợ (giá trị đã xuất HĐ).
+function invalidateInvoice(contractId) {
+  invalidateContract(contractId, 'invoices', 'invoice-summary')
+  invalidateReports('debt')
+}
 
 // Các cột bảng giá cần để suy ra đơn vị xuất hóa đơn (lá rời + hệ thống nhân SL).
 const BOQ_UNIT_COLS = `id, parent_id, row_kind, multiply_qty, item_name, unit, quantity,
@@ -116,6 +126,7 @@ async function insertItems(client, invoiceId, items, currency) {
 // GET /contracts/:id/invoices → danh sách đợt + items + tổng (sau VAT, nguyên tệ).
 export async function getInvoices(req, res) {
   try {
+    const rows = await cacheWrap(contractKey(req.params.id, 'invoices'), TAB_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT i.id, i.contract_out_id, i.invoice_no, i.invoice_date, i.currency_code, i.exchange_rate, i.note,
              i.locked, i.locked_at, lu.full_name AS locked_by_name,
@@ -131,6 +142,8 @@ export async function getInvoices(req, res) {
        WHERE i.contract_out_id = $1
        ORDER BY i.invoice_date NULLS LAST, i.id`,
       [req.params.id])
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getInvoices:', err)
@@ -142,29 +155,32 @@ export async function getInvoices(req, res) {
 // Đơn vị = dòng lá rời + hệ thống (nhóm bật multiply_qty xuất theo bộ).
 export async function getInvoiceSummary(req, res) {
   try {
-    const { rows: allRows } = await pool.query(
-      `SELECT ${BOQ_UNIT_COLS}, sort_order FROM contract_out_boq
-        WHERE contract_out_id = $1 ORDER BY sort_order, id`, [req.params.id])
-    const units = computeInvoiceUnits(allRows)
+    const payload = await cacheWrap(contractKey(req.params.id, 'invoice-summary'), TAB_TTL, async () => {
+      const { rows: allRows } = await pool.query(
+        `SELECT ${BOQ_UNIT_COLS}, sort_order FROM contract_out_boq
+          WHERE contract_out_id = $1 ORDER BY sort_order, id`, [req.params.id])
+      const units = computeInvoiceUnits(allRows)
 
-    const { rows: invRows } = await pool.query(
-      `SELECT it.boq_id, SUM(it.quantity) AS q
-         FROM contract_out_invoice_item it
-         JOIN contract_out_invoice i ON i.id = it.invoice_id
-        WHERE i.contract_out_id = $1 AND it.boq_id IS NOT NULL
-        GROUP BY it.boq_id`, [req.params.id])
-    const invMap = new Map(invRows.map(r => [String(r.boq_id), parseFloat(r.q) || 0]))
+      const { rows: invRows } = await pool.query(
+        `SELECT it.boq_id, SUM(it.quantity) AS q
+           FROM contract_out_invoice_item it
+           JOIN contract_out_invoice i ON i.id = it.invoice_id
+          WHERE i.contract_out_id = $1 AND it.boq_id IS NOT NULL
+          GROUP BY it.boq_id`, [req.params.id])
+      const invMap = new Map(invRows.map(r => [String(r.boq_id), parseFloat(r.q) || 0]))
 
-    res.json(units.map(u => {
-      const invoiced = invMap.get(String(u.boq_id)) || 0
-      return {
-        boq_id: u.boq_id, item_name: u.item_name, unit: u.unit, qty_contract: u.qty_contract,
-        unit_price: u.unit_price, vat_rate: u.vat_rate, amount_after: u.amount_after,
-        is_system: u.is_system, group_path: u.group_path,
-        qty_invoiced: invoiced,
-        qty_remaining: Math.max(0, (parseFloat(u.qty_contract) || 0) - invoiced),
-      }
-    }))
+      return units.map(u => {
+        const invoiced = invMap.get(String(u.boq_id)) || 0
+        return {
+          boq_id: u.boq_id, item_name: u.item_name, unit: u.unit, qty_contract: u.qty_contract,
+          unit_price: u.unit_price, vat_rate: u.vat_rate, amount_after: u.amount_after,
+          is_system: u.is_system, group_path: u.group_path,
+          qty_invoiced: invoiced,
+          qty_remaining: Math.max(0, (parseFloat(u.qty_contract) || 0) - invoiced),
+        }
+      })
+    })
+    res.json(payload)
   } catch (err) {
     console.error('getInvoiceSummary:', err)
     res.status(500).json({ error: 'Không thể tải tồn chưa xuất hóa đơn.' })
@@ -187,6 +203,7 @@ export async function createInvoice(req, res) {
        parseFloat(exchange_rate) || 1, (note || '').trim()])
     await insertItems(client, rows[0].id, items, currency)
     await client.query('COMMIT')
+    invalidateInvoice(contractId)
     res.status(201).json({ id: rows[0].id })
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {})
@@ -218,6 +235,7 @@ export async function updateInvoice(req, res) {
       await insertItems(client, id, items, currency)
     }
     await client.query('COMMIT')
+    invalidateInvoice(rows[0].contract_out_id)
     res.json({ id })
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {})
@@ -230,8 +248,9 @@ export async function updateInvoice(req, res) {
 
 export async function deleteInvoice(req, res) {
   try {
-    const { rows } = await pool.query('DELETE FROM contract_out_invoice WHERE id=$1 RETURNING id', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_out_invoice WHERE id=$1 RETURNING id, contract_out_id', [req.params.id])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy đợt.' })
+    invalidateInvoice(rows[0].contract_out_id)
     res.json({ success: true })
   } catch (err) {
     console.error('deleteInvoice:', err)
@@ -256,10 +275,11 @@ export async function setInvoiceLock(req, res) {
           SET locked=$1, locked_by=$2, locked_at=$3, updated_at=now()
         WHERE id=$4 RETURNING *
       )
-      SELECT upd.id, upd.locked, upd.locked_at, lu.full_name AS locked_by_name
+      SELECT upd.id, upd.contract_out_id, upd.locked, upd.locked_at, lu.full_name AS locked_by_name
       FROM upd LEFT JOIN app_user lu ON lu.id = upd.locked_by
     `, [locked, locked ? req.user.id : null, locked ? new Date() : null, id])
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy đợt.' })
+    invalidateContract(rows[0].contract_out_id, 'invoices') // chỉ trạng thái khóa hiển thị
     res.json(rows[0])
   } catch (err) {
     console.error('setInvoiceLock:', err)

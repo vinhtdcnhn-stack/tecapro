@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE } from '../config/api'
+import { useAuth } from '../context/AuthContext'
+import { useContract, useUsers, useCustomers, qk } from '../lib/queries'
 import ContractHeader from '../components/contracts/ContractHeader'
 import ContractSidebar from '../components/contracts/ContractSidebar'
 import ContractModal from '../components/contracts/ContractModal'
@@ -16,10 +19,12 @@ import { ContractPermProvider, useCanEdit } from '../context/ContractPermContext
 
 export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab, initialTaskId }) {
   const contractId = selectedContractId // dẫn xuất thẳng từ prop (trước đây mirror qua state + setContractId)
-  const [contract, setContract] = useState(null)
+  const queryClient = useQueryClient()
+  // Chi tiết HĐ lấy qua TanStack Query: nếu đã được nạp sẵn (rê chuột ở danh sách / idle) thì
+  // hiển thị NGAY từ cache, không còn màn "Đang tải...". Vẫn làm mới ngầm theo SWR.
+  const { data: contract = null, isLoading: loading } = useContract(contractId)
   const [activeMenu, setActiveMenu] = useState(initialMenu || 'contract-info')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
   const contentRef = useRef(null)
 
   // Trả về phần tử cuộn thực sự của trang (vùng overflow-y:auto bao cả sidebar + nội dung).
@@ -31,9 +36,10 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
   
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [users, setUsers] = useState([])
-  const [customers, setCustomers] = useState([])
-  const [currentUser, setCurrentUser] = useState(null)
+  // Danh sách dùng chung + người dùng hiện tại lấy từ cache (đã nạp sẵn) thay vì fetch lại mỗi lần.
+  const { data: users = [] } = useUsers()
+  const { data: customers = [] } = useCustomers()
+  const { user: currentUser } = useAuth()
 
   // Quyền sửa: admin (role==1) hoặc PM của HĐ này (PM chính/đồng-PM). Backend đã
   // chặn cùng quy tắc; đây là phần phản ánh ở UI để ẩn/khóa nút sửa.
@@ -53,44 +59,8 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
     return techIds.includes(String(currentUser.id))
   })()
 
-  useEffect(() => {
-    const id = selectedContractId
-
-    async function loadContract() {
-      try {
-        // Load contract details by ID
-        const res = await fetch(`${API_BASE}/api/contracts/${id}`)
-        const found = await res.json()
-
-        if (found && found.id) {
-          setContract(found)
-        }
-        
-        // Load users for edit modal
-        const usersRes = await fetch(`${API_BASE}/api/users`)
-        const usersData = await usersRes.json()
-        setUsers(usersData)
-        
-        // Load customers for edit modal
-        const customersRes = await fetch(`${API_BASE}/api/customers`)
-        const customersData = await customersRes.json()
-        setCustomers(customersData)
-        
-        // Người dùng hiện tại lấy từ phiên đã xác thực (cookie)
-        const meRes = await fetch(`${API_BASE}/api/auth/me`)
-        if (meRes.ok) {
-          const meData = await meRes.json()
-          setCurrentUser(meData)
-        }
-      } catch (err) {
-        console.error('Failed to load contract:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadContract()
-  }, [selectedContractId])
+  // Dữ liệu (chi tiết HĐ, users, customers) nay do TanStack Query tự nạp + cache; người dùng
+  // hiện tại lấy từ AuthContext. Không còn effect tải thủ công ở đây.
 
   // Khi đến từ deep-link (dashboard / ô tra cứu công việc), nhảy thẳng tới đúng menu.
   // initialTaskId vào deps để dán đường dẫn việc mới (cùng HĐ) vẫn ép về tab Công việc.
@@ -177,14 +147,9 @@ default:
       })
       
       if (response.ok) {
-        // Reload contract data from detail endpoint
-        const detailRes = await fetch(
-          `${API_BASE}/api/contracts/${contractId}`
-        )
-
-        const detailData = await detailRes.json()
-
-        setContract(detailData)
+        // Làm mới chi tiết HĐ + danh sách HĐ trong cache (vẫn hiển thị bản cũ tới khi tải xong).
+        queryClient.invalidateQueries({ queryKey: qk.contract(contractId) })
+        queryClient.invalidateQueries({ queryKey: qk.contracts })
         setIsEditModalOpen(false)
         alert('Cập nhật hợp đồng thành công!')
       } else {

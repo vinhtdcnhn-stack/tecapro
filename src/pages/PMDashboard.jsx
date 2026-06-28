@@ -1,33 +1,26 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE as API } from '../config/api'
+import { usePmDashboard, qk } from '../lib/queries'
 import TrackingTable from './TrackingTable'
 import { fmtVnd, fmtUsd, WINDOW_DAYS } from './trackingUtils'
 import './Dashboard.css'
 import './PMDashboard.css'
 
 export default function PMDashboard({ user, switcher = null }) {
-  const [summary, setSummary] = useState(null)
-  const [items, setItems]     = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  // Bảng theo dõi qua TanStack Query: bấm qua lại giữa các dashboard không tải lại.
+  const { data, isLoading: loading } = usePmDashboard(user?.id)
+  const summary = data?.summary || null
+  const items = Array.isArray(data?.items) ? data.items : []
 
-  const load = useCallback(async () => {
-    if (!user?.id) return
-    try {
-      const res  = await fetch(`${API}/api/pm/${user.id}/dashboard`)
-      const data = await res.json()
-      setSummary(data.summary || null)
-      setItems(Array.isArray(data.items) ? data.items : [])
-    } catch (e) { console.error('load PM dashboard:', e) }
-    finally { setLoading(false) }
-  }, [user])
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
-  useEffect(() => { load() }, [load])
-
-  // Lưu ghim/nhắc (gửi trạng thái đầy đủ của dòng) rồi cập nhật cục bộ
+  // Lưu ghim/nhắc: cập nhật LẠC QUAN ngay trong cache (UI phản hồi tức thì), lỗi thì tải lại.
   const saveTracking = async (it, patch) => {
     const next = { ...it, ...patch }
-    setItems(prev => prev.map(x => (x.source_type === it.source_type && x.source_id === it.source_id) ? next : x))
+    const key = qk.pmDashboard(user.id)
+    queryClient.setQueryData(key, (old) => old ? {
+      ...old,
+      items: (old.items || []).map(x => (x.source_type === it.source_type && x.source_id === it.source_id) ? next : x),
+    } : old)
     try {
       await fetch(`${API}/api/pm/${user.id}/tracking`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -36,7 +29,7 @@ export default function PMDashboard({ user, switcher = null }) {
           pinned: next.pinned, remind_at: next.remind_at || null,
         }),
       })
-    } catch (e) { console.error('saveTracking:', e); load() }
+    } catch (e) { console.error('saveTracking:', e); queryClient.invalidateQueries({ queryKey: key }) }
   }
 
   if (loading) return <div className="dashboard"><p className="dash-empty">Đang tải bảng theo dõi...</p></div>

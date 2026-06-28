@@ -1,4 +1,8 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { contractInKey, invalidateContractIn } from '../services/cacheKeys.js'
+
+const TAB_TTL = 30 * 60 // 30'
 
 const WARRANTY_SELECT = `
   SELECT
@@ -27,10 +31,13 @@ const WARRANTY_GROUP_BY = `
 
 export async function getSupplierWarranties(req, res) {
   try {
-    const { rows } = await pool.query(
-      `${WARRANTY_SELECT} WHERE w.contract_in_id = $1 ${WARRANTY_GROUP_BY} ORDER BY w.id`,
-      [req.params.contractInId]
-    )
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'supplier-warranty'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        `${WARRANTY_SELECT} WHERE w.contract_in_id = $1 ${WARRANTY_GROUP_BY} ORDER BY w.id`,
+        [req.params.contractInId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getSupplierWarranties:', err)
@@ -51,6 +58,7 @@ export async function createSupplierWarranty(req, res) {
        warranty_start||null, warranty_end||null, has_guarantee||false, note||null]
     )
     const full = await pool.query(`${WARRANTY_SELECT} WHERE w.id = $1 ${WARRANTY_GROUP_BY}`, [rows[0].id])
+    invalidateContractIn(contractInId, 'supplier-warranty')
     res.json(full.rows[0])
   } catch (err) {
     console.error('createSupplierWarranty:', err)
@@ -72,6 +80,7 @@ export async function updateSupplierWarranty(req, res) {
     )
     const full = await pool.query(`${WARRANTY_SELECT} WHERE w.id = $1 ${WARRANTY_GROUP_BY}`, [id])
     if (!full.rows[0]) return res.status(404).json({ error: 'Not found' })
+    invalidateContractIn(full.rows[0].contract_in_id, 'supplier-warranty')
     res.json(full.rows[0])
   } catch (err) {
     console.error('updateSupplierWarranty:', err)
@@ -81,7 +90,8 @@ export async function updateSupplierWarranty(req, res) {
 
 export async function deleteSupplierWarranty(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_supplier_warranty WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_supplier_warranty WHERE id=$1 RETURNING contract_in_id', [req.params.id])
+    if (rows[0]) invalidateContractIn(rows[0].contract_in_id, 'supplier-warranty')
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa' })
@@ -114,6 +124,7 @@ export async function initWarrantiesFromDelivery(req, res) {
       )
       created.push(rows[0].id)
     }
+    invalidateContractIn(contractInId, 'supplier-warranty')
     res.json({ created: created.length })
   } catch (err) {
     console.error('initWarrantiesFromDelivery:', err)
@@ -126,12 +137,13 @@ export async function bulkUpdateWarrantyStart(req, res) {
   const { ids, warranty_start, warranty_end } = req.body
   if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Không có ID' })
   try {
-    await pool.query(
+    const { rows } = await pool.query(
       `UPDATE contract_in_supplier_warranty
        SET warranty_start=$1, warranty_end=$2, updated_at=NOW()
-       WHERE id = ANY($3)`,
+       WHERE id = ANY($3) RETURNING contract_in_id`,
       [warranty_start||null, warranty_end||null, ids]
     )
+    if (rows[0]) invalidateContractIn(rows[0].contract_in_id, 'supplier-warranty')
     res.json({ updated: ids.length })
   } catch (err) {
     console.error('bulkUpdateWarrantyStart:', err)
@@ -143,13 +155,16 @@ export async function bulkUpdateWarrantyStart(req, res) {
 
 export async function getWarrantyClaims(req, res) {
   try {
-    const { rows } = await pool.query(`
-      SELECT c.*, w.item_name AS warranty_item_name
-      FROM contract_in_warranty_claim c
-      LEFT JOIN contract_in_supplier_warranty w ON w.id = c.warranty_id
-      WHERE c.contract_in_id = $1
-      ORDER BY c.reported_date DESC, c.id DESC
-    `, [req.params.contractInId])
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'warranty-claims'), TAB_TTL, async () => {
+      const { rows } = await pool.query(`
+        SELECT c.*, w.item_name AS warranty_item_name
+        FROM contract_in_warranty_claim c
+        LEFT JOIN contract_in_supplier_warranty w ON w.id = c.warranty_id
+        WHERE c.contract_in_id = $1
+        ORDER BY c.reported_date DESC, c.id DESC
+      `, [req.params.contractInId])
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     res.status(500).json({ error: 'Không thể tải claims' })
@@ -169,6 +184,7 @@ export async function createWarrantyClaim(req, res) {
        description?.trim()||null, reported_date||new Date().toISOString().slice(0,10),
        status||'Tiếp nhận', note?.trim()||null]
     )
+    invalidateContractIn(contractInId, 'warranty-claims')
     res.json(rows[0])
   } catch (err) {
     console.error('createWarrantyClaim:', err)
@@ -190,6 +206,7 @@ export async function updateWarrantyClaim(req, res) {
        resolved_date||null, note?.trim()||null, id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    invalidateContractIn(rows[0].contract_in_id, 'warranty-claims')
     res.json(rows[0])
   } catch (err) {
     console.error('updateWarrantyClaim:', err)
@@ -199,7 +216,8 @@ export async function updateWarrantyClaim(req, res) {
 
 export async function deleteWarrantyClaim(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_warranty_claim WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_warranty_claim WHERE id=$1 RETURNING contract_in_id', [req.params.id])
+    if (rows[0]) invalidateContractIn(rows[0].contract_in_id, 'warranty-claims')
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa claim' })

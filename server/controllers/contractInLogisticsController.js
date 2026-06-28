@@ -1,19 +1,31 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { contractInKey, invalidateContractIn } from '../services/cacheKeys.js'
+
+const TAB_TTL = 15 * 60 // 15'
+
+async function contractInOfLogistics(logisticsId) {
+  const { rows } = await pool.query('SELECT contract_in_id FROM contract_in_logistics WHERE id=$1', [logisticsId])
+  return rows[0]?.contract_in_id
+}
 
 // ── Logistics records ─────────────────────────────────────────────────────────
 
 export async function getLogisticsList(req, res) {
   try {
-    const { rows } = await pool.query(
-      `SELECT l.*,
-         (SELECT COUNT(*)::int FROM contract_in_logistics_update u WHERE u.logistics_id = l.id) AS update_count,
-         (SELECT description FROM contract_in_logistics_update u WHERE u.logistics_id = l.id ORDER BY update_time DESC LIMIT 1) AS last_description,
-         (SELECT update_time  FROM contract_in_logistics_update u WHERE u.logistics_id = l.id ORDER BY update_time DESC LIMIT 1) AS last_update_time
-       FROM contract_in_logistics l
-       WHERE l.contract_in_id = $1
-       ORDER BY l.id`,
-      [req.params.contractInId]
-    )
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'logistics'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT l.*,
+           (SELECT COUNT(*)::int FROM contract_in_logistics_update u WHERE u.logistics_id = l.id) AS update_count,
+           (SELECT description FROM contract_in_logistics_update u WHERE u.logistics_id = l.id ORDER BY update_time DESC LIMIT 1) AS last_description,
+           (SELECT update_time  FROM contract_in_logistics_update u WHERE u.logistics_id = l.id ORDER BY update_time DESC LIMIT 1) AS last_update_time
+         FROM contract_in_logistics l
+         WHERE l.contract_in_id = $1
+         ORDER BY l.id`,
+        [req.params.contractInId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getLogisticsList:', err)
@@ -38,6 +50,7 @@ export async function createLogistics(req, res) {
         note?.trim()           || null,
       ]
     )
+    invalidateContractIn(req.params.contractInId, 'logistics')
     res.json({ ...rows[0], update_count: 0, last_description: null, last_update_time: null })
   } catch (err) {
     console.error('createLogistics:', err)
@@ -64,6 +77,7 @@ export async function updateLogistics(req, res) {
       ]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy' })
+    invalidateContractIn(rows[0].contract_in_id, 'logistics')
     res.json(rows[0])
   } catch (err) {
     console.error('updateLogistics:', err)
@@ -73,7 +87,8 @@ export async function updateLogistics(req, res) {
 
 export async function deleteLogistics(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_logistics WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_logistics WHERE id=$1 RETURNING contract_in_id', [req.params.id])
+    if (rows[0]) invalidateContractIn(rows[0].contract_in_id, 'logistics')
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa logistics' })
@@ -103,6 +118,7 @@ export async function createLogisticsUpdate(req, res) {
        VALUES ($1,$2,$3,$4) RETURNING *`,
       [req.params.id, description.trim(), location?.trim() || null, update_time || new Date().toISOString()]
     )
+    invalidateContractIn(await contractInOfLogistics(req.params.id), 'logistics')
     res.json(rows[0])
   } catch (err) {
     console.error('createLogisticsUpdate:', err)
@@ -112,7 +128,8 @@ export async function createLogisticsUpdate(req, res) {
 
 export async function deleteLogisticsUpdate(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_logistics_update WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_logistics_update WHERE id=$1 RETURNING logistics_id', [req.params.id])
+    if (rows[0]) invalidateContractIn(await contractInOfLogistics(rows[0].logistics_id), 'logistics')
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa' })

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { API } from '../../config/api'
 import { parseDeepLink } from '../../components/common/deepLink'
 import { getBrand } from '../../config/brand'
 import fallbackLogo from '../../assets/tecapro-logo.png'
@@ -23,33 +22,19 @@ const MENUS = [
   { label: 'Hệ thống', path: '/quantri', desktopOnly: true },
 ]
 
-export default function Header({ onChangePassword }) {
+export default function Header({ onChangePassword, inboxCount = 0 }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState(null)
-  const [inboxCount, setInboxCount] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchText, setSearchText] = useState('')
   const navRef = useRef(null)
   const searchRef = useRef(null)
 
-  // Số đơn đang chờ chính mình duyệt (badge trên menu "Đề xuất").
-  // Tải khi đăng nhập / đổi trang, và tự làm mới mỗi 60 giây.
-  useEffect(() => {
-    if (!user) return
-    let alive = true
-    const loadCount = () => {
-      fetch(`${API}/approvals/requests/inbox`)
-        .then(r => r.ok ? r.json() : [])
-        .then(d => { if (alive) setInboxCount(Array.isArray(d) ? d.length : 0) })
-        .catch(() => {})
-    }
-    loadCount()
-    const timer = setInterval(loadCount, 60000)
-    return () => { alive = false; clearInterval(timer) }
-  }, [user, location.pathname])
+  // Số đơn chờ chính mình duyệt (badge menu "Đề xuất") đến từ long-poll hợp nhất ở App
+  // (useLiveAlerts) — không còn tự poll định kỳ tại đây.
 
   // Đóng dropdown khi bấm ra ngoài thanh menu.
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { API } from '../config/api'
 import {
   fmtCompact, fmtFull, signedThisYearVnd, signedThisYearCount,
@@ -32,7 +32,18 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
   const [tender, setTender] = useState(null)
   // Danh sách HĐ dựng tại asOf (giá trị/ngày ký/trạng thái đúng quá khứ); null khi xem hiện tại.
   const [asOfContractList, setAsOfContractList] = useState(null)
-  const [openCard, setOpenCard] = useState(null)
+  // Thẻ chi tiết đang mở nằm trong URL (?card=…) thay vì state cục bộ → khi bấm vào HĐ
+  // rồi quay lại (phím z / back), lịch sử trình duyệt khôi phục đúng thẻ đang mở.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const openCard = searchParams.get('card')
+  // Mở: đẩy 1 entry lịch sử (để "Quay lại" trở về đúng thẻ).
+  const openCardModal = (key) => setSearchParams(p => {
+    const n = new URLSearchParams(p); n.set('card', key); return n
+  })
+  // Đóng: gỡ param và thay thế entry (không tích lũy lịch sử mở/đóng).
+  const closeCardModal = () => setSearchParams(p => {
+    const n = new URLSearchParams(p); n.delete('card'); return n
+  }, { replace: true })
   const [range, setRange] = useState(loadDashRange)
   // asOf: xem dashboard tại 1 thời điểm trong quá khứ (null = hiện tại). Không lưu local.
   const [asOf, setAsOf] = useState(null)
@@ -75,7 +86,7 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
   // Mở hợp đồng tại đúng tab chứa nội dung (tab mặc định = thông tin HĐ).
   // extra: query phụ (vd { inId } để mở đúng HĐ nhập trong tab "Hợp đồng nhập").
   const openContract = (id, tab, extra) => {
-    setOpenCard(null)
+    // Không gỡ ?card ở đây: giữ entry "đang mở thẻ" trong lịch sử để phím z quay lại đúng thẻ.
     const qs = new URLSearchParams()
     if (tab) qs.set('tab', tab)
     for (const [k, v] of Object.entries(extra || {})) if (v != null) qs.set(k, v)
@@ -160,14 +171,14 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
       value: tender ? String(tender.active?.count ?? 0) : '—',
       sub: tender ? `Dự toán ${fmtCompact(tender.active?.estimate_vnd)}` : null,
       title: 'Gói thầu đang theo dõi',
-      render: () => <TenderListDetail rows={tender?.active?.rows} variant="estimate" onClose={() => setOpenCard(null)} />,
+      render: () => <TenderListDetail rows={tender?.active?.rows} variant="estimate" onClose={closeCardModal} />,
     },
     {
       key: 'tenderWinRate', icon: '🏆', accent: '#16a34a', label: 'Tỷ lệ trúng thầu',
       value: tender ? `${tender.winrate?.rate ?? 0}%` : '—',
       sub: tender ? `${tender.winrate?.won ?? 0}/${(tender.winrate?.won ?? 0) + (tender.winrate?.lost ?? 0)} gói có kết quả` : null,
       title: 'Tỷ lệ trúng thầu',
-      render: () => <TenderListDetail rows={tender?.winrate?.rows} variant="result" onClose={() => setOpenCard(null)} />,
+      render: () => <TenderListDetail rows={tender?.winrate?.rows} variant="result" onClose={closeCardModal} />,
     },
     {
       key: 'tenderWonValue', icon: '💵', accent: '#0891b2', label: 'Giá trị trúng thầu',
@@ -175,14 +186,14 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
       valueTitle: tender ? fmtFull(tender.won?.estimate_vnd) : undefined,
       sub: tender ? `${tender.won?.count ?? 0} gói trúng` : null,
       title: 'Giá trị trúng thầu',
-      render: () => <TenderListDetail rows={tender?.won?.rows} variant="result" onClose={() => setOpenCard(null)} />,
+      render: () => <TenderListDetail rows={tender?.won?.rows} variant="result" onClose={closeCardModal} />,
     },
     {
       key: 'tenderDueSoon', icon: '⏰', danger: true, label: 'Gói sắp đến hạn nộp',
       value: tender ? String(tender.upcoming?.count ?? 0) : '—',
       sub: 'trong 7 ngày tới',
       title: 'Gói sắp đến hạn nộp',
-      render: () => <TenderListDetail rows={tender?.upcoming?.rows} variant="due" onClose={() => setOpenCard(null)} />,
+      render: () => <TenderListDetail rows={tender?.upcoming?.rows} variant="due" onClose={closeCardModal} />,
     },
   ]
 
@@ -215,13 +226,13 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
         {cards.map(c => (
           <ExecKpiCard
             key={c.key} icon={c.icon} label={c.label} value={c.value} valueTitle={c.valueTitle}
-            sub={c.sub} accent={c.accent} danger={c.danger} onClick={() => setOpenCard(c.key)}
+            sub={c.sub} accent={c.accent} danger={c.danger} onClick={() => openCardModal(c.key)}
           />
         ))}
       </div>
 
       {open && (
-        <ExecCardModal title={open.title} onClose={() => setOpenCard(null)}>
+        <ExecCardModal title={open.title} onClose={closeCardModal}>
           {open.render()}
         </ExecCardModal>
       )}

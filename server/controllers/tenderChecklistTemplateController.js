@@ -1,5 +1,9 @@
 import { pool } from '../db.js'
 import { logActivity } from './tenderController.js'
+import { cacheWrap } from '../cache.js'
+import { lookupKey, invalidateLookup, invalidateTender } from '../services/cacheKeys.js'
+
+const TPL_TTL = 24 * 60 * 60 // 24h — mẫu dùng chung, rất ít đổi
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Mẫu checklist công việc dùng chung (1 bộ mặc định cho cả Ban Đấu thầu).
@@ -13,12 +17,15 @@ const TPL_COLS = `
 
 export async function getTemplate(_req, res) {
   try {
-    const { rows } = await pool.query(
-      `SELECT ${TPL_COLS}
-         FROM tender_checklist_template_item i
-         LEFT JOIN department d ON d.id = i.department_id
-        ORDER BY i.parent_item_id NULLS FIRST, i.sort_order, i.id`,
-    )
+    const rows = await cacheWrap(lookupKey('tender-tpl'), TPL_TTL, async () => {
+      const { rows } = await pool.query(
+        `SELECT ${TPL_COLS}
+           FROM tender_checklist_template_item i
+           LEFT JOIN department d ON d.id = i.department_id
+          ORDER BY i.parent_item_id NULLS FIRST, i.sort_order, i.id`,
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getTemplate:', err)
@@ -44,6 +51,7 @@ export async function createTemplateItem(req, res) {
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
       [title, description, departmentId, parentId, ord[0].n, req.user.id],
     )
+    invalidateLookup('tender-tpl')
     res.status(201).json({ success: true, id: rows[0].id })
   } catch (err) {
     console.error('createTemplateItem:', err)
@@ -65,6 +73,7 @@ export async function updateTemplateItem(req, res) {
       [title, description, departmentId, id],
     )
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc mẫu.' })
+    invalidateLookup('tender-tpl')
     res.json({ success: true, id: rows[0].id })
   } catch (err) {
     console.error('updateTemplateItem:', err)
@@ -78,6 +87,7 @@ export async function deleteTemplateItem(req, res) {
     const { rows } = await pool.query(
       'DELETE FROM tender_checklist_template_item WHERE id = $1 RETURNING id', [id])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy đầu việc mẫu.' })
+    invalidateLookup('tender-tpl')
     res.json({ success: true })
   } catch (err) {
     console.error('deleteTemplateItem:', err)
@@ -118,6 +128,7 @@ export async function applyTemplate(req, res) {
       }
     }
     await client.query('COMMIT')
+    invalidateTender(tenderId, 'checklist')
     logActivity(tenderId, req.user.id, 'update', `Áp dụng mẫu checklist (${idMap.size} đầu việc)`)
     res.json({ success: true, count: idMap.size })
   } catch (err) {

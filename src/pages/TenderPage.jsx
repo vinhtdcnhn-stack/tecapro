@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
-import { API } from '../config/api'
 import { useAuth } from '../context/AuthContext'
+import { useTenderMembers } from '../lib/queries'
 import TenderSidebar from '../components/tender/TenderSidebar'
 import TenderList from '../components/tender/TenderList'
 import TenderReports from '../components/tender/TenderReports'
@@ -14,14 +13,7 @@ const VALID = ['list', 'my', 'template', 'reports']
 export default function TenderPage() {
   const { user } = useAuth()
   const { section } = useParams()
-  const [members, setMembers] = useState([])
-
-  useEffect(() => {
-    fetch(`${API}/tender/members`)
-      .then(r => r.ok ? r.json() : [])
-      .then(m => setMembers(Array.isArray(m) ? m : []))
-      .catch(() => setMembers([]))
-  }, [])
+  const { data: members = [] } = useTenderMembers()
 
   // Chỉ thành viên Ban Kế hoạch Đấu thầu (dept 9) hoặc admin được vào module.
   const canAccess = Number(user?.role) === 1 || Number(user?.department_id) === 9

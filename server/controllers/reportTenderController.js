@@ -1,4 +1,8 @@
 import { pool } from '../db.js'
+import { cacheWrap } from '../cache.js'
+import { reportKey } from '../services/cacheKeys.js'
+
+const REPORT_TTL = 2 * 60 * 60 // 2h — nhóm 'tender', invalidate khi tender đổi
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tổng quan Đấu thầu cho Dashboard điều hành (BGĐ). Khác /tender/reports (gác
@@ -29,6 +33,8 @@ export async function getTenderOverview(req, res) {
   const rowCols = `id, package_name, investor, ${VND} AS estimate_vnd,
                    submit_date, workflow_status, result`
   try {
+    const key = await reportKey('tender', 'tender-overview', { from, to, asOf })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
     // ── Gói đang theo dõi: chưa có kết quả & chưa hủy, đã nộp tới mốc xem (hoặc chưa nộp) ──
     const pa = []
     const asOfCond = asOf ? (pa.push(asOf), `(submit_date IS NULL OR submit_date <= $${pa.length})`) : 'TRUE'
@@ -75,7 +81,9 @@ export async function getTenderOverview(req, res) {
         ORDER BY submit_date`, pu)
     const upcoming = { count: upRows.length, rows: upRows }
 
-    res.json({ active, winrate, won: wonValue, upcoming })
+    return { active, winrate, won: wonValue, upcoming }
+    })
+    res.json(payload)
   } catch (err) {
     console.error('getTenderOverview:', err)
     res.status(500).json({ error: 'Không thể tải tổng quan đấu thầu.' })

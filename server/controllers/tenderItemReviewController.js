@@ -4,6 +4,31 @@ import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
 import { logActivity } from './tenderController.js'
+import { cacheWrap } from '../cache.js'
+import { tenderKey, invalidateTender } from '../services/cacheKeys.js'
+
+const REVIEW_TTL = 3 * 60 // 3'
+
+// Review đổi (trạng thái duyệt / tập tệp) → tab review + checklist (review_status hiển thị ở checklist).
+function invalidateReview(tenderId) {
+  invalidateTender(tenderId, 'review', 'checklist')
+}
+async function tenderOfItem(itemId) {
+  const { rows } = await pool.query('SELECT tender_id FROM tender_checklist_item WHERE id=$1', [itemId])
+  return rows[0]?.tender_id
+}
+async function tenderOfFile(fileId) {
+  const { rows } = await pool.query(
+    `SELECT i.tender_id FROM document_file df
+       JOIN tender_checklist_item i ON i.id = df.item_id WHERE df.id=$1`, [fileId])
+  return rows[0]?.tender_id
+}
+async function tenderOfFolder(folderId) {
+  const { rows } = await pool.query(
+    `SELECT i.tender_id FROM document_folder fo
+       JOIN tender_checklist_item i ON i.id = fo.item_id WHERE fo.id=$1`, [folderId])
+  return rows[0]?.tender_id
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Review theo TỪNG ĐẦU VIỆC (GĐ "curate + duyệt", thay review cả gói theo phiên bản).
@@ -77,6 +102,7 @@ async function reviewSetFiles(itemId) {
 export async function getItemsForReview(req, res) {
   const tenderId = parseInt(req.params.id)
   try {
+    const out = await cacheWrap(tenderKey(tenderId, 'review'), REVIEW_TTL, async () => {
     const { rows: items } = await pool.query(
       `SELECT i.id, i.title, i.status, i.review_status, i.review_comment,
               i.review_submitted_at, i.review_decided_at,
@@ -91,7 +117,7 @@ export async function getItemsForReview(req, res) {
                  i.review_submitted_at DESC NULLS LAST, i.id`,
       [tenderId],
     )
-    if (!items.length) return res.json([])
+    if (!items.length) return []
 
     const { rows: reviews } = await pool.query(
       `SELECT r.id, r.item_id, r.conclusion, r.comment, r.created_at,
@@ -109,14 +135,16 @@ export async function getItemsForReview(req, res) {
       reviewsByItem.get(k).push(rv)
     }
 
-    const out = []
+    const list = []
     for (const it of items) {
-      out.push({
+      list.push({
         ...it,
         files: await reviewSetFiles(it.id),
         reviews: reviewsByItem.get(String(it.id)) || [],
       })
     }
+    return list
+    })
     res.json(out)
   } catch (err) {
     console.error('getItemsForReview:', err)
@@ -144,6 +172,7 @@ export async function submitItemReview(req, res) {
         WHERE id=$2`,
       [req.user.id, itemId],
     )
+    invalidateReview(it.tender_id)
     logActivity(it.tender_id, req.user.id, 'review', `Gửi review đầu việc "${it.title}"`)
     // Báo các Trưởng phòng (HEAD) — cần xử lý → notifyAction.
     const { rows: heads } = await pool.query(
@@ -191,6 +220,7 @@ export async function decideItemReview(req, res) {
               review_comment=$3, updated_at=now()
         WHERE id=$4`,
       [newStatus, req.user.id, comment, itemId])
+    invalidateReview(it.tender_id)
     logActivity(it.tender_id, req.user.id, 'review',
       `Review đầu việc "${it.title}": ${conclusion === 'pass' ? 'ĐẠT' : 'TRẢ LẠI'}${comment ? ` — ${comment}` : ''}`)
     // Báo người phụ trách gói + người đã gửi review.
@@ -235,6 +265,7 @@ export async function reopenItemReview(req, res) {
               review_comment=$1, updated_at=now()
         WHERE id=$2`,
       [comment, itemId])
+    invalidateReview(it.tender_id)
     logActivity(it.tender_id, req.user.id, 'review',
       `Thu hồi kết luận duyệt đầu việc "${it.title}"${comment ? ` — ${comment}` : ''}`)
     const targets = [...new Set([it.bid_maker_id, it.review_submitted_by]
@@ -257,6 +288,7 @@ export async function toggleFileExcluded(req, res) {
     const { rows } = await pool.query(
       'UPDATE document_file SET review_excluded=$1 WHERE id=$2 RETURNING id', [excluded, fileId])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy tệp.' })
+    invalidateReview(await tenderOfFile(fileId))
     res.json({ success: true, review_excluded: excluded })
   } catch (err) {
     console.error('toggleFileExcluded:', err)
@@ -272,6 +304,7 @@ export async function toggleFolderExcluded(req, res) {
     const { rows } = await pool.query(
       'UPDATE document_folder SET review_excluded=$1 WHERE id=$2 RETURNING id', [excluded, folderId])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy thư mục.' })
+    invalidateReview(await tenderOfFolder(folderId))
     res.json({ success: true, review_excluded: excluded })
   } catch (err) {
     console.error('toggleFolderExcluded:', err)
@@ -300,6 +333,7 @@ export async function uploadReplacement(req, res) {
       `INSERT INTO document_file (item_id, folder_id, file_name, file_path, file_size, mime_type, uploaded_by, replaces_file_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [itemId, folderId, fileName, filePath, req.file.size, req.file.mimetype, req.user?.id || null, replacesFileId])
+    invalidateReview(await tenderOfItem(itemId))
     res.status(201).json(rows[0])
   } catch (err) {
     if (req.file?.path) { try { fs.unlinkSync(req.file.path) } catch { /* noop */ } }
@@ -313,7 +347,7 @@ export async function deleteReplacement(req, res) {
   const fileId = parseInt(req.params.fileId)
   try {
     const { rows } = await pool.query(
-      'SELECT file_path, replaces_file_id FROM document_file WHERE id = $1', [fileId])
+      'SELECT file_path, replaces_file_id, item_id FROM document_file WHERE id = $1', [fileId])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy tệp.' })
     if (rows[0].replaces_file_id == null) {
       return res.status(400).json({ error: 'Chỉ gỡ được tệp đánh dấu thay thế.' })
@@ -323,6 +357,7 @@ export async function deleteReplacement(req, res) {
       if (fs.existsSync(abs)) fs.unlinkSync(abs)
     } catch { /* best-effort disk cleanup */ }
     await pool.query('DELETE FROM document_file WHERE id = $1', [fileId])
+    invalidateReview(await tenderOfItem(rows[0].item_id))
     res.json({ success: true })
   } catch (err) {
     console.error('deleteReplacement:', err)

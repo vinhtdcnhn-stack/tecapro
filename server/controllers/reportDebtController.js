@@ -4,6 +4,10 @@ import {
   loadReceivables, loadProgressByContract, loadPaymentsByContract,
   loadContracts, loadPayables, loadPaymentsByContractIn, loadInvoicedByContract,
 } from '../utils/reportLoaders.js'
+import { cacheWrap } from '../cache.js'
+import { reportKey } from '../services/cacheKeys.js'
+
+const REPORT_TTL = 2 * 60 * 60 // 2h — nhóm 'debt', invalidate khi receivable/payment/HĐ/hóa đơn đổi
 
 // Báo cáo công nợ (đọc-only): phải thu KH (#3/#4), phải trả NCC (#5), tổng kết tiến
 // độ thu (#6), tổng hợp theo KH (#8) và theo HĐ (#9).
@@ -42,38 +46,43 @@ export async function getReceivablesReport(req, res) {
     const realToday = vnToday()
     const overdueAsOf = asOf < realToday ? asOf : realToday
 
-    const [recv, prog, payByContract] = await Promise.all([
-      loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit }), loadPaymentsByContract(undefined, { asOf }),
-    ])
-    const computed = computeReceivableDues(recv, prog, basis, overdueAsOf)
-    const payDate = latestPaymentByReceivable(payByContract)
+    const key = await reportKey('debt', 'receivables', { asOf, pit, from, to, basis })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
+      const [recv, prog, payByContract] = await Promise.all([
+        loadReceivables(undefined, { asOf, pit }), loadProgressByContract(undefined, { asOf, pit }), loadPaymentsByContract(undefined, { asOf }),
+      ])
+      const computed = computeReceivableDues(recv, prog, basis, overdueAsOf)
+      const payDate = latestPaymentByReceivable(payByContract)
 
-    const rows = computed
-      .filter(r => r.remaining > 0 && r.effective_due && r.effective_due <= to)
-      .map(r => {
-        const cAmt = parseFloat(r.contract_amount) || 0
-        const amt  = parseFloat(r.amount) || 0
-        return {
-          id: r.id,
-          contract_out_id: r.contract_out_id,
-          customer_code: r.customer_code, customer_name: r.customer_name,
-          contract_no: r.contract_no, contract_date: iso(r.contract_date),
-          contract_amount: cAmt,
-          description: r.description,
-          ratio_pct: cAmt > 0 ? (amt / cAmt) * 100 : null,
-          currency_code: r.currency_code,
-          amount: amt, paid: r.paid, remaining: r.remaining,
-          remaining_vnd: toVnd(r.remaining, r.exchange_rate, r.currency_code),
-          payment_date: payDate.get(String(r.id)) || null,
-          due_date: r.effective_due,
-          recovery_ratio: amt > 0 ? r.paid / amt : 0,
-          days_overdue: r.days_overdue,
-          tier: r.tier, tier_label: r.tier ? TIER_LABEL[r.tier] : null,
-        }
-      })
-      .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
+      const rows = computed
+        .filter(r => r.remaining > 0 && r.effective_due && r.effective_due <= to)
+        .map(r => {
+          const cAmt = parseFloat(r.contract_amount) || 0
+          const amt  = parseFloat(r.amount) || 0
+          return {
+            id: r.id,
+            contract_out_id: r.contract_out_id,
+            customer_code: r.customer_code, customer_name: r.customer_name,
+            contract_no: r.contract_no, contract_date: iso(r.contract_date),
+            contract_amount: cAmt,
+            description: r.description,
+            ratio_pct: cAmt > 0 ? (amt / cAmt) * 100 : null,
+            currency_code: r.currency_code,
+            amount: amt, paid: r.paid, remaining: r.remaining,
+            remaining_vnd: toVnd(r.remaining, r.exchange_rate, r.currency_code),
+            payment_date: payDate.get(String(r.id)) || null,
+            due_date: r.effective_due,
+            recovery_ratio: amt > 0 ? r.paid / amt : 0,
+            days_overdue: r.days_overdue,
+            tier: r.tier, tier_label: r.tier ? TIER_LABEL[r.tier] : null,
+          }
+        })
+        .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
 
-    res.json({ from, to, basis, rows })
+      return { from, to, basis, rows }
+    })
+
+    res.json(payload)
   } catch (err) {
     console.error('getReceivablesReport:', err)
     res.status(500).json({ error: 'Không thể tải báo cáo công nợ phải thu.' })
@@ -94,44 +103,48 @@ export async function getPayablesReport(req, res) {
     const realToday = vnToday()
     const today = asOf < realToday ? asOf : realToday
 
-    const [payables, payByCI] = await Promise.all([loadPayables(undefined, { asOf, pit }), loadPaymentsByContractIn(undefined, { asOf })])
+    const key = await reportKey('debt', 'payables', { asOf, pit, from, to })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
+      const [payables, payByCI] = await Promise.all([loadPayables(undefined, { asOf, pit }), loadPaymentsByContractIn(undefined, { asOf })])
 
-    // Gom đợt phải trả theo hợp đồng nhập, phân bổ FIFO tổng đã trả theo thứ tự hạn.
-    const byCI = new Map()
-    for (const p of payables) {
-      const k = String(p.contract_in_id)
-      if (!byCI.has(k)) byCI.set(k, [])
-      byCI.get(k).push(p)
-    }
+      // Gom đợt phải trả theo hợp đồng nhập, phân bổ FIFO tổng đã trả theo thứ tự hạn.
+      const byCI = new Map()
+      for (const p of payables) {
+        const k = String(p.contract_in_id)
+        if (!byCI.has(k)) byCI.set(k, [])
+        byCI.get(k).push(p)
+      }
 
-    const rows = []
-    for (const [ci, items] of byCI) {
-      const totalPaid = (payByCI.get(ci) || []).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
-      let remainPaid = totalPaid
-      for (const p of items) {
-        const amt = parseFloat(p.amount) || 0
-        const paid = Math.min(amt, Math.max(0, remainPaid))
-        remainPaid -= paid
-        const remaining = amt - paid
-        const due = iso(p.due_date)
-        const daysOverdue = (due && remaining > 0) ? diffDays(due, today) : 0
-        if (remaining > 0 && due && due <= to) {
-          const tier = debtTier(daysOverdue)
-          rows.push({
-            id: p.id, contract_in_id: p.contract_in_id, contract_out_id: p.contract_out_id,
-            supplier_code: p.supplier_code, supplier_name: p.supplier_name,
-            contract_no: p.contract_no, contract_date: iso(p.contract_date),
-            description: p.description, currency_code: p.currency_code,
-            amount: amt, paid, remaining,
-            remaining_vnd: toVnd(remaining, p.exchange_rate, p.currency_code),
-            due_date: due, days_overdue: daysOverdue,
-            tier, tier_label: tier ? TIER_LABEL[tier] : null,
-          })
+      const rows = []
+      for (const [ci, items] of byCI) {
+        const totalPaid = (payByCI.get(ci) || []).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+        let remainPaid = totalPaid
+        for (const p of items) {
+          const amt = parseFloat(p.amount) || 0
+          const paid = Math.min(amt, Math.max(0, remainPaid))
+          remainPaid -= paid
+          const remaining = amt - paid
+          const due = iso(p.due_date)
+          const daysOverdue = (due && remaining > 0) ? diffDays(due, today) : 0
+          if (remaining > 0 && due && due <= to) {
+            const tier = debtTier(daysOverdue)
+            rows.push({
+              id: p.id, contract_in_id: p.contract_in_id, contract_out_id: p.contract_out_id,
+              supplier_code: p.supplier_code, supplier_name: p.supplier_name,
+              contract_no: p.contract_no, contract_date: iso(p.contract_date),
+              description: p.description, currency_code: p.currency_code,
+              amount: amt, paid, remaining,
+              remaining_vnd: toVnd(remaining, p.exchange_rate, p.currency_code),
+              due_date: due, days_overdue: daysOverdue,
+              tier, tier_label: tier ? TIER_LABEL[tier] : null,
+            })
+          }
         }
       }
-    }
-    rows.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
-    res.json({ from, to, rows })
+      rows.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
+      return { from, to, rows }
+    })
+    res.json(payload)
   } catch (err) {
     console.error('getPayablesReport:', err)
     res.status(500).json({ error: 'Không thể tải báo cáo công nợ phải trả.' })
@@ -151,40 +164,44 @@ function delayCategory(days) {
 export async function getProgressCollection(req, res) {
   try {
     const today = vnToday()
-    const [recv, prog, payByContract, contracts] = await Promise.all([
-      loadReceivables(), loadProgressByContract(), loadPaymentsByContract(), loadContracts(),
-    ])
-    const computed = computeReceivableDues(recv, prog, 'plan', today)
-    const payDate = latestPaymentByReceivable(payByContract)
+    const key = await reportKey('debt', 'progress-collection', { asOf: today })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
+      const [recv, prog, payByContract, contracts] = await Promise.all([
+        loadReceivables(), loadProgressByContract(), loadPaymentsByContract(), loadContracts(),
+      ])
+      const computed = computeReceivableDues(recv, prog, 'plan', today)
+      const payDate = latestPaymentByReceivable(payByContract)
 
-    // Gom theo HĐ: số ngày chậm = MAX trên các khoản (đã thu: ngày thu−hạn; chưa thu: hôm nay−hạn).
-    const delayByContract = new Map()
-    for (const r of computed) {
-      if (!r.effective_due) continue
-      const k = String(r.contract_out_id)
-      const late = r.remaining <= 0
-        ? diffDays(r.effective_due, payDate.get(String(r.id)) || today)
-        : diffDays(r.effective_due, today)
-      if (!delayByContract.has(k) || late > delayByContract.get(k)) delayByContract.set(k, late)
-    }
-
-    const rows = contracts.map(c => {
-      const k = String(c.id)
-      const pays = payByContract.get(k) || []
-      const collectedVnd = pays.reduce((s, p) => s + (parseFloat(p.amount_vnd) || 0), 0)
-      const valueVnd = toVnd(c.amount_after_vat, c.exchange_rate, c.currency_code)
-      const delay = delayByContract.has(k) ? delayByContract.get(k) : 0
-      return {
-        contract_out_id: c.id, contract_no: c.contract_no,
-        customer_name: c.customer_name, project_name: c.project_name,
-        contract_date: iso(c.contract_date),
-        value_vnd: valueVnd, collected_vnd: collectedVnd,
-        remaining_vnd: Math.max(0, valueVnd - collectedVnd),
-        delay_days: delay, category: delayCategory(delay),
+      // Gom theo HĐ: số ngày chậm = MAX trên các khoản (đã thu: ngày thu−hạn; chưa thu: hôm nay−hạn).
+      const delayByContract = new Map()
+      for (const r of computed) {
+        if (!r.effective_due) continue
+        const k = String(r.contract_out_id)
+        const late = r.remaining <= 0
+          ? diffDays(r.effective_due, payDate.get(String(r.id)) || today)
+          : diffDays(r.effective_due, today)
+        if (!delayByContract.has(k) || late > delayByContract.get(k)) delayByContract.set(k, late)
       }
-    }).sort((a, b) => b.delay_days - a.delay_days)
 
-    res.json({ asOf: today, rows })
+      const rows = contracts.map(c => {
+        const k = String(c.id)
+        const pays = payByContract.get(k) || []
+        const collectedVnd = pays.reduce((s, p) => s + (parseFloat(p.amount_vnd) || 0), 0)
+        const valueVnd = toVnd(c.amount_after_vat, c.exchange_rate, c.currency_code)
+        const delay = delayByContract.has(k) ? delayByContract.get(k) : 0
+        return {
+          contract_out_id: c.id, contract_no: c.contract_no,
+          customer_name: c.customer_name, project_name: c.project_name,
+          contract_date: iso(c.contract_date),
+          value_vnd: valueVnd, collected_vnd: collectedVnd,
+          remaining_vnd: Math.max(0, valueVnd - collectedVnd),
+          delay_days: delay, category: delayCategory(delay),
+        }
+      }).sort((a, b) => b.delay_days - a.delay_days)
+
+      return { asOf: today, rows }
+    })
+    res.json(payload)
   } catch (err) {
     console.error('getProgressCollection:', err)
     res.status(500).json({ error: 'Không thể tải tổng kết tiến độ thu.' })
@@ -243,8 +260,12 @@ async function computeContractDebt(range = {}) {
 export async function getContractsAsOf(req, res) {
   try {
     const asOf = validDate(req.query.asOf)
-    const rows = await loadContracts(undefined, { asOf, pit: !!asOf })
-    res.json({ asOf, rows })
+    const key = await reportKey('debt', 'contracts-asof', { asOf })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
+      const rows = await loadContracts(undefined, { asOf, pit: !!asOf })
+      return { asOf, rows }
+    })
+    res.json(payload)
   } catch (err) {
     console.error('getContractsAsOf:', err)
     res.status(500).json({ error: 'Không thể tải danh sách hợp đồng theo thời điểm.' })
@@ -255,12 +276,16 @@ export async function getContractsAsOf(req, res) {
 export async function getDebtByContract(req, res) {
   try {
     const range = { from: validDate(req.query.from), to: validDate(req.query.to), asOf: validDate(req.query.asOf) }
-    const rows = await computeContractDebt(range)
-    const totals = rows.reduce((t, r) => {
-      t.value += r.value_vnd; t.paid += r.paid_vnd; t.outstanding += r.outstanding_vnd
-      return t
-    }, { value: 0, paid: 0, outstanding: 0 })
-    res.json({ rows: rows.sort((a, b) => b.outstanding_vnd - a.outstanding_vnd), totals })
+    const key = await reportKey('debt', 'debt-by-contract', range)
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
+      const rows = await computeContractDebt(range)
+      const totals = rows.reduce((t, r) => {
+        t.value += r.value_vnd; t.paid += r.paid_vnd; t.outstanding += r.outstanding_vnd
+        return t
+      }, { value: 0, paid: 0, outstanding: 0 })
+      return { rows: rows.sort((a, b) => b.outstanding_vnd - a.outstanding_vnd), totals }
+    })
+    res.json(payload)
   } catch (err) {
     console.error('getDebtByContract:', err)
     res.status(500).json({ error: 'Không thể tải tổng hợp công nợ theo HĐ.' })
@@ -271,6 +296,8 @@ export async function getDebtByContract(req, res) {
 export async function getDebtByCustomer(req, res) {
   try {
     const range = { from: validDate(req.query.from), to: validDate(req.query.to), asOf: validDate(req.query.asOf) }
+    const key = await reportKey('debt', 'debt-by-customer', range)
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
     const contractRows = await computeContractDebt(range)
     const byCust = new Map()
     for (const c of contractRows) {
@@ -303,7 +330,9 @@ export async function getDebtByCustomer(req, res) {
     totals.collection_ratio = ratioOf(totals.total_paid, totals.total_invoiced, totals.total_value)
     const top10 = rows.slice(0, 10)
 
-    res.json({ rows, totals, top10 })
+      return { rows, totals, top10 }
+    })
+    res.json(payload)
   } catch (err) {
     console.error('getDebtByCustomer:', err)
     res.status(500).json({ error: 'Không thể tải tổng hợp công nợ theo KH.' })

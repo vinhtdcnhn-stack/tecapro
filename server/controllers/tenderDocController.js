@@ -5,6 +5,10 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
 import { buildTree } from './documentController.js'
+import { cacheWrap } from '../cache.js'
+import { tenderKey, invalidateTender } from '../services/cacheKeys.js'
+
+const DOC_TTL = 30 * 60 // 30'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tài liệu Hồ sơ mời thầu — dùng lại hệ thống thư mục/tệp của tài liệu HĐ
@@ -47,24 +51,27 @@ export const uploadTender = multer({ storage, limits: UPLOAD_LIMITS, fileFilter:
 export async function getFolderTreeTender(req, res) {
   try {
     const { tenderId } = req.params
-    const { rows } = await pool.query(`
-      WITH RECURSIVE folder_tree AS (
-        SELECT id, tender_id, parent_id, folder_name, created_by, created_at,
-               0 AS level, ARRAY[id] AS path
-        FROM public.document_folder
-        WHERE tender_id = $1 AND parent_id IS NULL
+    const tree = await cacheWrap(tenderKey(tenderId, 'folders'), DOC_TTL, async () => {
+      const { rows } = await pool.query(`
+        WITH RECURSIVE folder_tree AS (
+          SELECT id, tender_id, parent_id, folder_name, created_by, created_at,
+                 0 AS level, ARRAY[id] AS path
+          FROM public.document_folder
+          WHERE tender_id = $1 AND parent_id IS NULL
 
-        UNION ALL
+          UNION ALL
 
-        SELECT f.id, f.tender_id, f.parent_id, f.folder_name, f.created_by, f.created_at,
-               ft.level + 1, ft.path || f.id
-        FROM public.document_folder f
-        INNER JOIN folder_tree ft ON f.parent_id = ft.id
-        WHERE f.tender_id = $1
-      )
-      SELECT * FROM folder_tree ORDER BY path
-    `, [tenderId])
-    res.json(buildTree(rows))
+          SELECT f.id, f.tender_id, f.parent_id, f.folder_name, f.created_by, f.created_at,
+                 ft.level + 1, ft.path || f.id
+          FROM public.document_folder f
+          INNER JOIN folder_tree ft ON f.parent_id = ft.id
+          WHERE f.tender_id = $1
+        )
+        SELECT * FROM folder_tree ORDER BY path
+      `, [tenderId])
+      return buildTree(rows)
+    })
+    res.json(tree)
   } catch (err) {
     console.error('getFolderTreeTender error:', err)
     res.status(500).json({ error: 'Failed to get folder tree' })
@@ -82,6 +89,7 @@ export async function createFolderTender(req, res) {
       INSERT INTO public.document_folder (tender_id, parent_id, folder_name, created_by)
       VALUES ($1, $2, $3, $4) RETURNING *
     `, [tenderId, parentId || null, folderName.trim(), req.user?.id || null])
+    invalidateTender(tenderId, 'folders')
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createFolderTender error:', err)
@@ -114,7 +122,11 @@ export async function getTenderFiles(req, res) {
     }
     query += ' ORDER BY df.uploaded_at DESC'
 
-    const { rows } = await pool.query(query, params)
+    // Chỉ cache biến thể thư mục GỐC (lần nạp phổ biến); folder cụ thể thì query thẳng.
+    const load = async () => (await pool.query(query, params)).rows
+    const rows = atRoot
+      ? await cacheWrap(tenderKey(tenderId, 'files'), DOC_TTL, load)
+      : await load()
     res.json(rows)
   } catch (err) {
     console.error('getTenderFiles error:', err)
@@ -153,6 +165,7 @@ export async function uploadFileTender(req, res) {
       RETURNING *
     `, [tenderId, atRoot ? null : folderId, fileName, filePath, req.file.size, req.file.mimetype, req.user?.id || null])
 
+    invalidateTender(tenderId, 'files')
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('uploadFileTender error:', err)

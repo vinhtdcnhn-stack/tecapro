@@ -1,0 +1,152 @@
+import { pool } from '../db.js'
+import { cacheDel, cacheVersion, bumpVersion } from '../cache.js'
+
+// Trung tâm QUY ƯỚC KEY + LỚP INVALIDATION cho toàn bộ cache. Gom hết vào 1 file để
+// invalidation-chính-xác dễ bảo trì (không rải chuỗi key khắp controller). Controller ĐỌC
+// dùng các hàm dựng key; controller GHI gọi các hàm invalidate* SAU khi ghi DB thành công
+// (fire-and-forget, không await chặn response — mô phỏng pattern bumpLive của eventBus).
+
+// ----------------------------- Dựng key -----------------------------
+
+// Danh mục global ít đổi: lookup:customers, lookup:suppliers, ...
+export const lookupKey = (name) => `lookup:${name}`
+
+// Chi tiết theo từng thực thể: c:{id}:{tab} (HĐ bán), ci:{id}:{tab} (HĐ nhập), t:{id}:{tab} (gói thầu)
+export const contractKey = (id, tab) => `c:${id}:${tab}`
+export const contractInKey = (id, tab) => `ci:${id}:${tab}`
+export const tenderKey = (id, tab) => `t:${id}:${tab}`
+
+// Danh sách HĐ bán: per-user (lọc theo thành viên) nên dùng version-namespace, bump khi
+// có HĐ/thành viên đổi (ảnh hưởng danh sách của nhiều người).
+export async function contractListKey(userOrAll) {
+  const v = await cacheVersion('contract-list')
+  return `clist:v${v}:${userOrAll}`
+}
+
+// "Việc của tôi" (gói thầu phụ trách): per-user theo phân công → version-namespace, bump
+// khi có gói thầu tạo/sửa/đổi phân công/xóa.
+export async function tenderMyKey(userId) {
+  const v = await cacheVersion('tender-my')
+  return `t-my:v${v}:${userId}`
+}
+export function invalidateTenderMy() {
+  return bumpVersion('tender-my')
+}
+
+// Dashboard cá nhân (per-user)
+export const pmDashKey = (userId) => `dash:pm:${userId}`
+export const assignedTasksKey = (userId) => `dash:pm-tasks:${userId}`
+export const deptDashKey = (userId) => `dash:dept:${userId}`
+
+// Tra cứu serial (global, cross-contract). Chuẩn hóa hoa để khớp quy ước serial.
+export const serialLookupKey = (serial) => `serial-lookup:${String(serial).trim().toUpperCase()}`
+
+// Danh sách loại đơn user được phép tạo: phụ thuộc cấu hình admin (is_active + phòng ban),
+// per-user nên không liệt kê được hết key để xóa → dùng version-namespace, bump khi cấu hình đổi.
+export async function approvalFormOptsKey(userId) {
+  const v = await cacheVersion('approval-form-opts')
+  return `approval:form-opts:v${v}:${userId}`
+}
+
+// Báo cáo: nhúng version-namespace để vô hiệu cả nhóm bằng 1 lần INCR (xem cache.js).
+// Mỗi nhóm report (debt/warranty/task/tender) có namespace riêng.
+// params: object tham số tùy ý (asOf/basis/from/to/...) — nối theo khóa đã sắp xếp để mỗi
+// biến thể là 1 key ổn định, không phụ thuộc thứ tự field.
+export async function reportKey(group, name, params = {}) {
+  const v = await cacheVersion(`report:${group}`)
+  const suffix = Object.keys(params).sort()
+    .map((k) => `${k}=${params[k] ?? ''}`).join('&')
+  return `report:${group}:v${v}:${name}:${suffix}`
+}
+
+// ----------------------------- Invalidation -----------------------------
+
+// Danh mục: xóa thẳng key (key xác định).
+export function invalidateLookup(...names) {
+  return cacheDel(names.map(lookupKey))
+}
+
+// Báo cáo: tăng version namespace → mọi key version cũ tự rụng theo TTL.
+export function invalidateReports(group) {
+  return bumpVersion(`report:${group}`)
+}
+
+// Cấu hình loại đơn đổi: xóa danh sách form (admin) + bump version form-options (mọi user).
+export function invalidateApprovalForms() {
+  return Promise.all([invalidateLookup('approval-forms'), bumpVersion('approval-form-opts')])
+}
+
+// Dashboard của 1 user cụ thể.
+export function invalidateUserDashboards(userId) {
+  if (userId == null) return
+  return cacheDel(pmDashKey(userId), assignedTasksKey(userId), deptDashKey(userId))
+}
+
+// Danh sách HĐ bán đổi (tạo/sửa/xóa HĐ, đổi thành viên) → vô hiệu list của mọi user.
+export function invalidateContractList() {
+  return bumpVersion('contract-list')
+}
+
+// Mọi tab đã biết của 1 HĐ bán (dùng khi đổi thông tin gốc ảnh hưởng nhiều tab).
+const CONTRACT_TABS = [
+  'info', 'boq', 'invoices', 'invoice-summary', 'progress', 'receivable',
+  'receivable-payments', 'guarantees', 'folders', 'files', 'deliveries',
+  'equipment', 'warranty-cases', 'warranty-activities', 'contract-ins',
+]
+export function invalidateContract(id, ...tabs) {
+  if (id == null || tabs.length === 0) return
+  return cacheDel(tabs.map((t) => contractKey(id, t)))
+}
+export function invalidateContractAll(id) {
+  if (id == null) return
+  return cacheDel(CONTRACT_TABS.map((t) => contractKey(id, t)))
+}
+
+// Tab của 1 HĐ nhập.
+export function invalidateContractIn(id, ...tabs) {
+  if (id == null || tabs.length === 0) return
+  return cacheDel(tabs.map((t) => contractInKey(id, t)))
+}
+
+// Tab của 1 gói thầu.
+export function invalidateTender(id, ...tabs) {
+  if (id == null || tabs.length === 0) return
+  return cacheDel(tabs.map((t) => tenderKey(id, t)))
+}
+
+// Tra cứu serial: xóa cache cho từng serial liên quan (cũ + mới khi thay thế).
+export function invalidateSerialLookup(...serials) {
+  const keys = serials.flat().filter(Boolean).map(serialLookupKey)
+  return cacheDel(keys)
+}
+
+// Ghi vào 1 HĐ → dashboard của MỌI thành viên HĐ đó cần làm mới (dashboard tổng hợp từ
+// các bảng con của HĐ). Tra thành viên rồi xóa dashboard từng người. Nuốt lỗi: invalidation
+// thất bại chỉ khiến cache hơi cũ tới khi hết TTL, không được làm hỏng request ghi.
+export async function invalidateContractMembers(contractId) {
+  if (contractId == null) return
+  try {
+    const { rows } = await pool.query(
+      'SELECT user_id FROM contract_out_member WHERE contract_out_id = $1',
+      [contractId],
+    )
+    await Promise.all(rows.map((r) => invalidateUserDashboards(r.user_id)))
+  } catch {
+    // bỏ qua — xem ghi chú ở trên
+  }
+}
+
+// Ghi vào 1 HĐ NHẬP → dashboard thành viên HĐ BÁN cha (dashboard tổng hợp cả mốc/giao
+// hàng/bảo lãnh của HĐ nhập). Map ci → contract_out_id → thành viên.
+export async function invalidateContractInMembers(contractInId) {
+  if (contractInId == null) return
+  try {
+    const { rows } = await pool.query(
+      'SELECT contract_out_id FROM contract_in WHERE id = $1',
+      [contractInId],
+    )
+    if (rows[0]?.contract_out_id != null) await invalidateContractMembers(rows[0].contract_out_id)
+  } catch {
+    // bỏ qua
+  }
+}

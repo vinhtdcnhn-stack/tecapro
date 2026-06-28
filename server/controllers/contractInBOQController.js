@@ -2,6 +2,21 @@ import { pool } from '../db.js'
 import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { roundMoney } from '../utils/money.js'
+import { cacheWrap } from '../cache.js'
+import { contractInKey, invalidateContractIn, invalidateContract } from '../services/cacheKeys.js'
+
+const TAB_TTL = 15 * 60 // 15'
+
+// Bảng giá mua đổi → tab boq + (do syncContractInTotal đổi tổng HĐ nhập) danh sách HĐ nhập
+// của HĐ bán cha.
+async function invalidateBOQIn(contractInId) {
+  if (contractInId == null) return
+  invalidateContractIn(contractInId, 'boq')
+  try {
+    const { rows } = await pool.query('SELECT contract_out_id FROM contract_in WHERE id=$1', [contractInId])
+    if (rows[0]) invalidateContract(rows[0].contract_out_id, 'contract-ins')
+  } catch { /* bỏ qua */ }
+}
 
 export const excelUploadIn = multer({
   storage: multer.memoryStorage(),
@@ -80,10 +95,13 @@ export function downloadPurchaseBOQTemplate(_req, res) {
 // GET /contract-ins/:contractInId/boq
 export async function getPurchaseBOQ(req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM contract_in_boq WHERE contract_in_id = $1 ORDER BY sort_order, id',
-      [req.params.contractInId]
-    )
+    const rows = await cacheWrap(contractInKey(req.params.contractInId, 'boq'), TAB_TTL, async () => {
+      const { rows } = await pool.query(
+        'SELECT * FROM contract_in_boq WHERE contract_in_id = $1 ORDER BY sort_order, id',
+        [req.params.contractInId]
+      )
+      return rows
+    })
     res.json(rows)
   } catch (err) {
     console.error('getPurchaseBOQ:', err)
@@ -114,6 +132,7 @@ export async function createPurchaseBOQItem(req, res) {
        before, parseFloat(vat_rate)||0, after, warranty_period||'']
     )
     await syncContractInTotal(contractInId)
+    invalidateBOQIn(contractInId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('createPurchaseBOQItem:', err)
@@ -149,6 +168,7 @@ export async function insertPurchaseBOQAfter(req, res) {
        before, parseFloat(vat_rate)||0, after, warranty_period||'']
     )
     await syncContractInTotal(contractInId)
+    invalidateBOQIn(contractInId)
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('insertPurchaseBOQAfter:', err)
@@ -178,6 +198,7 @@ export async function updatePurchaseBOQItem(req, res) {
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     await syncContractInTotal(rows[0].contract_in_id)
+    invalidateBOQIn(rows[0].contract_in_id)
     res.json(rows[0])
   } catch (err) {
     console.error('updatePurchaseBOQItem:', err)
@@ -194,6 +215,7 @@ export async function deletePurchaseBOQItem(req, res) {
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     await syncContractInTotal(rows[0].contract_in_id)
+    invalidateBOQIn(rows[0].contract_in_id)
     res.json({ message: 'Deleted' })
   } catch (err) {
     console.error('deletePurchaseBOQItem:', err)
@@ -217,6 +239,7 @@ export async function reorderPurchaseBOQ(req, res) {
       )
     }
     await client.query('COMMIT')
+    invalidateBOQIn(contractInId)
     res.json({ message: 'Reordered', count: ids.length })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -242,6 +265,7 @@ export async function bulkDeletePurchaseBOQItems(req, res) {
     const contractInIds = [...new Set(rows.map(r => r.contract_in_id))]
     for (const cid of contractInIds) await syncContractInTotal(cid, client)
     await client.query('COMMIT')
+    for (const cid of contractInIds) invalidateBOQIn(cid)
     res.json({ message: 'Deleted', count: rows.length })
   } catch (err) {
     await client.query('ROLLBACK')
@@ -315,6 +339,7 @@ export async function saveImportedPurchaseBOQ(req, res) {
       }
       await syncContractInTotal(contractInId, client)
       await client.query('COMMIT')
+      invalidateBOQIn(contractInId)
       res.json({ saved: saved.length, items: saved })
     } catch (err) {
       await client.query('ROLLBACK')

@@ -1,5 +1,15 @@
 import { pool } from '../db.js'
 import { SHOW_ITEM } from './contractInDeliveryShared.js'
+import { invalidateContractIn } from '../services/cacheKeys.js'
+
+// Hàng trong đợt đổi → đợt nhận (đếm hàng/SL nhận) + danh mục hàng tổng hợp của HĐ nhập.
+async function ciOfDelivery(deliveryId) {
+  const { rows } = await pool.query('SELECT contract_in_id FROM contract_in_delivery WHERE id=$1', [deliveryId])
+  return rows[0]?.contract_in_id
+}
+function invalidateItems(ci) {
+  invalidateContractIn(ci, 'deliveries', 'all-items', 'all-serials')
+}
 
 // ── Hàng hóa trong đợt nhận (delivery items) ───────────────────────────────────
 
@@ -43,6 +53,7 @@ export async function createDeliveryItem(req, res) {
       RETURNING *, 0 AS serial_count
     `, [deliveryId, boq_item_id||null, item_name.trim(), unit?.trim()||'',
         parseFloat(ordered_quantity)||0, parseFloat(received_quantity)||0, note?.trim()||null])
+    invalidateItems(await ciOfDelivery(deliveryId))
     res.json(rows[0])
   } catch (err) {
     console.error('createDeliveryItem:', err)
@@ -62,6 +73,7 @@ export async function updateDeliveryItem(req, res) {
         parseFloat(ordered_quantity)||0, parseFloat(received_quantity)||0,
         note?.trim()||null, id])
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    invalidateItems(await ciOfDelivery(rows[0].delivery_id))
     res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: 'Không thể cập nhật hàng hóa' })
@@ -70,7 +82,8 @@ export async function updateDeliveryItem(req, res) {
 
 export async function deleteDeliveryItem(req, res) {
   try {
-    await pool.query('DELETE FROM contract_in_delivery_item WHERE id=$1', [req.params.id])
+    const { rows } = await pool.query('DELETE FROM contract_in_delivery_item WHERE id=$1 RETURNING delivery_id', [req.params.id])
+    if (rows[0]) invalidateItems(await ciOfDelivery(rows[0].delivery_id))
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa hàng hóa' })
