@@ -163,6 +163,15 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   function openAddSub(t)  { setEditTask(null); setParentTask(t);    setModalOpen(true) }
   function openEdit(t)    { setEditTask(t);    setParentTask(null); setModalOpen(true) }
   function openDetail(t)  { setDetailTaskId(t.id) }
+
+  // Mở khung chi tiết → dòng thời gian tự ghi mốc đã đọc ở server. Xóa nền hổ phách dòng
+  // việc NGAY tại chỗ (danh sách + Gantt cùng đọc từ `tasks`) thay vì chờ tải lại cả tab,
+  // và ép cảnh báo nền đỏ toàn trang poll lại để badge khớp.
+  const handleTaskRead = useCallback((taskId) => {
+    setTasks(prev => prev.map(t =>
+      (String(t.id) === String(taskId) && t.unread_count) ? { ...t, unread_count: 0 } : t))
+    window.dispatchEvent(new Event('contracttask:refresh-unread'))
+  }, [])
   // Lật theo hiện trạng (override nếu có, ngược lại theo mặc định thu của nhánh chuyển việc).
   function toggleTask(id) {
     setCollapsedTask(prev => {
@@ -340,6 +349,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           onEdit={(t) => { setDetailTaskId(null); openEdit(t) }}
           onClose={() => setDetailTaskId(null)}
           onChanged={load}
+          onRead={handleTaskRead}
         />
       )}
     </>

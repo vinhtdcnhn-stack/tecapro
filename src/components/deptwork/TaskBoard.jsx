@@ -105,6 +105,14 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
   const openEdit = (t) => { setEditTask(t); setModalOpen(true) }
   const openDetail = (t) => setDetailId(t.id)
 
+  // Mở chi tiết → dòng thời gian tự ghi mốc đã đọc ở server. Xóa nền hổ phách thẻ/dòng việc
+  // NGAY tại chỗ (không chờ đóng drawer) + ép cảnh báo nền đỏ toàn trang poll lại.
+  const handleTaskRead = useCallback((taskId) => {
+    setTasks(prev => prev.map(t =>
+      (String(t.id) === String(taskId) && t.unread_count) ? { ...t, unread_count: 0 } : t))
+    window.dispatchEvent(new Event('deptwork:refresh-unread'))
+  }, [])
+
   function StatusCell({ t }) {
     if (canChangeStatus(t)) {
       return (
@@ -204,6 +212,7 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
           onClose={() => { setDetailId(null); load() }}
           onEdit={(t) => { setDetailId(null); openEdit(t) }}
           onChanged={load}
+          onRead={handleTaskRead}
         />
       )}
 

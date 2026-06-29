@@ -12,7 +12,7 @@ const fileHref = (p) => `${API.replace('/api', '')}${p}`
 //   canManage = PM/admin của HĐ (quyết định loại mục được đăng ở dòng thời gian)
 //   canWrite  = quyền sửa dòng việc này (hiện nút "Sửa công việc")
 export default function ContractTaskDetailDrawer({
-  task, currentUser, canManage, canWrite, onEdit, onClose, onChanged,
+  task, currentUser, canManage, canWrite, onEdit, onClose, onChanged, onRead,
 }) {
   if (!task) return null
 
@@ -75,6 +75,7 @@ export default function ContractTaskDetailDrawer({
           currentUser={currentUser}
           canManage={canManage}
           onChanged={onChanged}
+          onRead={onRead}
         />
       </div>
 

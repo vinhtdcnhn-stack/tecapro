@@ -18,7 +18,7 @@ function fmtDateTime(ts) {
 // Dòng thời gian trao đổi của một việc: Báo cáo / Chỉ đạo / Quyết định / Trao đổi.
 // Đăng được loại nào suy từ vai trò người dùng với việc (rel). Mở mục này (GET) tự
 // ghi mốc đã đọc ở server → bảng việc hết nhấp nháy.
-export default function TaskTimeline({ taskId, task, currentUser, canManage, onChanged }) {
+export default function TaskTimeline({ taskId, task, currentUser, canManage, onChanged, onRead }) {
   const isMobile = useIsMobile()
   const [entries, setEntries] = useState([])
   const [adding, setAdding] = useState(false)
@@ -44,8 +44,10 @@ export default function TaskTimeline({ taskId, task, currentUser, canManage, onC
     try {
       const r = await fetch(`${API}/dept-work/tasks/${taskId}/entries`)
       setEntries(r.ok ? await r.json() : [])
+      // GET tự ghi mốc đã đọc ở server → báo cha xóa nền hổ phách dòng việc ngay, không chờ tải lại.
+      if (r.ok) onRead?.(taskId)
     } catch (e) { console.error('load timeline:', e) }
-  }, [taskId])
+  }, [taskId, onRead])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- async: setState sau await
   useEffect(() => { load() }, [load])

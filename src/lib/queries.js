@@ -95,14 +95,17 @@ export function useApprovalsBrowse(endpoint, opts = {}) {
   return useQuery({ queryKey: qk.approvalsBrowse(endpoint), queryFn: () => fetchers.approvalsBrowse(endpoint), enabled: !!endpoint, ...opts })
 }
 
+// staleTime 0: dashboard phải tươi — đọc xong quay lại là refetch ngay để dòng việc hết nền
+// hổ phách (cache server per-user vẫn che DB nên refetch rẻ; render bản cũ trong RAM rồi làm
+// mới ngầm, không chớp UI). Cùng quy ước với useUnreadInbox.
 export function usePmDashboard(uid, opts = {}) {
-  return useQuery({ queryKey: qk.pmDashboard(uid), queryFn: () => fetchers.pmDashboard(uid), enabled: idEnabled(uid), ...opts })
+  return useQuery({ queryKey: qk.pmDashboard(uid), queryFn: () => fetchers.pmDashboard(uid), enabled: idEnabled(uid), staleTime: 0, ...opts })
 }
 export function useAssignedTasks(uid, opts = {}) {
-  return useQuery({ queryKey: qk.assignedTasks(uid), queryFn: () => fetchers.assignedTasks(uid), enabled: idEnabled(uid), ...opts })
+  return useQuery({ queryKey: qk.assignedTasks(uid), queryFn: () => fetchers.assignedTasks(uid), enabled: idEnabled(uid), staleTime: 0, ...opts })
 }
 export function useDeptWorkDashboard(uid, opts = {}) {
-  return useQuery({ queryKey: qk.deptWorkDashboard(uid), queryFn: () => fetchers.deptWorkDashboard(uid), enabled: idEnabled(uid), ...opts })
+  return useQuery({ queryKey: qk.deptWorkDashboard(uid), queryFn: () => fetchers.deptWorkDashboard(uid), enabled: idEnabled(uid), staleTime: 0, ...opts })
 }
 export function useUnreadInbox(uid, opts = {}) {
   // staleTime 0: hộp thư phải tươi — đọc xong quay lại là refetch ngay (việc đã đọc rời danh sách),

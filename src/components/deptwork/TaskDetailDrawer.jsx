@@ -12,7 +12,7 @@ const fmtSize = (b) => !b ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 102
 
 // Ngăn xem chi tiết việc: thông tin, người nhận (★ nhóm trưởng + trạng thái nhận), đính kèm.
 // Desktop = drawer phải; mobile = toàn màn hình (CSS).
-export default function TaskDetailDrawer({ taskId, currentUser, canManage, members = [], onClose, onEdit, onChanged }) {
+export default function TaskDetailDrawer({ taskId, currentUser, canManage, members = [], onClose, onEdit, onChanged, onRead }) {
   const [task, setTask] = useState(null)
   const [atts, setAtts] = useState([])
   const [uploading, setUploading] = useState(false)
@@ -180,6 +180,7 @@ export default function TaskDetailDrawer({ taskId, currentUser, canManage, membe
             currentUser={currentUser}
             canManage={canManage}
             onChanged={onChanged}
+            onRead={onRead}
           />
         </div>
       )}

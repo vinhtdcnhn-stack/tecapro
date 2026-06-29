@@ -73,11 +73,15 @@ export async function getEntries(req, res) {
         ORDER BY e.created_at, e.id`,
       [taskId],
     )
+    // Ghi mốc đã đọc TRƯỚC khi trả về: client làm mới badge/nền ngay sau khi nhận entries,
+    // nên trạng thái "đã đọc" phải kịp persist để deptWorkUnread tính lại đúng. Lỗi ghi mốc
+    // không được chặn việc trả nội dung → nuốt lỗi, chỉ log.
+    if (rows.length) {
+      try { await markRead(taskId, req.user.id) } catch (e) { console.error('deptWork markRead:', e) }
+    }
     res.json(rows)
-    // Đọc xong → hết nhấp nháy chưa đọc + làm mới dashboard người xem để hết nền hổ phách.
-    markRead(taskId, req.user.id)
-      .then(() => { if (rows.length) return invalidateUserDashboards(req.user.id) })
-      .catch(e => console.error('deptWork markRead:', e))
+    // Đọc xong → làm mới dashboard người xem để hết nền hổ phách (không chặn response).
+    if (rows.length) invalidateUserDashboards(req.user.id).catch(e => console.error('deptWork invalidate:', e))
   } catch (err) {
     console.error('deptWork getEntries:', err)
     res.status(500).json({ error: 'Không thể tải dòng thời gian.' })
