@@ -3,6 +3,8 @@ import { API_BASE as API } from '../../config/api'
 import { fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
+import useIsMobile from '../../components/contracts/useIsMobile'
+import AccCard from './AccCard.jsx'
 import './Accounting.css'
 
 const ST_CLASS = { 'Còn hiệu lực': 'st-in', 'Sắp hết hạn': 'st-warn', 'Hết hiệu lực': 'st-over' }
@@ -28,6 +30,7 @@ export default function WarrantyReportPage() {
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)
   const goContract = useContractNav()
+  const isMobile = useIsMobile()
   const warrantyLink = (c) => contractPath(c.contract_out_id, { tab: 'contract-warranty' })
   const contractCopy = useCopyMenu(buildContractText, (c) => c.contract_no || 'Hợp đồng', warrantyLink)
   const caseCopy = useCopyMenu(buildCaseText, (c) => c.title || c.case_no || 'Yêu cầu BH', warrantyLink)
@@ -68,18 +71,62 @@ export default function WarrantyReportPage() {
       {data.top_products?.length > 0 && (
         <>
           <div className="acc-section-title">Top sản phẩm/dịch vụ phát sinh lỗi nhiều nhất</div>
+          {isMobile ? (
+            <div className="acc-cards" style={{ marginBottom: 18 }}>
+              {data.top_products.map((t, i) => (
+                <AccCard key={i} title={t.name || '—'}
+                  badge={<span className="acc-tier tier-2">{t.n} lần</span>} />
+              ))}
+            </div>
+          ) : (
           <div className="acc-table-wrap" style={{ marginBottom: 18 }}>
             <table className="acc-table"><thead><tr><th>Sản phẩm/Dịch vụ</th><th className="num">Số lần BH</th></tr></thead>
               <tbody>{data.top_products.map((t, i) => <tr key={i}><td>{t.name || '—'}</td><td className="num">{t.n}</td></tr>)}</tbody>
             </table>
           </div>
+          )}
         </>
       )}
 
       <div className="acc-report-toolbar">
         <span className="acc-section-title" style={{ margin: 0 }}>Chi tiết bảo hành theo hợp đồng — bấm để xem thiết bị</span>
-        <button className="acc-export" onClick={onExport} disabled={!data.contracts.length}>⬇ Excel</button>
+        {!isMobile && <button className="acc-export" onClick={onExport} disabled={!data.contracts.length}>⬇ Excel</button>}
       </div>
+      {isMobile ? (
+        <div className="acc-cards">
+          {data.contracts.length === 0 && <p className="dash-empty">Chưa có thiết bị nào có ngày bảo hành.</p>}
+          {data.contracts.map(c => {
+            const isOpen = open === c.contract_out_id
+            return (
+              <AccCard key={c.contract_out_id}
+                title={<span>{isOpen ? '▾ ' : '▸ '}<span className="mono">{c.contract_no}</span></span>}
+                sub={c.customer_name}
+                badge={<span className={`acc-status ${ST_CLASS[c.status] || ''}`}>{c.status}</span>}
+                rowProps={contractCopy.getRowProps(c)}
+                onClick={() => setOpen(isOpen ? null : c.contract_out_id)}
+                rows={[
+                  ['Số TB', c.device_count],
+                  ['Còn hạn', c.valid_count],
+                  ['Hết hạn', c.expired_count],
+                  ['Hết BH sớm nhất', fmtDate(c.earliest_expiry)],
+                  ['Hết BH muộn nhất', fmtDate(c.latest_expiry)],
+                ]}>
+                {isOpen && c.devices.length > 0 && (
+                  <div className="acc-card-kids" onClick={(e) => e.stopPropagation()}>
+                    {c.devices.map(d => (
+                      <AccCard key={d.id}
+                        title={d.name}
+                        badge={<span className={`acc-status ${ST_CLASS[d.status] || ''}`}>{d.status}</span>}
+                        onClick={() => goContract(c.contract_out_id, { tab: 'contract-warranty' })}
+                        rows={[['Bảo hành', `${fmtDate(d.warranty_from)} → ${fmtDate(d.warranty_to)}`]]} />
+                    ))}
+                  </div>
+                )}
+              </AccCard>
+            )
+          })}
+        </div>
+      ) : (
       <div className="acc-table-wrap">
         <table className="acc-table">
           <thead><tr>
@@ -114,8 +161,28 @@ export default function WarrantyReportPage() {
           </tbody>
         </table>
       </div>
+      )}
 
       <div className="acc-section-title" style={{ marginTop: 18 }}>Danh sách yêu cầu bảo hành</div>
+      {isMobile ? (
+        <div className="acc-cards">
+          {data.cases.length === 0 && <p className="dash-empty">Chưa có yêu cầu bảo hành.</p>}
+          {data.cases.map(c => (
+            <AccCard key={c.id}
+              title={<span className="mono">{c.case_no || c.id}</span>}
+              sub={c.title}
+              badge={<span className={`acc-status ${c.resolved ? 'st-paid' : 'st-in'}`}>{c.status}</span>}
+              rowProps={caseCopy.getRowProps(c)}
+              onClick={() => goContract(c.contract_out_id, { tab: 'contract-warranty' })}
+              rows={[
+                ['Số HĐ', c.contract_no],
+                ['Người báo', c.reported_by],
+                ['Ngày tiếp nhận', fmtDate(c.reported_date)],
+                ['Ngày hoàn thành', fmtDate(c.resolved_date)],
+              ]} />
+          ))}
+        </div>
+      ) : (
       <div className="acc-table-wrap">
         <table className="acc-table">
           <thead><tr><th>Mã phiếu</th><th>Số HĐ</th><th>Nội dung</th><th>Người báo</th><th>Ngày tiếp nhận</th><th>Ngày hoàn thành</th><th>Trạng thái</th></tr></thead>
@@ -133,6 +200,7 @@ export default function WarrantyReportPage() {
           </tbody>
         </table>
       </div>
+      )}
       {contractCopy.copyMenu}
       {caseCopy.copyMenu}
     </div>

@@ -4,6 +4,8 @@ import { fmtMoney, fmtDate, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import NumberInput from '../../components/common/NumberInput.jsx'
+import useIsMobile from '../../components/contracts/useIsMobile'
+import AccCard from './AccCard.jsx'
 import './Accounting.css'
 
 const CAT_CLASS = {
@@ -27,6 +29,7 @@ export default function ProgressCollectionPage() {
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng',
     (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
   const goContract = useContractNav()
+  const isMobile = useIsMobile()
 
   // Lọc theo cột "Còn phải thu": lớn hơn min (>) và/hoặc nhỏ hơn hoặc bằng max (≤).
   const filtered = useMemo(() => {
@@ -63,7 +66,7 @@ export default function ProgressCollectionPage() {
   return (
     <div className="acc-report">
       <div className="acc-report-toolbar" style={{ alignItems: 'flex-end' }}>
-        <button className="acc-export" onClick={onExport} disabled={!filtered.length}>⬇ Excel</button>
+        {!isMobile && <button className="acc-export" onClick={onExport} disabled={!filtered.length}>⬇ Excel</button>}
         <label className="acc-field">Còn phải thu &gt;
           <NumberInput integer value={minRemaining} onChange={setMinRemaining} placeholder="0" style={{ width: 130 }} />
         </label>
@@ -79,7 +82,27 @@ export default function ProgressCollectionPage() {
 
       {loading ? <p className="dash-empty">Đang tải...</p>
         : rows.length === 0 ? <p className="dash-empty">Chưa có dữ liệu.</p>
-        : filtered.length === 0 ? <p className="dash-empty">Không có hợp đồng nào khớp bộ lọc.</p> : (
+        : filtered.length === 0 ? <p className="dash-empty">Không có hợp đồng nào khớp bộ lọc.</p>
+        : isMobile ? (
+        <div className="acc-cards">
+          {filtered.map((r) => (
+            <AccCard key={r.contract_out_id}
+              title={<span className="mono">{r.contract_no}</span>}
+              sub={r.customer_name}
+              badge={<span className={`acc-cat ${CAT_CLASS[r.category] || ''}`}>{r.category}</span>}
+              rowProps={getRowProps(r)}
+              onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}
+              rows={[
+                ['Dự án', r.project_name],
+                ['Ngày ký', fmtDate(r.contract_date)],
+                ['Giá trị HĐ', fmtMoney(r.value_vnd)],
+                ['Đã thu', fmtMoney(r.collected_vnd)],
+                ['Còn phải thu', fmtMoney(r.remaining_vnd)],
+                ['Số ngày chậm', r.delay_days > 0 ? `${r.delay_days} ngày` : '—'],
+              ]} />
+          ))}
+        </div>
+      ) : (
         <div className="acc-table-wrap">
           <table className="acc-table">
             <thead><tr>

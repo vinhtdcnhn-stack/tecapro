@@ -3,6 +3,8 @@ import { API_BASE as API } from '../../config/api'
 import { fmtMoney, fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
+import useIsMobile from '../../components/contracts/useIsMobile'
+import AccCard from './AccCard.jsx'
 import './Accounting.css'
 
 const STATUS_CLASS = { 'Quá hạn': 'st-over', 'Trong hạn': 'st-in', 'Đã thanh toán': 'st-paid' }
@@ -32,6 +34,7 @@ export default function DebtSummaryPage() {
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)   // customer_id đang mở
   const goContract = useContractNav()
+  const isMobile = useIsMobile()
   const custCopy = useCopyMenu(buildCustText, (c) => c.customer_name || 'Khách hàng')  // mức KH: không gắn 1 HĐ → không có link
   const conCopy = useCopyMenu(buildConText, (k) => k.contract_no || k.project_name || 'Hợp đồng',
     (k) => contractPath(k.contract_out_id, { tab: 'contract-debt' }))
@@ -73,9 +76,50 @@ export default function DebtSummaryPage() {
 
       <div className="acc-report-toolbar">
         <span className="acc-section-title" style={{ margin: 0 }}>Tổng hợp theo khách hàng — bấm để xem hợp đồng</span>
-        <button className="acc-export" onClick={onExport} disabled={!custs.length}>⬇ Excel</button>
+        {!isMobile && <button className="acc-export" onClick={onExport} disabled={!custs.length}>⬇ Excel</button>}
       </div>
 
+      {isMobile ? (
+        <div className="acc-cards">
+          {custs.map(c => {
+            const isOpen = open === c.customer_id
+            const kids = isOpen ? contracts.filter(x => String(x.customer_id) === String(c.customer_id)) : []
+            return (
+              <AccCard key={`c${c.customer_id}`}
+                title={`${isOpen ? '▾ ' : '▸ '}${c.customer_name || '—'}`}
+                sub={c.customer_code}
+                badge={<span className="acc-tier tier-1">{fmtPct(c.collection_ratio)}</span>}
+                rowProps={custCopy.getRowProps(c)}
+                onClick={() => setOpen(isOpen ? null : c.customer_id)}
+                rows={[
+                  ['Tổng HĐ', c.total_contracts],
+                  ['Tổng giá trị', fmtMoney(c.value_vnd)],
+                  ['Đã thu', fmtMoney(c.paid_vnd)],
+                  ['Công nợ còn lại', fmtMoney(c.outstanding_vnd)],
+                ]}>
+                {isOpen && kids.length > 0 && (
+                  <div className="acc-card-kids" onClick={(e) => e.stopPropagation()}>
+                    {kids.map(k => (
+                      <AccCard key={`k${k.contract_out_id}`}
+                        title={<span className="mono">{k.contract_no}</span>}
+                        sub={k.project_name}
+                        badge={<span className={`acc-status ${STATUS_CLASS[k.status] || ''}`}>{k.status}{k.days_overdue > 0 ? ` ${k.days_overdue}n` : ''}</span>}
+                        rowProps={conCopy.getRowProps(k)}
+                        onClick={() => goContract(k.contract_out_id, { tab: 'contract-debt' })}
+                        rows={[
+                          ['Ngày HĐ', fmtDate(k.contract_date)],
+                          ['Giá trị', fmtMoney(k.value_vnd)],
+                          ['Đã thu', fmtMoney(k.paid_vnd)],
+                          ['Công nợ', fmtMoney(k.outstanding_vnd)],
+                        ]} />
+                    ))}
+                  </div>
+                )}
+              </AccCard>
+            )
+          })}
+        </div>
+      ) : (
       <div className="acc-table-wrap">
         <table className="acc-table">
           <thead><tr>
@@ -112,6 +156,7 @@ export default function DebtSummaryPage() {
           </tbody>
         </table>
       </div>
+      )}
       {custCopy.copyMenu}
       {conCopy.copyMenu}
     </div>

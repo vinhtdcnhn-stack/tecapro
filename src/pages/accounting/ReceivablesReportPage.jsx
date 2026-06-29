@@ -4,6 +4,8 @@ import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable, useContractNav 
 import ReportPeriodField from './ReportPeriodField.jsx'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
+import useIsMobile from '../../components/contracts/useIsMobile'
+import AccCard from './AccCard.jsx'
 import './Accounting.css'
 
 // Text dán chat: một khoản công nợ phải thu.
@@ -23,6 +25,7 @@ export default function ReceivablesReportPage() {
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải thu',
     (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
   const goContract = useContractNav()
+  const isMobile = useIsMobile()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,12 +63,35 @@ export default function ReceivablesReportPage() {
           <button className={basis === 'actual' ? 'active' : ''} onClick={() => setBasis('actual')}>Theo tiến độ thực</button>
           <button className={basis === 'plan' ? 'active' : ''} onClick={() => setBasis('plan')}>Theo kế hoạch gốc</button>
         </div>
-        <button className="acc-export" onClick={onExport} disabled={!rows.length}>⬇ Excel</button>
+        {!isMobile && <button className="acc-export" onClick={onExport} disabled={!rows.length}>⬇ Excel</button>}
         <span className="acc-report-total">Tổng còn nợ: <strong>{fmtMoney(totalVnd)} đ</strong> · {rows.length} khoản</span>
       </div>
 
       {loading ? <p className="dash-empty">Đang tải...</p>
-        : rows.length === 0 ? <p className="dash-empty">Không có công nợ phải thu trong kỳ.</p> : (
+        : rows.length === 0 ? <p className="dash-empty">Không có công nợ phải thu trong kỳ.</p>
+        : isMobile ? (
+        <div className="acc-cards">
+          {rows.map((r) => (
+            <AccCard key={r.id}
+              title={<span className="mono">{r.contract_no || '—'}</span>}
+              sub={r.customer_name}
+              badge={r.tier ? <span className={`acc-tier ${TIER_CLASS[r.tier]}`}>{r.tier_label}</span> : null}
+              rowProps={getRowProps(r)}
+              onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}
+              rows={[
+                ['Mã KH', r.customer_code],
+                ['Nội dung', r.description],
+                ['% HĐ', r.ratio_pct == null ? '—' : r.ratio_pct.toFixed(1) + '%'],
+                ['Cần thu', `${fmtMoney(r.amount)} ${r.currency_code || ''}`],
+                ['Đã thu', fmtMoney(r.paid)],
+                ['Còn nợ', fmtMoney(r.remaining)],
+                ['Quy đổi VNĐ', fmtMoney(r.remaining_vnd)],
+                ['Hạn thu', fmtDate(r.due_date)],
+                ['Quá hạn', r.days_overdue > 0 ? `${r.days_overdue} ngày` : '—'],
+              ]} />
+          ))}
+        </div>
+      ) : (
         <div className="acc-table-wrap">
           <table className="acc-table">
             <thead><tr>

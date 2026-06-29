@@ -23,7 +23,7 @@ import './Dashboard.css'
 
 // Dashboard điều hành (Giám đốc/BGĐ): 8 thẻ KPI tiền & rủi ro xếp 4×2; bấm thẻ mở
 // chi tiết full màn hình. Dữ liệu lấy từ module báo cáo tài chính (đã cho phép GD/PGD).
-export default function Dashboard({ user, switcher = null, contracts = [] }) {
+export default function Dashboard({ user, contracts = [] }) {
   const navigate = useNavigate()
   const [cashflow, setCashflow] = useState(null)
   const [byCustomer, setByCustomer] = useState(null)
@@ -204,14 +204,10 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
       <div className="dash-welcome">
         <div>
           <h1 className="dash-title">Tổng quan điều hành</h1>
-          <p className="dash-subtitle">{switcher}Xin chào, <strong>{user?.full_name || user?.email}</strong> — {user?.department_name}</p>
+          <p className="dash-subtitle"><span className="dash-greeting">Xin chào, <strong>{user?.full_name || user?.email}</strong> — {user?.department_name}</span></p>
           <p className="exec-asof">
             Số liệu cập nhật ngày {fmtDate(asOf || new Date())} · bấm vào từng thẻ để xem chi tiết
           </p>
-        </div>
-        <div className="dash-controls">
-          <DashRangePicker range={range} onChange={changeRange} />
-          <DashAsOfPicker asOf={asOf} onChange={setAsOf} />
         </div>
       </div>
 
@@ -229,6 +225,11 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
             sub={c.sub} accent={c.accent} danger={c.danger} onClick={() => openCardModal(c.key)}
           />
         ))}
+      </div>
+
+      <div className="dash-controls">
+        <DashRangePicker range={range} onChange={changeRange} />
+        <DashAsOfPicker asOf={asOf} onChange={setAsOf} />
       </div>
 
       {open && (

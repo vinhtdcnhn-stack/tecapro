@@ -3,6 +3,8 @@ import { API_BASE as API } from '../../config/api'
 import { useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
+import useIsMobile from '../../components/contracts/useIsMobile'
+import AccCard from './AccCard.jsx'
 import './Accounting.css'
 
 const TIER_CLASS = {
@@ -31,6 +33,7 @@ export default function OverdueAlertsPage() {
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản nợ',
     (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
   const goContract = useContractNav()
+  const isMobile = useIsMobile()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -62,6 +65,26 @@ export default function OverdueAlertsPage() {
         <p className="dash-empty">Đang tải...</p>
       ) : overdueRows.length === 0 ? (
         <p className="dash-empty">Không có khoản nợ quá hạn. 🎉</p>
+      ) : isMobile ? (
+        <div className="acc-cards">
+          {overdueRows.map((r) => (
+            <AccCard key={r.id}
+              title={<span className="mono">{r.contract_no || '—'}</span>}
+              sub={r.customer_name}
+              badge={<span className={`acc-tier ${TIER_CLASS[r.tier] || ''}`}>{r.tier_label}</span>}
+              rowProps={getRowProps(r)}
+              onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}
+              rows={[
+                ['Mã KH', r.customer_code],
+                ['Nội dung', r.description],
+                ['Còn nợ', `${fmtMoney(r.remaining)} ${r.currency_code || ''}`],
+                ['Quy đổi VNĐ', fmtMoney(r.remaining_vnd)],
+                ['Hạn TT', fmtDate(r.due_date)],
+                ['Tỷ lệ thu', `${Math.round((r.recovery_ratio || 0) * 100)}%`],
+                ['Quá hạn', `${r.days_overdue} ngày`],
+              ]} />
+          ))}
+        </div>
       ) : (
         <div className="acc-table-wrap">
           <table className="acc-table">

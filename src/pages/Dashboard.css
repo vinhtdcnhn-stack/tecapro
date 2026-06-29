@@ -150,12 +150,24 @@
 /* ───────────────────────── Dashboard điều hành (8 thẻ 4×2) ───────────────────────── */
 .exec-asof { font-size: 0.8rem; color: #9ca3af; margin: 0.4rem 0 0; }
 
-/* ── Bộ chọn khoảng thời gian (góc phải tiêu đề) ── */
-.exec-dashboard .dash-welcome {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 1rem; flex-wrap: wrap;
+/* ── Bộ chọn khoảng thời gian (góc phải tiêu đề trên desktop) ── */
+.exec-dashboard { position: relative; }
+.exec-dashboard .dash-controls {
+  position: absolute; top: 2rem; right: 1.5rem;
 }
 .dash-controls { display: flex; align-items: flex-start; gap: 0.6rem; flex-wrap: wrap; flex-shrink: 0; }
+
+/* ── Mobile: chỉ giữ tiêu đề + các thẻ; bỏ lời chào & dòng cập nhật;
+   bộ chọn thời gian đẩy xuống cuối trang ── */
+@media (max-width: 768px) {
+  .dashboard.exec-dashboard { padding-top: 1rem; }
+  .exec-dashboard .dash-subtitle,
+  .exec-dashboard .exec-asof { display: none; }
+  .exec-dashboard .dash-welcome { margin-bottom: 1.25rem; }
+  .exec-dashboard .dash-controls {
+    position: static; margin-top: 1.5rem; justify-content: center;
+  }
+}
 .dash-range { position: relative; flex-shrink: 0; }
 .dash-range-btn {
   display: inline-flex; align-items: center; gap: 0.45rem;

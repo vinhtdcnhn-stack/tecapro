@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useContracts, useCustomers, useUsers } from '../lib/queries'
+import { useHomeDashboards } from '../lib/useHomeDashboards'
 import { getBrand } from '../config/brand'
 import fallbackHero from '../assets/home-hero.png'
 import Dashboard from './Dashboard'
@@ -12,31 +12,11 @@ import TenderDashboard from './TenderDashboard'
 import DashSwitcher from './DashSwitcher'
 import './accounting/Accounting.css'
 
-const STORE_KEY = 'home_dashboard'
-
 export default function HomePage() {
   const { user } = useAuth()
-  const [selected, setSelected] = useState(null)
-
-  // Phím tắt toàn cục (App.jsx) phát 'home-dashboard' để đổi dashboard khi đang ở
-  // trang chủ. Lần mount mới đã đọc lựa chọn từ localStorage nên không cần ở đây.
-  useEffect(() => {
-    function onSwitch(e) { setSelected(e.detail) }
-    window.addEventListener('home-dashboard', onSwitch)
-    return () => window.removeEventListener('home-dashboard', onSwitch)
-  }, [])
-
-  // Vai trò → các dashboard khả dụng. Một user có thể giữ nhiều vị trí (nhiều vai).
-  const codes = new Set([
-    ...(user?.positions?.map(p => p.code) || []),
-    user?.position_code,
-  ].filter(Boolean))
-  const hasPMPosition = codes.has('PM_TEAM')
-  const isDirector    = codes.has('GD') || codes.has('PGD')
-  const isDeptHead    = codes.has('TP') || codes.has('PP')   // Trưởng/Phó ban → xem việc cả phòng
-  const isAdmin       = Number(user?.role) === 1
-  const isAccountant  = user?.department_name === 'Ban Kế Toán'
-  const isTenderPlanner = Number(user?.department_id) === 9
+  // Danh sách bảng điều khiển khả dụng + bảng đang chọn dùng chung với Header (nút đổi
+  // bảng trên mobile). App.jsx phát 'home-dashboard' cho các phím tắt; hook đã lắng nghe.
+  const { available, active, pick, isDirector } = useHomeDashboards()
 
   // Dữ liệu trang chủ qua TanStack Query — chính là HOT_QUERIES đã nạp sẵn lúc rảnh nên
   // dashboard thường hiện NGAY. /contracts đã lọc theo thành viên (biết user có dự án không).
@@ -68,32 +48,6 @@ export default function HomePage() {
         <div className="dashboard"><p className="dash-empty">Đang tải...</p></div>
       </main>
     )
-  }
-
-  // ── Danh sách dashboard khả dụng (sau khi biết membership) ──
-  const canPM = hasPMPosition || contracts.length > 0
-  const available = []
-  if (canPM)                                  available.push({ key: 'pm',        label: 'Tiến độ dự án' })
-  if (isDirector)                             available.push({ key: 'director',  label: 'Tổng quan hệ thống' })
-  if (isAccountant || isDirector || isAdmin)  available.push({ key: 'accounting', label: 'Kế toán' })
-  if (isTenderPlanner)                        available.push({ key: 'tender',     label: 'Kế hoạch đấu thầu' })
-  if (isDeptHead)                             available.push({ key: 'dept',       label: 'Việc của phòng' })
-  // "Việc của tôi" luôn khả dụng: gom mọi việc giao trực tiếp (gồm việc đấu thầu giao
-  // cho người ngoài Ban Đấu thầu) với cửa sổ thời hạn không giới hạn → không bỏ sót.
-  available.push({ key: 'assignee', label: 'Việc của tôi' })
-
-  // Mặc định theo thứ tự ưu tiên cũ; nhớ lựa chọn người dùng nếu còn hợp lệ.
-  const defaultKey = canPM ? 'pm' : isDirector ? 'director' : isAccountant ? 'accounting'
-    : isTenderPlanner ? 'tender' : 'assignee'
-  const stored = (typeof localStorage !== 'undefined') ? localStorage.getItem(STORE_KEY) : null
-  const keys = available.map(a => a.key)
-  const active = (selected && keys.includes(selected)) ? selected
-    : (stored && keys.includes(stored)) ? stored
-    : (keys.includes(defaultKey) ? defaultKey : keys[0])
-
-  const pick = (key) => {
-    setSelected(key)
-    try { localStorage.setItem(STORE_KEY, key) } catch { /* ignore */ }
   }
 
   const switcher = <DashSwitcher available={available} active={active} onPick={pick} />

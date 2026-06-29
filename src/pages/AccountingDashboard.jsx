@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useCashflowSummary } from '../lib/queries'
+import useIsMobile from '../components/contracts/useIsMobile'
 import OverdueAlertsPage from './accounting/OverdueAlertsPage'
 import ReceivablesReportPage from './accounting/ReceivablesReportPage'
 import PayablesReportPage from './accounting/PayablesReportPage'
@@ -70,6 +71,7 @@ const TAB_STORE_KEY = 'accounting_tab'
 
 // Trang chủ kế toán: hub xem báo cáo (dashboard + sub-nav sang từng báo cáo).
 export default function AccountingDashboard({ user, switcher = null }) {
+  const isMobile = useIsMobile()
   // Nhớ tab đang xem qua localStorage để khi rời trang (vào HĐ chi tiết) rồi quay lại
   // bằng phím 'z' không bị nhảy về 'Tổng quan'.
   const [tab, setTab] = useState(() => {
@@ -83,18 +85,27 @@ export default function AccountingDashboard({ user, switcher = null }) {
 
   return (
     <div className="dashboard acc-dashboard">
-      <div className="dash-welcome">
-        <div>
-          <h1 className="dash-title">Kế toán — Tổng quan tài chính</h1>
-          <p className="dash-subtitle">{switcher}Xin chào <strong>{user?.full_name || user?.email}</strong> — theo dõi dòng tiền, công nợ & cảnh báo</p>
+      {/* Mobile: bỏ hẳn tiêu đề + dòng chào cho gọn (đã có nút đổi bảng cạnh Đăng xuất) */}
+      {!isMobile && (
+        <div className="dash-welcome">
+          <div>
+            <h1 className="dash-title">Kế toán — Tổng quan tài chính</h1>
+            <p className="dash-subtitle">{switcher}Xin chào <strong>{user?.full_name || user?.email}</strong> — theo dõi dòng tiền, công nợ & cảnh báo</p>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="acc-subnav">
-        {TABS.map(t => (
-          <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => pickTab(t.key)}>{t.label}</button>
-        ))}
-      </div>
+      {isMobile ? (
+        <select className="acc-tab-select" value={tab} onChange={(e) => pickTab(e.target.value)} aria-label="Chọn báo cáo">
+          {TABS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+        </select>
+      ) : (
+        <div className="acc-subnav">
+          {TABS.map(t => (
+            <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => pickTab(t.key)}>{t.label}</button>
+          ))}
+        </div>
+      )}
 
       {renderTab(tab)}
     </div>

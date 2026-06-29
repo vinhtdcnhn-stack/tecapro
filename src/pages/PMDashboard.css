@@ -123,7 +123,7 @@
 @media (max-width: 768px) {
   .pm-dashboard { padding: 0.85rem; }
 
-  /* Ẩn tiêu đề/lời chào + các ô thống kê cho gọn */
+  /* Ẩn tiêu đề/lời chào + các ô thống kê cho gọn (nút đổi bảng đã chuyển lên Header). */
   .pm-dashboard .dash-welcome,
   .pm-dashboard .pm-stats { display: none; }
 

@@ -241,6 +241,11 @@
   filter: brightness(1.05);
 }
 
+/* Nút đổi bảng điều khiển trang chủ trên Header: chỉ dùng trên mobile (thay cho ô tra
+   cứu, vốn bị ẩn trên mobile). Trên desktop ẩn đi vì đã có nút đổi bảng inline trong
+   dashboard + ô tra cứu. */
+.topbar-dash-switch { display: none; }
+
 .page {
   position: relative;
   display: flex;
@@ -1512,6 +1517,12 @@ body.task-page-alert .page {
     display: block;
     margin-left: auto;
   }
+
+  /* Mobile: bỏ ô tra cứu, thay bằng nút đổi bảng điều khiển trang chủ ngay vị trí đó */
+  .topbar-search { display: none; }
+  .topbar-dash-switch { display: inline-flex; align-items: center; }
+  /* Menu xổ canh phải để không tràn ra ngoài mép màn hình */
+  .topbar-dash-switch .dash-switcher-menu { left: auto; right: 0; }
 
   /* Hide nav by default on mobile; show when open */
   .menu {

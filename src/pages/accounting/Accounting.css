@@ -88,6 +88,39 @@
 .acc-row-link:hover { background: #eff6ff; }
 .acc-row-sub.acc-row-link:hover td { background: #eff6ff; }
 
+/* ── Mobile: bộ chọn tab dạng dropdown (thay hàng nút cho gọn) ──────────────── */
+.acc-tab-select {
+  width: 100%; margin: 4px 0 16px; padding: 10px 12px;
+  font-size: 14px; font-weight: 700; color: #fff;
+  background: var(--brand); border: 1px solid var(--brand); border-radius: 10px;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+
+/* ── Thẻ báo cáo (mobile) — thay cho bảng .acc-table ───────────────────────── */
+.acc-cards { display: flex; flex-direction: column; gap: 10px; }
+.acc-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.acc-card-link { cursor: pointer; }
+.acc-card-link:active { background: #eff6ff; }
+.acc-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.acc-card-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 14px; font-weight: 700; color: #111827; }
+.acc-card-title .mono { font-family: ui-monospace, monospace; }
+.acc-card-sub { font-size: 12px; font-weight: 600; color: #6b7280; }
+.acc-card-badge { flex-shrink: 0; }
+.acc-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 12px; }
+.acc-card-cell { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.acc-card-cell.wide { grid-column: 1 / -1; }
+.acc-card-label { font-size: 10px; text-transform: uppercase; letter-spacing: .02em; color: #9ca3af; font-weight: 700; }
+.acc-card-value { font-size: 13px; font-weight: 600; color: #374151; word-break: break-word; }
+.acc-card-value .num, .acc-card-value.num { text-align: left; }
+/* Thẻ con (drill-down KH → HĐ, HĐ → thiết bị) lùi vào trong thẻ cha */
+.acc-card-kids { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e5e7eb; }
+.acc-card-kids .acc-card { background: #fafbfc; }
+
 /* Bộ chọn dashboard (người nhiều vai) — icon đặt ngay trước lời chào */
 .dash-switcher-ic { position: relative; display: inline-flex; vertical-align: middle; margin-right: 8px; }
 .dash-switcher-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: color .12s, background .12s; }

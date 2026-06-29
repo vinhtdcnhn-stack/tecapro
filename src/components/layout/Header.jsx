@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { parseDeepLink } from '../../components/common/deepLink'
+import { useHomeDashboards } from '../../lib/useHomeDashboards'
+import DashSwitcher from '../../pages/DashSwitcher'
 import { getBrand } from '../../config/brand'
 import fallbackLogo from '../../assets/tecapro-logo.png'
 
@@ -32,6 +34,11 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
   const [searchText, setSearchText] = useState('')
   const navRef = useRef(null)
   const searchRef = useRef(null)
+
+  // Nút đổi bảng điều khiển trang chủ — trên mobile thay cho ô tra cứu (ẩn trên mobile).
+  // Chỉ hiện ở trang chủ vì các bảng điều khiển là khái niệm của trang chủ.
+  const { available, active, pick } = useHomeDashboards()
+  const onHome = location.pathname === '/' || location.pathname === '/giaoban'
 
   // Số đơn chờ chính mình duyệt (badge menu "Đề xuất") đến từ long-poll hợp nhất ở App
   // (useLiveAlerts) — không còn tự poll định kỳ tại đây.
@@ -210,6 +217,11 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
                   </form>
                 )}
               </div>
+              {onHome && (
+                <span className="topbar-dash-switch">
+                  <DashSwitcher available={available} active={active} onPick={pick} />
+                </span>
+              )}
             </>
           ) : (
             <button
