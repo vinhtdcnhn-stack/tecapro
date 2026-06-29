@@ -38,7 +38,7 @@ export default function OverdueTasksDetail({ overdueTasks, onOpenContract }) {
             </tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-tasks')} {...getRowProps(r)}>
+                <tr key={r.id} className="exec-row" onClick={() => onOpenContract(r.contract_out_id, 'contract-tasks', { taskId: r.id })} {...getRowProps(r)}>
                   <td>{i + 1}</td>
                   <td>{r.title || '—'}</td>
                   <td className="mono">{r.contract_no || '—'}</td>
