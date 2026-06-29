@@ -45,12 +45,12 @@ function applyColors(colors = {}) {
 const FAVICON_TYPE = { svg: 'image/svg+xml', png: 'image/png', ico: 'image/x-icon', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
 function applyFavicon(href) {
   if (!href) return
-  let link = document.querySelector("link[rel~='icon']")
-  if (!link) {
-    link = document.createElement('link')
-    link.rel = 'icon'
-    document.head.appendChild(link)
-  }
+  // Xoá HẾT link icon tĩnh trong index.html (vd favicon.svg "tia sét" + favicon.ico).
+  // Nếu để sót thẻ icon SVG, trình duyệt ưu tiên SVG và bỏ qua icon brand .png.
+  document.querySelectorAll("link[rel~='icon']").forEach((el) => el.remove())
+  const link = document.createElement('link')
+  link.rel = 'icon'
+  document.head.appendChild(link)
   const ext = href.split('?')[0].split('.').pop().toLowerCase()
   if (FAVICON_TYPE[ext]) link.type = FAVICON_TYPE[ext]
   else link.removeAttribute('type')
