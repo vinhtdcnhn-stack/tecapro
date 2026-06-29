@@ -1,5 +1,5 @@
 import { pool } from '../db.js'
-import { cacheDel, cacheVersion, bumpVersion } from '../cache.js'
+import { cacheDel, cacheVersion, bumpVersion, isCacheReady } from '../cache.js'
 import { DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
 
 // Trung tâm QUY ƯỚC KEY + LỚP INVALIDATION cho toàn bộ cache. Gom hết vào 1 file để
@@ -34,6 +34,12 @@ export function invalidateTenderMy() {
   return bumpVersion('tender-my')
 }
 
+// Danh sách gói thầu TOÀN CỤC: chỉ là một lookup ('tender-list'). invalidateLookup đã tự bump
+// version cho ETag nên đây chỉ là alias đặt tên rõ nghĩa; gọi ở mọi chỗ danh sách gói đổi.
+export function invalidateTenderList() {
+  return invalidateLookup('tender-list')
+}
+
 // Dashboard cá nhân (per-user)
 export const pmDashKey = (userId) => `dash:pm:${userId}`
 export const assignedTasksKey = (userId) => `dash:pm-tasks:${userId}`
@@ -60,11 +66,57 @@ export async function reportKey(group, name, params = {}) {
   return `report:${group}:v${v}:${name}:${suffix}`
 }
 
+// ------------------------- ETag / 304 (xác thực nhẹ) -------------------------
+// Conditional GET TỔNG QUÁT cho mọi endpoint đọc-only dùng version-namespace. `ns` = tên
+// namespace version (vd 'contract-list', 'tender-my', 'report:debt'); `tag` = nhãn ngắn cho
+// ETag dễ đọc. Trả TRUE nếu đã gửi 304 (caller PHẢI return ngay, không chạy loader). Ngược
+// lại set ETag để response sắp tới cache được, rồi caller tiếp tục tính + res.json().
+//
+// ETag = version của namespace: mỗi URL có params cố định nên chỉ biến thiên theo version;
+// bất kỳ ghi nào trong nhóm đều bump version → ETag đổi → client buộc tải lại (không bao giờ
+// stale). Với endpoint PER-USER (vd /contracts lọc theo thành viên), version là toàn cục nên
+// ETag GIỐNG NHAU giữa các user — vẫn an toàn vì: (1) validator chỉ trả lời "có đổi không",
+// mỗi client giữ body riêng; (2) Cache-Control: private cấm proxy chung cache; (3) client
+// xóa kho điều kiện khi đăng xuất (clearConditionalCache ở src/lib/api.js).
+//
+// Khi cache TẮT, version = 0 cố định nên ta KHÔNG set ETag/không 304 (tránh phục vụ dữ liệu
+// cũ) — hành xử y như trước khi có lớp này.
+export async function versionNotModified(req, res, ns, tag = ns) {
+  if (!isCacheReady()) return false
+  const v = await cacheVersion(ns)
+  const etag = `W/"${tag}-${v}"`
+  // no-cache = trình duyệt được phép LƯU nhưng phải revalidate trước khi dùng (đúng cái ta
+  // cần: lần sau nó tự gửi If-None-Match). private = không cho proxy chung cache (dữ liệu
+  // theo phiên/đăng nhập).
+  res.set('Cache-Control', 'no-cache, private')
+  res.set('ETag', etag)
+  if (req.headers['if-none-match'] === etag) {
+    res.status(304).end()
+    return true
+  }
+  return false
+}
+
+// Wrapper cho nhóm báo cáo: namespace 'report:<group>', nhãn 'r-<group>'.
+export function reportNotModified(req, res, group) {
+  return versionNotModified(req, res, `report:${group}`, `r-${group}`)
+}
+
+// Wrapper cho danh mục (lookup): namespace 'lookup:<name>', nhãn 'lk-<name>'. Version được
+// invalidateLookup TỰ bump (xem dưới) nên mọi chỗ invalidate danh mục sẵn có đều đồng bộ ETag.
+export const lookupNotModified = (req, res, name) =>
+  versionNotModified(req, res, `lookup:${name}`, `lk-${name}`)
+
 // ----------------------------- Invalidation -----------------------------
 
-// Danh mục: xóa thẳng key (key xác định).
+// Danh mục: xóa thẳng key body (key xác định) ĐỒNG THỜI bump version 'lookup:<name>' để
+// ETag/304 của GET danh mục đó đổi theo. Nhờ vậy mọi call-site invalidate danh mục sẵn có
+// (không phải sửa) tự đồng bộ cả body cache lẫn validator. Xem lookupNotModified ở trên.
 export function invalidateLookup(...names) {
-  return cacheDel(names.map(lookupKey))
+  return Promise.all([
+    cacheDel(names.map(lookupKey)),
+    ...names.map((n) => bumpVersion(`lookup:${n}`)),
+  ])
 }
 
 // Báo cáo: tăng version namespace → mọi key version cũ tự rụng theo TTL.

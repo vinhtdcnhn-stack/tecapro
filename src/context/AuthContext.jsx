@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { API_BASE as API } from '../config/api'
+import { clearConditionalCache } from '../lib/api'
 
 const AuthContext = createContext(null)
 // Hook co-located with its provider; only affects dev hot-reload, not the build.
@@ -59,6 +60,7 @@ export function AuthProvider({ children }) {
 
   async function logout() {
     try { await fetch(`${API}/api/auth/logout`, { method: 'POST' }) } catch { /* ignore */ }
+    clearConditionalCache()   // tránh rò body per-user (vd /contracts) sang user kế tiếp cùng tab
     setUser(null)
   }
 

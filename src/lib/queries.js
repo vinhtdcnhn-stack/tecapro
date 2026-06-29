@@ -37,20 +37,20 @@ export const qk = {
 
 // ── Fetcher dùng lại cho cả useQuery lẫn prefetch ─────────────────────────────
 export const fetchers = {
-  users: () => apiGet('/users'),
-  customers: () => apiGet('/customers'),
-  suppliers: () => apiGet('/suppliers'),
-  departments: () => apiGet('/departments'),
-  positions: () => apiGet('/positions'),
-  managers: () => apiGet('/managers'),
-  bbTypes: () => apiGet('/bb-types'),
-  contracts: () => apiGet('/contracts'),
+  users: () => apiGet('/users', { conditional: true }),
+  customers: () => apiGet('/customers', { conditional: true }),
+  suppliers: () => apiGet('/suppliers', { conditional: true }),
+  departments: () => apiGet('/departments', { conditional: true }),
+  positions: () => apiGet('/positions', { conditional: true }),
+  managers: () => apiGet('/managers', { conditional: true }),
+  bbTypes: () => apiGet('/bb-types', { conditional: true }),
+  contracts: () => apiGet('/contracts', { conditional: true }),
   contract: (id) => apiGet(`/contracts/${id}`),
-  tenders: (mode = 'all') => apiGet(mode === 'my' ? '/tender/my' : '/tender'),
-  tenderMembers: () => apiGet('/tender/members'),
+  tenders: (mode = 'all') => apiGet(mode === 'my' ? '/tender/my' : '/tender', { conditional: true }),
+  tenderMembers: () => apiGet('/tender/members', { conditional: true }),
   tender: (id) => apiGet(`/tender/${id}`),
-  deptTeams: () => apiGet('/dept-work/teams'),
-  deptMembers: () => apiGet('/dept-work/members'),
+  deptTeams: () => apiGet('/dept-work/teams', { conditional: true }),
+  deptMembers: () => apiGet('/dept-work/members', { conditional: true }),
   approvalsMy: () => apiGet('/approvals/requests/my'),
   approvalsInbox: () => apiGet('/approvals/requests/inbox'),
   approvalsBrowse: (endpoint) => apiGet(endpoint),
@@ -58,7 +58,7 @@ export const fetchers = {
   assignedTasks: (uid) => apiGet(`/pm/${uid}/assigned-tasks`),
   deptWorkDashboard: (uid) => apiGet(`/dept/${uid}/work-dashboard`),
   unreadInbox: (uid) => apiGet(`/pm/${uid}/unread-inbox`),
-  cashflowSummary: () => apiGet('/reports/cashflow-summary'),
+  cashflowSummary: () => apiGet('/reports/cashflow-summary', { conditional: true }),
 }
 
 const idEnabled = (id) => id != null && id !== '' && !Number.isNaN(Number(id))

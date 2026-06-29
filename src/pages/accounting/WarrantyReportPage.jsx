@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
-import { API_BASE as API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
@@ -37,8 +37,7 @@ export default function WarrantyReportPage() {
 
   useEffect(() => {
     let alive = true
-    fetch(`${API}/api/reports/warranty`)
-      .then(r => r.ok ? r.json() : null)
+    apiGet('/reports/warranty', { conditional: true })
       .then(d => { if (alive) { setData(d); setLoading(false) } })
       .catch(() => { if (alive) setLoading(false) })
     return () => { alive = false }

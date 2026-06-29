@@ -2,14 +2,14 @@ import { pool } from '../db.js'
 import { logActivity } from './tenderController.js'
 import { roundMoney } from '../utils/money.js'
 import { cacheWrap } from '../cache.js'
-import { tenderKey, invalidateTender, invalidateLookup, invalidateReports } from '../services/cacheKeys.js'
+import { tenderKey, invalidateTender, invalidateTenderList, invalidateReports } from '../services/cacheKeys.js'
 
 const LOTS_TTL = 5 * 60 // 5'
 
 // Lô đổi → tab lots + dự toán gói (info + danh sách + báo cáo đấu thầu, do syncTenderEstimate).
 function invalidateLot(tenderId) {
   invalidateTender(tenderId, 'lots', 'info')
-  invalidateLookup('tender-list')
+  invalidateTenderList()
   invalidateReports('tender')
 }
 

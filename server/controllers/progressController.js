@@ -4,7 +4,7 @@ import { cacheWrap } from '../cache.js'
 import {
   lookupKey, invalidateLookup, contractKey, contractInKey,
   invalidateContract, invalidateContractIn, invalidateContractMembers,
-  invalidateContractInMembers, invalidateReports,
+  invalidateContractInMembers, invalidateReports, lookupNotModified,
 } from '../services/cacheKeys.js'
 
 const BB_TTL = 24 * 60 * 60      // loại biên bản: danh mục ít đổi
@@ -12,8 +12,9 @@ const TAB_TTL = 30 * 60         // tab chi tiết HĐ: 30'
 
 // ── BB Type master ────────────────────────────────────────────────────────────
 
-export async function getBBTypes(_req, res) {
+export async function getBBTypes(req, res) {
   try {
+    if (await lookupNotModified(req, res, 'bb-types')) return
     const rows = await cacheWrap(lookupKey('bb-types'), BB_TTL, async () => {
       const { rows } = await pool.query(
         'SELECT * FROM public.contract_bb_type WHERE is_active = true ORDER BY sort_order, id'

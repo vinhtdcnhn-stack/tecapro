@@ -5,6 +5,7 @@ import { cacheWrap } from '../cache.js'
 import {
   contractKey, contractListKey, invalidateContractAll, invalidateContractList,
   invalidateContractMembers, invalidateUserDashboards, invalidateReports,
+  versionNotModified,
 } from '../services/cacheKeys.js'
 
 const INFO_TTL = 30 * 60      // tab thông tin HĐ
@@ -39,6 +40,10 @@ async function notifyNewMembers(contractId, members, actorId) {
 
 export async function getAllContracts(req, res) {
   try {
+    // Xác thực nhẹ: danh sách per-user nhưng version 'contract-list' là toàn cục (bump khi
+    // bất kỳ HĐ/thành viên đổi) → 304 an toàn (xem versionNotModified). Client xóa kho điều
+    // kiện khi đăng xuất nên không rò body giữa các user trên cùng tab.
+    if (await versionNotModified(req, res, 'contract-list', 'clist')) return
     // Phân quyền xem danh sách dựa trên danh tính đã xác thực (req.user từ cookie phiên),
     // KHÔNG dựa vào tham số client tự truyền: admin (role=1) xem tất cả, còn lại xem
     // mọi HĐ mình được phân công BẤT KỲ vai trò nào (PM/sale/presale/kỹ thuật/kế toán/

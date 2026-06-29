@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { API_BASE as API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable, useContractNav } from './reportUtils'
 import ReportPeriodField from './ReportPeriodField.jsx'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
@@ -33,8 +33,7 @@ export default function ReceivablesReportPage() {
       // Chỉ gửi asOf (≤ hôm nay): chốt số liệu ĐÚNG tại ngày báo cáo (đã thu/giá trị HĐ/
       // quá hạn tính tới ngày đó), dựng lại từ record_history. Backend tự lấy cận lọc
       // to = cuối tháng của asOf → vẫn liệt kê đủ khoản đáo hạn trong tháng đó.
-      const res = await fetch(`${API}/api/reports/receivables?asOf=${to}&basis=${basis}`)
-      const data = await res.json()
+      const data = await apiGet(`/reports/receivables?asOf=${to}&basis=${basis}`, { conditional: true })
       setRows(Array.isArray(data.rows) ? data.rows : [])
     } catch (e) { console.error('receivables report:', e) }
     finally { setLoading(false) }

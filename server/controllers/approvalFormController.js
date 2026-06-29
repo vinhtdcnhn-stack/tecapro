@@ -3,7 +3,7 @@
 // (approval_form_step) và người duyệt cấu hình cho từng bước (approval_form_step_approver).
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
-import { lookupKey, approvalFormOptsKey, invalidateApprovalForms } from '../services/cacheKeys.js'
+import { lookupKey, approvalFormOptsKey, invalidateApprovalForms, lookupNotModified } from '../services/cacheKeys.js'
 
 const FORMS_TTL = 12 * 60 * 60     // 12h — admin cấu hình ít đổi
 const FORM_OPTS_TTL = 6 * 60 * 60  // 6h
@@ -20,6 +20,7 @@ const CONDITION_MODES = new Set(['always', 'include', 'exclude'])
 // ── Danh sách loại đơn ────────────────────────────────────────────────────────
 export async function getForms(req, res) {
   try {
+    if (await lookupNotModified(req, res, 'approval-forms')) return
     const rows = await cacheWrap(lookupKey('approval-forms'), FORMS_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT f.id, f.code, f.name, f.description, f.icon, f.is_active, f.sort_order,
@@ -41,6 +42,7 @@ export async function getForms(req, res) {
 // Cố ý lộ email phục vụ tìm kiếm khi chọn người duyệt (khác /users vốn ẩn email với non-admin).
 export async function getUserOptions(req, res) {
   try {
+    if (await lookupNotModified(req, res, 'approval-users')) return
     const rows = await cacheWrap(lookupKey('approval-users'), FORMS_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT id, full_name, email FROM app_user ORDER BY full_name, id`

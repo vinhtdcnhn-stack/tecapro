@@ -6,7 +6,7 @@ import { parseCookies } from '../middleware/auth.js'
 import { loginLimiter } from '../middleware/loginRateLimit.js'
 import { logger } from '../utils/logger.js'
 import { cacheWrap } from '../cache.js'
-import { lookupKey, invalidateLookup } from '../services/cacheKeys.js'
+import { lookupKey, invalidateLookup, lookupNotModified } from '../services/cacheKeys.js'
 
 // TTL danh mục ít đổi. Đổi user/phòng/vị trí đã invalidate ngay nên TTL dài là an toàn.
 const USERS_TTL = 6 * 60 * 60        // 6h
@@ -314,6 +314,10 @@ export async function checkEmployeeCodeExists(req, res) {
 export async function getAllUsers(req, res) {
   // Cache bản THÔ (đầy đủ field) dùng chung; redaction theo role làm trên BẢN SAO mỗi
   // request để không mutate object đang nằm trong cache.
+  // ETag = version 'lookup:users' (toàn cục). Body trả về có redact theo role người gọi, nên
+  // ETag giống nhau giữa các role vẫn an toàn: mỗi client giữ bản redact của RIÊNG mình và
+  // xóa khi đăng xuất (clearConditionalCache). 304 chỉ nói "danh sách chưa đổi".
+  if (await lookupNotModified(req, res, 'users')) return
   const rows = await cacheWrap(lookupKey('users'), USERS_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT
@@ -532,6 +536,7 @@ export async function updateMyTelegram(req, res) {
 // ==================== DEPARTMENT CONTROLLER ====================
 
 export async function getAllDepartments(req, res) {
+  if (await lookupNotModified(req, res, 'departments')) return
   const rows = await cacheWrap(lookupKey('departments'), LOOKUP_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT
@@ -601,6 +606,7 @@ export async function updateDepartment(req, res) {
 // ==================== POSITION CONTROLLER ====================
 
 export async function getAllPositions(req, res) {
+  if (await lookupNotModified(req, res, 'positions')) return
   const rows = await cacheWrap(lookupKey('positions'), LOOKUP_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT
@@ -672,6 +678,7 @@ export async function updatePosition(req, res) {
 // ==================== MANAGER CONTROLLER ====================
 
 export async function getAllManagers(req, res) {
+  if (await lookupNotModified(req, res, 'managers')) return
   const rows = await cacheWrap(lookupKey('managers'), USERS_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT

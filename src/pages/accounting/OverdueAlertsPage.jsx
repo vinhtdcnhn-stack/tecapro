@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { API_BASE as API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
@@ -38,8 +38,7 @@ export default function OverdueAlertsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/api/reports/overdue-receivables?asOf=${asOf}&basis=${basis}`)
-      const data = await res.json()
+      const data = await apiGet(`/reports/overdue-receivables?asOf=${asOf}&basis=${basis}`, { conditional: true })
       setRows(Array.isArray(data.rows) ? data.rows : [])
     } catch (e) { console.error('overdue report:', e) }
     finally { setLoading(false) }

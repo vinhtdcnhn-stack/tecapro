@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { API_BASE as API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable, useContractNav } from './reportUtils'
 import ReportPeriodField from './ReportPeriodField.jsx'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
@@ -32,8 +32,7 @@ export default function PayablesReportPage() {
       // Chỉ gửi asOf (≤ hôm nay): chốt số liệu ĐÚNG tại ngày báo cáo (đã trả/giá trị/quá
       // hạn tính tới ngày đó), dựng lại từ record_history. Backend tự lấy cận lọc
       // to = cuối tháng của asOf → vẫn liệt kê đủ đợt đáo hạn trong tháng đó.
-      const res = await fetch(`${API}/api/reports/payables?asOf=${to}`)
-      const data = await res.json()
+      const data = await apiGet(`/reports/payables?asOf=${to}`, { conditional: true })
       setRows(Array.isArray(data.rows) ? data.rows : [])
     } catch (e) { console.error('payables report:', e) }
     finally { setLoading(false) }

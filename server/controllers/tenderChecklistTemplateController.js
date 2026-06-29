@@ -1,7 +1,7 @@
 import { pool } from '../db.js'
 import { logActivity } from './tenderController.js'
 import { cacheWrap } from '../cache.js'
-import { lookupKey, invalidateLookup, invalidateTender } from '../services/cacheKeys.js'
+import { lookupKey, invalidateLookup, invalidateTender, lookupNotModified } from '../services/cacheKeys.js'
 
 const TPL_TTL = 24 * 60 * 60 // 24h — mẫu dùng chung, rất ít đổi
 
@@ -15,8 +15,9 @@ const TPL_COLS = `
   i.id, i.title, i.description, i.department_id, d.name AS department_name,
   i.parent_item_id, i.sort_order`
 
-export async function getTemplate(_req, res) {
+export async function getTemplate(req, res) {
   try {
+    if (await lookupNotModified(req, res, 'tender-tpl')) return
     const rows = await cacheWrap(lookupKey('tender-tpl'), TPL_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT ${TPL_COLS}

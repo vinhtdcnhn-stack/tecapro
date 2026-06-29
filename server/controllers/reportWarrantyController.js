@@ -2,7 +2,7 @@ import { pool } from '../db.js'
 import { vnToday } from '../utils/reportLoaders.js'
 import { diffDays } from '../utils/receivableDue.js'
 import { cacheWrap } from '../cache.js'
-import { reportKey } from '../services/cacheKeys.js'
+import { reportKey, reportNotModified } from '../services/cacheKeys.js'
 
 const REPORT_TTL = 2 * 60 * 60 // 2h — nhóm 'warranty', invalidate khi equipment/case đổi
 
@@ -14,6 +14,7 @@ const RESOLVED = new Set(['Hoàn thành', 'Đóng'])
 
 export async function getWarrantyReport(req, res) {
   try {
+    if (await reportNotModified(req, res, 'warranty')) return
     const today = vnToday()
     const key = await reportKey('warranty', 'warranty', { asOf: today })
     const payload = await cacheWrap(key, REPORT_TTL, async () => {

@@ -5,7 +5,7 @@ import {
   loadPayables, loadPaymentsByContractIn,
 } from '../utils/reportLoaders.js'
 import { cacheWrap } from '../cache.js'
-import { reportKey } from '../services/cacheKeys.js'
+import { reportKey, reportNotModified } from '../services/cacheKeys.js'
 
 // Báo cáo tài chính: đọc nhiều, dùng chung. TTL trung bình + invalidate theo nhóm 'debt'
 // (version-namespace) khi receivable/payment/HĐ/hóa đơn đổi.
@@ -20,6 +20,7 @@ const REPORT_TTL = 2 * 60 * 60 // 2h
 // Trả về các khoản CÒN NỢ (remaining > 0) kèm hạn hiệu lực, số ngày quá hạn, nhóm nợ.
 export async function getOverdueReceivables(req, res) {
   try {
+    if (await reportNotModified(req, res, 'debt')) return
     const explicitAsOf = /^\d{4}-\d{2}-\d{2}$/.test(req.query.asOf) ? req.query.asOf : null
     const asOf  = explicitAsOf || vnToday()
     const pit   = !!explicitAsOf
@@ -103,6 +104,7 @@ async function computeExpectedPaymentMonth(asOf, eom, pit) {
 // tháng hiện tại (quy VND), và tổng quan nợ quá hạn.
 export async function getCashflowSummary(req, res) {
   try {
+    if (await reportNotModified(req, res, 'debt')) return
     const explicitAsOf = /^\d{4}-\d{2}-\d{2}$/.test(req.query.asOf) ? req.query.asOf : null
     const asOf = explicitAsOf || vnToday()
     const pit  = !!explicitAsOf

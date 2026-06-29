@@ -5,7 +5,7 @@ import {
   loadContracts, loadPayables, loadPaymentsByContractIn, loadInvoicedByContract,
 } from '../utils/reportLoaders.js'
 import { cacheWrap } from '../cache.js'
-import { reportKey } from '../services/cacheKeys.js'
+import { reportKey, reportNotModified } from '../services/cacheKeys.js'
 
 const REPORT_TTL = 2 * 60 * 60 // 2h — nhóm 'debt', invalidate khi receivable/payment/HĐ/hóa đơn đổi
 
@@ -33,6 +33,7 @@ function latestPaymentByReceivable(payByContract) {
 // ── #3 / #4: Công nợ phải thu KH (basis=plan|actual) ──────────────────────────
 export async function getReceivablesReport(req, res) {
   try {
+    if (await reportNotModified(req, res, 'debt')) return
     const explicitAsOf = validDate(req.query.asOf)
     const asOf  = explicitAsOf || vnToday()
     const pit   = !!explicitAsOf
@@ -92,6 +93,7 @@ export async function getReceivablesReport(req, res) {
 // ── #5: Công nợ phải trả NCC (phân bổ FIFO tiền đã trả cho các đợt theo hạn) ────
 export async function getPayablesReport(req, res) {
   try {
+    if (await reportNotModified(req, res, 'debt')) return
     const explicitAsOf = validDate(req.query.asOf)
     const asOf = explicitAsOf || vnToday()
     const pit  = !!explicitAsOf
@@ -163,6 +165,7 @@ function delayCategory(days) {
 // ── #6: Tổng kết tiến độ thu (số ngày chậm theo mốc bị nợ lâu nhất, kế hoạch gốc) ─
 export async function getProgressCollection(req, res) {
   try {
+    if (await reportNotModified(req, res, 'debt')) return
     const today = vnToday()
     const key = await reportKey('debt', 'progress-collection', { asOf: today })
     const payload = await cacheWrap(key, REPORT_TTL, async () => {
@@ -259,6 +262,7 @@ async function computeContractDebt(range = {}) {
 // theo khoảng năm — frontend tự lọc (filterByRange). asOf rỗng → danh sách live.
 export async function getContractsAsOf(req, res) {
   try {
+    if (await reportNotModified(req, res, 'debt')) return
     const asOf = validDate(req.query.asOf)
     const key = await reportKey('debt', 'contracts-asof', { asOf })
     const payload = await cacheWrap(key, REPORT_TTL, async () => {
@@ -275,6 +279,7 @@ export async function getContractsAsOf(req, res) {
 // ── #9: Tổng hợp công nợ theo hợp đồng ────────────────────────────────────────
 export async function getDebtByContract(req, res) {
   try {
+    if (await reportNotModified(req, res, 'debt')) return
     const range = { from: validDate(req.query.from), to: validDate(req.query.to), asOf: validDate(req.query.asOf) }
     const key = await reportKey('debt', 'debt-by-contract', range)
     const payload = await cacheWrap(key, REPORT_TTL, async () => {
@@ -295,6 +300,7 @@ export async function getDebtByContract(req, res) {
 // ── #8: Tổng hợp công nợ theo khách hàng (+ chỉ tiêu tổng + top 10) ────────────
 export async function getDebtByCustomer(req, res) {
   try {
+    if (await reportNotModified(req, res, 'debt')) return
     const range = { from: validDate(req.query.from), to: validDate(req.query.to), asOf: validDate(req.query.asOf) }
     const key = await reportKey('debt', 'debt-by-customer', range)
     const payload = await cacheWrap(key, REPORT_TTL, async () => {

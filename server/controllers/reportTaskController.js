@@ -2,7 +2,7 @@ import { pool } from '../db.js'
 import { vnToday } from '../utils/reportLoaders.js'
 import { overdueTasksAsOf } from '../utils/reportLoaders.asof.js'
 import { cacheWrap } from '../cache.js'
-import { reportKey } from '../services/cacheKeys.js'
+import { reportKey, reportNotModified } from '../services/cacheKeys.js'
 
 const REPORT_TTL = 2 * 60 * 60 // 2h — nhóm 'task', invalidate khi contract_task đổi
 
@@ -14,6 +14,7 @@ const REPORT_TTL = 2 * 60 * 60 // 2h — nhóm 'task', invalidate khi contract_t
 // asOf từ record_history (overdueTasksAsOf), không dùng status hiện tại.
 export async function getOverdueTasks(req, res) {
   try {
+    if (await reportNotModified(req, res, 'task')) return
     const explicitAsOf = /^\d{4}-\d{2}-\d{2}$/.test(req.query.asOf) ? req.query.asOf : null
     if (explicitAsOf) {
       const key = await reportKey('task', 'overdue-tasks', { asOf: explicitAsOf, pit: true })

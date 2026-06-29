@@ -47,6 +47,13 @@ function ready() {
   return !!client && client.isReady
 }
 
+// Bản export công khai của ready(): các lớp khác (vd ETag/304) cần biết cache có thật sự
+// sẵn sàng không để QUYẾT ĐỊNH có dùng version làm validator hay không. Khi cache TẮT,
+// version luôn = 0 cố định → KHÔNG được phép trả 304 (sẽ phục vụ dữ liệu cũ).
+export function isCacheReady() {
+  return ready()
+}
+
 // Lấy giá trị JSON theo key. Trả null khi miss / cache tắt / lỗi.
 export async function cacheGet(key) {
   if (!ready()) return null

@@ -1,6 +1,6 @@
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
-import { lookupKey, invalidateLookup } from '../services/cacheKeys.js'
+import { lookupKey, invalidateLookup, lookupNotModified } from '../services/cacheKeys.js'
 
 const SUPPLIERS_TTL = 12 * 60 * 60 // 12h — danh mục ít đổi
 
@@ -11,6 +11,7 @@ const SELECT_FIELDS = `
 
 export async function getAllSuppliers(req, res) {
   try {
+    if (await lookupNotModified(req, res, 'suppliers')) return
     const rows = await cacheWrap(lookupKey('suppliers'), SUPPLIERS_TTL, async () => {
       const { rows } = await pool.query(`${SELECT_FIELDS} WHERE is_active = true OR is_active = false ORDER BY name ASC`)
       return rows

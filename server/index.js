@@ -45,6 +45,10 @@ if (!allowedOrigins.length && isProd) {
 app.use(cors({
   origin: allowedOrigins.length ? allowedOrigins : (isProd ? false : true),
   credentials: true,
+  // Lộ ETag cho JS đọc khi cross-origin (dev :5173 → :5174): lớp xác thực nhẹ phía client
+  // (apiGet conditional) cần đọc header này để gửi lại If-None-Match. Same-origin (prod)
+  // không cần CORS nên không ảnh hưởng.
+  exposedHeaders: ['ETag'],
 }))
 // Body JSON: giữ mặc định 100KB (chống body lớn làm tốn RAM/CPU), nhưng các endpoint
 // import nhận mảng JSON lớn (BOQ/serial parse từ Excel) được nới riêng 2MB — file vài

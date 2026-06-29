@@ -1,12 +1,13 @@
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
-import { lookupKey, invalidateLookup } from '../services/cacheKeys.js'
+import { lookupKey, invalidateLookup, lookupNotModified } from '../services/cacheKeys.js'
 
 // ==================== CUSTOMER CONTROLLER ====================
 
 const CUSTOMERS_TTL = 12 * 60 * 60 // 12h — danh mục ít đổi
 
 export async function getAllCustomers(req, res) {
+  if (await lookupNotModified(req, res, 'customers')) return
   const rows = await cacheWrap(lookupKey('customers'), CUSTOMERS_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT

@@ -3,8 +3,9 @@ import { notifyAction } from '../services/notify.js'
 import { userIsHead } from '../middleware/tenderAccess.js'
 import { cacheWrap } from '../cache.js'
 import {
-  lookupKey, invalidateLookup, tenderKey, invalidateTender,
-  tenderMyKey, invalidateTenderMy, invalidateReports,
+  lookupKey, tenderKey, invalidateTender,
+  tenderMyKey, invalidateTenderMy, invalidateTenderList, invalidateReports,
+  versionNotModified, lookupNotModified,
 } from '../services/cacheKeys.js'
 
 const LIST_TTL = 10 * 60   // danh sách gói thầu
@@ -13,7 +14,7 @@ const ACT_TTL = 30 * 60    // nhật ký (append-only)
 
 // Gói thầu đổi (tạo/sửa/trạng thái/xóa) → danh sách + của-tôi + báo cáo đấu thầu + nhật ký gói.
 function invalidateTenderMeta(id) {
-  invalidateLookup('tender-list')
+  invalidateTenderList()
   invalidateTenderMy()
   invalidateReports('tender')
   if (id != null) invalidateTender(id, 'info', 'activity')
@@ -59,8 +60,9 @@ const JOINS = `
   LEFT JOIN app_user am ON am.id = t.am_id
   LEFT JOIN app_user cb ON cb.id = t.created_by`
 
-export async function getTenders(_req, res) {
+export async function getTenders(req, res) {
   try {
+    if (await lookupNotModified(req, res, 'tender-list')) return
     const rows = await cacheWrap(lookupKey('tender-list'), LIST_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT ${SELECT_COLS} FROM tender t ${JOINS}
@@ -294,8 +296,9 @@ export async function getActivityLog(req, res) {
 }
 
 // Thành viên ban (cho UI biết ai là HEAD + đổ danh sách người làm thầu).
-export async function getMembers(_req, res) {
+export async function getMembers(req, res) {
   try {
+    if (await lookupNotModified(req, res, 'tender-members')) return
     const rows = await cacheWrap(lookupKey('tender-members'), 6 * 60 * 60, async () => {
       const { rows } = await pool.query(
         `SELECT m.id, m.user_id, u.full_name, m.dept_role, m.is_active
@@ -316,6 +319,7 @@ export async function getMembers(_req, res) {
 // "Việc của tôi" cho người làm thầu: các gói mình phụ trách.
 export async function getMyTenders(req, res) {
   try {
+    if (await versionNotModified(req, res, 'tender-my', 't-my')) return
     const key = await tenderMyKey(req.user.id)
     const rows = await cacheWrap(key, INFO_TTL, async () => {
       const { rows } = await pool.query(

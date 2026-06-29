@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { API_BASE as API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtMoney, fmtDate, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
@@ -45,8 +45,7 @@ export default function ProgressCollectionPage() {
 
   useEffect(() => {
     let alive = true
-    fetch(`${API}/api/reports/progress-collection`)
-      .then(r => r.ok ? r.json() : { rows: [] })
+    apiGet('/reports/progress-collection', { conditional: true })
       .then(d => { if (alive) { setRows(Array.isArray(d.rows) ? d.rows : []); setLoading(false) } })
       .catch(() => { if (alive) setLoading(false) })
     return () => { alive = false }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { API } from '../../../config/api.js'
+import { apiGet } from '../../../lib/api'
 import { fmtFull } from '../execUtils.js'
 import { fmtMoney, fmtDate, TIER_CLASS } from '../../accounting/reportUtils.js'
 import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
@@ -27,8 +27,7 @@ export default function OverdueDebtDetail({ asOf = null, onOpenContract }) {
     ;(async () => {
       try {
         const aq = asOf ? `&asOf=${asOf}` : ''
-        const res = await fetch(`${API}/reports/overdue-receivables?basis=actual${aq}`)
-        const data = await res.json()
+        const data = await apiGet(`/reports/overdue-receivables?basis=actual${aq}`, { conditional: true })
         if (!cancelled) setRows((Array.isArray(data.rows) ? data.rows : []).filter(r => r.days_overdue > 0))
       } catch (e) { console.error('overdue-receivables:', e) }
       finally { if (!cancelled) setLoading(false) }

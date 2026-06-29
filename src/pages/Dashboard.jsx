@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { API } from '../config/api'
+import { apiGet } from '../lib/api'
 import {
   fmtCompact, fmtFull, signedThisYearVnd, signedThisYearCount,
   loadDashRange, saveDashRange, dashQuery, filterByRange,
@@ -54,7 +54,7 @@ export default function Dashboard({ user, switcher = null, contracts = [] }) {
 
   useEffect(() => {
     let cancelled = false
-    const get = (path) => fetch(`${API}${path}`).then(r => r.ok ? r.json() : null).catch(() => null)
+    const get = (path) => apiGet(path, { conditional: true }).catch(() => null)
     const rq = dashQuery(range, asOf)
     const q = rq ? `?${rq}` : ''
     // overdue-tasks chỉ nhận asOf (không lọc theo khoảng năm ký).

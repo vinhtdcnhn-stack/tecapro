@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { API_BASE as API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtMoney, fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
@@ -42,8 +42,8 @@ export default function DebtSummaryPage() {
   useEffect(() => {
     let alive = true
     Promise.all([
-      fetch(`${API}/api/reports/debt-by-customer`).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/api/reports/debt-by-contract`).then(r => r.ok ? r.json() : null),
+      apiGet('/reports/debt-by-customer', { conditional: true }).catch(() => null),
+      apiGet('/reports/debt-by-contract', { conditional: true }).catch(() => null),
     ]).then(([cu, co]) => {
       if (!alive) return
       setCusts(cu?.rows || []); setTotals(cu?.totals || null)

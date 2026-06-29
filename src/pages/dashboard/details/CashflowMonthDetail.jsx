@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { API } from '../../../config/api.js'
+import { apiGet } from '../../../lib/api'
 import { fmtFull } from '../execUtils.js'
 import { fmtMoney, fmtDate, endOfThisMonth } from '../../accounting/reportUtils.js'
 import { useCopyMenu } from '../../../components/common/useCopyMenu.jsx'
@@ -35,8 +35,8 @@ export default function CashflowMonthDetail({ asOf = null, onOpenContract }) {
     ;(async () => {
       try {
         const [r, p] = await Promise.all([
-          fetch(`${API}/reports/receivables?to=${to}&basis=actual${aq}`).then(x => x.json()),
-          fetch(`${API}/reports/payables?to=${to}${aq}`).then(x => x.json()),
+          apiGet(`/reports/receivables?to=${to}&basis=actual${aq}`, { conditional: true }),
+          apiGet(`/reports/payables?to=${to}${aq}`, { conditional: true }),
         ])
         if (cancelled) return
         setRecv((Array.isArray(r.rows) ? r.rows : []).filter(x => (parseFloat(x.remaining_vnd) || 0) > 0))
