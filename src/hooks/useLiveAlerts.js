@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { API } from '../config/api'
+import { getBrand } from '../config/brand'
 
 // Long-poll HỢP NHẤT cho mọi cảnh báo/badge — thay 3 vòng poll cũ (contract-task 30s,
 // dept-work 30s, inbox đề xuất 60s) bằng MỘT kết nối duy nhất. Server (GET /api/live/poll)
@@ -86,6 +87,38 @@ export default function useLiveAlerts(user) {
     document.body.classList.toggle('dw-page-alert', dwAlertActive && view.dw > 0)
     return () => document.body.classList.remove('dw-page-alert')
   }, [dwAlertActive, view.dw])
+
+  // Tổng số việc CHƯA ĐỌC dùng cho cảnh báo logo (CSS, theo class body ở trên) và
+  // nhấp nháy tiêu đề tab: việc HĐ (mọi user) + việc phòng (chỉ admin / Ban KT Cơ điện).
+  const unread = (active ? view.ct : 0) + (dwAlertActive ? view.dw : 0)
+
+  // Nhấp nháy TIÊU ĐỀ TAB khi đang ở tab khác (document.hidden) mà có việc chưa đọc —
+  // để người dùng thấy cảnh báo ngay cả khi không nhìn vào app. Quay lại tab hoặc hết
+  // việc chưa đọc → khôi phục tiêu đề gốc (tên doanh nghiệp do brand đặt lúc khởi động).
+  useEffect(() => {
+    const baseTitle = getBrand().name || document.title
+    let timer = null
+    let flipped = false
+    const restore = () => {
+      if (timer) { clearInterval(timer); timer = null }
+      document.title = baseTitle
+      flipped = false
+    }
+    const tick = () => {
+      flipped = !flipped
+      document.title = flipped ? `🔴 (${unread}) Có việc chưa đọc` : baseTitle
+    }
+    const sync = () => {
+      if (unread > 0 && document.hidden) {
+        if (!timer) { tick(); timer = setInterval(tick, 1000) }
+      } else {
+        restore()
+      }
+    }
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => { document.removeEventListener('visibilitychange', sync); restore() }
+  }, [unread])
 
   return view
 }
