@@ -28,6 +28,10 @@ import reportRoutes from './reportRoutes.js'
 import invoiceRoutes from './invoiceRoutes.js'
 import liveRoutes from './liveRoutes.js'
 import { listTelegramLogs } from '../controllers/telegramLogController.js'
+import {
+  listFeedback, createFeedback, updateFeedback, deleteFeedback,
+  addFeedbackImage, uploadFeedbackImage,
+} from '../controllers/feedbackController.js'
 
 const router = Router()
 
@@ -57,6 +61,13 @@ router.post('/users/test-telegram', requireAdmin, authController.testTelegram)
 
 // Nhật ký gửi Telegram — chỉ admin xem (tự dọn bản ghi > 3 ngày khi tải).
 router.get('/telegram-logs', requireAdmin, listTelegramLogs)
+
+// Góp ý cải thiện phần mềm — mọi người dùng gửi (xem góp ý của mình), admin xem & xử lý tất cả.
+router.get('/feedback', listFeedback)
+router.post('/feedback', createFeedback)
+router.post('/feedback/:id/images', uploadFeedbackImage.single('image'), addFeedbackImage)
+router.put('/feedback/:id', requireAdmin, updateFeedback)
+router.delete('/feedback/:id', deleteFeedback)
 
 // Department routes — danh mục dùng chung: ghi chỉ admin
 router.get('/departments', authController.getAllDepartments)

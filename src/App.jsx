@@ -57,8 +57,8 @@ function Layout() {
   //  • Alt+C → trang chủ, Alt+B → danh sách Hợp đồng bán (giữ nguyên).
   //  • Phím đơn (không giữ Alt/Ctrl/Meta/Shift, không đang gõ trong ô nhập):
   //      z = quay lại trang trước
-  //      v/p/k/q/b = về trang chủ và mở dashboard tương ứng
-  //        (việc của tôi / PM / kế toán / tổng quan / việc của phòng).
+  //      v/p/k/q/b/u = về trang chủ và mở dashboard tương ứng
+  //        (việc của tôi / PM / kế toán / tổng quan / việc của phòng / chưa đọc).
   useEffect(() => {
     // Đang gõ trong input/textarea/select/ô soạn thảo → bỏ qua phím đơn.
     function isTyping(el) {
@@ -73,7 +73,7 @@ function Layout() {
       navigate('/')
       window.dispatchEvent(new CustomEvent('home-dashboard', { detail: key }))
     }
-    const DASH_BY_KEY = { v: 'assignee', p: 'pm', k: 'accounting', q: 'director', b: 'dept' }
+    const DASH_BY_KEY = { v: 'assignee', p: 'pm', k: 'accounting', q: 'director', b: 'dept', u: 'unread' }
     function handleKeyDown(e) {
       // Tổ hợp Alt+… (giữ nguyên hành vi cũ).
       if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {

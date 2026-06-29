@@ -9,6 +9,7 @@ const ITEMS = [
   { label: 'QUẢN LÝ NHÀ CUNG CẤP', section: 'suppliers'   },
   { label: 'QUẢN LÝ LOẠI BIÊN BẢN', section: 'bb-types'   },
   { label: 'NHẬT KÝ TELEGRAM',     section: 'telegram-log', adminOnly: true },
+  { label: 'GÓP Ý CẢI THIỆN',      section: 'feedback'    },
 ]
 
 export default function Sidebar() {
