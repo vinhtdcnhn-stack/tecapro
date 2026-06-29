@@ -18,7 +18,7 @@ function fmtMoney(n, cur = 'VND') {
 // Gắn unread_count cho các item là công việc HĐ ('task') và việc phòng ('dept_work_task')
 // — để dashboard tô nền hổ phách dòng việc khi có nội dung dòng thời gian chưa đọc
 // (song song chấm chưa đọc trong tab công việc / Gantt). Sửa items tại chỗ.
-async function attachUnread(items, userId) {
+export async function attachUnread(items, userId) {
   const taskIds = items.filter(i => i.source_type === 'task').map(i => i.source_id)
   const dwIds   = items.filter(i => i.source_type === 'dept_work_task').map(i => i.source_id)
   const countUnread = (entryTbl, readTbl, ids) =>

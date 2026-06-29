@@ -7,6 +7,7 @@ import Dashboard from './Dashboard'
 import PMDashboard from './PMDashboard'
 import AssigneeDashboard from './AssigneeDashboard'
 import DeptWorkDashboard from './DeptWorkDashboard'
+import UnreadDashboard from './UnreadDashboard'
 import AccountingDashboard from './AccountingDashboard'
 import TenderDashboard from './TenderDashboard'
 import DashSwitcher from './DashSwitcher'
@@ -59,6 +60,7 @@ export default function HomePage() {
       case 'tender':     return <TenderDashboard switcher={switcher} user={user} />
       case 'dept':       return <DeptWorkDashboard switcher={switcher} user={user} />
       case 'assignee':   return <AssigneeDashboard switcher={switcher} user={user} />
+      case 'unread':     return <UnreadDashboard switcher={switcher} user={user} />
       case 'pm':
       default:           return <PMDashboard switcher={switcher} user={user} />
     }

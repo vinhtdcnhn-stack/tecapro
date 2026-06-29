@@ -2,6 +2,7 @@ import { pool } from '../db.js'
 import { MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
 import { cacheWrap } from '../cache.js'
 import { deptDashKey } from '../services/cacheKeys.js'
+import { attachUnread } from './pmDashboardController.js'
 
 // Dashboard phòng tổng hợp việc của cả phòng — invalidation chính xác theo head phức tạp;
 // dùng TTL ngắn để giới hạn độ trễ khi việc của thành viên đổi (badge real-time vẫn riêng).
@@ -156,6 +157,10 @@ export async function getDeptWorkDashboard(req, res) {
     const soon = new Date(todayISO()); soon.setDate(soon.getDate() + 7)
     const soonISO = soon.toISOString().slice(0, 10)
     const upcomingCount = items.filter(i => i.due_date && i.due_date <= soonISO).length
+
+    // Gắn unread_count (việc HĐ + việc phòng) để dashboard tô nền hổ phách dòng có
+    // nội dung dòng thời gian chưa đọc với người đang xem — như dashboard PM.
+    await attachUnread(items, userId)
 
     return {
       department_id: deptId,

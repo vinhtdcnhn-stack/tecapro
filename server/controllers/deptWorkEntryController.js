@@ -4,6 +4,7 @@ import { userName, assigneeIds, headIds } from '../services/deptWorkNotify.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
 import { deptWorkUnread } from '../services/liveCounts.js'
 import { bumpLive } from '../services/eventBus.js'
+import { invalidateUserDashboards, invalidateDashboardsForDeptWorkTask } from '../services/cacheKeys.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Dòng thời gian trao đổi của một việc phòng (dept_work_entry): Báo cáo / Chỉ đạo /
@@ -73,7 +74,10 @@ export async function getEntries(req, res) {
       [taskId],
     )
     res.json(rows)
-    markRead(taskId, req.user.id).catch(e => console.error('deptWork markRead:', e))
+    // Đọc xong → hết nhấp nháy chưa đọc + làm mới dashboard người xem để hết nền hổ phách.
+    markRead(taskId, req.user.id)
+      .then(() => { if (rows.length) return invalidateUserDashboards(req.user.id) })
+      .catch(e => console.error('deptWork markRead:', e))
   } catch (err) {
     console.error('deptWork getEntries:', err)
     res.status(500).json({ error: 'Không thể tải dòng thời gian.' })
@@ -117,6 +121,8 @@ export async function addEntry(req, res) {
 
     // Đánh thức các long-poll đang treo: có mục mới → số "chưa đọc" của người liên quan đổi.
     bumpLive('dept-work')
+    // Có mục mới → dòng việc chuyển nền hổ phách: làm mới dashboard của người liên quan.
+    invalidateDashboardsForDeptWorkTask(taskId)
 
     // Tác giả coi như đã đọc (không tự nhấp nháy với mình).
     markRead(taskId, req.user.id).catch(e => console.error('deptWork markRead:', e))
@@ -146,7 +152,7 @@ export async function addEntry(req, res) {
 export async function deleteEntry(req, res) {
   const id = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query('SELECT author_id FROM dept_work_entry WHERE id = $1', [id])
+    const { rows } = await pool.query('SELECT author_id, task_id FROM dept_work_entry WHERE id = $1', [id])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy nội dung.' })
     const isHead = await userIsHeadOrDeputy(req.user.id, req.user.role)
     if (rows[0].author_id !== req.user.id && !isHead) {
@@ -154,6 +160,8 @@ export async function deleteEntry(req, res) {
     }
     await pool.query('DELETE FROM dept_work_entry WHERE id = $1', [id])
     res.json({ success: true })
+    // Xóa mục → số chưa đọc của người liên quan có thể đổi → làm mới dashboard của họ.
+    invalidateDashboardsForDeptWorkTask(rows[0].task_id)
   } catch (err) {
     console.error('deptWork deleteEntry:', err)
     res.status(500).json({ error: 'Không thể xóa nội dung.' })

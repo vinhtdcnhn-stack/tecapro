@@ -3,6 +3,7 @@ import { isPmOfContract } from '../middleware/contractAccess.js'
 import { notifyAction, notifyInfo, contractLabel, pmUserIds } from '../services/notify.js'
 import { contractTaskUnread } from '../services/liveCounts.js'
 import { bumpLive } from '../services/eventBus.js'
+import { invalidateUserDashboards, invalidateDashboardsForContractTask } from '../services/cacheKeys.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Dòng thời gian trao đổi của một CÔNG VIỆC HỢP ĐỒNG (contract_task_entry): Báo cáo /
@@ -73,7 +74,10 @@ export async function getEntries(req, res) {
       [taskId],
     )
     res.json(rows)
-    markRead(taskId, req.user.id).catch(e => console.error('contractTask markRead:', e))
+    // Đọc xong → tắt chấm chưa đọc + làm mới dashboard người xem để dòng việc hết nền hổ phách.
+    markRead(taskId, req.user.id)
+      .then(() => { if (rows.length) return invalidateUserDashboards(req.user.id) })
+      .catch(e => console.error('contractTask markRead:', e))
   } catch (err) {
     console.error('contractTask getEntries:', err)
     res.status(500).json({ error: 'Không thể tải dòng thời gian.' })
@@ -118,6 +122,8 @@ export async function addEntry(req, res) {
 
     // Đánh thức các long-poll đang treo: có mục mới → số "chưa đọc" của người liên quan đổi.
     bumpLive('contract-task')
+    // Có mục mới → dòng việc chuyển nền hổ phách: làm mới dashboard của người liên quan.
+    invalidateDashboardsForContractTask(taskId)
 
     // Tác giả coi như đã đọc (không tự báo với mình).
     markRead(taskId, req.user.id).catch(e => console.error('contractTask markRead:', e))
@@ -148,7 +154,7 @@ export async function deleteEntry(req, res) {
   const id = parseInt(req.params.id)
   try {
     const { rows } = await pool.query(
-      `SELECT e.author_id, t.contract_out_id
+      `SELECT e.author_id, e.task_id, t.contract_out_id
          FROM contract_task_entry e
          JOIN contract_task t ON t.id = e.task_id
         WHERE e.id = $1`,
@@ -162,6 +168,8 @@ export async function deleteEntry(req, res) {
     }
     await pool.query('DELETE FROM contract_task_entry WHERE id = $1', [id])
     res.json({ success: true })
+    // Xóa mục → số chưa đọc của người liên quan có thể đổi → làm mới dashboard của họ.
+    invalidateDashboardsForContractTask(rows[0].task_id)
   } catch (err) {
     console.error('contractTask deleteEntry:', err)
     res.status(500).json({ error: 'Không thể xóa nội dung.' })

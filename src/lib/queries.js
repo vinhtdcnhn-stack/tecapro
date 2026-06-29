@@ -31,6 +31,7 @@ export const qk = {
   pmDashboard: (uid) => ['pm-dashboard', String(uid)],
   assignedTasks: (uid) => ['assigned-tasks', String(uid)],
   deptWorkDashboard: (uid) => ['dept-work-dashboard', String(uid)],
+  unreadInbox: (uid) => ['unread-inbox', String(uid)],
   cashflowSummary: ['reports', 'cashflow-summary'],
 }
 
@@ -56,6 +57,7 @@ export const fetchers = {
   pmDashboard: (uid) => apiGet(`/pm/${uid}/dashboard`),
   assignedTasks: (uid) => apiGet(`/pm/${uid}/assigned-tasks`),
   deptWorkDashboard: (uid) => apiGet(`/dept/${uid}/work-dashboard`),
+  unreadInbox: (uid) => apiGet(`/pm/${uid}/unread-inbox`),
   cashflowSummary: () => apiGet('/reports/cashflow-summary'),
 }
 
@@ -101,6 +103,11 @@ export function useAssignedTasks(uid, opts = {}) {
 }
 export function useDeptWorkDashboard(uid, opts = {}) {
   return useQuery({ queryKey: qk.deptWorkDashboard(uid), queryFn: () => fetchers.deptWorkDashboard(uid), enabled: idEnabled(uid), ...opts })
+}
+export function useUnreadInbox(uid, opts = {}) {
+  // staleTime 0: hộp thư phải tươi — đọc xong quay lại là refetch ngay (việc đã đọc rời danh sách),
+  // không giữ bản cũ 60s như mặc định. Query nhẹ (2 truy vấn theo chỉ mục) nên chi phí không đáng kể.
+  return useQuery({ queryKey: qk.unreadInbox(uid), queryFn: () => fetchers.unreadInbox(uid), enabled: idEnabled(uid), staleTime: 0, ...opts })
 }
 export const useCashflowSummary = (opts = {}) => useQuery({ queryKey: qk.cashflowSummary, queryFn: fetchers.cashflowSummary, ...opts })
 

@@ -44,6 +44,8 @@ export function useHomeDashboards() {
   if (isDeptHead)                             available.push({ key: 'dept',       label: 'Việc của phòng' })
   // "Việc của tôi" luôn khả dụng: gom mọi việc giao trực tiếp với cửa sổ thời hạn không giới hạn.
   available.push({ key: 'assignee', label: 'Việc của tôi' })
+  // "Chưa đọc" luôn khả dụng: gom mọi việc có nội dung trao đổi người xem chưa đọc.
+  available.push({ key: 'unread', label: 'Chưa đọc' })
 
   // Mặc định theo thứ tự ưu tiên cũ; nhớ lựa chọn người dùng nếu còn hợp lệ.
   const defaultKey = canPM ? 'pm' : isDirector ? 'director' : isAccountant ? 'accounting'

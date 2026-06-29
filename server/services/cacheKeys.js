@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { cacheDel, cacheVersion, bumpVersion } from '../cache.js'
+import { DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
 
 // Trung tâm QUY ƯỚC KEY + LỚP INVALIDATION cho toàn bộ cache. Gom hết vào 1 file để
 // invalidation-chính-xác dễ bảo trì (không rải chuỗi key khắp controller). Controller ĐỌC
@@ -146,6 +147,63 @@ export async function invalidateContractInMembers(contractInId) {
       [contractInId],
     )
     if (rows[0]?.contract_out_id != null) await invalidateContractMembers(rows[0].contract_out_id)
+  } catch {
+    // bỏ qua
+  }
+}
+
+// Có nội dung dòng thời gian mới/xóa/đọc ở một CÔNG VIỆC HĐ → dòng việc đổi nền hổ phách
+// (chưa đọc) trên các dashboard liệt kê việc đó. Làm mới dashboard của ĐÚNG nhóm người
+// thấy việc này:
+//   • mọi thành viên HĐ            → dashboard PM (liệt kê mọi việc của HĐ)
+//   • người được giao việc          → dashboard "Việc của tôi"
+//   • trưởng/phó (+admin) cùng phòng người được giao → dashboard "Công việc của phòng"
+export async function invalidateDashboardsForContractTask(taskId) {
+  if (taskId == null) return
+  try {
+    const { rows } = await pool.query(
+      `WITH t AS (
+         SELECT contract_out_id, assigned_to FROM contract_task WHERE id = $1
+       )
+       SELECT m.user_id AS id
+         FROM contract_out_member m
+         JOIN t ON t.contract_out_id = m.contract_out_id
+       UNION
+       SELECT assigned_to FROM t WHERE assigned_to IS NOT NULL
+       UNION
+       SELECT u.id
+         FROM app_user u
+         LEFT JOIN app_user_position ap ON ap.user_id = u.id
+        WHERE u.department_id = (SELECT department_id FROM app_user
+                                  WHERE id = (SELECT assigned_to FROM t))
+          AND (ap.position_id = ANY($2::int[]) OR u.role = 1)`,
+      [taskId, MANAGER_POSITION_IDS],
+    )
+    await Promise.all(rows.map((r) => invalidateUserDashboards(r.id)))
+  } catch {
+    // bỏ qua — cache hơi cũ tới khi hết TTL, không được làm hỏng request ghi
+  }
+}
+
+// Tương tự cho VIỆC NỘI BỘ PHÒNG (KT Cơ điện). Người thấy việc:
+//   • người đang được giao (assignment active) → dashboard "Việc của tôi"
+//   • trưởng/phó (+admin) phòng KT Cơ điện      → dashboard "Công việc của phòng"
+export async function invalidateDashboardsForDeptWorkTask(taskId) {
+  if (taskId == null) return
+  try {
+    const { rows } = await pool.query(
+      `SELECT a.assignee_id AS id
+         FROM dept_work_assignment a
+        WHERE a.task_id = $1 AND a.is_active
+       UNION
+       SELECT u.id
+         FROM app_user u
+         LEFT JOIN app_user_position ap ON ap.user_id = u.id
+        WHERE u.department_id = $2
+          AND (ap.position_id = ANY($3::int[]) OR u.role = 1)`,
+      [taskId, DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS],
+    )
+    await Promise.all(rows.map((r) => invalidateUserDashboards(r.id)))
   } catch {
     // bỏ qua
   }
