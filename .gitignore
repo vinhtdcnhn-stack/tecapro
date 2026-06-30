@@ -13,6 +13,10 @@ build/
 # Uploaded files (managed on server, not tracked in git)
 server/uploads/
 
+# Bản sao lưu uploads (.tar) tạo trên đĩa VPS — không theo git
+backups/
+server/uploads.bak-*/
+
 # Branding riêng cho từng doanh nghiệp — mỗi VPS có bản riêng, không theo git
 # nên `git pull` không bao giờ đè lên logo/màu. Xem brand.example.json làm mẫu.
 public/brand.json

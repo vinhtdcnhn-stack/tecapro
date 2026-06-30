@@ -55,9 +55,9 @@ function Layout() {
 
   // Phím tắt toàn cục.
   //  • Alt+C → trang chủ, Alt+B → danh sách Hợp đồng bán (giữ nguyên).
-  //  • Phím đơn (không giữ Alt/Ctrl/Meta/Shift, không đang gõ trong ô nhập):
-  //      z = quay lại trang trước
-  //      v/p/k/q/b/u = về trang chủ và mở dashboard tương ứng
+  //  • Tổ hợp Shift+… (không giữ Alt/Ctrl/Meta, không đang gõ trong ô nhập):
+  //      Shift+Z = quay lại trang trước
+  //      Shift+V/P/K/Q/B/U = về trang chủ và mở dashboard tương ứng
   //        (việc của tôi / PM / kế toán / tổng quan / việc của phòng / chưa đọc).
   useEffect(() => {
     // Đang gõ trong input/textarea/select/ô soạn thảo → bỏ qua phím đơn.
@@ -86,8 +86,8 @@ function Layout() {
         }
         return
       }
-      // Phím đơn: chỉ khi không giữ phím bổ trợ và không đang gõ.
-      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      // Tổ hợp Shift+…: chỉ khi giữ đúng Shift (không Alt/Ctrl/Meta) và không đang gõ.
+      if (!e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
       if (isTyping(e.target)) return
       const key = e.key.toLowerCase()
       if (key === 'z') {

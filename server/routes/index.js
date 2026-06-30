@@ -33,6 +33,10 @@ import {
   addFeedbackImage, uploadFeedbackImage,
 } from '../controllers/feedbackController.js'
 import { createBackup, restoreBackup, uploadRestore } from '../controllers/adminBackupController.js'
+import {
+  buildUploadsBackup, uploadsJobStatus, listUploadsBackups,
+  downloadUploadsBackup, deleteUploadsBackup, restoreUploads,
+} from '../controllers/adminUploadsBackupController.js'
 
 const router = Router()
 
@@ -63,10 +67,18 @@ router.post('/users/test-telegram', requireAdmin, authController.testTelegram)
 // Nhật ký gửi Telegram — chỉ admin xem (tự dọn bản ghi > 3 ngày khi tải).
 router.get('/telegram-logs', requireAdmin, listTelegramLogs)
 
-// Sao lưu / Khôi phục toàn hệ thống — chỉ admin. Tải bản backup (.tgz) về máy hoặc
-// upload bản backup để khôi phục (thao tác ghi đè toàn bộ dữ liệu).
+// Sao lưu / Khôi phục — chỉ admin.
+// CSDL (nhỏ): tải .tgz về máy hoặc upload để khôi phục.
 router.get('/admin/backup', requireAdmin, createBackup)
 router.post('/admin/restore', requireAdmin, uploadRestore, restoreBackup)
+// Tệp đính kèm uploads (rất lớn, hàng chục GB): gói tar trên đĩa VPS (job nền) rồi
+// tải về máy bằng link stream (hỗ trợ nối lại); khôi phục từ tệp .tar có sẵn trên VPS.
+router.post('/admin/uploads-backup', requireAdmin, buildUploadsBackup)
+router.get('/admin/uploads-backup/status', requireAdmin, uploadsJobStatus)
+router.get('/admin/uploads-backups', requireAdmin, listUploadsBackups)
+router.get('/admin/uploads-backups/download', requireAdmin, downloadUploadsBackup)
+router.delete('/admin/uploads-backups', requireAdmin, deleteUploadsBackup)
+router.post('/admin/uploads-restore', requireAdmin, restoreUploads)
 
 // Góp ý cải thiện phần mềm — mọi người dùng gửi (xem góp ý của mình), admin xem & xử lý tất cả.
 router.get('/feedback', listFeedback)

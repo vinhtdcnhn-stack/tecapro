@@ -2,14 +2,9 @@ import { spawn } from 'child_process'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
-import { fileURLToPath } from 'url'
 import multer from 'multer'
 import { pool } from '../db.js'
 import { notifyAction } from '../services/notify.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const SERVER_DIR = path.resolve(__dirname, '..')
-const UPLOADS_DIR = path.join(SERVER_DIR, 'uploads')
 
 // Dấu nhận dạng bản backup của chính hệ thống này — chặn việc khôi phục nhầm
 // một file backup của hệ thống/khách khác đè lên dữ liệu hiện tại.
@@ -81,7 +76,7 @@ export async function createBackup(req, res) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'tcp-backup-'))
   const dumpPath = path.join(work, 'db.dump')
   const manifestPath = path.join(work, 'manifest.json')
-  const archivePath = path.join(os.tmpdir(), `tecapro-backup-${timestamp()}.tgz`)
+  const archivePath = path.join(os.tmpdir(), `tecapro-db-backup-${timestamp()}.tgz`)
   const cleanup = () => { rmrf(work); rmrf(archivePath) }
   try {
     // 1) Dump CSDL ở định dạng custom (nén sẵn, cho phép pg_restore --clean).
@@ -99,13 +94,11 @@ export async function createBackup(req, res) {
     }
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8')
 
-    // 3) Gói lại. uploads có thể chưa tồn tại → tạo rỗng để tar không lỗi.
-    if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
+    // 3) Gói db.dump + manifest (KHÔNG kèm uploads — uploads sao lưu riêng vì rất lớn).
     // --force-local: trên Windows đường dẫn "C:\..." có dấu ":" sẽ bị GNU tar hiểu là host từ xa.
     await run('tar', [
       '--force-local', '-czf', fwd(archivePath),
       '-C', fwd(work), 'db.dump', 'manifest.json',
-      '-C', fwd(SERVER_DIR), 'uploads',
     ])
 
     // 4) Stream về client. res.download tự đặt Content-Disposition (tên tệp tải về).
@@ -141,7 +134,6 @@ export async function restoreBackup(req, res) {
   const archive = req.file.path
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'tcp-restore-'))
   const cleanup = () => { rmrf(archive); rmrf(work) }
-  let uploadsBak = null
   try {
     // 1) Giải nén.
     await run('tar', ['--force-local', '-xzf', fwd(archive), '-C', fwd(work)])
@@ -159,33 +151,18 @@ export async function restoreBackup(req, res) {
       throw new Error('Tệp backup không thuộc hệ thống này — từ chối khôi phục.')
     }
 
-    // 3) An toàn kép: sao lưu hiện trạng uploads (đổi tên) trước khi ghi đè.
-    if (fs.existsSync(UPLOADS_DIR)) {
-      uploadsBak = path.join(SERVER_DIR, `uploads.bak-${timestamp()}`)
-      fs.renameSync(UPLOADS_DIR, uploadsBak)
-    }
-
-    // 4) Khôi phục CSDL: --clean --if-exists để xoá & nạp lại sạch trên DB hiện có.
+    // 3) Khôi phục CSDL: --clean --if-exists để xoá & nạp lại sạch trên DB hiện có.
+    //    (uploads khôi phục riêng ở module "Tệp đính kèm".)
     await run('pg_restore', ['--clean', '--if-exists', '--no-owner', '--no-acl', '-d', dbUrl(), dumpPath])
 
-    // 5) Thay thư mục uploads bằng bản trong backup (nếu có).
-    const srcUploads = path.join(work, 'uploads')
-    if (fs.existsSync(srcUploads)) fs.renameSync(srcUploads, UPLOADS_DIR)
-    else fs.mkdirSync(UPLOADS_DIR, { recursive: true })
-
-    // 6) Báo Telegram cho admin + dọn bản uploads cũ (đã khôi phục xong).
+    // 4) Báo Telegram cho admin.
     notifyAdminsRestored(req.user?.id)
-    if (uploadsBak) rmrf(uploadsBak)
     cleanup()
     res.json({ success: true, restored_at: manifest.created_at, counts: manifest.counts || {} })
   } catch (err) {
-    // Hoàn nguyên uploads nếu đã đổi tên mà chưa thay xong.
-    if (uploadsBak && fs.existsSync(uploadsBak) && !fs.existsSync(UPLOADS_DIR)) {
-      try { fs.renameSync(uploadsBak, UPLOADS_DIR) } catch { /* ignore */ }
-    }
     cleanup()
     console.error('restoreBackup:', err)
-    res.status(500).json({ error: err.message || 'Không khôi phục được hệ thống.' })
+    res.status(500).json({ error: err.message || 'Không khôi phục được CSDL.' })
   }
 }
 

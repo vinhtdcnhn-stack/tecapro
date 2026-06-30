@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { API_BASE as API } from '../../config/api'
+import UploadsBackupSection from './UploadsBackupSection'
 
 const CONFIRM_PHRASE = 'KHÔI PHỤC'
 
@@ -75,7 +76,7 @@ export default function BackupPanel() {
   const card = { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 20, marginBottom: 20 }
 
   return (
-    <>
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <h2 className="section-title">SAO LƯU / KHÔI PHỤC HỆ THỐNG</h2>
 
       {msg && (
@@ -89,25 +90,28 @@ export default function BackupPanel() {
         </div>
       )}
 
-      {/* ── Sao lưu ── */}
-      <div style={card}>
-        <h3 style={{ marginTop: 0, color: '#166534' }}>📦 Tạo bản sao lưu</h3>
+      {/* ── Sao lưu CSDL ── */}
+      <div style={{ ...card, borderColor: '#bbf7d0' }}>
+        <h3 style={{ marginTop: 0, color: '#166534' }}>🗄️ Cơ sở dữ liệu</h3>
         <p style={{ color: '#555', fontSize: 14, lineHeight: 1.6 }}>
-          Tạo một tệp <strong>.tgz</strong> chứa toàn bộ cơ sở dữ liệu và các tệp đính kèm
-          (uploads), rồi tải về máy của bạn. Tệp này chứa dữ liệu nhạy cảm — hãy cất giữ
-          ở nơi an toàn.
+          Tạo một tệp <strong>.tgz</strong> chứa toàn bộ cơ sở dữ liệu (không kèm tệp đính kèm —
+          uploads sao lưu riêng bên dưới), rồi tải về máy. Tệp này chứa dữ liệu nhạy cảm — hãy
+          cất giữ ở nơi an toàn.
         </p>
         <button className="add-btn" onClick={handleBackup} disabled={backupBusy}>
-          {backupBusy ? '⏳ Đang tạo bản backup...' : '⬇️ Tạo & tải bản backup'}
+          {backupBusy ? '⏳ Đang tạo bản backup...' : '⬇️ Tạo & tải bản backup CSDL'}
         </button>
       </div>
 
-      {/* ── Khôi phục ── */}
+      {/* ── Sao lưu uploads (lớn) ── */}
+      <UploadsBackupSection />
+
+      {/* ── Khôi phục CSDL ── */}
       <div style={{ ...card, borderColor: '#fca5a5' }}>
-        <h3 style={{ marginTop: 0, color: '#b91c1c' }}>♻️ Khôi phục từ bản sao lưu</h3>
+        <h3 style={{ marginTop: 0, color: '#b91c1c' }}>♻️ Khôi phục cơ sở dữ liệu</h3>
         <p style={{ color: '#b91c1c', fontSize: 14, lineHeight: 1.6, fontWeight: 600 }}>
-          ⚠️ Thao tác này sẽ GHI ĐÈ TOÀN BỘ dữ liệu hiện tại bằng dữ liệu trong tệp backup
-          và KHÔNG THỂ hoàn tác. Chỉ thực hiện khi bạn chắc chắn.
+          ⚠️ Thao tác này sẽ GHI ĐÈ TOÀN BỘ cơ sở dữ liệu hiện tại bằng dữ liệu trong tệp backup
+          CSDL (.tgz) và KHÔNG THỂ hoàn tác. Tệp đính kèm (uploads) khôi phục riêng ở phần trên.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}>
@@ -138,10 +142,10 @@ export default function BackupPanel() {
               background: restoreBusy || !file || confirm.trim() !== CONFIRM_PHRASE ? '#fca5a5' : '#dc2626',
             }}
           >
-            {restoreBusy ? '⏳ Đang khôi phục...' : '♻️ Khôi phục hệ thống'}
+            {restoreBusy ? '⏳ Đang khôi phục...' : '♻️ Khôi phục CSDL'}
           </button>
         </div>
       </div>
-    </>
+    </div>
   )
 }
