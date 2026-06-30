@@ -4,8 +4,8 @@ import { todayLocal, fmtDate } from './reportUtils'
 // Ô "Kỳ báo cáo đến ngày" dùng chung cho báo cáo Công nợ phải thu / phải trả.
 //   • Chặn chọn ngày TƯƠNG LAI (sau hôm nay) kèm cảnh báo — không thể chốt số liệu ở
 //     thời điểm chưa tới.
-//   • Khi xem ngày < hôm nay → badge "đang xem lại quá khứ" (số liệu dựng theo trạng
-//     thái tại ngày đó từ record_history).
+//   • Khi xem ngày < hôm nay → badge "đang xem lại quá khứ" (số liệu cắt theo NGÀY tới
+//     ngày đó; giá trị dùng dữ liệu hiện tại đã sửa, không đóng băng số cũ).
 export default function ReportPeriodField({ value, onChange }) {
   const [warn, setWarn] = useState('')
   const maxDate = todayLocal()

@@ -215,7 +215,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
       {/* Card Thống kê — ẩn trên mobile */}
       {!isMobile && (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="stat-card">
           <p className="stat-label">Tổng hợp đồng</p>
           <p className="stat-value">{stats.total}</p>
@@ -227,10 +227,6 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
         <div className="stat-card">
           <p className="stat-label">Hoàn thành</p>
           <p className="stat-value text-blue-600">{stats.completed}</p>
-        </div>
-        <div className="stat-card">
-          <p className="stat-label">Tổng giá trị</p>
-          <p className="stat-value money">{formatCurrency(stats.totalValue)} ₫</p>
         </div>
       </div>
       )}
@@ -323,7 +319,6 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                 <div className="clp-card-rows">
                   <div><span>Chủ đầu tư</span><span>{c.customer_name || '-'}</span></div>
                   <div><span>Ngày ký</span><span>{formatDate(c.contract_date)}</span></div>
-                  <div><span>Sau VAT</span><span className="clp-card-money">{formatCurrency(toVnd(c.amount_after_vat, c))} ₫</span></div>
                   <div><span>PM chính</span><span>{c.pm_name || '-'}</span></div>
                 </div>
               </button>
@@ -379,13 +374,6 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                   Ngày ký{getSortIcon('contract_date')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col col-tender-name">Gói thầu</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('amount_before_vat')}>
-                  Trước VAT{getSortIcon('amount_before_vat')}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('amount_after_vat')}>
-                  Sau VAT{getSortIcon('amount_after_vat')}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col">USD</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-pm-name" onClick={() => handleSort('pm_name')}>
                   PM chính{getSortIcon('pm_name')}{renderSelectDropdown('pm_name', uniquePMs)}
                 </th>
@@ -400,7 +388,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
             <tbody className="bg-white divide-y divide-gray-100 table-body">
               {filteredAndSortedContracts.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     <p className="mt-2 text-sm">Không tìm thấy kết quả nào phù hợp.</p>
                   </td>
@@ -446,9 +434,6 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.customer_name || '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDate(c.contract_date)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.tender_name || '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(toVnd(c.amount_before_vat, c))}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium col-money">{formatCurrency(toVnd(c.amount_after_vat, c))}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right col-money">{c.currency_code === 'USD' ? formatCurrency(c.amount_after_vat) : '-'}</td>
                     <td className="px-6 py-3 whitespace-nowrap">{getAvatarBadge(c.pm_name)}</td>
                     <td className="px-6 py-3 whitespace-nowrap">{getStatusBadge(c.status)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.project_name || '-'}</td>

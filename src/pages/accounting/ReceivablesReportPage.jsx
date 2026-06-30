@@ -30,9 +30,9 @@ export default function ReceivablesReportPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      // Chỉ gửi asOf (≤ hôm nay): chốt số liệu ĐÚNG tại ngày báo cáo (đã thu/giá trị HĐ/
-      // quá hạn tính tới ngày đó), dựng lại từ record_history. Backend tự lấy cận lọc
-      // to = cuối tháng của asOf → vẫn liệt kê đủ khoản đáo hạn trong tháng đó.
+      // Chỉ gửi asOf (≤ hôm nay): chốt số liệu tại ngày báo cáo theo NGÀY (đã thu/quá hạn
+      // tính tới ngày đó); giá trị HĐ/lịch thu dùng bản LIVE (đã sửa). Backend tự lấy cận
+      // lọc to = cuối tháng của asOf → vẫn liệt kê đủ khoản đáo hạn trong tháng đó.
       const data = await apiGet(`/reports/receivables?asOf=${to}&basis=${basis}`, { conditional: true })
       setRows(Array.isArray(data.rows) ? data.rows : [])
     } catch (e) { console.error('receivables report:', e) }

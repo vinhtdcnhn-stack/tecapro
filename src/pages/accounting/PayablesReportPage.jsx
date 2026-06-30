@@ -29,9 +29,9 @@ export default function PayablesReportPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      // Chỉ gửi asOf (≤ hôm nay): chốt số liệu ĐÚNG tại ngày báo cáo (đã trả/giá trị/quá
-      // hạn tính tới ngày đó), dựng lại từ record_history. Backend tự lấy cận lọc
-      // to = cuối tháng của asOf → vẫn liệt kê đủ đợt đáo hạn trong tháng đó.
+      // Chỉ gửi asOf (≤ hôm nay): chốt số liệu tại ngày báo cáo theo NGÀY (đã trả/quá hạn
+      // tính tới ngày đó); giá trị đợt phải trả dùng bản LIVE (đã sửa). Backend tự lấy cận
+      // lọc to = cuối tháng của asOf → vẫn liệt kê đủ đợt đáo hạn trong tháng đó.
       const data = await apiGet(`/reports/payables?asOf=${to}`, { conditional: true })
       setRows(Array.isArray(data.rows) ? data.rows : [])
     } catch (e) { console.error('payables report:', e) }

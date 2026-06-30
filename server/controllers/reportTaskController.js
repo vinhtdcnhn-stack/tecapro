@@ -1,6 +1,5 @@
 import { pool } from '../db.js'
 import { vnToday } from '../utils/reportLoaders.js'
-import { overdueTasksAsOf } from '../utils/reportLoaders.asof.js'
 import { cacheWrap } from '../cache.js'
 import { reportKey, reportNotModified } from '../services/cacheKeys.js'
 
@@ -10,21 +9,13 @@ const REPORT_TTL = 2 * 60 * 60 // 2h — nhóm 'task', invalidate khi contract_t
 // Công việc QUÁ HẠN toàn hệ thống cho dashboard điều hành (đọc-only, gating requireAccountant).
 // Overdue = due_date < hôm nay (giờ VN) AND status chưa kết thúc ('Hoàn thành'/'Hủy').
 // Bỏ qua HĐ đã xóa. Sắp xếp theo số ngày trễ giảm dần.
-// Khi request có asOf rõ ràng (xem tại 1 thời điểm quá khứ) → dựng theo TRẠNG THÁI tại
-// asOf từ record_history (overdueTasksAsOf), không dùng status hiện tại.
+// asOf (xem tại 1 thời điểm quá khứ): chỉ đổi mốc "hôm nay" để tính ngày trễ; vẫn dùng
+// dữ liệu việc LIVE (tiêu đề/hạn/trạng thái đã sửa), không dựng lại trạng thái quá khứ.
 export async function getOverdueTasks(req, res) {
   try {
     if (await reportNotModified(req, res, 'task')) return
     const explicitAsOf = /^\d{4}-\d{2}-\d{2}$/.test(req.query.asOf) ? req.query.asOf : null
-    if (explicitAsOf) {
-      const key = await reportKey('task', 'overdue-tasks', { asOf: explicitAsOf, pit: true })
-      const payload = await cacheWrap(key, REPORT_TTL, async () => {
-        const rows = await overdueTasksAsOf(explicitAsOf, pool)
-        return { asOf: explicitAsOf, count: rows.length, rows }
-      })
-      return res.json(payload)
-    }
-    const asOf = vnToday()
+    const asOf = explicitAsOf || vnToday()
     const key = await reportKey('task', 'overdue-tasks', { asOf })
     const payload = await cacheWrap(key, REPORT_TTL, async () => {
       const { rows } = await pool.query(`
