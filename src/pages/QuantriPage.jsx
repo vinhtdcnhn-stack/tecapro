@@ -17,10 +17,11 @@ import SupplierModal from '../components/suppliers/SupplierModal'
 import CodeNameModal from '../components/common/CodeNameModal'
 import TelegramLogPanel from '../components/admin/TelegramLogPanel'
 import FeedbackPanel from '../components/admin/FeedbackPanel'
+import BackupPanel from '../components/admin/BackupPanel'
 
-const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types', 'telegram-log', 'feedback']
+const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types', 'telegram-log', 'feedback', 'backup']
 // Các section chỉ admin (role==1) mới được xem.
-const ADMIN_ONLY_SECTIONS = ['telegram-log']
+const ADMIN_ONLY_SECTIONS = ['telegram-log', 'backup']
 
 export default function QuantriPage() {
   const { user } = useAuth()
@@ -337,6 +338,8 @@ export default function QuantriPage() {
           {section === 'telegram-log' && <TelegramLogPanel />}
 
           {section === 'feedback' && <FeedbackPanel />}
+
+          {section === 'backup' && <BackupPanel />}
 
         </section>
       </div>

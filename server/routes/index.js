@@ -32,6 +32,7 @@ import {
   listFeedback, createFeedback, updateFeedback, deleteFeedback,
   addFeedbackImage, uploadFeedbackImage,
 } from '../controllers/feedbackController.js'
+import { createBackup, restoreBackup, uploadRestore } from '../controllers/adminBackupController.js'
 
 const router = Router()
 
@@ -61,6 +62,11 @@ router.post('/users/test-telegram', requireAdmin, authController.testTelegram)
 
 // Nhật ký gửi Telegram — chỉ admin xem (tự dọn bản ghi > 3 ngày khi tải).
 router.get('/telegram-logs', requireAdmin, listTelegramLogs)
+
+// Sao lưu / Khôi phục toàn hệ thống — chỉ admin. Tải bản backup (.tgz) về máy hoặc
+// upload bản backup để khôi phục (thao tác ghi đè toàn bộ dữ liệu).
+router.get('/admin/backup', requireAdmin, createBackup)
+router.post('/admin/restore', requireAdmin, uploadRestore, restoreBackup)
 
 // Góp ý cải thiện phần mềm — mọi người dùng gửi (xem góp ý của mình), admin xem & xử lý tất cả.
 router.get('/feedback', listFeedback)

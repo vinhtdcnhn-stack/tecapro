@@ -10,6 +10,7 @@ const ITEMS = [
   { label: 'QUẢN LÝ LOẠI BIÊN BẢN', section: 'bb-types'   },
   { label: 'NHẬT KÝ TELEGRAM',     section: 'telegram-log', adminOnly: true },
   { label: 'GÓP Ý CẢI THIỆN',      section: 'feedback'    },
+  { label: 'SAO LƯU / KHÔI PHỤC',  section: 'backup', adminOnly: true },
 ]
 
 export default function Sidebar() {
