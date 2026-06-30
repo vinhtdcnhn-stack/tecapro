@@ -70,14 +70,22 @@ async function attachImages(items) {
   return items
 }
 
-// GET /api/feedback?page=&pageSize=  — admin xem tất cả, người dùng thường chỉ xem góp ý của mình.
+// GET /api/feedback?page=&pageSize=&status=  — admin xem tất cả, người dùng thường chỉ xem góp ý của mình.
+// status (tùy chọn): lọc theo trạng thái xử lý; bỏ trống = tất cả.
 export async function listFeedback(req, res) {
   const page = Math.max(1, Number(req.query.page) || 1)
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.query.pageSize) || 50))
   const offset = (page - 1) * pageSize
   const admin = isAdmin(req)
-  const where = admin ? '' : 'WHERE f.user_id = $3'
-  const params = admin ? [pageSize, offset] : [pageSize, offset, req.user.id]
+  const status = String(req.query.status || '')
+
+  // Dựng điều kiện lọc động (quyền xem + trạng thái) dùng chung cho cả truy vấn danh sách và đếm.
+  const conds = []
+  const filterParams = []
+  if (!admin) { filterParams.push(req.user.id); conds.push(`f.user_id = $${filterParams.length}`) }
+  if (VALID_STATUSES.has(status)) { filterParams.push(status); conds.push(`f.status = $${filterParams.length}`) }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : ''
+
   try {
     const { rows } = await pool.query(
       `SELECT f.id, f.user_id, f.category, f.content, f.status, f.admin_note,
@@ -86,14 +94,14 @@ export async function listFeedback(req, res) {
          LEFT JOIN app_user u ON u.id = f.user_id
          ${where}
         ORDER BY f.created_at DESC, f.id DESC
-        LIMIT $1 OFFSET $2`,
-      params,
+        LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}`,
+      [...filterParams, pageSize, offset],
     )
     await attachImages(rows)
-    const cntSql = admin
-      ? 'SELECT count(*)::int AS total FROM app_feedback'
-      : 'SELECT count(*)::int AS total FROM app_feedback WHERE user_id = $1'
-    const { rows: cnt } = await pool.query(cntSql, admin ? [] : [req.user.id])
+    const { rows: cnt } = await pool.query(
+      `SELECT count(*)::int AS total FROM app_feedback f ${where}`,
+      filterParams,
+    )
     res.json({ items: rows, total: cnt[0].total, page, pageSize, isAdmin: admin })
   } catch (err) {
     console.error('listFeedback:', err)

@@ -49,6 +49,7 @@ export default function FeedbackPanel() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('open') // ngầm định: chỉ xem góp ý "Mới"
 
   // Form gửi góp ý
   const [category, setCategory] = useState('feature')
@@ -61,7 +62,9 @@ export default function FeedbackPanel() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${API}/feedback?page=${p}&pageSize=${PAGE_SIZE}`)
+      const qs = new URLSearchParams({ page: p, pageSize: PAGE_SIZE })
+      if (statusFilter) qs.set('status', statusFilter)
+      const res = await fetch(`${API}/feedback?${qs}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Không tải được góp ý.')
       setItems(prev => (p === 1 ? data.items : [...prev, ...data.items]))
@@ -72,10 +75,10 @@ export default function FeedbackPanel() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [statusFilter])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loader async: setState sau await
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loader async: setState sau await; chạy lại khi đổi bộ lọc trạng thái
     load(1)
   }, [load])
 
@@ -144,7 +147,13 @@ export default function FeedbackPanel() {
         body: JSON.stringify({ status }),
       })
       if (!res.ok) throw new Error()
-      setItems(prev => prev.map(it => (it.id === id ? { ...it, status } : it)))
+      // Đang lọc theo trạng thái mà mục vừa đổi sang trạng thái khác → gỡ khỏi danh sách.
+      if (statusFilter && status !== statusFilter) {
+        setItems(prev => prev.filter(it => it.id !== id))
+        setTotal(t => Math.max(0, t - 1))
+      } else {
+        setItems(prev => prev.map(it => (it.id === id ? { ...it, status } : it)))
+      }
     } catch {
       alert('Không cập nhật được trạng thái.')
     }
@@ -240,14 +249,22 @@ export default function FeedbackPanel() {
 
       {error && <div style={{ color: '#c00', marginBottom: '10px' }}>{error}</div>}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '10px', flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
           {isAdmin ? 'Tất cả góp ý' : 'Góp ý của tôi'} ({total})
         </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label style={{ fontSize: '13px', color: '#475569' }}>Lọc trạng thái:</label>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
+            <option value="">Tất cả</option>
+            {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Danh sách góp ý dạng thẻ */}
-      <div className="content-scrollable" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="content-scrollable" style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', paddingRight: '4px' }}>
         {items.length === 0 && !loading ? (
           <div style={{ textAlign: 'center', padding: '30px', color: '#666' }}>Chưa có góp ý nào.</div>
         ) : (
