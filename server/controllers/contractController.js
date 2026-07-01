@@ -126,9 +126,13 @@ export async function getContractById(req, res) {
         co.exchange_rate,
         co.payment_term AS terms,
         co.is_joint_venture,
-        co.status
+        co.status,
+        co.boq_locked,
+        co.boq_locked_at,
+        lu.full_name AS boq_locked_by_name
       FROM contract_out co
       LEFT JOIN customer c ON c.id = co.customer_id
+      LEFT JOIN app_user lu ON lu.id = co.boq_locked_by
       WHERE co.id = $1 AND COALESCE(co.is_deleted, false) = false
     `
     

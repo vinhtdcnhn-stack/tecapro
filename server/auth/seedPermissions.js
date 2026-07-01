@@ -96,6 +96,8 @@ export async function seedBootstrap(client = pool) {
     ['dashboard.dept.view',       ['TP', 'PP']],
     ['dashboard.director.view',   ['GD', 'PGD', 'TQ_TEAM']],
     ['dashboard.accounting.view', ['GD', 'PGD', 'KT_DASH']],
+    // Khóa/mở khóa bảng giá — quyền giám sát của Trưởng/Phó ban (không cấp cho PM).
+    ['co.boq.lock',               ['TP', 'PP']],
   ]) {
     await client.query(
       `INSERT INTO position_permission (position_id, perm_key)

@@ -135,6 +135,13 @@ const SECTIONS = [
   { key: 'ci.customs.amounts',    group: 'HĐ nhập', label: 'Xem chi phí xuất nhập khẩu (XNK)',    requiresView: 'ci.customs.view' },
 ]
 
+// Quyền HĐ ĐẶC BIỆT ngoài cặp .view/.manage tự sinh. Mỗi mục là 1 thao tác riêng.
+//   • co.boq.lock — KHÓA/mở khóa bảng giá. Bootstrap chỉ cấp cho Trưởng/Phó ban (TP/PP),
+//     KHÔNG cho PM → khóa mang tính giám sát: PM không tự mở lại được. requires co.boq.view.
+const EXTRA_CONTRACT = [
+  { key: 'co.boq.lock', scope: 'contract', kind: 'tab', group: 'HĐ bán', label: 'Bảng giá — Khóa/Mở khóa', requires: ['co.boq.view'] },
+]
+
 // Sinh CONTRACT_PERMISSIONS từ định nghĩa tab/section.
 function buildContractPerms() {
   const out = []
@@ -149,6 +156,7 @@ function buildContractPerms() {
     key: s.key, scope: 'contract', kind: 'section', group: s.group,
     label: s.label, requires: [s.requiresView],
   }))
+  out.push(...EXTRA_CONTRACT)
   return out
 }
 

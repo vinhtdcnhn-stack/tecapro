@@ -415,6 +415,11 @@ const LOCK_RESOLVERS = {
                      JOIN contract_in_delivery_item it ON it.id = s.delivery_item_id
                      JOIN contract_in_delivery d ON d.id = it.delivery_id WHERE s.id = ANY($1::bigint[])`,
   invoice:        `SELECT locked FROM contract_out_invoice WHERE id = ANY($1::bigint[])`,
+  // Khóa bảng giá ở mức HĐ (contract_out.boq_locked). Hai lối vào: id thẳng HĐ (route
+  // collection /contracts/:contractId/boq*) và id dòng bảng giá (route /boq/:id, bulk).
+  boqContract:    `SELECT boq_locked AS locked FROM contract_out WHERE id = ANY($1::bigint[])`,
+  boqItem:        `SELECT c.boq_locked AS locked FROM contract_out_boq b
+                     JOIN contract_out c ON c.id = b.contract_out_id WHERE b.id = ANY($1::bigint[])`,
 }
 
 // label: tên hiển thị của loại đợt trong thông báo lỗi (mặc định "Đợt nhận").

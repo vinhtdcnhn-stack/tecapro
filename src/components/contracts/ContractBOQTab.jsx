@@ -9,13 +9,19 @@ import useBOQTab from './useBOQTab'
 import useSupplyFlags from './useSupplyFlags'
 import useSyncedHScroll from './useSyncedHScroll'
 import EditGuard from './EditGuard'
+import usePasswordPrompt from './usePasswordPrompt'
 import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
+
+// SVG ổ khóa (đóng / mở) — nút khóa/mở khóa bảng giá
+const LockClosedIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 10 0h-2a3 3 0 0 0-6 0v2z"/></svg>
+const LockOpenIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h9V6a3 3 0 0 0-6 0H7a5 5 0 0 1 10 0v2z"/></svg>
+const fmtDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN') : ''
 
 // ── Component (chỉ render; toàn bộ logic ở hook useBOQTab) ─────────────────────
 
 export default function ContractBOQTab({ contractId }) {
   const {
-    rows, currency, loading, totals, isMobile, rollup,
+    rows, currency, loading, totals, isMobile, rollup, lock, applyLock,
     search, setSearch, typeFilter, setTypeFilter, isFiltering, visibleRows,
     selected, toggleSelect, allSelected, toggleSelectAll, selectableKeys, selectedCount,
     bulkDelete, bulkDeleting,
@@ -36,8 +42,33 @@ export default function ContractBOQTab({ contractId }) {
 
   const canEdit = useCanEdit()
   // "Xem một phần": ẩn (che •••) cột Đơn giá / Thành tiền nếu thiếu quyền section.
-  const { canSection } = useContractPerm()
+  const { canSection, canManage } = useContractPerm()
   const showPrice = canSection('co.boq.unit_price')
+  const canLock = canManage('co.boq.lock')   // TP/PP + admin
+  const locked = lock.locked                 // bảng giá đang khóa → chặn mọi thao tác ghi
+
+  // Khóa/mở khóa toàn bộ bảng giá. Khi khóa, không ai sửa/thêm/xóa dòng tới khi mở.
+  // MỞ KHÓA cần nhập lại mật khẩu (như bên khóa đợt xuất hóa đơn).
+  const { promptPassword, passwordModal } = usePasswordPrompt()
+  const onToggleLock = async () => {
+    let password
+    if (locked) {
+      password = await promptPassword({
+        title: 'Mở khóa bảng giá',
+        message: 'Nhập mật khẩu của bạn để mở khóa bảng giá hợp đồng này.',
+      })
+      if (password == null) return   // hủy
+    }
+    try {
+      const res = await fetch(`${API}/contracts/${contractId}/boq-lock`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locked: !locked, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || 'Không thể đổi trạng thái khóa.'); return }
+      applyLock(data)
+    } catch { alert('Không thể đổi trạng thái khóa.') }
+  }
 
   // Phóng to bảng giá toàn màn hình (vẫn giữ thanh menu trình duyệt)
   const [fullscreen, setFullscreen] = useState(false)
@@ -94,8 +125,8 @@ export default function ContractBOQTab({ contractId }) {
         el.scrollTo({ left: target, behavior: 'smooth' })
         return
       }
-      // Alt+N / Alt+P / Alt+H: thêm dòng / phần / hệ thống (chỉ khi có quyền sửa)
-      if (!e.altKey || e.ctrlKey || !canEdit) return
+      // Alt+N / Alt+P / Alt+H: thêm dòng / phần / hệ thống (chỉ khi có quyền sửa + chưa khóa)
+      if (!e.altKey || e.ctrlKey || !canEdit || locked) return
       if (e.code === 'KeyN')      { e.preventDefault(); handleAddRow() }
       else if (e.code === 'KeyP') { e.preventDefault(); handleAddZone() }
       else if (e.code === 'KeyH') { e.preventDefault(); handleAddGroup() }
@@ -112,7 +143,7 @@ export default function ContractBOQTab({ contractId }) {
       window.removeEventListener('keypress', onKeyPress, { capture: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, canEdit])
+  }, [isMobile, canEdit, locked])
 
   if (loading) return <div className="boq-loading">Đang tải bảng giá...</div>
 
@@ -122,7 +153,7 @@ export default function ContractBOQTab({ contractId }) {
       {/* ── Toolbar ── */}
       <div className="boq-toolbar">
         <div className="boq-toolbar-left">
-          <EditGuard perm="co.boq.manage">
+          <EditGuard perm="co.boq.manage" disabled={locked}>
             <button className="boq-btn boq-btn-green" onClick={() => excelRef.current?.click()}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
@@ -144,7 +175,7 @@ export default function ContractBOQTab({ contractId }) {
             Tải template
           </a>
 
-          <EditGuard perm="co.boq.manage">
+          <EditGuard perm="co.boq.manage" disabled={locked}>
             <button className="boq-btn" onClick={handleAddRow} title="Thêm dòng (Alt+N)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
@@ -174,6 +205,23 @@ export default function ContractBOQTab({ contractId }) {
             <span className="boq-summary-sep">|</span>
             Sau VAT: <strong>{showPrice ? fmtNum(totals.after, currency) : '•••'}</strong>
           </span>
+
+          {/* Trạng thái + nút khóa/mở khóa bảng giá (chỉ TP/PP + admin thấy nút) */}
+          {locked && (
+            <span className="boq-locked-badge"
+              title={lock.byName
+                ? `Khóa bởi ${lock.byName}${lock.at ? ` lúc ${fmtDateTime(lock.at)}` : ''}`
+                : 'Bảng giá đã khóa'}>
+              🔒 Đã khóa{lock.byName ? ` · ${lock.byName}` : ''}
+            </span>
+          )}
+          {canLock && (
+            <button className={`boq-btn boq-lock-btn${locked ? ' locked' : ''}`} onClick={onToggleLock}
+              title={locked ? 'Mở khóa bảng giá' : 'Khóa bảng giá (không cho sửa)'}>
+              {locked ? <LockClosedIcon /> : <LockOpenIcon />}
+              {locked ? 'Mở khóa' : 'Khóa bảng giá'}
+            </button>
+          )}
 
           <button
             className="boq-btn boq-btn-fs"
@@ -224,7 +272,7 @@ export default function ContractBOQTab({ contractId }) {
         {selectedCount > 0 && (
           <>
             <span className="boq-sel-count">Đã chọn {selectedCount}</span>
-            <EditGuard perm="co.boq.manage">
+            <EditGuard perm="co.boq.manage" disabled={locked}>
               <button className="boq-btn boq-btn-danger" onClick={bulkDelete} disabled={bulkDeleting}>
                 {bulkDeleting ? 'Đang xóa…' : (
                   <>
@@ -238,8 +286,8 @@ export default function ContractBOQTab({ contractId }) {
         )}
       </div>
 
-      {/* ── Table (desktop) / Cards (mobile) ── Vô hiệu hóa nhập/xóa khi không phải PM */}
-      <EditGuard perm="co.boq.manage">
+      {/* ── Table (desktop) / Cards (mobile) ── Vô hiệu hóa nhập/xóa khi không phải PM hoặc bảng giá đã khóa */}
+      <EditGuard perm="co.boq.manage" disabled={locked}>
       {isMobile ? (
         <BOQMobile
           items={visibleRows}
@@ -321,8 +369,8 @@ export default function ContractBOQTab({ contractId }) {
                 deleteRow={deleteRow}
                 onAddChild={addChild}
                 onToggleMultiply={toggleMultiply}
-                canDrag={canEdit && !isFiltering && !r._isNew && !!r.id && (r.row_kind || 'leaf') === 'leaf'}
-                canDrop={canEdit && !isFiltering && !r._isNew && !!r.id}
+                canDrag={canEdit && !locked && !isFiltering && !r._isNew && !!r.id && (r.row_kind || 'leaf') === 'leaf'}
+                canDrop={canEdit && !locked && !isFiltering && !r._isNew && !!r.id}
                 isDragging={dragKey === r._key}
                 isDragOver={dragOverKey === r._key}
                 onDragStart={handleDragStart}
@@ -363,6 +411,8 @@ export default function ContractBOQTab({ contractId }) {
           onClose={() => setImportData(null)}
         />
       )}
+
+      {passwordModal}
     </div>
   )
 }

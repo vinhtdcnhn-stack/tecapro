@@ -39,6 +39,7 @@ function emptyRow({ insertAfterRefId = null, parentId = null, rowKind = ROW_KIND
 export default function useBOQTab(contractId) {
   const [rows, setRows]           = useState([])
   const [currency, setCurrency]   = useState('VND')
+  const [lock, setLock]           = useState({ locked: false, byName: null, at: null })
   const [loading, setLoading]     = useState(true)
   const [importData, setImportData] = useState(null)  // { items, total }
   const [importMode, setImportMode] = useState('append')
@@ -62,6 +63,7 @@ export default function useBOQTab(contractId) {
       const data  = await res.json()
       const cData = await cRes.json()
       setCurrency(cData?.currency_code || 'VND')
+      setLock({ locked: !!cData?.boq_locked, byName: cData?.boq_locked_by_name || null, at: cData?.boq_locked_at || null })
       setRows(data.map(r => toLocalRow(r)))
       setSelected(new Set())
     } catch (e) {
@@ -442,9 +444,16 @@ export default function useBOQTab(contractId) {
   // Tổng HĐ = tổng số tiền các node gốc (đã roll-up + hệ số ×SL của nhóm).
   const totals = useMemo(() => treeTotals(rows, rollup), [rows, rollup])
 
+  // Cập nhật trạng thái khóa tại chỗ sau khi khóa/mở khóa (không cần load lại cả bảng).
+  const applyLock = (row) => setLock({
+    locked: !!row?.boq_locked, byName: row?.boq_locked_by_name || null, at: row?.boq_locked_at || null,
+  })
+
   return {
     // data
     rows, currency, loading, totals, isMobile, rollup,
+    // khóa bảng giá
+    lock, applyLock,
     // filter
     search, setSearch, typeFilter, setTypeFilter, isFiltering, visibleRows,
     // selection

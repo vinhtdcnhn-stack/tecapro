@@ -17,9 +17,12 @@ import { useContractPerm } from '../../context/ContractPermContext'
 //
 // LƯU Ý: chỉ chặn được form control. Các phần tử click-được không phải control
 // (<a>, <div onClick>, kéo-thả) phải tự gate bằng useCanEdit()/useContractPerm().
-export default function EditGuard({ children, style, serial = false, perm }) {
+//
+// prop `disabled`: ép vô hiệu hóa DÙ có quyền — dùng cho trạng thái khóa (vd bảng giá đã
+// khóa thì kể cả người có co.boq.manage cũng không sửa được tới khi mở khóa).
+export default function EditGuard({ children, style, serial = false, perm, disabled = false }) {
   const { canEdit, canEditSerial, canManage } = useContractPerm()
-  const allowed = perm ? canManage(perm) : (serial ? canEditSerial : canEdit)
+  const allowed = !disabled && (perm ? canManage(perm) : (serial ? canEditSerial : canEdit))
   if (allowed) return children
   return (
     <fieldset

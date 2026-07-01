@@ -7,6 +7,7 @@ import {
   getContractCurrency, buildRowFields, promoteParentToGroup, invoicedQty, validateSiblingName,
 } from './boqHelpers.js'
 import { cacheWrap } from '../cache.js'
+import { verifyUserPassword } from '../auth/verifyPassword.js'
 import { contractKey, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
 
 export { excelUpload, downloadBOQTemplate }
@@ -42,6 +43,35 @@ export async function getBOQ(req, res) {
   } catch (err) {
     console.error('getBOQ:', err)
     res.status(500).json({ error: 'Failed to get BOQ' })
+  }
+}
+
+// ── PATCH /contracts/:contractId/boq-lock ─ khóa/mở khóa toàn bộ bảng giá ─────
+// Chỉ Trưởng/Phó ban của HĐ (co.boq.lock) + admin (gác ở route). Khi locked=true, mọi
+// thao tác ghi bảng giá bị chặn (blockIfLocked) tới khi mở. MỞ KHÓA buộc nhập lại mật khẩu.
+export async function setBOQLock(req, res) {
+  const { contractId } = req.params
+  const locked = !!req.body.locked
+  try {
+    if (!locked) {
+      const ok = await verifyUserPassword(req.user.id, req.body.password)
+      if (!ok) return res.status(401).json({ error: 'Mật khẩu không đúng.' })
+    }
+    const { rows } = await pool.query(`
+      WITH upd AS (
+        UPDATE public.contract_out
+          SET boq_locked = $1, boq_locked_by = $2, boq_locked_at = $3
+        WHERE id = $4 RETURNING id, boq_locked, boq_locked_at, boq_locked_by
+      )
+      SELECT upd.id, upd.boq_locked, upd.boq_locked_at, lu.full_name AS boq_locked_by_name
+      FROM upd LEFT JOIN public.app_user lu ON lu.id = upd.boq_locked_by
+    `, [locked, locked ? req.user.id : null, locked ? new Date() : null, contractId])
+    if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy hợp đồng.' })
+    invalidateContract(contractId, 'info') // trạng thái khóa nằm trong info (getContractById)
+    res.json(rows[0])
+  } catch (err) {
+    console.error('setBOQLock:', err)
+    res.status(500).json({ error: 'Không thể đổi trạng thái khóa bảng giá.' })
   }
 }
 
