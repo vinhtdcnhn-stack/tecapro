@@ -1,4 +1,5 @@
 import { SERIAL_STATUSES, fmtDate } from './warrantyUtils'
+import { auditRowAttrs } from '../common/rowAudit'
 
 const INACTIVE = ['Đã thay thế', 'Ngừng sử dụng']
 
@@ -19,7 +20,7 @@ export default function ContractInSerialRow({ row, idx, selected, onToggleSelect
   const locked = !!row.batch_locked   // serial thuộc đợt đã khóa → chỉ đọc
 
   return (
-    <tr style={{ background: selected ? '#eff6ff' : isDirty ? '#fffbeb' : 'transparent', opacity: inactive ? 0.65 : 1 }}>
+    <tr {...auditRowAttrs('contract_in_delivery_serial', row.id)} style={{ background: selected ? '#eff6ff' : isDirty ? '#fffbeb' : 'transparent', opacity: inactive ? 0.65 : 1 }}>
       <td style={{ ...cell, textAlign:'center' }}>
         <input type="checkbox" checked={selected} disabled={locked} onChange={() => onToggleSelect(row.id)} style={{ cursor: locked ? 'not-allowed' : 'pointer', accentColor:'#2563eb' }} />
       </td>

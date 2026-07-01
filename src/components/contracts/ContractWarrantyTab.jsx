@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import './ContractWarrantyTab.css'
 
 import { API } from '../../config/api'
+import { useContractPerm } from '../../context/ContractPermContext'
 import EquipmentSubTab from './WarrantyEquipmentSubTab'
 import CasesSubTab from './WarrantyCasesSubTab'
 import WarrantySerialSubTab from './WarrantySerialSubTab'
@@ -10,6 +11,7 @@ import { ActivitiesSubTab } from './WarrantyDisplaySubTabs'
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ContractWarrantyTab({ contractId }) {
+  const { canView }               = useContractPerm()
   const [subTab, setSubTab]       = useState('equipment')
   const [equipment, setEquipment] = useState([])
   const [deliveries, setDeliveries] = useState([])
@@ -60,7 +62,7 @@ export default function ContractWarrantyTab({ contractId }) {
   return (
     <div className="wty-tab">
       <div className="wty-subtab-bar">
-        {SUBTABS.map(t => (
+        {SUBTABS.filter(t => canView(`co.warranty.${t.key}.view`)).map(t => (
           <button key={t.key} className={`wty-subtab-btn ${subTab===t.key?'active':''}`} onClick={()=>setSubTab(t.key)}>
             {t.label}
           </button>

@@ -1,15 +1,17 @@
 import { fmtNum, calcAmounts } from './boqUtils'
 import NumberInput from '../common/NumberInput'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Một dòng trong bảng giá mua (purchase BOQ). Tách riêng để giữ ContractInBOQTab gọn dưới 500 dòng.
 export default function PurchaseBOQRow({
-  row, idx, currency, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow,
+  row, idx, currency, showPrice = true, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow,
   canDrag, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
 
   return (
     <tr
+      {...auditRowAttrs('contract_in_boq', row.id)}
       draggable={canDrag}
       onDragStart={canDrag ? (e) => onDragStart(e, row._key) : undefined}
       onDragOver={canDrag ? onDragOver : undefined}
@@ -60,12 +62,14 @@ export default function PurchaseBOQRow({
       </td>
 
       <td className="td-num">
-        <NumberInput value={row.unit_price}
-          onChange={v => set(row._key, 'unit_price', v)}
-          placeholder="0" />
+        {showPrice ? (
+          <NumberInput value={row.unit_price}
+            onChange={v => set(row._key, 'unit_price', v)}
+            placeholder="0" />
+        ) : <span className="boq-masked">•••</span>}
       </td>
 
-      <td className="td-amt computed">{fmtNum(before, currency)}</td>
+      <td className="td-amt computed">{showPrice ? fmtNum(before, currency) : '•••'}</td>
 
       <td className="td-vat">
         <input type="number" value={row.vat_rate}
@@ -73,7 +77,7 @@ export default function PurchaseBOQRow({
           placeholder="10" min="0" max="100" />
       </td>
 
-      <td className="td-amt computed">{fmtNum(after, currency)}</td>
+      <td className="td-amt computed">{showPrice ? fmtNum(after, currency) : '•••'}</td>
 
       <td className="td-warranty">
         <input type="text" value={row.warranty_period}

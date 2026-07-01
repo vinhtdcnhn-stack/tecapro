@@ -3,11 +3,12 @@ import { fmtNum, calcAmounts } from './boqUtils'
 import { ROW_KIND, kindOf } from './boqTree'
 import MobileEditSheet, { Field } from './MobileEditSheet'
 import NumberInput from '../common/NumberInput'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Phiên bản mobile của Bảng giá phân cấp: danh sách thẻ theo cây (thụt lề + nhãn
 // PHẦN/NHÓM), chạm để mở sheet sửa đúng dòng. Lá sửa đủ trường; zone/nhóm sửa tên +
 // (nhóm: ĐVT/SL mô tả). Số tiền nhóm/zone là roll-up (read-only).
-export default function BOQMobile({ items, rollup, currency, set, saveRow, deleteRow, addRow, addZone, addGroup, addChild, toggleMultiply, totals, showHs = true, showType = true }) {
+export default function BOQMobile({ items, rollup, currency, set, saveRow, deleteRow, addRow, addZone, addGroup, addChild, toggleMultiply, totals, showHs = true, showType = true, showPrice = true }) {
   const [editingKey, setEditingKey] = useState(null)
   const flat = items.map(it => it.r)
   const editing = flat.find(r => r._key === editingKey) || null
@@ -31,6 +32,7 @@ export default function BOQMobile({ items, rollup, currency, set, saveRow, delet
           return (
             <div
               key={r._key}
+              {...auditRowAttrs('contract_out_boq', r.id)}
               className={`mcard mcard--${kind} ${r._dirty ? 'mcard--dirty' : ''}`}
               style={depth ? { marginLeft: depth * 14 } : undefined}
               onClick={() => setEditingKey(r._key)}
@@ -39,12 +41,12 @@ export default function BOQMobile({ items, rollup, currency, set, saveRow, delet
                 {r._dirty && <span className="mcard-dot" title="Chưa lưu" />}
                 {kind !== ROW_KIND.LEAF && <span className={`boq-kind-badge boq-badge-${kind}`}>{kind === ROW_KIND.ZONE ? 'PHẦN' : 'Hệ thống'}</span>}
                 <span className="mcard-title">{idx + 1}. {r.item_name || '(chưa đặt tên)'}</span>
-                <span className="mcard-amount">{fmtNum(after, currency)}</span>
+                <span className="mcard-amount">{showPrice ? fmtNum(after, currency) : '•••'}</span>
               </div>
               {kind === ROW_KIND.LEAF ? (
                 <div className="mcard-meta">
                   <span>SL: {r.quantity || 0} {r.unit || ''}</span>
-                  <span>Đơn giá: {fmtNum(r.unit_price, currency)}</span>
+                  <span>Đơn giá: {showPrice ? fmtNum(r.unit_price, currency) : '•••'}</span>
                   <span>VAT {r.vat_rate || 0}%</span>
                   {showType && <span>{r.item_type === 'di_thang' ? 'Đi thẳng' : 'Trong nước'}</span>}
                 </div>
@@ -75,7 +77,7 @@ export default function BOQMobile({ items, rollup, currency, set, saveRow, delet
 
       <div className="mcards-total">
         <span>TỔNG SAU VAT</span>
-        <span>{fmtNum(totals.after, currency)}</span>
+        <span>{showPrice ? fmtNum(totals.after, currency) : '•••'}</span>
       </div>
 
       {editing && (

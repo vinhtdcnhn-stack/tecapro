@@ -54,6 +54,7 @@ export function AuthProvider({ children }) {
       position_name:   data.position_name   || null,
       telegram_chat_id: data.telegram_chat_id || null,
       has_projects:    data.has_projects,
+      permissions:     data.permissions     || [],
     })
     // Phiên được giữ bằng cookie httpOnly do server đặt — không lưu gì nhạy cảm ở client.
   }

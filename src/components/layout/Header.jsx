@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { usePermission } from '../../hooks/usePermission'
 import { parseDeepLink } from '../../components/common/deepLink'
 import { useHomeDashboards } from '../../lib/useHomeDashboards'
 import DashSwitcher from '../../pages/DashSwitcher'
@@ -9,19 +10,20 @@ import fallbackLogo from '../../assets/tecapro-logo.png'
 
 const brand = getBrand() // logo + tên doanh nghiệp, đã nạp từ brand.json lúc khởi động
 
+// `perm` = quyền (lớp A) cần để THẤY mục. Trang chủ luôn hiện. Admin fail-open (usePermission).
 const MENUS = [
   { label: 'Trang chủ',        path: '/'        },
-  { label: 'Hợp đồng bán',    path: '/qlda'    },
+  { label: 'Hợp đồng bán',    path: '/qlda', perm: 'module.contracts.view' },
   {
     label: 'Công việc',
     children: [
-      { label: 'Dự án và chuyển giao công nghệ', path: '/cong-viec/kt-co-dien', dept: 7 },
-      { label: 'Kế hoạch đấu thầu', path: '/cong-viec/dau-thau', dept: 9 },
+      { label: 'Dự án và chuyển giao công nghệ', path: '/cong-viec/kt-co-dien', perm: 'module.deptwork.view' },
+      { label: 'Kế hoạch đấu thầu', path: '/cong-viec/dau-thau', perm: 'module.tender.view' },
     ],
   },
-  { label: 'Đề xuất',          path: '/de-xuat' },
-  { label: 'Tra cứu bảo hành', path: '/tracuu'  },
-  { label: 'Hệ thống', path: '/quantri', desktopOnly: true },
+  { label: 'Đề xuất',          path: '/de-xuat', perm: 'module.approvals.view' },
+  { label: 'Tra cứu bảo hành', path: '/tracuu', perm: 'module.warranty_lookup.view' },
+  { label: 'Hệ thống', path: '/quantri', desktopOnly: true, perm: 'module.system.view' },
 ]
 
 export default function Header({ onChangePassword, inboxCount = 0 }) {
@@ -61,18 +63,14 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
     return () => { document.removeEventListener('mousedown', onDocClick); document.removeEventListener('keydown', onKey) }
   }, [searchOpen])
 
-  // "Hợp đồng bán" chỉ hiện cho admin hoặc người đang tham gia ít nhất một dự án.
-  const canSeeContracts = !!user && (Number(user.role) === 1 || user.has_projects)
-  const isAdmin = !!user && Number(user.role) === 1
-  // Mỗi mục con của "Công việc" gắn với một phòng ban (dept). Admin thấy hết; còn lại
-  // chỉ thấy mục của phòng mình. Dropdown hiện khi có ít nhất một mục con hợp lệ.
-  const canSeeChild = (c) => isAdmin || (!!user && Number(user.department_id) === c.dept)
+  // Lọc menu theo RBAC lớp A (usePermission, admin fail-open). Mục con "Công việc" gắn
+  // perm riêng; dropdown hiện khi có ít nhất một mục con hợp lệ. Mục không khai perm luôn hiện.
+  const { has } = usePermission()
   const menus = MENUS
-    .map(m => m.children ? { ...m, children: m.children.filter(canSeeChild) } : m)
+    .map(m => m.children ? { ...m, children: m.children.filter(c => has(c.perm)) } : m)
     .filter(m => {
-      if (m.path === '/qlda') return canSeeContracts
       if (m.children) return m.children.length > 0
-      return true
+      return !m.perm || has(m.perm)
     })
 
   function isActive(menu) {

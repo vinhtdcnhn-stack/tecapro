@@ -1,14 +1,19 @@
 import { fmtDate, fmtNum, statusCfg } from './contractInUtils'
+import { useContractPerm } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Thẻ hiển thị một hợp đồng nhập trên mobile (thay cho hàng bảng).
 // Bấm vào thẻ để mở chi tiết HĐ nhập.
 export default function ContractInCard({ item, onOpen }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('ci.info.amounts')
   const sc = statusCfg[item.status] || { label: item.status, cls: '' }
   const isImport = item.purchase_type === 'Nhập khẩu'
 
   return (
     <button
       onClick={onOpen}
+      {...auditRowAttrs('contract_in', item.id)}
       style={{
         display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
         background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12,
@@ -33,7 +38,7 @@ export default function ContractInCard({ item, onOpen }) {
           label="Giá trị"
           value={
             <span style={{ fontWeight: 600, color: '#111827' }}>
-              {fmtNum(item.amount, item.currency_code)} {item.currency_code}
+              {showAmounts ? `${fmtNum(item.amount, item.currency_code)} ${item.currency_code}` : '•••'}
             </span>
           }
         />

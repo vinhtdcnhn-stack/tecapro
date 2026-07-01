@@ -7,10 +7,11 @@ import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import ReceivableMobile from './ReceivableMobile'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Schedule section ──────────────────────────────────────────────────────────
 
-export default function ScheduleSection({ rows, setRows, contractId, refTotal, refCurrency, refExRate, payRows, setPayRows, onRateSynced, bbDateMap = {}, baseOptions = [], contractDate = null }) {
+export default function ScheduleSection({ rows, setRows, contractId, refTotal, refCurrency, refExRate, payRows, setPayRows, onRateSynced, bbDateMap = {}, baseOptions = [], contractDate = null, showAmounts = true }) {
   const isMobile = useIsMobile()
   const dueCtx = { bbDateMap, contractDate }
   // % theo HĐ tính trên GIÁ TRỊ GỐC; giữ tới 4 chữ số thập phân để khoản nhỏ trên tổng HĐ lớn vẫn hiện ra.
@@ -120,7 +121,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
           payRows={payRows} setPayRows={setPayRows} contractId={contractId}
           refTotal={refTotal} refCurrency={refCurrency}
           bbDateMap={bbDateMap} baseOptions={baseOptions} contractDate={contractDate}
-          ratioOf={ratioOf} totalAmt={totalAmt} totalVND={totalVND} unit={unit}
+          ratioOf={ratioOf} totalAmt={totalAmt} totalVND={totalVND} unit={unit} showAmounts={showAmounts}
         />
       </div>
     )
@@ -166,7 +167,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
               const hdRatio = row.hd_ratio != null ? row.hd_ratio : ratioOf(row.amount)
               return (
                 <Fragment key={row._key}>
-                <tr className={[
+                <tr {...auditRowAttrs('contract_receivable', row.id)} className={[
                   'recv-group-top',
                   status ? `recv-row--${status.color}` : '',
                   row._dirty  ? 'row-dirty'  : '',
@@ -196,8 +197,10 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
                     <span className="currency-badge">{row.currency_code || refCurrency || 'VND'}</span>
                   </td>
                   <td className="td-num">
-                    <input type="number" value={row.amount === '' ? '' : (typeof row.amount === 'number' ? row.amount.toFixed(2) : row.amount)}
-                      min="0" placeholder="0" onChange={e => set(row._key, 'amount', e.target.value)} />
+                    {showAmounts ? (
+                      <input type="number" value={row.amount === '' ? '' : (typeof row.amount === 'number' ? row.amount.toFixed(2) : row.amount)}
+                        min="0" placeholder="0" onChange={e => set(row._key, 'amount', e.target.value)} />
+                    ) : <span className="recv-masked">•••</span>}
                   </td>
                   <td className="td-rate">
                     <input type="number" value={(row.currency_code || refCurrency) === 'VND' ? 1 : (row.exchange_rate || '')}
@@ -207,7 +210,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
                       title={needsRate(row) ? `Nhập tỷ giá VNĐ/${row.currency_code}` : ''}
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
                   </td>
-                  <td className="td-vnd computed">{fmtVND(vnd)}</td>
+                  <td className="td-vnd computed">{showAmounts ? fmtVND(vnd) : '•••'}</td>
                   <td className="td-date">
                     <div className="due-cell">
                       <div className="due-row">
@@ -251,6 +254,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
                   setPayRows={setPayRows}
                   contractId={contractId}
                   colSpan={10}
+                  showAmounts={showAmounts}
                 />
                 <tr className="recv-group-gap" aria-hidden="true"><td colSpan="10" /></tr>
                 </Fragment>
@@ -261,9 +265,9 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
             <tfoot>
               <tr className="totals-row">
                 <td colSpan="4" className="totals-label">TỔNG PHẢI THU</td>
-                <td className="td-num totals-amount">{fmtAmt(totalAmt, refCurrency)} {unit}</td>
+                <td className="td-num totals-amount">{showAmounts ? `${fmtAmt(totalAmt, refCurrency)} ${unit}` : '•••'}</td>
                 <td />
-                <td className="td-vnd">{fmtVND(totalVND)}</td>
+                <td className="td-vnd">{showAmounts ? fmtVND(totalVND) : '•••'}</td>
                 <td colSpan="3" />
               </tr>
             </tfoot>

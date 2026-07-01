@@ -3,6 +3,8 @@ import { API } from '../../config/api'
 import EditGuard from './EditGuard'
 import InvoiceBatchModal from './InvoiceBatchModal'
 import usePasswordPrompt from './usePasswordPrompt'
+import { useContractPerm } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 import './ContractInvoiceTab.css'
 
 const fmt = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
@@ -16,6 +18,9 @@ const LockOpenIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill=
 // Tab "Xuất hóa đơn" trong chi tiết HĐ bán (dưới "Công nợ"). Nhập theo từng đợt,
 // xem số lượng tồn chưa xuất hóa đơn theo bảng giá.
 export default function ContractInvoiceTab({ contractId }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('co.invoice.amounts')
+  const mfmt = (n) => showAmounts ? fmt(n) : '•••' // che số tiền hóa đơn
   const [contract, setContract] = useState(null)
   const [summary, setSummary] = useState([])
   const [invoices, setInvoices] = useState([])
@@ -90,14 +95,14 @@ export default function ContractInvoiceTab({ contractId }) {
   return (
     <div className="inv-tab">
       <div className="inv-cards">
-        <div className="inv-card"><div className="inv-card-val">{fmt(totalContract)} {cur}</div><div className="inv-card-lbl">Tổng giá trị hợp đồng</div></div>
-        <div className="inv-card"><div className="inv-card-val" style={{ color: '#2563eb' }}>{fmt(totalInvoiced)} {cur}</div><div className="inv-card-lbl">Đã xuất hóa đơn</div></div>
-        <div className="inv-card"><div className="inv-card-val" style={{ color: '#d97706' }}>{fmt(remainValue)} {cur}</div><div className="inv-card-lbl">Giá trị tồn chưa xuất</div></div>
+        <div className="inv-card"><div className="inv-card-val">{showAmounts ? `${fmt(totalContract)} ${cur}` : '•••'}</div><div className="inv-card-lbl">Tổng giá trị hợp đồng</div></div>
+        <div className="inv-card"><div className="inv-card-val" style={{ color: '#2563eb' }}>{showAmounts ? `${fmt(totalInvoiced)} ${cur}` : '•••'}</div><div className="inv-card-lbl">Đã xuất hóa đơn</div></div>
+        <div className="inv-card"><div className="inv-card-val" style={{ color: '#d97706' }}>{showAmounts ? `${fmt(remainValue)} ${cur}` : '•••'}</div><div className="inv-card-lbl">Giá trị tồn chưa xuất</div></div>
       </div>
 
       <div className="inv-section-head">
         <h3>Các đợt xuất hóa đơn</h3>
-        <EditGuard>
+        <EditGuard perm="co.invoice.manage">
           <button className="inv-add" onClick={() => setModal({})}>+ Thêm đợt xuất hóa đơn</button>
         </EditGuard>
       </div>
@@ -111,11 +116,11 @@ export default function ContractInvoiceTab({ contractId }) {
             <tbody>
               {invoices.map(inv => (
                 <Fragment key={inv.id}>
-                  <tr className="inv-row" onClick={() => setExpanded(expanded === inv.id ? null : inv.id)}>
+                  <tr className="inv-row" {...auditRowAttrs('contract_out_invoice', inv.id)} onClick={() => setExpanded(expanded === inv.id ? null : inv.id)}>
                     <td>{expanded === inv.id ? '▾ ' : '▸ '}{fmtDate(inv.invoice_date)}</td>
                     <td>{inv.invoice_no || '—'}</td>
                     <td className="num">{(inv.items || []).length}</td>
-                    <td className="num">{fmt(inv.total_after_vat)} {inv.currency_code}</td>
+                    <td className="num">{showAmounts ? `${fmt(inv.total_after_vat)} ${inv.currency_code}` : '•••'}</td>
                     <td>{inv.note || '—'}</td>
                     <td className="inv-actions" onClick={e => e.stopPropagation()}>
                       {inv.locked && (
@@ -126,7 +131,7 @@ export default function ContractInvoiceTab({ contractId }) {
                           🔒 Đã khóa{inv.locked_by_name ? ` · ${inv.locked_by_name}` : ''}
                         </span>
                       )}
-                      <EditGuard>
+                      <EditGuard perm="co.invoice.manage">
                         {/* Nút khóa/mở khóa — luôn dùng được (để còn mở khóa) */}
                         <button className={`inv-lock-btn${inv.locked ? ' locked' : ''}`} onClick={() => onToggleLock(inv)}
                           title={inv.locked ? 'Mở khóa đợt' : 'Khóa đợt'}>
@@ -142,11 +147,11 @@ export default function ContractInvoiceTab({ contractId }) {
                     </td>
                   </tr>
                   {expanded === inv.id && (inv.items || []).map(it => (
-                    <tr key={`it${it.id}`} className="inv-subrow">
+                    <tr key={`it${it.id}`} className="inv-subrow" {...auditRowAttrs('contract_out_invoice_item', it.id)}>
                       <td colSpan={2}>{it.item_name}</td>
                       <td className="num">{fmt(it.quantity)} {it.unit}</td>
-                      <td className="num">{fmt(it.amount_after_vat)}</td>
-                      <td colSpan={2}>Đơn giá {fmt(it.unit_price)} · VAT {fmt(it.vat_rate)}%</td>
+                      <td className="num">{mfmt(it.amount_after_vat)}</td>
+                      <td colSpan={2}>Đơn giá {mfmt(it.unit_price)} · VAT {fmt(it.vat_rate)}%</td>
                     </tr>
                   ))}
                 </Fragment>

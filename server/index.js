@@ -13,6 +13,7 @@ import { startReminderScheduler } from './services/reminderScheduler.js'
 import { startTaskAutoStartScheduler } from './services/taskAutoStart.js'
 import { startOverdueAlertScheduler } from './services/overdueDebtScheduler.js'
 import { purgeOldTelegramLogs } from './controllers/telegramLogController.js'
+import { initPermissions } from './auth/seedPermissions.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -121,6 +122,10 @@ app.listen(port, host, () => {
   logger.info(`[server] listening on http://${host}:${port}`)
   // Kết nối Redis cache (tự bỏ qua nếu không cấu hình REDIS_URL — cache TẮT, query thẳng DB).
   connectCache()
+  // Đồng bộ danh mục quyền (RBAC) từ permissionCatalog.js + seed bootstrap lần đầu.
+  initPermissions()
+    .then(r => logger.info(`[permissions] catalog đã đồng bộ${r?.skipped ? '' : ' + bootstrap seed lần đầu'}.`))
+    .catch(err => logger.error('[permissions] đồng bộ thất bại:', err))
   // Bộ nhắc hạn Telegram hàng ngày (tự bỏ qua nếu không cấu hình bot token).
   startReminderScheduler()
   // Tự chuyển công việc "Chờ xử lý" → "Đang thực hiện" khi tới ngày bắt đầu hiệu lực.

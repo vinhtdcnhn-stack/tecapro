@@ -5,6 +5,7 @@ import { fmtDate, caseStatusCls, priorityCls } from './warrantyUtils'
 import CaseFormModal from './WarrantyCaseFormModal'
 import CaseDetailModal from './WarrantyCaseDetailModal'
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Cases Sub-tab ─────────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ export default function CasesSubTab({ contractId, cases, setCases, equipment, re
 
       <div className="wty-toolbar">
         <div />
-        <EditGuard>
+        <EditGuard perm="co.warranty.cases.manage">
           <button className="wty-btn wty-btn-primary" onClick={() => { setEditCase(null); setModal(true) }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             Tạo case bảo hành
@@ -94,7 +95,7 @@ export default function CasesSubTab({ contractId, cases, setCases, equipment, re
               {cases.length === 0 ? (
                 <tr><td colSpan="7" className="wty-empty">Chưa có case bảo hành nào. Nhấn <strong>Tạo case</strong> khi có sự cố.</td></tr>
               ) : cases.map(c => (
-                <tr key={c.id}>
+                <tr key={c.id} {...auditRowAttrs('warranty_case', c.id)}>
                   <td><strong style={{ color:'#2563eb' }}>{c.case_no||'—'}</strong></td>
                   <td>
                     <div style={{ fontWeight:600 }}>{c.title}</div>
@@ -114,7 +115,7 @@ export default function CasesSubTab({ contractId, cases, setCases, equipment, re
                         onClick={() => setDetail(c)}>
                         Chi tiết
                       </button>
-                      <EditGuard>
+                      <EditGuard perm="co.warranty.cases.manage">
                         <button className="wty-act delete" onClick={() => handleDelete(c)} title="Xóa">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                         </button>

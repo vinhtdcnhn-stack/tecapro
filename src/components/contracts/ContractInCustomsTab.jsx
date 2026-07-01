@@ -4,6 +4,8 @@ import DateInput from './DateInput'
 import useIsMobile from './useIsMobile'
 import CustomsMobile from './CustomsMobile'
 import EditGuard from './EditGuard'
+import { useContractPerm } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 
 const SHIPMENT_TYPES   = ['Nhập khẩu', 'Xuất khẩu']
 const CUSTOMS_STATUSES = ['Chưa khai báo', 'Đang làm thủ tục', 'Đã thông quan', 'Bị tạm giữ']
@@ -23,6 +25,8 @@ function totalCost(row) {
 }
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ContractInCustomsTab({ contractInId }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('ci.customs.amounts')
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState(null) // null | 'add' | row-object
@@ -68,7 +72,7 @@ export default function ContractInCustomsTab({ contractInId }) {
             { label: 'Đã thông quan',      value: cleared,                  color: '#16a34a', sub: 'lô' },
             { label: 'Đang làm thủ tục',   value: inProcess,                color: '#2563eb', sub: 'lô' },
             { label: 'Bị tạm giữ',         value: held,                     color: '#dc2626', sub: 'lô' },
-            { label: 'Tổng chi phí',       value: fmtVND(grandTotal),       color: '#d97706', sub: 'VNĐ', wide: true },
+            { label: 'Tổng chi phí',       value: showAmounts ? fmtVND(grandTotal) : '•••', color: '#d97706', sub: 'VNĐ', wide: true },
           ].map((s, i) => (
             <div key={i} style={{
               background: '#fff', border: '1px solid #e5e7eb',
@@ -102,7 +106,7 @@ export default function ContractInCustomsTab({ contractInId }) {
         <EditGuard>
         {isMobile ? (
           <CustomsMobile rows={rows} onEdit={setModal} onDelete={handleDelete}
-            fmtVND={fmtVND} fmtDate={fmtDate} customsStatusStyle={customsStatusStyle} totalCost={totalCost} />
+            fmtVND={fmtVND} fmtDate={fmtDate} customsStatusStyle={customsStatusStyle} totalCost={totalCost} showAmounts={showAmounts} />
         ) : rows.length === 0 ? (
           <div style={{ padding: 56, textAlign: 'center', color: '#9ca3af' }}>
             <div style={{ marginBottom: 8 }}>
@@ -139,7 +143,7 @@ export default function ContractInCustomsTab({ contractInId }) {
                   const st = customsStatusStyle(row.customs_status)
                   const cost = totalCost(row)
                   return (
-                    <tr key={row.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <tr key={row.id} {...auditRowAttrs('contract_in_customs', row.id)} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={td('center', { color: '#9ca3af', fontSize: 12 })}>{idx + 1}</td>
                       <td style={td('center')}>
                         <span style={{
@@ -166,7 +170,7 @@ export default function ContractInCustomsTab({ contractInId }) {
                         <span style={{ ...st, padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: st.bg }}>{row.customs_status}</span>
                       </td>
                       <td style={td('right', { fontWeight: 600, color: cost > 0 ? '#111827' : '#d1d5db' })}>
-                        {cost > 0 ? fmtVND(cost) : '—'}
+                        {!showAmounts ? '•••' : (cost > 0 ? fmtVND(cost) : '—')}
                       </td>
                       <td style={td('center')}>
                         <div style={{ display: 'flex', gap: 5, justifyContent: 'center' }}>
@@ -184,7 +188,7 @@ export default function ContractInCustomsTab({ contractInId }) {
                 <tfoot>
                   <tr style={{ background: '#f9fafb' }}>
                     <td colSpan="9" style={{ padding: '9px 12px', fontSize: 12, fontWeight: 600, color: '#374151', textAlign: 'right' }}>TỔNG CHI PHÍ LOGISTICS</td>
-                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: '#111827' }}>{fmtVND(grandTotal)}</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: '#111827' }}>{showAmounts ? fmtVND(grandTotal) : '•••'}</td>
                     <td />
                   </tr>
                 </tfoot>
@@ -210,6 +214,8 @@ function td(align = 'left', extra = {}) {
 }
 // ── Add / Edit modal ──────────────────────────────────────────────────────────
 function CustomsModal({ row, onSave, onClose }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('ci.customs.amounts')
   const isEdit = !!row
   const isMobile = useIsMobile()
   const g2 = isMobile ? gridCol : grid2
@@ -301,6 +307,7 @@ function CustomsModal({ row, onSave, onClose }) {
           </Section>
           {/* Section 3: Chi phí logistics */}
           <Section title="Chi phí logistics">
+            {showAmounts ? (
             <div style={g3}>
               <Field label="Chi phí vận chuyển (VNĐ)">
                 <input type="number" value={form.shipping_cost} min="0" placeholder="0"
@@ -315,7 +322,8 @@ function CustomsModal({ row, onSave, onClose }) {
                   onChange={e => s({ other_fees: e.target.value })} style={inp} />
               </Field>
             </div>
-            {total > 0 && (
+            ) : <div className="recv-masked" style={{ padding: '8px 0' }}>••• (không có quyền xem chi phí)</div>}
+            {showAmounts && total > 0 && (
               <div style={{ marginTop: 10, padding: '10px 14px', background: '#f0fdf4', borderRadius: 7, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>Tổng chi phí logistics</span>
                 <span style={{ fontSize: 16, fontWeight: 700, color: '#15803d' }}>{fmtVND(total)} VNĐ</span>

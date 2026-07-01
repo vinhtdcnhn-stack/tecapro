@@ -2,6 +2,7 @@ import Modal from '../common/Modal'
 import ContractTaskTimeline from './ContractTaskTimeline'
 import { API } from '../../config/api'
 import { fmtDate, statusClass, priorityClass } from './taskUtils'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Đường dẫn tải tệp đính kèm (file_path lưu tương đối từ gốc, vd /uploads/...).
 const fileHref = (p) => `${API.replace('/api', '')}${p}`
@@ -54,6 +55,7 @@ export default function ContractTaskDetailDrawer({
               return (
                 <a
                   key={att.id}
+                  {...auditRowAttrs('contract_task_attachment', att.id)}
                   href={fileHref(att.file_path)}
                   target={isPdf ? '_blank' : undefined}
                   rel="noreferrer"

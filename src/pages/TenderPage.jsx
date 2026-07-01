@@ -1,5 +1,6 @@
 import { useParams, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { usePermission } from '../hooks/usePermission'
 import { useTenderMembers } from '../lib/queries'
 import TenderSidebar from '../components/tender/TenderSidebar'
 import TenderList from '../components/tender/TenderList'
@@ -12,12 +13,12 @@ const VALID = ['list', 'my', 'template', 'reports']
 
 export default function TenderPage() {
   const { user } = useAuth()
+  const { has } = usePermission()
   const { section } = useParams()
   const { data: members = [] } = useTenderMembers()
 
-  // Chỉ thành viên Ban Kế hoạch Đấu thầu (dept 9) hoặc admin được vào module.
-  const canAccess = Number(user?.role) === 1 || Number(user?.department_id) === 9
-  if (!canAccess) return <Navigate to="/" replace />
+  // Vào module theo RBAC lớp A (admin fail-open). Trưởng ban (isHead) vẫn theo mô hình động.
+  if (!has('module.tender.view')) return <Navigate to="/" replace />
   if (!VALID.includes(section)) return <Navigate to="/cong-viec/dau-thau/list" replace />
 
   const isHead = isHeadUser(user, members)

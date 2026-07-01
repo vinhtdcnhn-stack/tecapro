@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { API } from '../../config/api'
 import { useLongPress } from './useLongPress'
 import AssigneeHistoryTooltip from './AssigneeHistoryTooltip'
+import { auditRowAttrs } from '../common/rowAudit'
 import {
   STATUSES, fmtDate, daysUntil, isOverdue, isWarning,
   priorityClass, statusClass, initials, flattenTree, reorderIds,
@@ -142,7 +143,7 @@ function TaskRow({
   // Bấm bất kỳ đâu trên dòng → mở khung chi tiết (như thẻ việc bên phòng). Các ô có
   // điều khiển riêng (mở/thu việc con, trạng thái, nút thao tác, kéo, tệp) tự chặn nổi bọt.
   return (
-    <tr id={`task-row-${task.id}`} className={rowClass}
+    <tr id={`task-row-${task.id}`} {...auditRowAttrs('contract_task', task.id)} className={rowClass}
       onClick={onOpenDetail}
       onContextMenu={onContextMenu}
       {...longPress}

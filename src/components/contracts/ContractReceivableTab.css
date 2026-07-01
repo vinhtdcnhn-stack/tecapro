@@ -503,3 +503,5 @@
 .cmp-shortage .cmp-val { color: #dc2626; }
 .cmp-excess   .cmp-val { color: #2563eb; }
 .cmp-zero     .cmp-val { color: #9ca3af; }
+
+.recv-masked { color: #9ca3af; letter-spacing: 2px; user-select: none; }

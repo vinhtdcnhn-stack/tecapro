@@ -1,5 +1,6 @@
 // Recursive folder-tree renderer for the documents tab left panel.
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 export default function DocumentFolderTree({
   folders, selectedFolderId, expandedFolders,
@@ -11,6 +12,7 @@ export default function DocumentFolderTree({
     <div key={folder.id} className="folder-tree-item">
       <div
         className={`folder-node ${String(selectedFolderId) === String(folder.id) ? 'selected' : ''} ${folder.review_excluded ? 'review-excluded' : ''}`}
+        {...auditRowAttrs('document_folder', folder.id)}
         style={{ paddingLeft: `${level * 16 + 6}px` }}
         onClick={() => onSelect(folder.id)}
       >

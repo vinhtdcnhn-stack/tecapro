@@ -4,10 +4,14 @@ import DateInput from './DateInput'
 import { API } from '../../config/api'
 import { CURRENCIES, PURCHASE_TYPES, STATUSES, statusCfg } from './contractInUtils'
 import EditGuard from './EditGuard'
+import { useContractPerm } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Thông tin tab (edit form) ─────────────────────────────────────────────────
 
 export default function ContractInInfoTab({ item, suppliers, onUpdate, onDelete }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('ci.info.amounts') // che giá trị HĐ nhập nếu thiếu quyền
   const [form, setForm] = useState({
     contract_no:   item.contract_no   || '',
     goods_type:    item.goods_type    || '',
@@ -39,7 +43,7 @@ export default function ContractInInfoTab({ item, suppliers, onUpdate, onDelete 
   }
 
   return (
-    <div style={{ maxWidth: 720 }}>
+    <div style={{ maxWidth: 720 }} {...auditRowAttrs('contract_in', item?.id)}>
       <EditGuard>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: 0 }}>Thông tin hợp đồng nhập</h3>
@@ -102,7 +106,7 @@ export default function ContractInInfoTab({ item, suppliers, onUpdate, onDelete 
           <div className="form-group" style={{ flex: 2 }}>
             <label>Giá trị hợp đồng <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 11 }}>(tự động từ bảng giá mua)</span></label>
             <input type="text" readOnly disabled
-              value={Number(item.amount || 0).toLocaleString('vi-VN')}
+              value={showAmounts ? Number(item.amount || 0).toLocaleString('vi-VN') : '•••'}
               title="Giá trị HĐ nhập được tính tự động từ tổng bảng giá mua"
               style={{ fontWeight: 600, color: '#111827', background: '#f9fafb' }} />
           </div>

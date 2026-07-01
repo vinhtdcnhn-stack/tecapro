@@ -5,10 +5,14 @@ import { fmtVND, calcVND, useRows } from './contractInPayableUtils'
 import PayableSection from './ContractInPayableSection'
 import PaymentSection from './ContractInPaymentSection'
 import EditGuard from './EditGuard'
+import { useContractPerm } from '../../context/ContractPermContext'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ContractInPayableTab({ contractInId }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('ci.payment.amounts')
+  const mVND = (n) => showAmounts ? fmtVND(n) : '•••'
   const payableUrl = `${API}/contract-ins/${contractInId}/payables`
   const paymentUrl = `${API}/contract-ins/${contractInId}/payments`
 
@@ -47,12 +51,12 @@ export default function ContractInPayableTab({ contractInId }) {
 
       {/* ── Summary ── */}
       <div className="recv-summary">
-        <SummaryCard label="Phải trả theo HĐ"  value={fmtVND(totalExpected)}
+        <SummaryCard label="Phải trả theo HĐ"  value={mVND(totalExpected)}
           sub={`${sched.rows.filter(r=>!r._isNew).length} khoản`} color="blue" />
-        <SummaryCard label="Đã thanh toán"      value={fmtVND(totalPaid)}
+        <SummaryCard label="Đã thanh toán"      value={mVND(totalPaid)}
           sub={`${pay.rows.filter(r=>!r._isNew).length} đợt`} color="green" />
-        <SummaryCard label="Còn phải trả"        value={fmtVND(balance)}
-          sub={balance > 0 ? `Còn thiếu ${fmtVND(balance)} đ` : 'Đã thanh toán đủ'}
+        <SummaryCard label="Còn phải trả"        value={mVND(balance)}
+          sub={balance > 0 ? `Còn thiếu ${mVND(balance)} đ` : 'Đã thanh toán đủ'}
           color={balance > 0 ? 'orange' : 'green'} highlight={balance > 0} />
         <div className="recv-progress-card">
           <div className="recv-progress-label">
@@ -75,6 +79,7 @@ export default function ContractInPayableTab({ contractInId }) {
         contractInId={contractInId}
         reload={sched.reload}
         refTotal={contractRef?.boqTotal || 0}
+        showAmounts={showAmounts}
       />
 
       {/* ── Section 2: Thanh toán thực tế ── */}
@@ -84,6 +89,7 @@ export default function ContractInPayableTab({ contractInId }) {
         contractInId={contractInId}
         reload={pay.reload}
         totalExpected={totalExpected}
+        showAmounts={showAmounts}
       />
       </EditGuard>
     </div>

@@ -5,6 +5,7 @@ import MobileEditSheet, { Field } from './MobileEditSheet'
 import DeliveryItemSerials from './DeliveryItemSerials'
 import EditGuard from './EditGuard'
 import { useCanEdit } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Thẻ một chủng loại hàng (mobile) ──────────────────────────────────────────
 export default function DeliveryItemCard({
@@ -34,7 +35,7 @@ export default function DeliveryItemCard({
 
   return (
     <>
-      <div className="mcard" onClick={openEdit}>
+      <div className="mcard" {...auditRowAttrs('contract_in_delivery_item', item.id)} onClick={openEdit}>
         <div className="mcard-head">
           <span className="mcard-title">{idx + 1}. {item.item_name}</span>
           <span className="mcard-amount" style={{ color: enough ? '#15803d' : '#d97706' }}>

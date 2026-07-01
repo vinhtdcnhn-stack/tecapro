@@ -11,6 +11,8 @@ const ITEMS = [
   { label: 'NHẬT KÝ TELEGRAM',     section: 'telegram-log', adminOnly: true },
   { label: 'GÓP Ý CẢI THIỆN',      section: 'feedback'    },
   { label: 'SAO LƯU / KHÔI PHỤC',  section: 'backup', adminOnly: true },
+  { label: 'PHÂN QUYỀN',           section: 'phan-quyen', adminOnly: true },
+  { label: 'NHẬT KÝ THAY ĐỔI',     section: 'nhat-ky-thay-doi', adminOnly: true },
 ]
 
 export default function Sidebar() {

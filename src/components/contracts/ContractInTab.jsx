@@ -6,11 +6,14 @@ import ContractInDetail from './ContractInDetail'
 import ContractInFormModal from './ContractInFormModal'
 import ContractInCard from './ContractInCard'
 import useIsMobile from './useIsMobile'
-import { ContractPermProvider } from '../../context/ContractPermContext'
+import { ContractPermProvider, useContractPerm } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ContractInTab({ contractId, initialContractInId, initialTab, currentUser, contract }) {
+  const { perms: outerPerms, canSection } = useContractPerm() // perms lớp B từ provider ngoài
+  const showAmounts = canSection('ci.info.amounts')           // che giá trị HĐ nhập ở danh sách
   const [items, setItems]           = useState([])
   const [suppliers, setSuppliers]   = useState([])
   const [loading, setLoading]       = useState(true)
@@ -126,8 +129,13 @@ export default function ContractInTab({ contractId, initialContractInId, initial
   // Quyền GHI tính theo TỪNG HĐ nhập (người tạo) → override context PM ở ngoài.
   if (selectedItem) {
     const canEditThis = canEditItem(selectedItem)
+    // Người tạo HĐ nhập (hoặc admin) là CHỦ SỞ HỮU HĐ nhập đó → toàn quyền xem + sửa MỌI
+    // sub-tab của nó, không phụ thuộc ma trận vai trò (member_role) của HĐ bán — PM HĐ bán
+    // chỉ là phụ. Bỏ `perms` (lớp B) đi để canView/canSection mở hết cho chủ. Người KHÁC
+    // (không phải chủ) vẫn theo perms lớp B từ provider ngoài (lọc tab + che số tiền).
+    const perms = canEditThis ? undefined : outerPerms
     return (
-      <ContractPermProvider canEdit={canEditThis} canEditSerial={canEditThis || isTechnicalMember}>
+      <ContractPermProvider canEdit={canEditThis} canEditSerial={canEditThis || isTechnicalMember} perms={perms}>
         <ContractInDetail
           item={selectedItem}
           suppliers={suppliers}
@@ -172,7 +180,7 @@ export default function ContractInTab({ contractId, initialContractInId, initial
           <div className="stat-card"><p className="stat-label">Tổng HĐ nhập</p><p className="stat-value">{items.length}</p></div>
           <div className="stat-card"><p className="stat-label">Đang thực hiện</p><p className="stat-value text-green-600">{active}</p></div>
           <div className="stat-card"><p className="stat-label">Hoàn thành</p><p className="stat-value text-blue-600">{completed}</p></div>
-          <div className="stat-card"><p className="stat-label">Tổng giá trị (VNĐ)</p><p className="stat-value money">{fmtNum(totalAmount)} ₫</p></div>
+          <div className="stat-card"><p className="stat-label">Tổng giá trị (VNĐ)</p><p className="stat-value money">{showAmounts ? `${fmtNum(totalAmount)} ₫` : '•••'}</p></div>
         </div>
       )}
 
@@ -235,6 +243,7 @@ export default function ContractInTab({ contractId, initialContractInId, initial
               const isHl = idx === curIdx
               return (
                 <tr key={c.id}
+                  {...auditRowAttrs('contract_in', c.id)}
                   ref={isHl ? hlRowRef : null}
                   style={{ background: isHl ? '#eff6ff' : '' }}
                   onMouseEnter={e => { if (!isHl) e.currentTarget.style.background = '#fafafa' }}
@@ -251,7 +260,7 @@ export default function ContractInTab({ contractId, initialContractInId, initial
                   <td style={tdStyle('left', { whiteSpace: 'normal', maxWidth: 200 })}>{c.goods_type || '-'}</td>
                   <td style={tdStyle()}>{fmtDate(c.contract_date)}</td>
                   <td style={tdStyle()}>{c.supplier_name || <span style={{ color: '#d1d5db' }}>—</span>}</td>
-                  <td style={tdStyle('right', { fontWeight: 600 })}>{fmtNum(c.amount, c.currency_code)}</td>
+                  <td style={tdStyle('right', { fontWeight: 600 })}>{showAmounts ? fmtNum(c.amount, c.currency_code) : '•••'}</td>
                   <td style={tdStyle('center', { color: '#6b7280' })}>{c.currency_code}</td>
                   <td style={tdStyle('right', { color: '#6b7280' })}>
                     {c.exchange_rate ? new Intl.NumberFormat('vi-VN').format(c.exchange_rate) : '—'}

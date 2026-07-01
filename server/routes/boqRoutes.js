@@ -11,24 +11,26 @@ import {
   saveImportedBOQ,
 } from '../controllers/boqController.js'
 import { downloadBOQTemplate, excelUpload } from '../controllers/boqExcel.js'
-import { pmFromParam, pmVia, pmViaBody } from '../middleware/contractAccess.js'
+import { contractPermFromParam, contractPermVia, contractPermViaBody } from '../middleware/contractAccess.js'
 
 const router = Router()
+
+const M = 'co.boq.manage' // quyền ghi tab Bảng giá (RBAC lớp B; bootstrap = PM)
 
 // Template download (no contractId needed)
 router.get('/boq/template', downloadBOQTemplate)
 
-// Collection routes — ghi yêu cầu PM của HĐ
+// Collection routes — ghi yêu cầu quyền co.boq.manage trong HĐ
 router.get('/contracts/:contractId/boq',                        getBOQ)
-router.post('/contracts/:contractId/boq',         pmFromParam(), createBOQItem)
-router.post('/contracts/:contractId/boq/after/:refId', pmFromParam(), insertBOQAfter)
-router.post('/contracts/:contractId/boq/reorder', pmFromParam(), reorderBOQ)
-router.post('/contracts/:contractId/boq/import',  pmFromParam(), excelUpload.single('file'), importBOQPreview)
-router.post('/contracts/:contractId/boq/save-import', pmFromParam(), saveImportedBOQ)
+router.post('/contracts/:contractId/boq',         contractPermFromParam(M), createBOQItem)
+router.post('/contracts/:contractId/boq/after/:refId', contractPermFromParam(M), insertBOQAfter)
+router.post('/contracts/:contractId/boq/reorder', contractPermFromParam(M), reorderBOQ)
+router.post('/contracts/:contractId/boq/import',  contractPermFromParam(M), excelUpload.single('file'), importBOQPreview)
+router.post('/contracts/:contractId/boq/save-import', contractPermFromParam(M), saveImportedBOQ)
 
 // Item routes
-router.post('/boq/bulk-delete', pmViaBody('boq'), bulkDeleteBOQItems)
-router.put('/boq/:id',    pmVia('boq'), updateBOQItem)
-router.delete('/boq/:id', pmVia('boq'), deleteBOQItem)
+router.post('/boq/bulk-delete', contractPermViaBody(M, 'boq'), bulkDeleteBOQItems)
+router.put('/boq/:id',    contractPermVia(M, 'boq'), updateBOQItem)
+router.delete('/boq/:id', contractPermVia(M, 'boq'), deleteBOQItem)
 
 export default router

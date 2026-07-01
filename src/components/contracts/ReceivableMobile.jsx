@@ -3,6 +3,7 @@ import { API } from '../../config/api'
 import { fmtVND, fmtAmt, fmtDate, calcVND, receivableStatus, resolveDueDate, tmpId, needsRate, savePaymentRow } from './receivableUtils'
 import DateInput from './DateInput'
 import MobileEditSheet, { Field } from './MobileEditSheet'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Phiên bản mobile của Công nợ: thẻ tóm tắt từng khoản phải thu, chạm để mở sheet
 // sửa khoản + quản lý các đợt tiền về. Tái dùng handler của ScheduleSection.
@@ -10,7 +11,7 @@ export default function ReceivableMobile({
   rows, set, setDueBase, addRow, saveRow, deleteRow,
   payRows, setPayRows, contractId,
   refTotal, refCurrency, bbDateMap, baseOptions, contractDate,
-  ratioOf, totalAmt, totalVND, unit,
+  ratioOf, totalAmt, totalVND, unit, showAmounts = true,
 }) {
   const [editingKey, setEditingKey] = useState(null)
   const editing = rows.find(r => r._key === editingKey) || null
@@ -63,11 +64,11 @@ export default function ReceivableMobile({
           const status = row._isNew ? null : receivableStatus(row, linked, due)
           const cur = row.currency_code || refCurrency || 'VND'
           return (
-            <div key={row._key} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setEditingKey(row._key)}>
+            <div key={row._key} {...auditRowAttrs('contract_receivable', row.id)} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setEditingKey(row._key)}>
               <div className="mcard-head">
                 {row._dirty && <span className="mcard-dot" title="Chưa lưu" />}
                 <span className="mcard-title">{i + 1}. {row.description || '(chưa mô tả)'}</span>
-                <span className="mcard-amount">{fmtAmt(row.amount, cur)} {cur === 'VND' ? 'đ' : cur}</span>
+                <span className="mcard-amount">{showAmounts ? `${fmtAmt(row.amount, cur)} ${cur === 'VND' ? 'đ' : cur}` : '•••'}</span>
               </div>
               <div className="mcard-meta">
                 <span>Hạn: {fmtDate(due)}</span>
@@ -82,7 +83,7 @@ export default function ReceivableMobile({
 
       <div className="mcards-total">
         <span>TỔNG PHẢI THU</span>
-        <span>{fmtAmt(totalAmt, refCurrency)} {unit} · {fmtVND(totalVND)} đ</span>
+        <span>{showAmounts ? `${fmtAmt(totalAmt, refCurrency)} ${unit} · ${fmtVND(totalVND)} đ` : '•••'}</span>
       </div>
 
       {editing && (
@@ -104,9 +105,11 @@ export default function ReceivableMobile({
               onChange={e => set(editing._key, 'hd_ratio', e.target.value)} />
           </Field>
           <Field label={`Giá trị (${editing.currency_code || refCurrency})`}>
-            <input type="number" min="0" placeholder="0"
-              value={editing.amount === '' ? '' : (typeof editing.amount === 'number' ? editing.amount.toFixed(2) : editing.amount)}
-              onChange={e => set(editing._key, 'amount', e.target.value)} />
+            {showAmounts ? (
+              <input type="number" min="0" placeholder="0"
+                value={editing.amount === '' ? '' : (typeof editing.amount === 'number' ? editing.amount.toFixed(2) : editing.amount)}
+                onChange={e => set(editing._key, 'amount', e.target.value)} />
+            ) : <span className="recv-masked">•••</span>}
           </Field>
           {(editing.currency_code || refCurrency) !== 'VND' && (
             <Field label="Tỷ giá quy đổi VNĐ">
@@ -115,7 +118,7 @@ export default function ReceivableMobile({
                 onChange={e => set(editing._key, 'exchange_rate', e.target.value)} />
             </Field>
           )}
-          <div className="mcard-meta">Quy đổi: <strong>{fmtVND(calcVND(editing.amount, editing.exchange_rate, editing.currency_code))} đ</strong></div>
+          <div className="mcard-meta">Quy đổi: <strong>{showAmounts ? `${fmtVND(calcVND(editing.amount, editing.exchange_rate, editing.currency_code))} đ` : '•••'}</strong></div>
 
           <Field label="Thời hạn thu">
             <select value={dueBaseVal} onChange={e => setDueBase(editing._key, e.target.value)}>
@@ -150,9 +153,11 @@ export default function ReceivableMobile({
                   <div className="recv-pay-grid">
                     <DateInput value={p.payment_date?.slice(0, 10) || ''}
                       onChange={e => setPay(p._key, 'payment_date', e.target.value)} />
-                    <input type="number" min="0" placeholder="Giá trị"
-                      value={p.amount === '' ? '' : p.amount}
-                      onChange={e => setPay(p._key, 'amount', e.target.value)} />
+                    {showAmounts ? (
+                      <input type="number" min="0" placeholder="Giá trị"
+                        value={p.amount === '' ? '' : p.amount}
+                        onChange={e => setPay(p._key, 'amount', e.target.value)} />
+                    ) : <span className="recv-masked">•••</span>}
                   </div>
                   <input type="text" placeholder="Ghi chú" value={p.note || ''}
                     onChange={e => setPay(p._key, 'note', e.target.value)} />

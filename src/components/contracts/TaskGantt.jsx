@@ -3,6 +3,7 @@ import './TaskGantt.css'
 
 import { groupByDept, groupByAssignee, fmtDate, initials, buildTaskTree, flattenTree, reorderIds } from './taskUtils'
 import { buildGanttModel, LABEL_W, HEAD_H, DAY_W } from './taskGanttUtils'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Gantt công việc triển khai (cây việc con) ───────────────────────────────────
 // tasks: TẤT CẢ công việc · visibleIds: tập id qua bộ lọc (null = tất cả) · milestones:
@@ -221,6 +222,7 @@ export default function TaskGantt({ tasks, visibleIds = null, milestones = [], d
               return (
               <div
                 key={i}
+                {...(row.type === 'task' ? auditRowAttrs('contract_task', row.task.id) : {})}
                 className={`tgantt-row tgantt-row--${row.type}`
                   + (row.type === 'task' && row.task.unread_count > 0 ? ' tgantt-row--unread' : '')
                   + (dragRow && overId === row.task.id ? ' tgantt-row--dragover' : '')

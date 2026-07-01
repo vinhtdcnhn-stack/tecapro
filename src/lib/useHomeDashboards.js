@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { usePermission } from '../hooks/usePermission'
 import { useContracts } from './queries'
 
 const STORE_KEY = 'home_dashboard'
@@ -11,6 +12,7 @@ const STORE_KEY = 'home_dashboard'
 // (và ngược lại) tự đồng bộ. App.jsx cũng phát sự kiện này cho các phím tắt v/p/k/q/b.
 export function useHomeDashboards() {
   const { user } = useAuth()
+  const { has } = usePermission()
   const [selected, setSelected] = useState(null)
 
   useEffect(() => {
@@ -23,33 +25,24 @@ export function useHomeDashboards() {
   // bảng "Tiến độ dự án"). Query đã nằm trong HOT_QUERIES nên dùng lại từ cache, không fetch thêm.
   const { data: contracts = [] } = useContracts({ enabled: !!user })
 
-  // Một user có thể giữ nhiều vị trí (nhiều vai).
-  const codes = new Set([
-    ...(user?.positions?.map(p => p.code) || []),
-    user?.position_code,
-  ].filter(Boolean))
-  const hasPMPosition = codes.has('PM_TEAM')
-  const isDirector    = codes.has('GD') || codes.has('PGD')
-  const isDeptHead    = codes.has('TP') || codes.has('PP')   // Trưởng/Phó ban → xem việc cả phòng
-  const isAdmin       = Number(user?.role) === 1
-  const isAccountant  = user?.department_name === 'Ban Kế Toán'
-  const isTenderPlanner = Number(user?.department_id) === 9
-
-  const canPM = hasPMPosition || contracts.length > 0
+  // Bảng nào hiện ra nay do RBAC quyết (quyền dashboard.*.view, cấu hình ở trang Phân
+  // quyền theo vị trí — admin fail-open thấy hết). "Tiến độ dự án" giữ thêm fallback dữ
+  // liệu: ai đang là thành viên ≥1 HĐ vẫn thấy dù vị trí chưa được cấp quyền.
+  const isDirector = has('dashboard.director.view')
+  const canPM = has('dashboard.pm.view') || contracts.length > 0
   const available = []
-  if (canPM)                                  available.push({ key: 'pm',         label: 'Tiến độ dự án' })
-  if (isDirector)                             available.push({ key: 'director',   label: 'Tổng quan hệ thống' })
-  if (isAccountant || isDirector || isAdmin)  available.push({ key: 'accounting', label: 'Kế toán' })
-  if (isTenderPlanner)                        available.push({ key: 'tender',     label: 'Kế hoạch đấu thầu' })
-  if (isDeptHead)                             available.push({ key: 'dept',       label: 'Việc của phòng' })
-  // "Việc của tôi" luôn khả dụng: gom mọi việc giao trực tiếp với cửa sổ thời hạn không giới hạn.
-  available.push({ key: 'assignee', label: 'Việc của tôi' })
-  // "Chưa đọc" luôn khả dụng: gom mọi việc có nội dung trao đổi người xem chưa đọc.
-  available.push({ key: 'unread', label: 'Chưa đọc' })
+  if (canPM)                            available.push({ key: 'pm',         label: 'Tiến độ dự án' })
+  if (isDirector)                       available.push({ key: 'director',   label: 'Tổng quan hệ thống' })
+  if (has('dashboard.accounting.view')) available.push({ key: 'accounting', label: 'Kế toán' })
+  if (has('dashboard.tender.view'))     available.push({ key: 'tender',     label: 'Kế hoạch đấu thầu' })
+  if (has('dashboard.dept.view'))       available.push({ key: 'dept',       label: 'Việc của phòng' })
+  if (has('dashboard.assignee.view'))   available.push({ key: 'assignee',   label: 'Việc của tôi' })
+  if (has('dashboard.unread.view'))     available.push({ key: 'unread',     label: 'Chưa đọc' })
 
   // Mặc định theo thứ tự ưu tiên cũ; nhớ lựa chọn người dùng nếu còn hợp lệ.
-  const defaultKey = canPM ? 'pm' : isDirector ? 'director' : isAccountant ? 'accounting'
-    : isTenderPlanner ? 'tender' : 'assignee'
+  const defaultKey = canPM ? 'pm' : isDirector ? 'director'
+    : has('dashboard.accounting.view') ? 'accounting'
+    : has('dashboard.tender.view') ? 'tender' : 'assignee'
   const stored = (typeof localStorage !== 'undefined') ? localStorage.getItem(STORE_KEY) : null
   const keys = available.map(a => a.key)
   const active = (selected && keys.includes(selected)) ? selected

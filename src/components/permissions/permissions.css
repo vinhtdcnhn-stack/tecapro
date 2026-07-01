@@ -1,0 +1,120 @@
+/* Panel Ctrl+Shift+Q + ma trận phân quyền dùng chung. */
+
+.perm-panel-backdrop {
+  position: fixed; inset: 0; z-index: 4000;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px;
+}
+.perm-panel {
+  background: #fff; border-radius: 10px; width: min(1100px, 96vw);
+  max-height: 88vh; display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); overflow: hidden;
+}
+.perm-panel-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid #e5e7eb; background: #f8fafc;
+}
+.perm-panel-head strong { font-size: 15px; color: #0f172a; }
+.perm-panel-path { margin-left: 10px; font-size: 12px; color: #94a3b8; }
+.perm-panel-head button {
+  border: none; background: transparent; font-size: 18px; cursor: pointer; color: #64748b;
+}
+.perm-panel-body { padding: 12px 16px; overflow: auto; }
+.perm-panel-foot {
+  padding: 8px 16px; border-top: 1px solid #e5e7eb; background: #f8fafc;
+  font-size: 12px; color: #64748b;
+}
+.perm-err { color: #dc2626; }
+
+/* Phần "Theo vị trí (toàn cục)" thêm dưới ma trận vai trò HĐ trong panel chi tiết HĐ */
+.perm-panel-section { margin-top: 18px; padding-top: 14px; border-top: 1px dashed #cbd5e1; }
+.perm-panel-subhead { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 8px; }
+
+/* Ma trận */
+.perm-matrix-scroll { overflow-x: auto; min-width: 0; }
+.perm-matrix { border-collapse: collapse; font-size: 13px; width: 100%; }
+.perm-matrix th, .perm-matrix td {
+  border: 1px solid #e5e7eb; padding: 5px 8px; text-align: center; white-space: nowrap;
+}
+.perm-matrix-rowhead { text-align: left !important; position: sticky; left: 0; background: #fff; z-index: 1; }
+.perm-col { writing-mode: vertical-rl; transform: rotate(180deg); height: 90px; font-weight: 600; color: #334155; }
+.perm-col.saving { color: #2563eb; }
+/* Header cột vị trí là link mở modal thành viên (kế thừa hướng chữ dọc của .perm-col). */
+.perm-pos-link {
+  border: none; background: transparent; padding: 0; cursor: pointer; font: inherit;
+  color: #4f46e5; text-decoration: underline; text-underline-offset: 2px;
+  writing-mode: inherit; transform: none;
+}
+.perm-pos-link:hover { color: #4338ca; }
+.perm-group-row td {
+  text-align: left !important; background: #eef2ff; font-weight: 700; color: #3730a3; font-size: 12px;
+}
+.perm-cell input { width: 16px; height: 16px; cursor: pointer; }
+.perm-admin-tag, .perm-section-tag {
+  margin-left: 6px; font-size: 10px; padding: 1px 5px; border-radius: 4px; vertical-align: middle;
+}
+.perm-admin-tag { background: #fee2e2; color: #b91c1c; }
+.perm-section-tag { background: #fef3c7; color: #92400e; }
+
+/* Trang tổng — .content-area cao cố định + overflow:hidden, nên root phải tự cuộn dọc,
+   nếu không bảng dài bị cắt mất phần dưới (như các trang Đề xuất/Đấu thầu). */
+.perm-admin-page { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+
+.perm-admin-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.perm-admin-tab {
+  padding: 7px 14px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px;
+  cursor: pointer; font-size: 13px; color: #334155;
+}
+.perm-admin-tab.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+.perm-override-grid { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 16px; align-items: center; max-width: 640px; }
+.perm-override-grid .ov-head { font-weight: 700; font-size: 12px; color: #475569; }
+
+/* Modal thành viên vị trí (mở từ header cột vị trí) — nằm trên panel phân quyền. */
+.pos-mem-backdrop {
+  position: fixed; inset: 0; z-index: 4100;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px;
+}
+.pos-mem-modal {
+  background: #fff; border-radius: 10px; width: min(680px, 96vw);
+  max-height: 80vh; display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); overflow: hidden;
+}
+.pos-mem-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid #e5e7eb; background: #f8fafc;
+}
+.pos-mem-head strong { font-size: 15px; color: #0f172a; }
+.pos-mem-sub { font-size: 12px; color: #64748b; }
+.pos-mem-head button {
+  margin-left: auto; border: none; background: transparent; font-size: 18px; cursor: pointer; color: #64748b;
+}
+.pos-mem-body { padding: 12px 16px; overflow: auto; }
+.pos-mem-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pos-mem-coltitle { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 8px; }
+.pos-mem-empty { font-size: 13px; color: #94a3b8; padding: 4px 2px; }
+.pos-mem-search {
+  width: 100%; box-sizing: border-box; margin-bottom: 8px; padding: 6px 10px;
+  border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;
+}
+.pos-mem-list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow: auto; }
+.pos-mem-list li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 4px; border-bottom: 1px solid #f1f5f9; font-size: 13px;
+}
+.pos-mem-name { display: flex; flex-direction: column; min-width: 0; flex: 1; color: #1e293b; }
+.pos-mem-name em { font-style: normal; font-size: 11px; color: #94a3b8; }
+.pos-mem-rm, .pos-mem-add {
+  border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer;
+  font-size: 12px; padding: 3px 8px; white-space: nowrap;
+}
+.pos-mem-rm { color: #b91c1c; }
+.pos-mem-rm:hover { background: #fee2e2; border-color: #fca5a5; }
+.pos-mem-add { color: #4338ca; }
+.pos-mem-add:hover { background: #eef2ff; border-color: #a5b4fc; }
+.pos-mem-rm:disabled, .pos-mem-add:disabled { opacity: 0.5; cursor: default; }
+.pos-mem-foot {
+  padding: 8px 16px; border-top: 1px solid #e5e7eb; background: #f8fafc;
+  font-size: 12px; color: #64748b;
+}

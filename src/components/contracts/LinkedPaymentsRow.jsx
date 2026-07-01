@@ -2,9 +2,10 @@ import { API } from '../../config/api'
 import { fmtVND, fmtAmt, calcVND, tmpId, savePaymentRow } from './receivableUtils'
 import DateInput from './DateInput'
 import RowActions from './ReceivableRowActions'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Inline sub-row: payments linked to one schedule item
-export default function LinkedPaymentsRow({ schedRow, payRows, setPayRows, contractId, colSpan }) {
+export default function LinkedPaymentsRow({ schedRow, payRows, setPayRows, contractId, colSpan, showAmounts = true }) {
   const linked = payRows.filter(p =>
     p._isNew ? p._schedKey === schedRow._key : String(p.schedule_id) === String(schedRow.id)
   )
@@ -77,7 +78,7 @@ export default function LinkedPaymentsRow({ schedRow, payRows, setPayRows, contr
                 {linked.map((p, idx) => {
                   const vnd = calcVND(p.amount, p.exchange_rate, p.currency_code)
                   return (
-                    <tr key={p._key} className={[p._dirty ? 'row-dirty' : '', p._isNew ? 'row-new' : ''].filter(Boolean).join(' ')}>
+                    <tr key={p._key} {...auditRowAttrs('contract_receivable_payment', p.id)} className={[p._dirty ? 'row-dirty' : '', p._isNew ? 'row-new' : ''].filter(Boolean).join(' ')}>
                       <td className="td-stt">
                         {p._dirty && <span className="dirty-dot" />}
                         <span>{idx + 1}</span>
@@ -87,10 +88,12 @@ export default function LinkedPaymentsRow({ schedRow, payRows, setPayRows, contr
                           onChange={e => set(p._key, 'payment_date', e.target.value)} />
                       </td>
                       <td className="td-num">
-                        <input type="number" value={p.amount === '' ? '' : p.amount} min="0" placeholder="0"
-                          onChange={e => set(p._key, 'amount', e.target.value)} />
+                        {showAmounts ? (
+                          <input type="number" value={p.amount === '' ? '' : p.amount} min="0" placeholder="0"
+                            onChange={e => set(p._key, 'amount', e.target.value)} />
+                        ) : <span className="recv-masked">•••</span>}
                       </td>
-                      <td className="td-vnd computed">{fmtVND(vnd)}</td>
+                      <td className="td-vnd computed">{showAmounts ? fmtVND(vnd) : '•••'}</td>
                       <td className="td-note">
                         <input type="text" value={p.note || ''} placeholder="Ghi chú..."
                           onChange={e => set(p._key, 'note', e.target.value)} />
@@ -120,17 +123,17 @@ export default function LinkedPaymentsRow({ schedRow, payRows, setPayRows, contr
             <div className="linked-comparison">
               <span className="cmp-item">
                 <span className="cmp-label">Phải thu:</span>
-                <span className="cmp-val">{fmtAmt(schedAmt, cur)} {unit}</span>
+                <span className="cmp-val">{showAmounts ? `${fmtAmt(schedAmt, cur)} ${unit}` : '•••'}</span>
               </span>
               <span className="cmp-sep">|</span>
               <span className="cmp-item">
                 <span className="cmp-label">Đã thu:</span>
-                <span className="cmp-val cmp-received">{fmtAmt(receivedAmt, cur)} {unit}</span>
+                <span className="cmp-val cmp-received">{showAmounts ? `${fmtAmt(receivedAmt, cur)} ${unit}` : '•••'}</span>
               </span>
               <span className="cmp-sep">|</span>
               <span className={`cmp-item ${isExcess ? 'cmp-excess' : receivedAmt === 0 ? 'cmp-zero' : 'cmp-shortage'}`}>
                 <span className="cmp-label">{isExcess ? 'Thừa:' : 'Còn thiếu:'}</span>
-                <span className="cmp-val">{fmtAmt(Math.abs(diff), cur)} {unit}</span>
+                <span className="cmp-val">{showAmounts ? `${fmtAmt(Math.abs(diff), cur)} ${unit}` : '•••'}</span>
               </span>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { formatFileSize, formatDate, getFileIcon } from './documentsUtils'
 import { useRowLongPress } from './useLongPress'
 import ContextMenu from '../common/ContextMenu'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // File listing table for the currently-selected folder.
 
@@ -67,6 +68,7 @@ export default function DocumentFileTable({
           return (
             <tr
               key={file.id}
+              {...auditRowAttrs('document_file', file.id)}
               className={`${isSelected ? 'selected' : ''} ${isPreviewing ? 'previewing' : ''} ${file.review_excluded ? 'review-excluded' : ''} ${file.is_replaced ? 'is-replaced' : ''}`}
               onClick={(e) => onFileClick(file, e)}
               {...reviewRowProps(file)}

@@ -8,7 +8,7 @@ import { API } from '../../config/api'
 import useBOQTab from './useBOQTab'
 import useSyncedHScroll from './useSyncedHScroll'
 import EditGuard from './EditGuard'
-import { useCanEdit } from '../../context/ContractPermContext'
+import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
 
 // ── Component (chỉ render; toàn bộ logic ở hook useBOQTab) ─────────────────────
 
@@ -24,6 +24,9 @@ export default function ContractBOQTab({ contractId }) {
   } = useBOQTab(contractId)
 
   const canEdit = useCanEdit()
+  // "Xem một phần": ẩn (che •••) cột Đơn giá / Thành tiền nếu thiếu quyền section.
+  const { canSection } = useContractPerm()
+  const showPrice = canSection('co.boq.unit_price')
 
   // Phóng to bảng giá toàn màn hình (vẫn giữ thanh menu trình duyệt)
   const [fullscreen, setFullscreen] = useState(false)
@@ -108,7 +111,7 @@ export default function ContractBOQTab({ contractId }) {
       {/* ── Toolbar ── */}
       <div className="boq-toolbar">
         <div className="boq-toolbar-left">
-          <EditGuard>
+          <EditGuard perm="co.boq.manage">
             <button className="boq-btn boq-btn-green" onClick={() => excelRef.current?.click()}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
@@ -130,7 +133,7 @@ export default function ContractBOQTab({ contractId }) {
             Tải template
           </a>
 
-          <EditGuard>
+          <EditGuard perm="co.boq.manage">
             <button className="boq-btn" onClick={handleAddRow} title="Thêm dòng (Alt+N)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
@@ -156,9 +159,9 @@ export default function ContractBOQTab({ contractId }) {
           <span className="boq-summary">
             <span className="boq-summary-count">{rows.length} dòng</span>
             <span className="boq-summary-sep">|</span>
-            Trước VAT: <strong>{fmtNum(totals.before, currency)}</strong>
+            Trước VAT: <strong>{showPrice ? fmtNum(totals.before, currency) : '•••'}</strong>
             <span className="boq-summary-sep">|</span>
-            Sau VAT: <strong>{fmtNum(totals.after, currency)}</strong>
+            Sau VAT: <strong>{showPrice ? fmtNum(totals.after, currency) : '•••'}</strong>
           </span>
 
           <button
@@ -210,7 +213,7 @@ export default function ContractBOQTab({ contractId }) {
         {selectedCount > 0 && (
           <>
             <span className="boq-sel-count">Đã chọn {selectedCount}</span>
-            <EditGuard>
+            <EditGuard perm="co.boq.manage">
               <button className="boq-btn boq-btn-danger" onClick={bulkDelete} disabled={bulkDeleting}>
                 {bulkDeleting ? 'Đang xóa…' : (
                   <>
@@ -225,12 +228,13 @@ export default function ContractBOQTab({ contractId }) {
       </div>
 
       {/* ── Table (desktop) / Cards (mobile) ── Vô hiệu hóa nhập/xóa khi không phải PM */}
-      <EditGuard>
+      <EditGuard perm="co.boq.manage">
       {isMobile ? (
         <BOQMobile
           items={visibleRows}
           rollup={rollup}
           currency={currency}
+          showPrice={showPrice}
           set={set}
           saveRow={saveRow}
           deleteRow={deleteRow}
@@ -295,6 +299,7 @@ export default function ContractBOQTab({ contractId }) {
                 depth={depth}
                 rollupAmt={rollup.get(r._key)}
                 currency={currency}
+                showPrice={showPrice}
                 selected={selected.has(r._key)}
                 onToggleSelect={toggleSelect}
                 set={set}
@@ -320,9 +325,9 @@ export default function ContractBOQTab({ contractId }) {
             <tfoot>
               <tr className="totals-row">
                 <td colSpan="7" className="totals-label">TỔNG CỘNG</td>
-                <td className="td-amt">{fmtNum(totals.before, currency)}</td>
+                <td className="td-amt">{showPrice ? fmtNum(totals.before, currency) : '•••'}</td>
                 <td />
-                <td className="td-amt">{fmtNum(totals.after, currency)}</td>
+                <td className="td-amt">{showPrice ? fmtNum(totals.after, currency) : '•••'}</td>
                 <td colSpan="3" />
               </tr>
             </tfoot>

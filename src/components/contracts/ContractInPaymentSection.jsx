@@ -5,10 +5,11 @@ import useIsMobile from './useIsMobile'
 import RowActions from './ReceivableRowActions'
 import { PaymentSectionMobile } from './PayableMobile'
 import { CURRENCIES, fmtVND, calcVND, tmpId } from './contractInPayableUtils'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Thanh toán thực tế cho NCC ────────────────────────────────────────────────
 
-export default function PaymentSection({ rows, setRows, contractInId, totalExpected }) {
+export default function PaymentSection({ rows, setRows, contractInId, totalExpected, showAmounts = true }) {
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r
@@ -86,7 +87,7 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
       {isMobile ? (
         <PaymentSectionMobile
           rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
-          currencies={CURRENCIES} calcVND={calcVND} fmtVND={fmtVND}
+          currencies={CURRENCIES} calcVND={calcVND} fmtVND={fmtVND} showAmounts={showAmounts}
         />
       ) : (
       <div className="recv-table-wrapper">
@@ -110,7 +111,7 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
             ) : rows.map((row, idx) => {
               const vnd = calcVND(row.amount, row.exchange_rate, row.currency_code)
               return (
-                <tr key={row._key} className={[
+                <tr key={row._key} {...auditRowAttrs('contract_in_payment', row.id)} className={[
                   row._dirty  ? 'row-dirty'  : '',
                   row._isNew  ? 'row-new'    : '',
                   row._saving ? 'row-saving' : '',
@@ -130,9 +131,11 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
                     </select>
                   </td>
                   <td className="td-num">
-                    <input type="number" value={row.amount === '' ? '' : row.amount}
-                      min="0" placeholder="0"
-                      onChange={e => set(row._key, 'amount', e.target.value)} />
+                    {showAmounts ? (
+                      <input type="number" value={row.amount === '' ? '' : row.amount}
+                        min="0" placeholder="0"
+                        onChange={e => set(row._key, 'amount', e.target.value)} />
+                    ) : <span className="recv-masked">•••</span>}
                   </td>
                   <td className="td-rate">
                     <input type="number"
@@ -140,7 +143,7 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
                       disabled={row.currency_code === 'VND'} min="0" placeholder="1"
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
                   </td>
-                  <td className="td-vnd computed">{fmtVND(vnd)}</td>
+                  <td className="td-vnd computed">{showAmounts ? fmtVND(vnd) : '•••'}</td>
                   <td className="td-ratio">
                     <div className="ratio-cell">
                       <input type="number" value={row.payment_ratio === '' ? '' : row.payment_ratio}
@@ -164,7 +167,7 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
             <tfoot>
               <tr className="totals-row">
                 <td colSpan="5" className="totals-label">TỔNG ĐÃ THANH TOÁN</td>
-                <td className="td-vnd">{fmtVND(totalPaidVND)}</td>
+                <td className="td-vnd">{showAmounts ? fmtVND(totalPaidVND) : '•••'}</td>
                 <td colSpan="3" />
               </tr>
             </tfoot>

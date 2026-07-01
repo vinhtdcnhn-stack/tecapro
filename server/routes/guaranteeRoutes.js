@@ -5,14 +5,14 @@ import {
   updateGuarantee,
   deleteGuarantee,
 } from '../controllers/guaranteeController.js'
-import { pmFromParam, pmVia } from '../middleware/contractAccess.js'
+import { contractPermFromParam, contractPermVia } from '../middleware/contractAccess.js'
 
 const router = Router()
 
-// Ghi yêu cầu PM của HĐ
+const M = 'co.guarantee.manage' // bootstrap = PM
 router.get('/contracts/:id/guarantees',  getGuarantees)
-router.post('/contracts/:id/guarantees', pmFromParam('id'), createGuarantee)
-router.put('/guarantees/:id',            pmVia('guarantee'), updateGuarantee)
-router.delete('/guarantees/:id',         pmVia('guarantee'), deleteGuarantee)
+router.post('/contracts/:id/guarantees', contractPermFromParam(M, 'id'), createGuarantee)
+router.put('/guarantees/:id',            contractPermVia(M, 'guarantee'), updateGuarantee)
+router.delete('/guarantees/:id',         contractPermVia(M, 'guarantee'), deleteGuarantee)
 
 export default router

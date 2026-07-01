@@ -1,17 +1,19 @@
 import AutoTextarea from '../common/AutoTextarea'
 import { fmtNum } from './boqUtils'
 import { IconSave, IconPlus, IconTrash, IconCheck } from './BOQRowIcons'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Dòng NHÓM tổng hợp (vd "Hệ thống UPS 600kVA"): giữ ĐVT/SL mô tả, nhưng đơn giá &
 // thành tiền là roll-up từ các dòng con (read-only). Có nút thêm nhóm/dòng con.
 export default function BOQGroupRow({
-  row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, onToggleMultiply, rollupAmt, currency,
+  row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, onToggleMultiply, rollupAmt, currency, showPrice = true,
   canDrop, isDragOver, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const mult = !!row.multiply_qty
   return (
     <tr
       data-key={row._key}
+      {...auditRowAttrs('contract_out_boq', row.id)}
       onDragOver={canDrop ? onDragOver : undefined}
       onDragEnter={canDrop ? () => onDragEnter(row._key) : undefined}
       onDrop={canDrop ? (e) => onDrop(e, row._key) : undefined}
@@ -48,11 +50,11 @@ export default function BOQGroupRow({
         <input type="number" value={row.quantity} onChange={e => set(row._key, 'quantity', e.target.value)} placeholder="0" min="0" />
       </td>
       <td className="td-num td-rollup" title={mult ? 'Đơn giá hệ thống = tổng thành tiền các dòng con (1 bộ)' : 'Tổng hợp từ dòng con'}>
-        {mult ? fmtNum(rollupAmt?.unitBefore || 0, currency) : '—'}
+        {!showPrice ? '•••' : (mult ? fmtNum(rollupAmt?.unitBefore || 0, currency) : '—')}
       </td>
-      <td className="td-amt computed td-rollup" title={mult ? 'Đã nhân theo số lượng hệ thống' : undefined}>{fmtNum(rollupAmt?.before || 0, currency)}</td>
+      <td className="td-amt computed td-rollup" title={mult ? 'Đã nhân theo số lượng hệ thống' : undefined}>{showPrice ? fmtNum(rollupAmt?.before || 0, currency) : '•••'}</td>
       <td className="td-vat td-rollup">—</td>
-      <td className="td-amt computed td-rollup" title={mult ? 'Đã nhân theo số lượng hệ thống' : undefined}>{fmtNum(rollupAmt?.after || 0, currency)}</td>
+      <td className="td-amt computed td-rollup" title={mult ? 'Đã nhân theo số lượng hệ thống' : undefined}>{showPrice ? fmtNum(rollupAmt?.after || 0, currency) : '•••'}</td>
       <td className="td-warranty">
         <input type="text" value={row.warranty_period} onChange={e => set(row._key, 'warranty_period', e.target.value)} placeholder="—" />
       </td>

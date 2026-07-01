@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import DateInput, { isoToDisplay } from './DateInput'
 import MobileEditSheet, { Field } from './MobileEditSheet'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Mobile cho tab Phải trả (HĐ nhập). Hai section: khoản phải trả + đợt thanh toán.
 // Tái dùng set/saveRow/deleteRow/addRow của từng section (truyền qua props).
 
-export function PayableSectionMobile({ rows, set, saveRow, deleteRow, addRow, currencies, methods, calcVND, fmtVND, isOverdue }) {
+export function PayableSectionMobile({ rows, set, saveRow, deleteRow, addRow, currencies, methods, calcVND, fmtVND, isOverdue, showAmounts = true }) {
   const [key, setKey] = useState(null)
   const editing = rows.find(r => r._key === key) || null
   const openAdd = () => setKey(addRow())
@@ -18,11 +19,11 @@ export function PayableSectionMobile({ rows, set, saveRow, deleteRow, addRow, cu
         const cur = row.currency_code || 'VND'
         const overdue = isOverdue(row.due_date) && !row._isNew
         return (
-          <div key={row._key} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setKey(row._key)}>
+          <div key={row._key} {...auditRowAttrs('contract_in_payable', row.id)} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setKey(row._key)}>
             <div className="mcard-head">
               {row._dirty && <span className="mcard-dot" />}
               <span className="mcard-title">{i + 1}. {row.description || '(chưa mô tả)'}</span>
-              <span className="mcard-amount">{fmtVND(row.amount)} {cur}</span>
+              <span className="mcard-amount">{showAmounts ? `${fmtVND(row.amount)} ${cur}` : '•••'}</span>
             </div>
             <div className="mcard-meta">
               <span>Hạn trả: {isoToDisplay(row.due_date?.slice(0, 10)) || '—'}</span>
@@ -50,14 +51,16 @@ export function PayableSectionMobile({ rows, set, saveRow, deleteRow, addRow, cu
             </select>
           </Field>
           <Field label="Giá trị">
-            <input type="number" min="0" placeholder="0" value={editing.amount === '' ? '' : editing.amount} onChange={e => set(editing._key, 'amount', e.target.value)} />
+            {showAmounts ? (
+              <input type="number" min="0" placeholder="0" value={editing.amount === '' ? '' : editing.amount} onChange={e => set(editing._key, 'amount', e.target.value)} />
+            ) : <span className="recv-masked">•••</span>}
           </Field>
           {(editing.currency_code || 'VND') !== 'VND' && (
             <Field label="Tỷ giá quy đổi VNĐ">
               <input type="number" min="0" value={editing.exchange_rate || ''} onChange={e => set(editing._key, 'exchange_rate', e.target.value)} />
             </Field>
           )}
-          <div className="mcard-meta">Quy đổi: <strong>{fmtVND(calcVND(editing.amount, editing.exchange_rate, editing.currency_code))} đ</strong></div>
+          <div className="mcard-meta">Quy đổi: <strong>{showAmounts ? `${fmtVND(calcVND(editing.amount, editing.exchange_rate, editing.currency_code))} đ` : '•••'}</strong></div>
           <Field label="Thời hạn trả">
             <DateInput value={editing.due_date?.slice(0, 10) || ''} onChange={e => set(editing._key, 'due_date', e.target.value)} />
           </Field>
@@ -70,7 +73,7 @@ export function PayableSectionMobile({ rows, set, saveRow, deleteRow, addRow, cu
   )
 }
 
-export function PaymentSectionMobile({ rows, set, saveRow, deleteRow, addRow, currencies, calcVND, fmtVND }) {
+export function PaymentSectionMobile({ rows, set, saveRow, deleteRow, addRow, currencies, calcVND, fmtVND, showAmounts = true }) {
   const [key, setKey] = useState(null)
   const editing = rows.find(r => r._key === key) || null
   const openAdd = () => setKey(addRow())
@@ -82,11 +85,11 @@ export function PaymentSectionMobile({ rows, set, saveRow, deleteRow, addRow, cu
       {rows.map((row, i) => {
         const cur = row.currency_code || 'VND'
         return (
-          <div key={row._key} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setKey(row._key)}>
+          <div key={row._key} {...auditRowAttrs('contract_in_payment', row.id)} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setKey(row._key)}>
             <div className="mcard-head">
               {row._dirty && <span className="mcard-dot" />}
               <span className="mcard-title">{i + 1}. {isoToDisplay(row.payment_date?.slice(0, 10)) || '(chưa có ngày)'}</span>
-              <span className="mcard-amount">{fmtVND(row.amount)} {cur}</span>
+              <span className="mcard-amount">{showAmounts ? `${fmtVND(row.amount)} ${cur}` : '•••'}</span>
             </div>
             {row.note && <div className="mcard-meta"><span>{row.note}</span></div>}
           </div>
@@ -106,14 +109,16 @@ export function PaymentSectionMobile({ rows, set, saveRow, deleteRow, addRow, cu
             </select>
           </Field>
           <Field label="Giá trị">
-            <input type="number" min="0" placeholder="0" value={editing.amount === '' ? '' : editing.amount} onChange={e => set(editing._key, 'amount', e.target.value)} />
+            {showAmounts ? (
+              <input type="number" min="0" placeholder="0" value={editing.amount === '' ? '' : editing.amount} onChange={e => set(editing._key, 'amount', e.target.value)} />
+            ) : <span className="recv-masked">•••</span>}
           </Field>
           {(editing.currency_code || 'VND') !== 'VND' && (
             <Field label="Tỷ giá quy đổi VNĐ">
               <input type="number" min="0" value={editing.exchange_rate || ''} onChange={e => set(editing._key, 'exchange_rate', e.target.value)} />
             </Field>
           )}
-          <div className="mcard-meta">Quy đổi: <strong>{fmtVND(calcVND(editing.amount, editing.exchange_rate, editing.currency_code))} đ</strong></div>
+          <div className="mcard-meta">Quy đổi: <strong>{showAmounts ? `${fmtVND(calcVND(editing.amount, editing.exchange_rate, editing.currency_code))} đ` : '•••'}</strong></div>
           <Field label="Ghi chú">
             <input value={editing.note || ''} placeholder="(tùy chọn)" onChange={e => set(editing._key, 'note', e.target.value)} />
           </Field>

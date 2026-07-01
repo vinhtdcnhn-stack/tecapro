@@ -4,6 +4,8 @@ import { useAuth } from './context/AuthContext'
 import { preloadRoutesOnIdle } from './lib/idlePrefetch'
 import Header from './components/layout/Header'
 import ChangePasswordModal from './components/auth/ChangePasswordModal'
+import PermissionPanel from './components/permissions/PermissionPanel'
+import RowAuditViewer from './components/audit/RowAuditViewer'
 import useLiveAlerts from './hooks/useLiveAlerts'
 // HomePage (trang đích mặc định) và LoginPage nạp ngay để không chớp màn chờ lúc vào.
 import HomePage from './pages/HomePage'
@@ -125,6 +127,10 @@ function Layout() {
       <Suspense fallback={<div className="page" style={{ padding: 24, color: '#6b7280' }}>Đang tải…</div>}>
         <Outlet />
       </Suspense>
+      {/* Ctrl+Shift+Q: bảng phân quyền cho trang hiện tại (chỉ người có quyền cấu hình). */}
+      {user && <PermissionPanel />}
+      {/* Ctrl+Shift+H: lịch sử 1 dòng dữ liệu (chỉ admin) — trỏ chuột vào dòng rồi nhấn. */}
+      {user && <RowAuditViewer user={user} />}
     </div>
   )
 }

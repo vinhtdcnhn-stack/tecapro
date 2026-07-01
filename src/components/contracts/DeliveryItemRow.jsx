@@ -6,6 +6,7 @@ import EditGuard from './EditGuard'
 import { useCanEdit } from '../../context/ContractPermContext'
 import DeliveryItemSerials from './DeliveryItemSerials'
 import { exportItemSerials } from './deliverySerialExport'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Delivery item row ─────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, l
 
   return (
     <>
-      <tr style={{ borderBottom:'1px solid #f3f4f6' }}>
+      <tr {...auditRowAttrs('contract_in_delivery_item', item.id)} style={{ borderBottom:'1px solid #f3f4f6' }}>
         <td style={{ padding:'8px 10px', color:'#9ca3af', fontSize:12, textAlign:'center' }}>{idx+1}</td>
         <td style={{ padding:'8px 10px', fontWeight:500 }}>{item.item_name}</td>
         <td style={{ padding:'8px 10px', color:'#6b7280' }}>{item.unit||'—'}</td>

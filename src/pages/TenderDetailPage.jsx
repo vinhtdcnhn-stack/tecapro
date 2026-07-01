@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
+import { usePermission } from '../hooks/usePermission'
 import { useTender, useTenderMembers, qk } from '../lib/queries'
 import TenderInfoTab from '../components/tender/TenderInfoTab'
 import TenderLotsTab from '../components/tender/TenderLotsTab'
@@ -24,6 +25,7 @@ const TABS = [
 
 export default function TenderDetailPage() {
   const { user } = useAuth()
+  const { has } = usePermission()
   const { id } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -35,8 +37,7 @@ export default function TenderDetailPage() {
   const { data: members = [] } = useTenderMembers()
   const reload = () => queryClient.invalidateQueries({ queryKey: qk.tender(id) })
 
-  const canAccess = Number(user?.role) === 1 || Number(user?.department_id) === 9
-  if (!canAccess) return <Navigate to="/" replace />
+  if (!has('module.tender.view')) return <Navigate to="/" replace />
 
   if (loading) return <main className="page admin-page"><p className="dash-empty">Đang tải…</p></main>
   if (isError || !tender) return <main className="page admin-page"><p className="dash-empty">Không tìm thấy gói thầu.</p></main>

@@ -6,10 +6,18 @@ import { fmtVND, fmtAmt, useRows } from './receivableUtils'
 import { computeForecasts } from './progressUtils'
 import ScheduleSection from './ReceivableScheduleSection'
 import EditGuard from './EditGuard'
+import { useContractPerm } from '../../context/ContractPermContext'
+
+// "Xem một phần": che số tiền (•••) khi thiếu quyền section co.receivable.amounts.
+const MASK = '•••'
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ContractReceivableTab({ contractId }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('co.receivable.amounts')
+  const mAmt = (v, cur) => showAmounts ? fmtAmt(v, cur) : MASK
+  const mVND = (v) => showAmounts ? fmtVND(v) : MASK
   const scheduleUrl = `${API}/contracts/${contractId}/receivable`
   const paymentUrl  = `${API}/contracts/${contractId}/receivable-payments`
 
@@ -115,22 +123,22 @@ export default function ContractReceivableTab({ contractId }) {
       <div className="recv-summary">
         <SummaryCard
           label="Phải thu theo HĐ"
-          value={fmtAmt(totalExpected, refCur)}
+          value={mAmt(totalExpected, refCur)}
           sub={`${sched.rows.filter(r => !r._isNew).length} khoản`}
           color="blue"
           unit={refCur === 'VND' ? 'đ' : refCur}
         />
         <SummaryCard
           label="Đã thu thực tế"
-          value={fmtAmt(totalReceived, refCur)}
+          value={mAmt(totalReceived, refCur)}
           sub={`${pay.rows.filter(r => !r._isNew).length} đợt`}
           color="green"
           unit={refCur === 'VND' ? 'đ' : refCur}
         />
         <SummaryCard
           label="Còn phải thu"
-          value={fmtAmt(balance, refCur)}
-          sub={balance > 0 ? `Còn thiếu ${fmtAmt(balance, refCur)} ${refCur === 'VND' ? 'đ' : refCur}` : 'Đã thu đủ'}
+          value={mAmt(balance, refCur)}
+          sub={balance > 0 ? `Còn thiếu ${mAmt(balance, refCur)} ${refCur === 'VND' ? 'đ' : refCur}` : 'Đã thu đủ'}
           color={balance > 0 ? 'orange' : 'green'}
           highlight={balance > 0}
           unit={refCur === 'VND' ? 'đ' : refCur}
@@ -152,10 +160,10 @@ export default function ContractReceivableTab({ contractId }) {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
           <span>
             Tổng giá trị HĐ (từ {contractRef.boqTotal > 0 ? 'bảng giá BOQ' : 'thông tin HĐ'}):&nbsp;
-            <strong>{fmtAmt(refTotal, refCur)} {refCur === 'VND' ? 'đ' : refCur}</strong>
+            <strong>{mAmt(refTotal, refCur)} {refCur === 'VND' ? 'đ' : refCur}</strong>
             {contractRef.currency !== 'VND' && (
               <span className="recv-ref-sub">
-                &nbsp;≈ {fmtVND(refTotal * contractRef.exchangeRate)} đ
+                &nbsp;≈ {mVND(refTotal * contractRef.exchangeRate)} đ
                 &nbsp;(tỷ giá {contractRef.exchangeRate})
               </span>
             )}
@@ -168,10 +176,11 @@ export default function ContractReceivableTab({ contractId }) {
       )}
 
       {/* ── Phải thu theo ĐKTT HĐ (kèm tiền về liên kết) ── Khóa nhập/sửa khi không phải PM */}
-      <EditGuard>
+      <EditGuard perm="co.receivable.manage">
       <ScheduleSection
         rows={sched.rows}
         setRows={sched.setRows}
+        showAmounts={showAmounts}
         contractId={contractId}
         refTotal={refTotal}
         refCurrency={contractRef?.currency || 'VND'}

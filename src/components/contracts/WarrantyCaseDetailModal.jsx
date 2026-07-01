@@ -9,6 +9,7 @@ import {
 } from './warrantyUtils'
 import CaseEquipmentLinker from './CaseEquipmentLinker'
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Case detail modal ─────────────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
         </div>
 
         <div className="wty-modal-body">
-          <EditGuard>
+          <EditGuard perm="co.warranty.cases.manage">
           {/* Section 1: Thông tin case */}
           <div style={{ fontWeight:700, fontSize:13, color:'#374151', marginBottom:8 }}>Thông tin case</div>
           <div className="wty-form-row">
@@ -153,7 +154,7 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
             ) : (
               <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                 {linkedEquip.map(l => (
-                  <div key={l.link_id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px',
+                  <div key={l.link_id} {...auditRowAttrs('warranty_case_equipment', l.link_id)} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px',
                     background:'#eff6ff', borderRadius:6, border:'1px solid #bfdbfe', fontSize:12 }}>
                     <strong>{l.name}</strong>
                     {l.serial_no && <span className="serial-chip">{l.serial_no}</span>}
@@ -201,7 +202,7 @@ export default function CaseDetailModal({ caseId, caseData, equipment, onUpdate,
               {activities.length === 0 ? (
                 <div style={{ fontSize:12, color:'#9ca3af', padding:'8px 0' }}>Chưa có nhật ký xử lý nào.</div>
               ) : activities.map(a => (
-                <div key={a.id} className="activity-item">
+                <div key={a.id} className="activity-item" {...auditRowAttrs('warranty_activity', a.id)}>
                   <div className="activity-dot">{activityIcon(a.activity_type)}</div>
                   <div className="activity-content">
                     <div><span className="activity-type-tag">{a.activity_type||'Cập nhật'}</span>{a.description}</div>

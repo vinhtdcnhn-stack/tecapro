@@ -1,16 +1,18 @@
 import AutoTextarea from '../common/AutoTextarea'
 import { fmtNum } from './boqUtils'
 import { IconSave, IconPlus, IconTrash } from './BOQRowIcons'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Dòng ZONE (Phần / phân khu): chỉ là dải tiêu đề phân vùng, không số liệu.
 // Hiển thị tên + tổng tiền roll-up của các dòng con; có nút thêm nhóm/dòng con.
 export default function BOQZoneRow({
-  row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, rollupAmt, currency,
+  row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, rollupAmt, currency, showPrice = true,
   canDrop, isDragOver, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   return (
     <tr
       data-key={row._key}
+      {...auditRowAttrs('contract_out_boq', row.id)}
       onDragOver={canDrop ? onDragOver : undefined}
       onDragEnter={canDrop ? () => onDragEnter(row._key) : undefined}
       onDrop={canDrop ? (e) => onDrop(e, row._key) : undefined}
@@ -36,7 +38,7 @@ export default function BOQZoneRow({
           onChange={e => set(row._key, 'item_name', e.target.value)}
           placeholder="Tên phần / phân khu..."
         />
-        <span className="boq-zone-total">{fmtNum(rollupAmt?.after || 0, currency)}</span>
+        <span className="boq-zone-total">{showPrice ? fmtNum(rollupAmt?.after || 0, currency) : '•••'}</span>
       </td>
       <td className="td-action">
         <div className="action-group">

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import DateInput, { isoToDisplay } from './DateInput'
 import MobileEditSheet, { Field } from './MobileEditSheet'
 import NumberInput from '../common/NumberInput'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Giá trị hiển thị trong ô nhập: bỏ số 0 thập phân thừa; tiền VND làm tròn về số nguyên.
 const dispAmount = (amt, currency) => {
@@ -15,7 +16,8 @@ const dispAmount = (amt, currency) => {
 // Tái dùng handler + helper của ContractGuaranteeTab (truyền qua props).
 export default function GuaranteeMobile({
   rows, set, saveRow, deleteRow, addRow,
-  types, statuses, contractCurrency, pctOf, fmtVND, fmtPct, autoStatus, StatusPill, totalAmt,
+  types, statuses, contractCurrency, pctOf, fmtVND, fmtPct, autoStatus, StatusPill, totalAmt, showAmounts = true,
+  auditTable = 'contract_guarantee',
 }) {
   const [editingKey, setEditingKey] = useState(null)
   const editing = rows.find(r => r._key === editingKey) || null
@@ -31,11 +33,11 @@ export default function GuaranteeMobile({
         {rows.map((row, i) => {
           const computed = autoStatus(row.expiry_date, row.status)
           return (
-            <div key={row._key} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setEditingKey(row._key)}>
+            <div key={row._key} {...auditRowAttrs(auditTable, row.id)} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setEditingKey(row._key)}>
               <div className="mcard-head">
                 {row._dirty && <span className="mcard-dot" title="Chưa lưu" />}
                 <span className="mcard-title">{i + 1}. {row.guarantee_type || '(chưa chọn loại)'}</span>
-                <span className="mcard-amount">{fmtVND(row.amount)} {contractCurrency}</span>
+                <span className="mcard-amount">{showAmounts ? `${fmtVND(row.amount)} ${contractCurrency}` : '•••'}</span>
               </div>
               <div className="mcard-meta">
                 <span>HSD: {isoToDisplay(row.expiry_date?.slice(0, 10)) || '—'}</span>
@@ -49,7 +51,7 @@ export default function GuaranteeMobile({
 
       <div className="mcards-total">
         <span>TỔNG GIÁ TRỊ</span>
-        <span>{fmtVND(totalAmt)} {contractCurrency}</span>
+        <span>{showAmounts ? `${fmtVND(totalAmt)} ${contractCurrency}` : '•••'}</span>
       </div>
 
       {editing && (
@@ -67,9 +69,11 @@ export default function GuaranteeMobile({
             </select>
           </Field>
           <Field label={`Giá trị (${contractCurrency})`}>
-            <NumberInput placeholder="0"
-              value={dispAmount(editing.amount, contractCurrency)}
-              onChange={v => set(editing._key, 'amount', v)} />
+            {showAmounts ? (
+              <NumberInput placeholder="0"
+                value={dispAmount(editing.amount, contractCurrency)}
+                onChange={v => set(editing._key, 'amount', v)} />
+            ) : <span className="recv-masked">•••</span>}
           </Field>
           {pct !== null && (
             <div className="mcard-meta">% so với giá trị HĐ: <strong>{fmtPct(pct)}</strong></div>

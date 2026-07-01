@@ -1,7 +1,23 @@
 import { useEffect } from 'react'
+import { useContractPerm } from '../../context/ContractPermContext'
+
+// Tab sidebar → quyền .view (lớp B) cần để THẤY. Thiếu map = luôn hiện.
+const PERM_BY_ID = {
+  'contract-info': 'co.info.view',
+  'contract-documents': 'co.documents.view',
+  'contract-pricing': 'co.boq.view',
+  'contract-progress': 'co.progress.view',
+  'contract-debt': 'co.receivable.view',
+  'contract-invoice': 'co.invoice.view',
+  'contract-warranty': 'co.warranty.view',
+  'contract-guarantee': 'co.guarantee.view',
+  'contract-tasks': 'co.tasks.view',
+  'purchase-contract-info': 'co.contractin.view',
+}
 
 export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen = false, onClose }) {
-  const menuItems = [
+  const { canView } = useContractPerm()
+  const allMenuItems = [
     {
       category: 'I. Hợp đồng bán',
       items: [
@@ -23,6 +39,11 @@ export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen =
       ]
     }
   ]
+
+  // Lọc tab theo quyền .view (lớp B). Bỏ category rỗng. Admin/HĐ-có-quyền thấy đủ như cũ.
+  const menuItems = allMenuItems
+    .map((section) => ({ ...section, items: section.items.filter((it) => !PERM_BY_ID[it.id] || canView(PERM_BY_ID[it.id])) }))
+    .filter((section) => section.items.length > 0)
 
   // Ctrl+↓ / Ctrl+↑: chuyển nhanh giữa các mục sidebar (vòng tròn)
   useEffect(() => {

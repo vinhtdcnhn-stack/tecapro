@@ -9,6 +9,7 @@ import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import SerialMobile from './SerialMobile'
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 const INACTIVE_STATUSES = ['Đã thay thế', 'Ngừng sử dụng']
 
@@ -231,7 +232,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
             Tải mẫu Excel
           </button>
-          <EditGuard>
+          <EditGuard perm="co.warranty.serials.manage">
             <label className="wty-btn wty-btn-blue" style={{ cursor: 'pointer' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
               Import Excel
@@ -250,7 +251,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
         <div className="wty-bulk-bar">
           <span>Đã chọn <strong>{selected.size}</strong> dòng</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <EditGuard>
+            <EditGuard perm="co.warranty.serials.manage">
               <button className="wty-btn wty-btn-primary" onClick={() => setShowBulk(true)}>Sửa bảo hành hàng loạt</button>
               <button className="wty-btn wty-btn-danger" onClick={bulkDelete}>Xóa hàng loạt</button>
             </EditGuard>
@@ -266,7 +267,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
             <span className="wty-section-title">Xem trước ({importPreview.length} serial linh kiện)</span>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="wty-btn wty-btn-secondary" onClick={() => setImportPreview(null)}>Hủy</button>
-              <EditGuard>
+              <EditGuard perm="co.warranty.serials.manage">
                 <button className="wty-btn wty-btn-primary" onClick={confirmImport} disabled={importing}>
                   {importing ? 'Đang thêm...' : 'Xác nhận'}
                 </button>
@@ -291,7 +292,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
         </div>
       )}
 
-      <EditGuard>
+      <EditGuard perm="co.warranty.serials.manage">
       {isMobile ? (
         <SerialMobile
           rows={filtered} allSerials={all}
@@ -326,7 +327,7 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
                 const ws = warrantyStatus(val(row, 'warranty_to') || row.effTo)
                 const inactive = INACTIVE_STATUSES.includes(row.status)
                 return (
-                  <tr key={row.id} className={`${dirty(row.id) ? 'row-dirty' : ''}${inactive ? ' row-inactive' : ''}`}>
+                  <tr key={row.id} {...auditRowAttrs('equipment_serial', row.id)} className={`${dirty(row.id) ? 'row-dirty' : ''}${inactive ? ' row-inactive' : ''}`}>
                     <td style={{ textAlign: 'center' }}>
                       <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggleOne(row.id)} />
                     </td>

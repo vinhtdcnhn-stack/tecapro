@@ -7,6 +7,7 @@ import { loginLimiter } from '../middleware/loginRateLimit.js'
 import { logger } from '../utils/logger.js'
 import { cacheWrap } from '../cache.js'
 import { lookupKey, invalidateLookup, lookupNotModified } from '../services/cacheKeys.js'
+import { loadGlobalPermissions } from '../auth/permissions.js'
 
 // TTL danh mục ít đổi. Đổi user/phòng/vị trí đã invalidate ngay nên TTL dài là an toàn.
 const USERS_TTL = 6 * 60 * 60        // 6h
@@ -96,6 +97,7 @@ export async function login(req, res) {
   setAuthCookie(res, user)
 
   const positions = user.positions || []
+  const permissions = await loadGlobalPermissions(user.id, user.role)
   res.json({
     id:              user.id,
     email:           user.email,
@@ -109,6 +111,7 @@ export async function login(req, res) {
     position_name:   positions.map(p => p.name).join(', ') || null,
     telegram_chat_id: user.telegram_chat_id || null,
     has_projects:    user.has_projects,
+    permissions,
   })
 }
 
@@ -377,6 +380,8 @@ export async function getUserById(req, res) {
     return
   }
 
+  // Quyền toàn cục (lớp A) — để FE lọc menu / nút theo RBAC. /auth/me dùng chính object này.
+  user.permissions = await loadGlobalPermissions(user.id, user.role)
   res.json(user)
 }
 

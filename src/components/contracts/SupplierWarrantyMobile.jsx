@@ -1,5 +1,6 @@
 import './MobileEditSheet.css'
 import { fmtDate, claimStatusStyle, warrantyExpiry } from './supplierWarrantyUtils'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Mobile cho tab Bảo hành NCC. Sửa vẫn dùng WarrantyModal/ClaimModal sẵn có —
 // thẻ chỉ tóm tắt + chạm để mở modal, kèm nút Xóa.
@@ -11,7 +12,7 @@ export function ClaimCardList({ rows, onEdit, onDelete }) {
       {rows.map((c, i) => {
         const cs = claimStatusStyle(c.status)
         return (
-          <div key={c.id} className="mcard" onClick={() => onEdit(c)}>
+          <div key={c.id} className="mcard" {...auditRowAttrs('contract_in_warranty_claim', c.id)} onClick={() => onEdit(c)}>
             <div className="mcard-head">
               <span className="mcard-title">{i + 1}. {c.title}</span>
               <span style={{ ...cs, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{c.status}</span>

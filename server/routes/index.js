@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import * as authController from '../controllers/authController.js'
-import { requireAuth, requireAdmin, requireSelfOrAdmin } from '../middleware/auth.js'
+import { requireAuth, requireSelfOrAdmin } from '../middleware/auth.js'
+import { withAuditActor } from '../middleware/auditActor.js'
+import { requirePermission } from '../auth/permissions.js'
 import { loginLimiter } from '../middleware/loginRateLimit.js'
 import customerRoutes from './customerRoutes.js'
 import contractRoutes from './contractRoutes.js'
@@ -27,6 +29,8 @@ import approvalRoutes from './approvalRoutes.js'
 import reportRoutes from './reportRoutes.js'
 import invoiceRoutes from './invoiceRoutes.js'
 import liveRoutes from './liveRoutes.js'
+import permissionRoutes from './permissionRoutes.js'
+import auditRoutes from './auditRoutes.js'
 import { listTelegramLogs } from '../controllers/telegramLogController.js'
 import {
   listFeedback, createFeedback, updateFeedback, deleteFeedback,
@@ -46,6 +50,8 @@ router.post('/auth/logout', authController.logout)
 
 // ── Mọi route phía dưới đều yêu cầu đã đăng nhập ──
 router.use(requireAuth)
+// Gắn người thao tác cho nhật ký thay đổi (sau requireAuth → đã có req.user.id).
+router.use(withAuditActor)
 
 // Thông tin người dùng hiện tại (danh tính lấy từ cookie phiên)
 router.get('/auth/me', authController.getCurrentUser)
@@ -54,48 +60,48 @@ router.get('/auth/me', authController.getCurrentUser)
 router.get('/users', authController.getAllUsers)
 router.get('/users/:id', requireSelfOrAdmin('id'), authController.getUserById)
 router.get('/me/:id', requireSelfOrAdmin('id'), authController.getUserById) // Alias for user info
-router.post('/users', requireAdmin, authController.createUser)
+router.post('/users', requirePermission('system.users.manage'), authController.createUser)
 router.put('/users/:id/change-password', requireSelfOrAdmin('id'), authController.changePassword)
 router.put('/users/:id/telegram', requireSelfOrAdmin('id'), authController.updateMyTelegram)
 router.post('/users/:id/test-telegram', requireSelfOrAdmin('id'), authController.testTelegram)
-router.put('/users/:id', requireAdmin, authController.updateUser)
-router.post('/users/check-email', requireAdmin, authController.checkEmailExists)
-router.post('/users/check-username', requireAdmin, authController.checkUsernameExists)
-router.post('/users/check-employee-code', requireAdmin, authController.checkEmployeeCodeExists)
-router.post('/users/test-telegram', requireAdmin, authController.testTelegram)
+router.put('/users/:id', requirePermission('system.users.manage'), authController.updateUser)
+router.post('/users/check-email', requirePermission('system.users.manage'), authController.checkEmailExists)
+router.post('/users/check-username', requirePermission('system.users.manage'), authController.checkUsernameExists)
+router.post('/users/check-employee-code', requirePermission('system.users.manage'), authController.checkEmployeeCodeExists)
+router.post('/users/test-telegram', requirePermission('system.users.manage'), authController.testTelegram)
 
-// Nhật ký gửi Telegram — chỉ admin xem (tự dọn bản ghi > 3 ngày khi tải).
-router.get('/telegram-logs', requireAdmin, listTelegramLogs)
+// Nhật ký gửi Telegram (tự dọn bản ghi > 3 ngày khi tải).
+router.get('/telegram-logs', requirePermission('system.telegram_log.view'), listTelegramLogs)
 
-// Sao lưu / Khôi phục — chỉ admin.
+// Sao lưu / Khôi phục.
 // CSDL (nhỏ): tải .tgz về máy hoặc upload để khôi phục.
-router.get('/admin/backup', requireAdmin, createBackup)
-router.post('/admin/restore', requireAdmin, uploadRestore, restoreBackup)
+router.get('/admin/backup', requirePermission('system.backup.manage'), createBackup)
+router.post('/admin/restore', requirePermission('system.backup.manage'), uploadRestore, restoreBackup)
 // Tệp đính kèm uploads (rất lớn, hàng chục GB): gói tar trên đĩa VPS (job nền) rồi
 // tải về máy bằng link stream (hỗ trợ nối lại); khôi phục từ tệp .tar có sẵn trên VPS.
-router.post('/admin/uploads-backup', requireAdmin, buildUploadsBackup)
-router.get('/admin/uploads-backup/status', requireAdmin, uploadsJobStatus)
-router.get('/admin/uploads-backups', requireAdmin, listUploadsBackups)
-router.get('/admin/uploads-backups/download', requireAdmin, downloadUploadsBackup)
-router.delete('/admin/uploads-backups', requireAdmin, deleteUploadsBackup)
-router.post('/admin/uploads-restore', requireAdmin, restoreUploads)
+router.post('/admin/uploads-backup', requirePermission('system.backup.manage'), buildUploadsBackup)
+router.get('/admin/uploads-backup/status', requirePermission('system.backup.manage'), uploadsJobStatus)
+router.get('/admin/uploads-backups', requirePermission('system.backup.manage'), listUploadsBackups)
+router.get('/admin/uploads-backups/download', requirePermission('system.backup.manage'), downloadUploadsBackup)
+router.delete('/admin/uploads-backups', requirePermission('system.backup.manage'), deleteUploadsBackup)
+router.post('/admin/uploads-restore', requirePermission('system.backup.manage'), restoreUploads)
 
 // Góp ý cải thiện phần mềm — mọi người dùng gửi (xem góp ý của mình), admin xem & xử lý tất cả.
 router.get('/feedback', listFeedback)
 router.post('/feedback', createFeedback)
 router.post('/feedback/:id/images', uploadFeedbackImage.single('image'), addFeedbackImage)
-router.put('/feedback/:id', requireAdmin, updateFeedback)
+router.put('/feedback/:id', requirePermission('system.feedback.manage'), updateFeedback)
 router.delete('/feedback/:id', deleteFeedback)
 
 // Department routes — danh mục dùng chung: ghi chỉ admin
 router.get('/departments', authController.getAllDepartments)
-router.post('/departments', requireAdmin, authController.createDepartment)
-router.put('/departments/:id', requireAdmin, authController.updateDepartment)
+router.post('/departments', requirePermission('system.departments.manage'), authController.createDepartment)
+router.put('/departments/:id', requirePermission('system.departments.manage'), authController.updateDepartment)
 
 // Position routes — danh mục dùng chung: ghi chỉ admin
 router.get('/positions', authController.getAllPositions)
-router.post('/positions', requireAdmin, authController.createPosition)
-router.put('/positions/:id', requireAdmin, authController.updatePosition)
+router.post('/positions', requirePermission('system.positions.manage'), authController.createPosition)
+router.put('/positions/:id', requirePermission('system.positions.manage'), authController.updatePosition)
 
 // Manager routes
 router.get('/managers', authController.getAllManagers)
@@ -174,5 +180,11 @@ router.use('/', reportRoutes)
 
 // Long-poll hợp nhất cho cảnh báo/badge (thay 3 vòng poll cũ)
 router.use('/', liveRoutes)
+
+// Module Phân quyền (RBAC) — chỉ system.permissions.manage (mặc định admin).
+router.use('/', permissionRoutes)
+
+// Nhật ký thay đổi (audit) — chỉ admin.
+router.use('/', auditRoutes)
 
 export default router

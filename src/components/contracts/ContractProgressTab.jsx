@@ -8,6 +8,7 @@ import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import ProgressMobile from './ProgressMobile'
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Badge trạng thái nhỏ đặt ngay dưới ngày trong ô (giống "Thời hạn thu" ở Công nợ).
 function StatusBadgeInline({ st }) {
@@ -165,7 +166,7 @@ export default function ContractProgressTab({ contractId }) {
       {/* ── Toolbar ── */}
       <div className="prog-toolbar">
         <div className="prog-toolbar-left">
-          <EditGuard>
+          <EditGuard perm="co.progress.manage">
             <button className="prog-btn prog-btn-primary" onClick={addRow}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
               Thêm biên bản
@@ -180,9 +181,10 @@ export default function ContractProgressTab({ contractId }) {
       </div>
 
       {/* ── Table (desktop) / Cards (mobile) ── Vô hiệu hóa nhập/xóa khi không phải PM */}
-      <EditGuard>
+      <EditGuard perm="co.progress.manage">
       {isMobile ? (
         <ProgressMobile
+          auditTable="contract_out_progress"
           rows={rows} bbTypes={bbTypes} baseOptions={baseOptions}
           forecasts={forecasts} plannedDates={plannedDates}
           getStatusInfo={getStatusInfo}
@@ -225,6 +227,7 @@ export default function ContractProgressTab({ contractId }) {
               return (
                 <Fragment key={row._key}>
                 <tr
+                  {...auditRowAttrs('contract_out_progress', row.id)}
                   className={[
                     'prog-card-row',
                     `status-${status.type}`,

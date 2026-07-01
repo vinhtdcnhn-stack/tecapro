@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import DateInput from './DateInput'
 import MobileEditSheet, { Field } from './MobileEditSheet'
+import { auditRowAttrs } from '../common/rowAudit'
 
 const wtyColor = (cls) =>
   cls === 'wty-badge--expired'  ? { bg: '#fee2e2', fg: '#b91c1c' } :
@@ -33,7 +34,7 @@ export default function SerialMobile({
           const s = warrantyStatus(row.effTo)
           const c = wtyColor(s.cls)
           return (
-            <div key={row.id} className="mcard" onClick={() => setEditingId(row.id)}>
+            <div key={row.id} {...auditRowAttrs('equipment_serial', row.id)} className="mcard" onClick={() => setEditingId(row.id)}>
               <div className="mcard-head">
                 <span className="mcard-title">{i + 1}. {row.eqName}</span>
                 <span style={{ background: c.bg, color: c.fg, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{s.label}</span>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE } from '../config/api'
 import { useAuth } from '../context/AuthContext'
@@ -15,7 +16,8 @@ import ContractGuaranteeTab from '../components/contracts/ContractGuaranteeTab'
 import ContractTaskTab from '../components/contracts/ContractTaskTab'
 import ContractWarrantyTab from '../components/contracts/ContractWarrantyTab'
 import ContractInTab from '../components/contracts/ContractInTab'
-import { ContractPermProvider, useCanEdit } from '../context/ContractPermContext'
+import { ContractPermProvider, useContractPerm } from '../context/ContractPermContext'
+import { auditRowAttrs } from '../components/common/rowAudit'
 
 export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab, initialTaskId }) {
   const contractId = selectedContractId // dẫn xuất thẳng từ prop (trước đây mirror qua state + setContractId)
@@ -23,7 +25,18 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
   // Chi tiết HĐ lấy qua TanStack Query: nếu đã được nạp sẵn (rê chuột ở danh sách / idle) thì
   // hiển thị NGAY từ cache, không còn màn "Đang tải...". Vẫn làm mới ngầm theo SWR.
   const { data: contract = null, isLoading: loading } = useContract(contractId)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [activeMenu, setActiveMenu] = useState(initialMenu || 'contract-info')
+
+  // Đồng bộ tab đang mở → URL (?tab=) để panel phân quyền (Ctrl+Shift+Q) lọc đúng tab,
+  // đồng thời tab deep-link được. replace để không làm phình lịch sử trình duyệt.
+  useEffect(() => {
+    if (!activeMenu) return
+    if (searchParams.get('tab') === activeMenu) return
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', activeMenu)
+    setSearchParams(next, { replace: true })
+  }, [activeMenu]) // eslint-disable-line react-hooks/exhaustive-deps
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const contentRef = useRef(null)
 
@@ -58,6 +71,20 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
     const techIds = (contract.technical_member_ids || []).map(String)
     return techIds.includes(String(currentUser.id))
   })()
+
+  // Quyền HĐ lớp B (RBAC theo member_role) để ẩn/hiện TAB + khối "xem một phần".
+  // Server tính từ vai trò của user trong HĐ; admin nhận toàn bộ.
+  const [contractPerms, setContractPerms] = useState([])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset khi đổi HĐ rồi nạp async
+    if (!contractId) { setContractPerms([]); return }
+    let alive = true
+    fetch(`${API_BASE}/api/contracts/${contractId}/my-permissions`)
+      .then(r => (r.ok ? r.json() : { perms: [] }))
+      .then(d => { if (alive) setContractPerms(d.perms || []) })
+      .catch(() => { if (alive) setContractPerms([]) })
+    return () => { alive = false }
+  }, [contractId])
 
   // Dữ liệu (chi tiết HĐ, users, customers) nay do TanStack Query tự nạp + cache; người dùng
   // hiện tại lấy từ AuthContext. Không còn effect tải thủ công ở đây.
@@ -171,7 +198,7 @@ default:
   }
 
   return (
-    <ContractPermProvider canEdit={canEdit} canEditSerial={canEditSerial}>
+    <ContractPermProvider canEdit={canEdit} canEditSerial={canEditSerial} perms={contractPerms}>
       <div className="contract-management-page">
         <ContractHeader contract={contract} onTitleClick={() => setMobileNavOpen(true)} />
         <div className="contract-management-body">
@@ -204,7 +231,8 @@ default:
 }
 
 function ContractInfoTab({ contract, onEdit }) {
-  const canEdit = useCanEdit()
+  const { canEdit, canSection } = useContractPerm()
+  const showAmounts = canSection('co.info.amounts') // view-một-phần: che trước/sau VAT
   if (!contract) {
     return <div className="contract-info-tab">Không tìm thấy thông tin hợp đồng</div>
   }
@@ -246,7 +274,7 @@ function ContractInfoTab({ contract, onEdit }) {
 
   return (
     <div className="contract-info-tab">
-      <div className="contract-info-left">
+      <div className="contract-info-left" {...auditRowAttrs('contract_out', contract.id)}>
         <div className="contract-info-section-header">
           <h3 className="contract-info-section-title">Thông tin hợp đồng</h3>
           {canEdit && (
@@ -291,11 +319,11 @@ function ContractInfoTab({ contract, onEdit }) {
           <div className="form-row">
             <div className="form-group">
               <label>Trước VAT</label>
-              <input type="text" value={formatCurrency(contract.amount_before_vat)} readOnly />
+              <input type="text" value={showAmounts ? formatCurrency(contract.amount_before_vat) : '•••'} readOnly />
             </div>
             <div className="form-group">
               <label>Sau VAT</label>
-              <input type="text" value={formatCurrency(contract.amount_after_vat)} readOnly />
+              <input type="text" value={showAmounts ? formatCurrency(contract.amount_after_vat) : '•••'} readOnly />
             </div>
           </div>
           <div className="form-row">

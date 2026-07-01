@@ -1,0 +1,14 @@
+/* Nhật ký thay đổi (admin) */
+.audit-row:hover { background: #f5f7fa; }
+
+.audit-detail-row > td { background: #fafbfc; padding: 10px 14px; }
+
+.audit-diff { width: 100%; border-collapse: collapse; font-size: 13px; }
+.audit-diff th,
+.audit-diff td { padding: 5px 10px; border-bottom: 1px solid #eef0f2; vertical-align: top; }
+.audit-diff th { text-align: left; color: #666; font-weight: 600; }
+
+.audit-diff-field { font-weight: 600; color: #334; white-space: nowrap; }
+.audit-diff-old { color: #c00; background: #fff4f4; }
+.audit-diff-new { color: #15803d; background: #f2fbf4; }
+.audit-diff-arrow { color: #999; text-align: center; }

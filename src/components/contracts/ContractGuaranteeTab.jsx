@@ -6,6 +6,8 @@ import useIsMobile from './useIsMobile'
 import GuaranteeMobile from './GuaranteeMobile'
 import NumberInput from '../common/NumberInput'
 import EditGuard from './EditGuard'
+import { useContractPerm } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
 
@@ -59,6 +61,8 @@ function StatusPill({ status }) {
 }
 
 export default function ContractGuaranteeTab({ contractId }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('co.guarantee.amounts')
   const [rows, setRows]         = useState([])
   const [loading, setLoading]   = useState(true)
   const [contractCurrency, setContractCurrency] = useState('VND')
@@ -166,7 +170,7 @@ export default function ContractGuaranteeTab({ contractId }) {
       <div className="guar-summary">
         <div className="guar-card guar-card--blue">
           <div className="guar-card-label">Tổng giá trị bảo lãnh</div>
-          <div className="guar-card-value">{fmtVND(totalAmt)} <span style={{fontSize:13,fontWeight:400}}>{contractCurrency}</span></div>
+          <div className="guar-card-value">{showAmounts ? fmtVND(totalAmt) : '•••'} <span style={{fontSize:13,fontWeight:400}}>{contractCurrency}</span></div>
           <div className="guar-card-sub">{rows.filter(r => !r._isNew).length} bảo lãnh</div>
         </div>
         <div className="guar-card guar-card--green">
@@ -190,7 +194,7 @@ export default function ContractGuaranteeTab({ contractId }) {
       <div className="guar-section">
         <div className="guar-section-header">
           <h4 className="guar-section-title">Danh sách bảo lãnh</h4>
-          <EditGuard>
+          <EditGuard perm="co.guarantee.manage">
             <button className="guar-btn guar-btn-primary" onClick={addRow}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
               Thêm bảo lãnh
@@ -198,12 +202,12 @@ export default function ContractGuaranteeTab({ contractId }) {
           </EditGuard>
         </div>
 
-        <EditGuard>
+        <EditGuard perm="co.guarantee.manage">
         {isMobile ? (
           <GuaranteeMobile
             rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
             types={GUARANTEE_TYPES} statuses={STATUSES} contractCurrency={contractCurrency}
-            pctOf={pctOf} fmtVND={fmtVND} fmtPct={fmtPct} autoStatus={autoStatus}
+            pctOf={pctOf} fmtVND={fmtVND} fmtPct={fmtPct} autoStatus={autoStatus} showAmounts={showAmounts}
             StatusPill={StatusPill} totalAmt={totalAmt}
           />
         ) : (
@@ -241,7 +245,7 @@ export default function ContractGuaranteeTab({ contractId }) {
                 ].filter(Boolean).join(' ')
 
                 return (
-                  <tr key={row._key} className={rowClass}>
+                  <tr key={row._key} {...auditRowAttrs('contract_guarantee', row.id)} className={rowClass}>
                     <td className="td-stt">
                       {row._dirty && <span className="dirty-dot" />}
                       <span>{idx + 1}</span>
@@ -258,11 +262,13 @@ export default function ContractGuaranteeTab({ contractId }) {
                     </td>
 
                     <td>
-                      <NumberInput
-                        value={dispAmount(row.amount, contractCurrency)}
-                        placeholder="0"
-                        onChange={v => set(row._key, 'amount', v)}
-                      />
+                      {showAmounts ? (
+                        <NumberInput
+                          value={dispAmount(row.amount, contractCurrency)}
+                          placeholder="0"
+                          onChange={v => set(row._key, 'amount', v)}
+                        />
+                      ) : <span className="recv-masked">•••</span>}
                     </td>
 
                     <td className="td-pct">
@@ -322,7 +328,7 @@ export default function ContractGuaranteeTab({ contractId }) {
               <tfoot>
                 <tr>
                   <td colSpan="2" className="totals-label">TỔNG GIÁ TRỊ</td>
-                  <td style={{ fontWeight: 600 }}>{fmtVND(totalAmt)}</td>
+                  <td style={{ fontWeight: 600 }}>{showAmounts ? fmtVND(totalAmt) : '•••'}</td>
                   <td className="td-pct">
                     {pctOf(totalAmt) !== null
                       ? <span className="pct-badge">{fmtPct(pctOf(totalAmt))}</span>

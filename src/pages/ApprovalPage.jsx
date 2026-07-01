@@ -1,12 +1,12 @@
 import { useParams, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { usePermission } from '../hooks/usePermission'
 import ApprovalSidebar from '../components/approvals/ApprovalSidebar'
 import FormList from '../components/approvals/admin/FormList'
 import RequestList from '../components/approvals/RequestList'
 import Inbox from '../components/approvals/Inbox'
 import RequestBrowseList from '../components/approvals/RequestBrowseList'
 import AllRequests from '../components/approvals/admin/AllRequests'
-import { canManageForms } from '../components/approvals/approvalUtils'
 import '../components/approvals/Approval.css'
 
 const VALID = ['my', 'inbox', 'upcoming', 'following', 'all', 'forms']
@@ -14,13 +14,15 @@ const ADMIN_ONLY = ['all', 'forms']
 
 export default function ApprovalPage() {
   const { user } = useAuth()
+  const { has } = usePermission()
   const { section } = useParams()
 
   // Toàn công ty: mọi nhân viên đã đăng nhập đều dùng được.
   if (!user) return <Navigate to="/login" replace />
   if (!VALID.includes(section)) return <Navigate to="/de-xuat/my" replace />
 
-  const canManage = canManageForms(user)
+  // Quản trị biểu mẫu / xem mọi đơn theo RBAC lớp A (admin fail-open).
+  const canManage = has('approvals.forms.manage')
   // Chặn truy cập section quản trị nếu không phải admin.
   if (ADMIN_ONLY.includes(section) && !canManage) return <Navigate to="/de-xuat/my" replace />
 

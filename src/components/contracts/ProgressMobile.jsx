@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import DateInput, { isoToDisplay } from './DateInput'
 import MobileEditSheet, { Field } from './MobileEditSheet'
+import { auditRowAttrs } from '../common/rowAudit'
 
 const statusColor = (type) =>
   (type === 'overdue' || type === 'late') ? { bg: '#fee2e2', fg: '#b91c1c' } :
@@ -11,7 +12,7 @@ const statusColor = (type) =>
 // Phiên bản mobile của Tiến độ theo biên bản: thẻ tóm tắt + sheet sửa đúng mốc.
 export default function ProgressMobile({
   rows, bbTypes, baseOptions = [], forecasts, plannedDates = {}, getStatusInfo,
-  set, setBase, setHdBase, saveRow, deleteRow, addRow, showBase = true,
+  set, setBase, setHdBase, saveRow, deleteRow, addRow, showBase = true, auditTable,
 }) {
   const [editingKey, setEditingKey] = useState(null)
   const editing = rows.find(r => r._key === editingKey) || null
@@ -32,7 +33,7 @@ export default function ProgressMobile({
           const st = getStatusInfo(forecasts[row._key], row.actual_date)
           const c = statusColor(st.type)
           return (
-            <div key={row._key} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setEditingKey(row._key)}>
+            <div key={row._key} {...auditRowAttrs(auditTable, row.id)} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setEditingKey(row._key)}>
               <div className="mcard-head">
                 {row._dirty && <span className="mcard-dot" title="Chưa lưu" />}
                 <span className="mcard-title">{i + 1}. {bbLabel(row)}</span>

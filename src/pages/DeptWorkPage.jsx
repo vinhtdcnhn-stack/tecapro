@@ -1,5 +1,6 @@
 import { useParams, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { usePermission } from '../hooks/usePermission'
 import { useDeptTeams, useDeptMembers } from '../lib/queries'
 import DeptWorkSidebar from '../components/deptwork/DeptWorkSidebar'
 import TaskBoard from '../components/deptwork/TaskBoard'
@@ -12,13 +13,14 @@ const VALID = ['board', 'logs', 'capacity']
 
 export default function DeptWorkPage() {
   const { user } = useAuth()
+  const { has } = usePermission()
   const { section } = useParams()
   const { data: teams = [] } = useDeptTeams()
   const { data: members = [] } = useDeptMembers()
 
-  // Chỉ thành viên Ban KT Cơ điện (department 7) hoặc admin được vào module.
-  const canAccess = Number(user?.role) === 1 || Number(user?.department_id) === 7
-  if (!canAccess) return <Navigate to="/" replace />
+  // Vào module theo RBAC lớp A (admin fail-open). Quyền quản lý (HEAD/DEPUTY) vẫn theo
+  // mô hình động canManageDeptWork — lớp A chỉ gate vào module.
+  if (!has('module.deptwork.view')) return <Navigate to="/" replace />
   if (!VALID.includes(section)) return <Navigate to="/cong-viec/kt-co-dien/board" replace />
 
   const canManage = canManageDeptWork(user)

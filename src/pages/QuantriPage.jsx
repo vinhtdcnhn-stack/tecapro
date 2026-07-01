@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE as API } from '../config/api'
 import { useParams, Navigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { usePermission } from '../hooks/usePermission'
 import {
   useUsers, useCustomers, useSuppliers, useDepartments, usePositions, useManagers, useBbTypes, qk,
 } from '../lib/queries'
@@ -18,14 +18,32 @@ import CodeNameModal from '../components/common/CodeNameModal'
 import TelegramLogPanel from '../components/admin/TelegramLogPanel'
 import FeedbackPanel from '../components/admin/FeedbackPanel'
 import BackupPanel from '../components/admin/BackupPanel'
+import PermissionAdminPanel from '../components/permissions/PermissionAdminPanel'
+import AuditLogPage from '../components/admin/auditlog/AuditLogPage'
 
-const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types', 'telegram-log', 'feedback', 'backup']
-// Các section chỉ admin (role==1) mới được xem.
-const ADMIN_ONLY_SECTIONS = ['telegram-log', 'backup']
+const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types', 'telegram-log', 'feedback', 'backup', 'phan-quyen', 'nhat-ky-thay-doi']
+// Quyền (lớp A) cần để XEM section. Section không liệt kê = chỉ cần vào module Hệ thống.
+const SECTION_VIEW_PERM = {
+  'telegram-log': 'system.telegram_log.view',
+  'backup': 'system.backup.manage',
+  'phan-quyen': 'system.permissions.manage',
+  'nhat-ky-thay-doi': 'system.audit_log.view',
+}
+// Quyền GHI (hiện nút thêm/sửa) theo từng section quản trị danh mục.
+const SECTION_MANAGE_PERM = {
+  users: 'system.users.manage',
+  departments: 'system.departments.manage',
+  positions: 'system.positions.manage',
+  customers: 'system.customers.manage',
+  suppliers: 'system.suppliers.manage',
+  'bb-types': 'system.bbtypes.manage',
+}
 
 export default function QuantriPage() {
-  const { user } = useAuth()
+  const { has } = usePermission()
   const { section } = useParams()
+  // Quyền GHI của section đang mở (hiện nút thêm/sửa). Admin fail-open qua usePermission.
+  const canManage = has(SECTION_MANAGE_PERM[section])
 
   const queryClient = useQueryClient()
   // Tất cả danh sách quản trị lấy qua TanStack Query: render NGAY từ cache (nhiều cái dùng
@@ -165,9 +183,12 @@ export default function QuantriPage() {
     } catch { alert('Có lỗi xảy ra.') }
   }
 
+  // Vào module Hệ thống theo RBAC lớp A (admin fail-open).
+  if (!has('module.system.view')) return <Navigate to="/" replace />
   if (!VALID_SECTIONS.includes(section)) return <Navigate to="/quantri/users" replace />
-  // Section dành riêng admin: người không phải admin bị đẩy về trang người dùng.
-  if (ADMIN_ONLY_SECTIONS.includes(section) && user?.role != 1) return <Navigate to="/quantri/users" replace />
+  // Section cần quyền riêng: thiếu quyền → đẩy về trang người dùng.
+  const needPerm = SECTION_VIEW_PERM[section]
+  if (needPerm && !has(needPerm)) return <Navigate to="/quantri/users" replace />
 
   return (
     <main className="page admin-page">
@@ -179,7 +200,7 @@ export default function QuantriPage() {
             <>
               <h2 className="section-title">QUẢN LÝ NGƯỜI DÙNG</h2>
               <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                {user?.role == 1 && (
+                {canManage && (
                   <button className="add-btn" onClick={() => setShowAddModal(true)}>Thêm người dùng</button>
                 )}
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -204,7 +225,7 @@ export default function QuantriPage() {
                   </div>
                 </div>
               </div>
-              <UserTable users={users} searchTerm={searchTerm} departmentFilter={departmentFilter} userRole={user?.role} onEdit={(u) => { setEditingUserId(u.id); setShowEditModal(true) }} />
+              <UserTable users={users} searchTerm={searchTerm} departmentFilter={departmentFilter} userRole={canManage ? 1 : 0} onEdit={(u) => { setEditingUserId(u.id); setShowEditModal(true) }} />
               <UserModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleSaveUser} departments={departments} positions={positions} managers={managers} checkEmailExists={checkEmailExists} checkUsernameExists={checkUsernameExists} checkEmployeeCodeExists={checkEmployeeCodeExists} />
               <UserModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setEditingUserId(null) }} onSave={handleSaveUser} user={users.find(u => u.id === editingUserId)} departments={departments} positions={positions} managers={managers} checkEmailExists={checkEmailExists} checkUsernameExists={checkUsernameExists} checkEmployeeCodeExists={checkEmployeeCodeExists} />
             </>
@@ -214,13 +235,13 @@ export default function QuantriPage() {
             <>
               <DataTable
                 title="QUẢN LÝ PHÒNG BAN"
-                headerActions={user?.role == 1 && (
+                headerActions={canManage && (
                   <button className="add-btn" onClick={() => { setEditingDept(null); setShowDeptModal(true) }}>Thêm phòng ban</button>
                 )}
                 columns={[
                   { header: 'Mã phòng ban', field: 'code' },
                   { header: 'Tên phòng ban', field: 'name' },
-                  ...(user?.role == 1 ? [{
+                  ...(canManage ? [{
                     header: 'Thao tác',
                     render: (d) => <button className="edit-btn" onClick={() => { setEditingDept(d); setShowDeptModal(true) }}>Sửa</button>,
                   }] : []),
@@ -243,13 +264,13 @@ export default function QuantriPage() {
             <>
               <DataTable
                 title="QUẢN LÝ VỊ TRÍ"
-                headerActions={user?.role == 1 && (
+                headerActions={canManage && (
                   <button className="add-btn" onClick={() => { setEditingPosition(null); setShowPositionModal(true) }}>Thêm vị trí</button>
                 )}
                 columns={[
                   { header: 'Mã vị trí', field: 'code' },
                   { header: 'Tên vị trí', field: 'name' },
-                  ...(user?.role == 1 ? [{
+                  ...(canManage ? [{
                     header: 'Thao tác',
                     render: (p) => <button className="edit-btn" onClick={() => { setEditingPosition(p); setShowPositionModal(true) }}>Sửa</button>,
                   }] : []),
@@ -272,7 +293,7 @@ export default function QuantriPage() {
             <>
               <h2 className="section-title">QUẢN LÝ KHÁCH HÀNG</h2>
               <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {user?.role == 1 && (
+                {canManage && (
                   <button className="add-btn" onClick={() => setShowAddCustomerModal(true)}>Thêm khách hàng</button>
                 )}
                 <div style={{ maxWidth: '300px' }}>
@@ -280,7 +301,7 @@ export default function QuantriPage() {
                 </div>
               </div>
               <div className="content-scrollable">
-                <CustomerTable customers={customers} searchTerm={customerSearchTerm} userRole={user?.role} onEdit={(c) => { setEditingCustomerId(c.id); setShowEditCustomerModal(true) }} />
+                <CustomerTable customers={customers} searchTerm={customerSearchTerm} userRole={canManage ? 1 : 0} onEdit={(c) => { setEditingCustomerId(c.id); setShowEditCustomerModal(true) }} />
               </div>
               <CustomerModal isOpen={showAddCustomerModal} onClose={() => setShowAddCustomerModal(false)} onSave={handleSaveCustomer} />
               <CustomerModal isOpen={showEditCustomerModal} onClose={() => { setShowEditCustomerModal(false); setEditingCustomerId(null) }} onSave={handleSaveCustomer} customer={customers.find(c => c.id === editingCustomerId)} />
@@ -291,7 +312,7 @@ export default function QuantriPage() {
             <>
               <h2 className="section-title">QUẢN LÝ NHÀ CUNG CẤP</h2>
               <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {user?.role == 1 && (
+                {canManage && (
                   <button className="add-btn" onClick={() => setShowAddSupplierModal(true)}>Thêm nhà cung cấp</button>
                 )}
                 <div style={{ maxWidth: '300px' }}>
@@ -299,7 +320,7 @@ export default function QuantriPage() {
                 </div>
               </div>
               <div className="content-scrollable">
-                <SupplierTable suppliers={suppliers} searchTerm={supplierSearchTerm} userRole={user?.role} onEdit={(s) => { setEditingSupplierId(s.id); setShowEditSupplierModal(true) }} />
+                <SupplierTable suppliers={suppliers} searchTerm={supplierSearchTerm} userRole={canManage ? 1 : 0} onEdit={(s) => { setEditingSupplierId(s.id); setShowEditSupplierModal(true) }} />
               </div>
               <SupplierModal isOpen={showAddSupplierModal} onClose={() => setShowAddSupplierModal(false)} onSave={handleSaveSupplier} />
               <SupplierModal isOpen={showEditSupplierModal} onClose={() => { setShowEditSupplierModal(false); setEditingSupplierId(null) }} onSave={handleSaveSupplier} supplier={suppliers.find(s => s.id === editingSupplierId)} />
@@ -310,13 +331,13 @@ export default function QuantriPage() {
             <>
               <DataTable
                 title="QUẢN LÝ LOẠI BIÊN BẢN"
-                headerActions={user?.role == 1 && (
+                headerActions={canManage && (
                   <button className="add-btn" onClick={() => { setEditingBBType(null); setShowBBTypeModal(true) }}>Thêm loại biên bản</button>
                 )}
                 columns={[
                   { header: 'Mã', field: 'code' },
                   { header: 'Tên đầy đủ', field: 'name' },
-                  ...(user?.role == 1 ? [{
+                  ...(canManage ? [{
                     header: 'Thao tác',
                     render: (t) => <button className="edit-btn" onClick={() => { setEditingBBType(t); setShowBBTypeModal(true) }}>Sửa</button>,
                   }] : []),
@@ -340,6 +361,10 @@ export default function QuantriPage() {
           {section === 'feedback' && <FeedbackPanel />}
 
           {section === 'backup' && <BackupPanel />}
+
+          {section === 'phan-quyen' && <PermissionAdminPanel />}
+
+          {section === 'nhat-ky-thay-doi' && <AuditLogPage />}
 
         </section>
       </div>

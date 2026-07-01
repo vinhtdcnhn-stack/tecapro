@@ -625,3 +625,5 @@
   border-color: #86efac;
   color: #15803d;
 }
+
+.boq-masked { color: #9ca3af; letter-spacing: 2px; user-select: none; }

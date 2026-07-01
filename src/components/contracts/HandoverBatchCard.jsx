@@ -9,6 +9,7 @@ import SerialComponentsModal from './SerialComponentsModal'
 import HandoverSerialExportModal from './HandoverSerialExportModal'
 import { buildBatchSerialData } from './handoverSerialExport'
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Thiết bị linh-kiện (mọi serial đều có parent_serial_id) không hiện ở tab bàn giao.
 const isComponentEquipment = (e) =>
@@ -173,7 +174,7 @@ export default function HandoverBatchCard({
   }
 
   return (
-    <div className="hbatch-card">
+    <div className="hbatch-card" {...auditRowAttrs('contract_out_delivery', delivery.id)}>
       {/* Header */}
       <div className="hbatch-head" onClick={onToggle}>
         <div className="hbatch-head-main">
@@ -298,7 +299,7 @@ export default function HandoverBatchCard({
                   const ws   = warrantyStatus(eq.warranty_to)
                   const isEx = expanded.has(eq.id)
                   return [
-                    <tr key={eq.id} className={isEx ? 'row-expanded' : ''}>
+                    <tr key={eq.id} {...auditRowAttrs('contract_equipment', eq.id)} className={isEx ? 'row-expanded' : ''}>
                       <td style={{ textAlign: 'center' }}>
                         <input type="checkbox" checked={selected.has(eq.id)} onChange={() => toggleOne(eq.id)} />
                       </td>

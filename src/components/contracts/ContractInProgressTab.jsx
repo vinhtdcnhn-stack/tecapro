@@ -5,6 +5,7 @@ import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import ProgressMobile from './ProgressMobile'
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
 
@@ -128,6 +129,7 @@ export default function ContractInProgressTab({ contractInId }) {
       <EditGuard>
       {isMobile ? (
         <ProgressMobile
+          auditTable="contract_in_progress"
           rows={rows} bbTypes={bbTypes} forecasts={planMap} getStatusInfo={getStatusInfo}
           set={set} setBase={() => {}} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
           showBase={false}
@@ -156,7 +158,7 @@ export default function ContractInProgressTab({ contractInId }) {
               const status = getStatusInfo(row.planned_date, row.actual_date)
               const isLate = status.type === 'late' || status.type === 'overdue'
               return (
-                <tr key={row._key} className={[
+                <tr key={row._key} {...auditRowAttrs('contract_in_progress', row.id)} className={[
                   `status-${status.type}`,
                   row._dirty  ? 'row-dirty'  : '',
                   row._isNew  ? 'row-new'    : '',

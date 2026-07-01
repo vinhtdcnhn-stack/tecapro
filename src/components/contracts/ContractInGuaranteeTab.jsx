@@ -6,6 +6,8 @@ import useIsMobile from './useIsMobile'
 import GuaranteeMobile from './GuaranteeMobile'
 import NumberInput from '../common/NumberInput'
 import EditGuard from './EditGuard'
+import { useContractPerm } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
 
@@ -55,6 +57,8 @@ function StatusPill({ status }) {
 }
 
 export default function ContractInGuaranteeTab({ contractInId }) {
+  const { canSection } = useContractPerm()
+  const showAmounts = canSection('ci.guarantee.amounts')
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -136,7 +140,7 @@ export default function ContractInGuaranteeTab({ contractInId }) {
       <div className="guar-summary">
         <div className="guar-card guar-card--blue">
           <div className="guar-card-label">Tổng giá trị bảo lãnh</div>
-          <div className="guar-card-value">{fmtVND(totalAmt)}</div>
+          <div className="guar-card-value">{showAmounts ? fmtVND(totalAmt) : '•••'}</div>
           <div className="guar-card-sub">{saved.length} bảo lãnh</div>
         </div>
         <div className="guar-card guar-card--green">
@@ -174,7 +178,8 @@ export default function ContractInGuaranteeTab({ contractInId }) {
             rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
             types={GUARANTEE_TYPES} statuses={STATUSES} contractCurrency="VND"
             pctOf={() => null} fmtVND={fmtVND} fmtPct={() => ''} autoStatus={autoStatus}
-            StatusPill={StatusPill} totalAmt={totalAmt}
+            StatusPill={StatusPill} totalAmt={totalAmt} showAmounts={showAmounts}
+            auditTable="contract_in_guarantee"
           />
         ) : (
         <div className="guar-table-wrapper">
@@ -210,7 +215,7 @@ export default function ContractInGuaranteeTab({ contractInId }) {
                 ].filter(Boolean).join(' ')
 
                 return (
-                  <tr key={row._key} className={rowClass}>
+                  <tr key={row._key} {...auditRowAttrs('contract_in_guarantee', row.id)} className={rowClass}>
                     <td className="td-stt">
                       {row._dirty && <span className="dirty-dot" />}
                       <span>{idx + 1}</span>
@@ -223,9 +228,11 @@ export default function ContractInGuaranteeTab({ contractInId }) {
                     </td>
 
                     <td>
+                      {showAmounts ? (
                       <NumberInput value={dispAmount(row.amount)}
                         placeholder="0"
                         onChange={v => set(row._key, 'amount', v)} />
+                      ) : <span className="recv-masked">•••</span>}
                     </td>
 
                     <td>
@@ -279,7 +286,7 @@ export default function ContractInGuaranteeTab({ contractInId }) {
               <tfoot>
                 <tr>
                   <td colSpan="2" className="totals-label">TỔNG GIÁ TRỊ</td>
-                  <td style={{ fontWeight: 600 }}>{fmtVND(totalAmt)}</td>
+                  <td style={{ fontWeight: 600 }}>{showAmounts ? fmtVND(totalAmt) : '•••'}</td>
                   <td colSpan="5" />
                 </tr>
               </tfoot>

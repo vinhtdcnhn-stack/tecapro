@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { userIsHead } from './tenderAccess.js'
+import { loadPositionContractPerms } from '../auth/permissions.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phân quyền ghi theo hợp đồng:
@@ -248,6 +249,50 @@ export function canTransferTask(param = 'id') {
 // Biến thể cho phép PM HOẶC Kỹ thuật (member_role='Technical') — dùng cho thao tác serial.
 export const pmOrTechVia = (key, param = 'id') => makeGuard(req => req.params[param], RESOLVERS[key], ['PM', 'Technical'])
 export const pmOrTechViaBody = (key) => makeGuard(req => req.body?.ids, RESOLVERS[key], ['PM', 'Technical'])
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guard GHI theo QUYỀN HỢP ĐỒNG (RBAC lớp B) — thay PM cứng cho tài nguyên HĐ BÁN.
+// Cho qua nếu user có member_role trong HĐ mà role đó được cấp `permKey`
+// (contract_role_permission). Admin toàn quyền. Bootstrap cấp co.*.manage CHỈ cho PM →
+// tương đương hành vi pmVia cũ, nhưng giờ ma trận điều khiển được.
+// ─────────────────────────────────────────────────────────────────────────────
+function makeContractPermGuard(pick, resolverSql, permKey) {
+  return async function contractPermGuard(req, res, next) {
+    try {
+      if (Number(req.user?.role) === 1) return next() // admin
+
+      const ids = toIdList(pick(req))
+      if (!ids) { res.status(400).json({ error: 'Tham số id không hợp lệ.' }); return }
+
+      // Quyền HĐ cấp THEO VỊ TRÍ (toàn cục) áp cho MỌI hợp đồng → cho qua không cần là
+      // thành viên. Gồm cả kế thừa TP/PP (xem loadPositionContractPerms).
+      const posPerms = await loadPositionContractPerms(req.user.id, req.user.role)
+      if (posPerms.includes(permKey)) return next()
+
+      let contractIds = ids
+      if (resolverSql) {
+        const { rows } = await pool.query(resolverSql, [ids])
+        contractIds = rows.map(r => r.contract_out_id).filter(v => v != null).map(String)
+        if (!contractIds.length) { res.status(404).json({ error: 'Không tìm thấy dữ liệu.' }); return }
+      }
+
+      const distinct = [...new Set(contractIds)]
+      const { rows: m } = await pool.query(
+        `SELECT COUNT(DISTINCT m.contract_out_id)::int AS n
+           FROM contract_out_member m
+           JOIN contract_role_permission crp ON crp.member_role = m.member_role
+          WHERE m.user_id = $1 AND crp.perm_key = $2 AND m.contract_out_id = ANY($3::bigint[])`,
+        [req.user.id, permKey, distinct],
+      )
+      if (m[0].n === distinct.length) return next()
+
+      res.status(403).json({ error: 'Bạn không có quyền sửa đổi dữ liệu này (phân quyền hợp đồng).' })
+    } catch (err) { next(err) }
+  }
+}
+export const contractPermFromParam = (permKey, param = 'contractId') => makeContractPermGuard(req => req.params[param], null, permKey)
+export const contractPermVia = (permKey, key, param = 'id') => makeContractPermGuard(req => req.params[param], RESOLVERS[key], permKey)
+export const contractPermViaBody = (permKey, key) => makeContractPermGuard(req => req.body?.ids, RESOLVERS[key], permKey)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phân quyền theo NGƯỜI TẠO cho HỢP ĐỒNG NHẬP (contract_in).

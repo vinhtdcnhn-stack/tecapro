@@ -5,10 +5,11 @@ import useIsMobile from './useIsMobile'
 import RowActions from './ReceivableRowActions'
 import { PayableSectionMobile } from './PayableMobile'
 import { CURRENCIES, PAYMENT_METHODS, fmtVND, calcVND, isOverdue, tmpId } from './contractInPayableUtils'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Lịch phải trả theo ĐKTT hợp đồng nhập ─────────────────────────────────────
 
-export default function PayableSection({ rows, setRows, contractInId }) {
+export default function PayableSection({ rows, setRows, contractInId, showAmounts = true }) {
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r
@@ -85,6 +86,7 @@ export default function PayableSection({ rows, setRows, contractInId }) {
         <PayableSectionMobile
           rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
           currencies={CURRENCIES} methods={PAYMENT_METHODS} calcVND={calcVND} fmtVND={fmtVND} isOverdue={isOverdue}
+          showAmounts={showAmounts}
         />
       ) : (
       <div className="recv-table-wrapper">
@@ -110,7 +112,7 @@ export default function PayableSection({ rows, setRows, contractInId }) {
               const overdue = isOverdue(row.due_date) && !row._isNew
               const vnd = calcVND(row.amount, row.exchange_rate, row.currency_code)
               return (
-                <tr key={row._key} className={[
+                <tr key={row._key} {...auditRowAttrs('contract_in_payable', row.id)} className={[
                   overdue ? 'row-overdue' : '',
                   row._dirty  ? 'row-dirty'  : '',
                   row._isNew  ? 'row-new'    : '',
@@ -138,9 +140,11 @@ export default function PayableSection({ rows, setRows, contractInId }) {
                     </select>
                   </td>
                   <td className="td-num">
-                    <input type="number" value={row.amount === '' ? '' : row.amount}
-                      min="0" placeholder="0"
-                      onChange={e => set(row._key, 'amount', e.target.value)} />
+                    {showAmounts ? (
+                      <input type="number" value={row.amount === '' ? '' : row.amount}
+                        min="0" placeholder="0"
+                        onChange={e => set(row._key, 'amount', e.target.value)} />
+                    ) : <span className="recv-masked">•••</span>}
                   </td>
                   <td className="td-rate">
                     <input type="number"
@@ -148,7 +152,7 @@ export default function PayableSection({ rows, setRows, contractInId }) {
                       disabled={row.currency_code === 'VND'} min="0" placeholder="1"
                       onChange={e => set(row._key, 'exchange_rate', e.target.value)} />
                   </td>
-                  <td className="td-vnd computed">{fmtVND(vnd)}</td>
+                  <td className="td-vnd computed">{showAmounts ? fmtVND(vnd) : '•••'}</td>
                   <td className="td-date">
                     <DateInput value={row.due_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'due_date', e.target.value)} />
@@ -171,7 +175,7 @@ export default function PayableSection({ rows, setRows, contractInId }) {
             <tfoot>
               <tr className="totals-row">
                 <td colSpan="6" className="totals-label">TỔNG PHẢI TRẢ</td>
-                <td className="td-vnd">{fmtVND(totalVND)}</td>
+                <td className="td-vnd">{showAmounts ? fmtVND(totalVND) : '•••'}</td>
                 <td colSpan="3" />
               </tr>
             </tfoot>

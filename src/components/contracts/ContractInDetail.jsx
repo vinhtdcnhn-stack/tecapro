@@ -13,11 +13,17 @@ import ContractInLogisticsTab from './ContractInLogisticsTab'
 import ContractInInfoTab from './ContractInInfoTab'
 import useIsMobile from './useIsMobile'
 import { CinHeaderSlotContext } from './cinHeaderSlot'
+import { setContractInSubTab } from '../permissions/activeSubTab'
 import { SUB_TABS, fmtNum, statusCfg } from './contractInUtils'
+import { useContractPerm } from '../../context/ContractPermContext'
 
 // ── Detail view ───────────────────────────────────────────────────────────────
 
 export default function ContractInDetail({ item, suppliers, initialTab, onBack, onUpdate, onDelete }) {
+  const { canView, canSection } = useContractPerm()
+  const showAmounts = canSection('ci.info.amounts')
+  // Lọc sub-tab HĐ nhập theo quyền .view (lớp B). Thiếu quyền → ẩn tab đó.
+  const subTabs = SUB_TABS.filter(t => canView(`ci.${t.key}.view`))
   const [activeTab, setActiveTab] = useState(
     initialTab && SUB_TABS.some(t => t.key === initialTab) ? initialTab : 'info'
   )
@@ -25,6 +31,11 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
   const [headerSlot, setHeaderSlot] = useState(null)
   const sc = statusCfg[item.status] || { label: item.status, cls: '' }
   const isMobile = useIsMobile()
+
+  // Báo cho PermissionPanel (Ctrl+Shift+Q) biết sub-tab HĐ nhập đang mở để chỉ hiện
+  // đúng quyền của tab đó. Xoá khi rời chi tiết HĐ nhập.
+  useEffect(() => { setContractInSubTab(activeTab) }, [activeTab])
+  useEffect(() => () => setContractInSubTab(null), [])
 
   // Ctrl+← / Ctrl+→: chuyển qua lại giữa các tab (bỏ qua khi đang gõ trong ô nhập).
   useEffect(() => {
@@ -121,7 +132,7 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
             }}>{item.purchase_type}</span>
             {item.amount > 0 && (
               <span style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>
-                {fmtNum(item.amount, item.currency_code)} {item.currency_code}
+                {showAmounts ? `${fmtNum(item.amount, item.currency_code)} ${item.currency_code}` : '•••'}
               </span>
             )}
           </div>
@@ -149,7 +160,7 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
             >
               ← Danh sách HĐ nhập
             </button>
-            {SUB_TABS.map(t => (
+            {subTabs.map(t => (
               <button
                 key={t.key}
                 className={`cin-tab-drawer-item ${activeTab === t.key ? 'active' : ''}`}
@@ -168,7 +179,7 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
         display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb',
         padding: '0 24px', background: '#fff', overflowX: 'auto',
       }}>
-        {SUB_TABS.map(t => (
+        {subTabs.map(t => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}

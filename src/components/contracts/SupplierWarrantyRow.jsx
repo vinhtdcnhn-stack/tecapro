@@ -4,6 +4,7 @@ import DateInput from './DateInput'
 import { fmtDate, fmtDateInput, td } from './supplierWarrantyUtils'
 import EditGuard from './EditGuard'
 import { useCanEdit } from '../../context/ContractPermContext'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Warranty row ──────────────────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ export default function WarrantyRow({ idx, w, selected, onToggle, onFieldUpdate,
   }
 
   return (
-    <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+    <tr {...auditRowAttrs('contract_in_supplier_warranty', w.id)} style={{ borderBottom: '1px solid #f3f4f6' }}>
       <td style={td('center')}>
         <EditGuard>
           <input type="checkbox" checked={selected} onChange={onToggle} />

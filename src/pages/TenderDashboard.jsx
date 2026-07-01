@@ -38,9 +38,8 @@ export default function TenderDashboard({ switcher, user }) {
       <div className="dash-head">
         <div>
           <h2 className="dash-title">Kế hoạch Đấu thầu — Tổng quan</h2>
-          <p className="dash-sub">Xin chào <strong>{user?.full_name}</strong> — theo dõi gói thầu & việc cần xử lý</p>
+          <p className="dash-sub">{switcher}Xin chào <strong>{user?.full_name}</strong> — theo dõi gói thầu & việc cần xử lý</p>
         </div>
-        {switcher}
       </div>
 
       <div className="tender-cards">

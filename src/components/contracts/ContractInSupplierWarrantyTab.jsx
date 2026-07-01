@@ -7,6 +7,7 @@ import { BulkUpdateModal, WarrantyModal, ClaimModal } from './SupplierWarrantyMo
 import useIsMobile from './useIsMobile'
 import { ClaimCardList, WarrantyCardList } from './SupplierWarrantyMobile'
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -187,7 +188,7 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
                 {claims.map((c, idx) => {
                   const cs = claimStatusStyle(c.status)
                   return (
-                    <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <tr key={c.id} {...auditRowAttrs('contract_in_warranty_claim', c.id)} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={td('center', { color: '#9ca3af', fontSize: 12 })}>{idx + 1}</td>
                       <td style={td('left', { fontWeight: 600 })}>{c.claim_no || '—'}</td>
                       <td style={td('left', { maxWidth: 220 })}>{c.title}</td>

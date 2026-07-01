@@ -7,6 +7,7 @@ import DeliveryItemsMobile from './DeliveryItemsMobile'
 import useIsMobile from './useIsMobile'
 import EditGuard from './EditGuard'
 import useCtrlSave from './useCtrlSave'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // ── Delivery card ─────────────────────────────────────────────────────────────
 
@@ -86,7 +87,7 @@ export default function DeliveryCard({ delivery, boqItems, isExpanded, onToggle,
   const isMobile = useIsMobile()
 
   return (
-    <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, overflow:'hidden' }}>
+    <div {...auditRowAttrs('contract_in_delivery', delivery.id)} style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, overflow:'hidden' }}>
       {/* Batch header */}
       <div
         style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 8 : 12, padding: isMobile ? '12px 10px' : '13px 18px', background:'#f9fafb', borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none', cursor:'pointer', flexWrap: isMobile ? 'wrap' : 'nowrap' }}

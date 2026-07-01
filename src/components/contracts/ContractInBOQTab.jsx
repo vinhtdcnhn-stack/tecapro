@@ -7,7 +7,7 @@ import PurchaseBOQRow from './PurchaseBOQRow'
 import PurchaseBOQImportModal from './PurchaseBOQImportModal'
 import { fmtNum, stripNum, calcAmounts, tmpId } from './boqUtils'
 import EditGuard from './EditGuard'
-import { useCanEdit } from '../../context/ContractPermContext'
+import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
 
 import { API } from '../../config/api'
 
@@ -174,6 +174,8 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
 
   const isMobile = useIsMobile()
   const canEdit = useCanEdit()
+  const { canSection } = useContractPerm()
+  const showPrice = canSection('ci.pricing.unit_price')
 
   // Ctrl+S: lưu tất cả dòng đang sửa
   useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
@@ -309,9 +311,9 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
           <span className="boq-summary">
             <span className="boq-summary-count">{rows.length} dòng</span>
             <span className="boq-summary-sep">|</span>
-            Trước VAT: <strong>{fmtNum(totals.before, currency)}</strong>
+            Trước VAT: <strong>{showPrice ? fmtNum(totals.before, currency) : '•••'}</strong>
             <span className="boq-summary-sep">|</span>
-            Sau VAT: <strong>{fmtNum(totals.after, currency)}</strong>
+            Sau VAT: <strong>{showPrice ? fmtNum(totals.after, currency) : '•••'}</strong>
           </span>
         </div>
       </div>
@@ -406,6 +408,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 row={r}
                 idx={idx}
                 currency={currency}
+                showPrice={showPrice}
                 selected={selected.has(r._key)}
                 onToggleSelect={toggleSelect}
                 set={set}
@@ -427,9 +430,9 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
             <tfoot>
               <tr className="totals-row">
                 <td colSpan="6" className="totals-label">TỔNG CỘNG</td>
-                <td className="td-amt">{fmtNum(totals.before, currency)}</td>
+                <td className="td-amt">{showPrice ? fmtNum(totals.before, currency) : '•••'}</td>
                 <td />
-                <td className="td-amt">{fmtNum(totals.after, currency)}</td>
+                <td className="td-amt">{showPrice ? fmtNum(totals.after, currency) : '•••'}</td>
                 <td colSpan="2" />
               </tr>
             </tfoot>

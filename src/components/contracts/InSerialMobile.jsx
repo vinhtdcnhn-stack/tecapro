@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { fmtDate } from './warrantyUtils'
 import MobileEditSheet, { Field } from './MobileEditSheet'
+import { auditRowAttrs } from '../common/rowAudit'
 
 // Mobile cho Quản lý Serial (HĐ nhập): thẻ tóm tắt + sheet sửa 1 serial.
 // Tái dùng val/setF/save/del của ContractInSerialTab.
@@ -18,7 +19,7 @@ export default function InSerialMobile({ rows, val, setF, save, saving, del, onR
       {rows.map((row, i) => {
         const locked = !!row.batch_locked
         return (
-          <div key={row.id} className="mcard" style={locked ? { cursor: 'default' } : undefined}
+          <div key={row.id} {...auditRowAttrs('contract_in_delivery_serial', row.id)} className="mcard" style={locked ? { cursor: 'default' } : undefined}
             onClick={() => { if (!locked) setEditingId(row.id) }}>
             <div className="mcard-head">
               <span className="mcard-title">{i + 1}. {row.item_name}{row.unit ? ` · ${row.unit}` : ''}</span>

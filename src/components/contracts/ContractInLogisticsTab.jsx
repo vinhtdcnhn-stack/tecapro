@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
 import useIsMobile from './useIsMobile'
 import EditGuard from './EditGuard'
+import { auditRowAttrs } from '../common/rowAudit'
 
 const STATUSES = ['Chờ vận chuyển', 'Đang vận chuyển', 'Đã về kho', 'Giao hàng thành công']
 
@@ -187,7 +188,7 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
   const st = statusStyle(rec.status)
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
+    <div {...auditRowAttrs('contract_in_logistics', rec.id)} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
 
       {/* Card header */}
       <div
@@ -302,7 +303,7 @@ function LogisticsCard({ rec, isExpanded, onToggle, onEdit, onDelete, onUpdateCo
               {/* vertical line */}
               <div style={{ position: 'absolute', left: 7, top: 8, bottom: 8, width: 2, background: '#e5e7eb' }} />
               {updates.map((u, idx) => (
-                <div key={u.id} style={{ position: 'relative', marginBottom: idx < updates.length - 1 ? 20 : 0 }}>
+                <div key={u.id} {...auditRowAttrs('contract_in_logistics_update', u.id)} style={{ position: 'relative', marginBottom: idx < updates.length - 1 ? 20 : 0 }}>
                   {/* dot */}
                   <div style={{ position: 'absolute', left: -21, top: 4, width: 10, height: 10, borderRadius: '50%', background: idx === 0 ? '#16a34a' : '#d1d5db', border: '2px solid #fff', boxShadow: '0 0 0 2px ' + (idx === 0 ? '#16a34a' : '#d1d5db') }} />
                   <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 14px' }}>
