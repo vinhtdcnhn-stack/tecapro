@@ -5,6 +5,7 @@ import useIsMobile from './useIsMobile'
 import BOQMobile from './BOQMobile'
 import PurchaseBOQRow from './PurchaseBOQRow'
 import PurchaseBOQImportModal from './PurchaseBOQImportModal'
+import usePurchaseBOQLink from './usePurchaseBOQLink'
 import { fmtNum, stripNum, calcAmounts, tmpId } from './boqUtils'
 import EditGuard from './EditGuard'
 import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
@@ -24,10 +25,27 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const [dragOverKey, setDragOverKey] = useState(null)
   const excelRef = useRef(null)
 
+  const { targets, reloadTargets, saveLink } = usePurchaseBOQLink(contractInId)
+
   const toLocalRow = (r) => ({
     ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
     quantity: stripNum(r.quantity), unit_price: stripNum(r.unit_price), vat_rate: stripNum(r.vat_rate),
   })
+
+  // Lưu/bỏ ghép "Nhập cho" cho 1 dòng; cập nhật link_* trong state + làm mới target (covered).
+  const setLink = async (row, payload) => {
+    try {
+      const link = await saveLink(row.id, payload)
+      setRows(prev => prev.map(r => r._key === row._key ? {
+        ...r,
+        link_id: link?.id ?? null,
+        link_boq_id: link?.boq_id ?? null,
+        link_slot_id: link?.slot_id ?? null,
+        link_covered_qty: link ? link.covered_qty : null,
+      } : r))
+      reloadTargets()
+    } catch (e) { alert('Lỗi lưu "Nhập cho": ' + e.message) }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -74,7 +92,12 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
       const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const saved = await res.json()
       if (!res.ok) throw new Error(saved.error || 'Save failed')
-      setRows(prev => prev.map(r => r._key === row._key ? { ...toLocalRow(saved), _key: row._key } : r))
+      // Giữ lại ghép "Nhập cho" (link_*) vì response lưu dòng không kèm các trường này.
+      setRows(prev => prev.map(r => r._key === row._key ? {
+        ...toLocalRow(saved), _key: row._key,
+        link_id: r.link_id, link_boq_id: r.link_boq_id,
+        link_slot_id: r.link_slot_id, link_covered_qty: r.link_covered_qty,
+      } : r))
     } catch (e) {
       alert('Lỗi khi lưu: ' + e.message)
       setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: false } : r))
@@ -387,20 +410,21 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
               <th className="th-vat">VAT<br/>(%)</th>
               <th className="th-amt">Thành tiền<br/>sau VAT</th>
               <th className="th-warranty">Thời hạn<br/>bảo hành</th>
+              <th className="th-supply">Nhập cho<br/>(hàng bán)</th>
               <th className="th-action"></th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="11" className="boq-empty">
+                <td colSpan="12" className="boq-empty">
                   Chưa có dữ liệu bảng giá mua.
                   Nhấn <strong>Thêm dòng</strong> hoặc <strong>Import Excel</strong> để bắt đầu.
                 </td>
               </tr>
             ) : visibleRows.length === 0 ? (
               <tr>
-                <td colSpan="11" className="boq-empty">Không có dòng nào khớp tìm kiếm.</td>
+                <td colSpan="12" className="boq-empty">Không có dòng nào khớp tìm kiếm.</td>
               </tr>
             ) : visibleRows.map(({ r, idx }) => (
               <PurchaseBOQRow
@@ -409,6 +433,8 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 idx={idx}
                 currency={currency}
                 showPrice={showPrice}
+                targets={targets}
+                onSetLink={setLink}
                 selected={selected.has(r._key)}
                 onToggleSelect={toggleSelect}
                 set={set}
@@ -433,7 +459,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 <td className="td-amt">{showPrice ? fmtNum(totals.before, currency) : '•••'}</td>
                 <td />
                 <td className="td-amt">{showPrice ? fmtNum(totals.after, currency) : '•••'}</td>
-                <td colSpan="2" />
+                <td colSpan="3" />
               </tr>
             </tfoot>
           )}

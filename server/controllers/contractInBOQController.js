@@ -96,8 +96,18 @@ export function downloadPurchaseBOQTemplate(_req, res) {
 export async function getPurchaseBOQ(req, res) {
   try {
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'boq'), TAB_TTL, async () => {
+      // Kèm ghép "Nhập cho" hiện tại (1 target/dòng) để cột hiển thị sẵn lựa chọn.
       const { rows } = await pool.query(
-        'SELECT * FROM contract_in_boq WHERE contract_in_id = $1 ORDER BY sort_order, id',
+        `SELECT b.*,
+                l.id AS link_id, l.boq_id AS link_boq_id, l.slot_id AS link_slot_id,
+                l.covered_qty AS link_covered_qty
+           FROM contract_in_boq b
+           LEFT JOIN LATERAL (
+             SELECT id, boq_id, slot_id, covered_qty
+               FROM contract_in_boq_supply_link WHERE contract_in_boq_id = b.id
+              ORDER BY id LIMIT 1
+           ) l ON true
+          WHERE b.contract_in_id = $1 ORDER BY b.sort_order, b.id`,
         [req.params.contractInId]
       )
       return rows

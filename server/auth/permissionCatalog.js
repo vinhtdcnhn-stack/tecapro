@@ -87,6 +87,7 @@ const CO_TABS = [
   { key: 'co.info',       group: 'HĐ bán', label: 'Thông tin hợp đồng' },
   { key: 'co.documents',  group: 'HĐ bán', label: 'Tài liệu hợp đồng' },
   { key: 'co.boq',        group: 'HĐ bán', label: 'Bảng giá' },
+  { key: 'co.supply',     group: 'HĐ bán', label: 'Theo dõi nhập hàng' },
   { key: 'co.progress',   group: 'HĐ bán', label: 'Tiến độ theo biên bản' },
   { key: 'co.receivable', group: 'HĐ bán', label: 'Công nợ' },
   { key: 'co.invoice',    group: 'HĐ bán', label: 'Quản lý hóa đơn' },

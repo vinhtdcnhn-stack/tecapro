@@ -24,6 +24,8 @@ const ID_RE = /^\d+$/
 // dùng cơ chế "người tạo" riêng bên dưới (CI_RESOLVERS / DOC_RESOLVERS).
 const RESOLVERS = {
   boq:               `SELECT contract_out_id FROM contract_out_boq WHERE id = ANY($1::bigint[])`,
+  supplySlot:        `SELECT b.contract_out_id FROM contract_out_supply_slot s
+                        JOIN contract_out_boq b ON b.id = s.boq_id WHERE s.id = ANY($1::bigint[])`,
   progress:          `SELECT contract_out_id FROM contract_out_progress WHERE id = ANY($1::bigint[])`,
   receivable:        `SELECT contract_out_id FROM contract_receivable WHERE id = ANY($1::bigint[])`,
   receivablePayment: `SELECT contract_out_id FROM contract_receivable_payment WHERE id = ANY($1::bigint[])`,
@@ -309,6 +311,9 @@ const CI_RESOLVERS = {
   self:           `SELECT created_by, contract_out_id FROM contract_in WHERE id = ANY($1::bigint[])`,
   inBoq:          `SELECT ci.created_by, ci.contract_out_id FROM contract_in_boq b
                      JOIN contract_in ci ON ci.id = b.contract_in_id WHERE b.id = ANY($1::bigint[])`,
+  supplyLink:     `SELECT ci.created_by, ci.contract_out_id FROM contract_in_boq_supply_link l
+                     JOIN contract_in_boq b ON b.id = l.contract_in_boq_id
+                     JOIN contract_in ci ON ci.id = b.contract_in_id WHERE l.id = ANY($1::bigint[])`,
   progressIn:     `SELECT ci.created_by, ci.contract_out_id FROM contract_in_progress p
                      JOIN contract_in ci ON ci.id = p.contract_in_id WHERE p.id = ANY($1::bigint[])`,
   delivery:       `SELECT ci.created_by, ci.contract_out_id FROM contract_in_delivery d

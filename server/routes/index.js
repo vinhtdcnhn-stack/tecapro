@@ -8,6 +8,7 @@ import customerRoutes from './customerRoutes.js'
 import contractRoutes from './contractRoutes.js'
 import documentRoutes from './documentRoutes.js'
 import boqRoutes from './boqRoutes.js'
+import supplyCoverageRoutes from './supplyCoverageRoutes.js'
 import progressRoutes from './progressRoutes.js'
 import receivableRoutes from './receivableRoutes.js'
 import guaranteeRoutes from './guaranteeRoutes.js'
@@ -117,6 +118,9 @@ router.use('/', documentRoutes)
 
 // BOQ routes
 router.use('/', boqRoutes)
+
+// Theo dõi độ phủ nhập hàng (đầu nhập) — phía HĐ bán
+router.use('/', supplyCoverageRoutes)
 
 // Progress routes
 router.use('/', progressRoutes)

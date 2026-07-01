@@ -6,6 +6,7 @@ import BOQMobile from './BOQMobile'
 import { fmtNum } from './boqUtils'
 import { API } from '../../config/api'
 import useBOQTab from './useBOQTab'
+import useSupplyFlags from './useSupplyFlags'
 import useSyncedHScroll from './useSyncedHScroll'
 import EditGuard from './EditGuard'
 import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
@@ -18,10 +19,20 @@ export default function ContractBOQTab({ contractId }) {
     search, setSearch, typeFilter, setTypeFilter, isFiltering, visibleRows,
     selected, toggleSelect, allSelected, toggleSelectAll, selectableKeys, selectedCount,
     bulkDelete, bulkDeleting,
-    set, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply,
+    set, patchRow, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply,
     dragKey, dragOverKey, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
     excelRef, handleExcelFile, importData, importMode, setImportMode, importSaving, confirmImport, setImportData,
   } = useBOQTab(contractId)
+
+  // Độ phủ nhập: chấm màu mỗi dòng leaf + cờ "không cần nhập" (đặt tại đây, điểm duy nhất).
+  const { coverage, reloadCoverage, setNoImport } = useSupplyFlags(contractId)
+  const toggleNoImport = async (row, value) => {
+    try {
+      await setNoImport(row.id, value)
+      patchRow(row._key, { no_import_needed: value })
+      reloadCoverage()
+    } catch (e) { alert('Lỗi cập nhật cờ nhập: ' + e.message) }
+  }
 
   const canEdit = useCanEdit()
   // "Xem một phần": ẩn (che •••) cột Đơn giá / Thành tiền nếu thiếu quyền section.
@@ -300,6 +311,8 @@ export default function ContractBOQTab({ contractId }) {
                 rollupAmt={rollup.get(r._key)}
                 currency={currency}
                 showPrice={showPrice}
+                coverageStatus={coverage[r.id]}
+                onToggleNoImport={toggleNoImport}
                 selected={selected.has(r._key)}
                 onToggleSelect={toggleSelect}
                 set={set}

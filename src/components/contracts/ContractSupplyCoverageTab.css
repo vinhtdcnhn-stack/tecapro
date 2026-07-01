@@ -1,0 +1,83 @@
+.sc-tab { padding: 12px 4px; min-width: 0; }
+.sc-loading, .sc-empty { padding: 24px; color: #6b7280; }
+.sc-muted { color: #6b7280; }
+
+.sc-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.sc-header-title h3 { margin: 0 0 4px; font-size: 16px; }
+.sc-header-title p { margin: 0; font-size: 12.5px; max-width: 640px; }
+
+.sc-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: #374151; }
+.sc-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.sc-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.sc-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* Một dòng hàng bán */
+.sc-leaf {
+  border: 1px solid #e5e7eb; border-left-width: 4px; border-radius: 8px;
+  background: #fff; padding: 10px 12px;
+}
+.sc-leaf.sc-none    { border-left-color: #dc2626; }
+.sc-leaf.sc-partial { border-left-color: #d97706; }
+.sc-leaf.sc-full    { border-left-color: #16a34a; }
+
+.sc-leaf-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sc-leaf-title { flex: 1; min-width: 160px; }
+.sc-leaf-path { color: #9ca3af; font-size: 12px; }
+.sc-leaf-name { font-weight: 600; }
+.sc-leaf-qty { font-size: 12.5px; color: #374151; white-space: nowrap; }
+
+.sc-leaf-body { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Trạng thái pill */
+.sc-pill {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px;
+  border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.sc-pill.sc-none    { background: #fef2f2; color: #b91c1c; }
+.sc-pill.sc-partial { background: #fffbeb; color: #b45309; }
+.sc-pill.sc-full    { background: #f0fdf4; color: #15803d; }
+.sc-pill-sm { font-size: 11px; padding: 1px 6px; }
+
+/* Đầu nhập */
+.sc-slot {
+  border: 1px dashed #e5e7eb; border-radius: 6px; padding: 6px 8px; background: #fafafa;
+}
+.sc-slot-editing { background: #f0f9ff; border-style: solid; }
+.sc-slot-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sc-slot-name { font-weight: 500; }
+.sc-slot-qty { font-size: 12px; color: #4b5563; }
+.sc-slot-actions { margin-left: auto; display: inline-flex; gap: 4px; }
+
+.sc-direct { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+
+/* Link (HĐ nhập) */
+.sc-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.sc-link-chip {
+  font-size: 11.5px; background: #eef2ff; color: #3730a3;
+  border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+}
+
+/* Form */
+.sc-slot-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sc-in {
+  border: 1px solid #d1d5db; border-radius: 5px; padding: 4px 7px; font-size: 13px;
+}
+.sc-in-name { flex: 1; min-width: 160px; }
+.sc-in-unit { width: 70px; }
+
+/* Nút */
+.sc-btn {
+  border: 1px solid #d1d5db; background: #fff; color: #374151;
+  border-radius: 5px; padding: 4px 10px; font-size: 12.5px; cursor: pointer;
+}
+.sc-btn:hover { background: #f3f4f6; }
+.sc-btn-sm { padding: 2px 8px; font-size: 11.5px; }
+.sc-btn-green { background: #16a34a; border-color: #16a34a; color: #fff; }
+.sc-btn-green:hover { background: #15803d; }
+.sc-btn-danger { color: #b91c1c; border-color: #fecaca; }
+.sc-btn-danger:hover { background: #fef2f2; }
+.sc-btn-add { align-self: flex-start; border-style: dashed; color: #2563eb; }

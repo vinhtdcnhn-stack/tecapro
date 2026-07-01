@@ -1,13 +1,38 @@
+import { useState, useEffect } from 'react'
 import { fmtNum, calcAmounts } from './boqUtils'
 import NumberInput from '../common/NumberInput'
 import { auditRowAttrs } from '../common/rowAudit'
+import { targetKey } from './usePurchaseBOQLink'
 
 // Một dòng trong bảng giá mua (purchase BOQ). Tách riêng để giữ ContractInBOQTab gọn dưới 500 dòng.
 export default function PurchaseBOQRow({
-  row, idx, currency, showPrice = true, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow,
+  row, idx, currency, showPrice = true, targets = [], onSetLink, selected, onToggleSelect,
+  set, saveRow, insertAfter, deleteRow,
   canDrag, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
+
+  // ── Cột "Nhập cho": chọn hàng bán/đầu bán + SL phủ ──
+  const curKey = row.link_boq_id != null ? targetKey(row.link_boq_id, row.link_slot_id) : ''
+  const curTarget = targets.find(t => targetKey(t.boq_id, t.slot_id) === curKey)
+  const [covered, setCovered] = useState(row.link_covered_qty ?? '')
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ SL phủ khi ghép đổi từ ngoài
+  useEffect(() => { setCovered(row.link_covered_qty ?? '') }, [row.link_id, row.link_covered_qty])
+
+  const onSelectTarget = (e) => {
+    const key = e.target.value
+    if (!key) { onSetLink(row, { boq_id: '', slot_id: '', covered_qty: 0 }); return }
+    const t = targets.find(x => targetKey(x.boq_id, x.slot_id) === key)
+    if (!t) return
+    const remaining = Math.max(0, (Number(t.needed) || 0) - (Number(t.covered) || 0))
+    onSetLink(row, { boq_id: t.boq_id, slot_id: t.slot_id, covered_qty: remaining })
+  }
+  const commitCovered = () => {
+    if (row.link_boq_id == null) return
+    const v = parseFloat(covered) || 0
+    if (v === (Number(row.link_covered_qty) || 0)) return
+    onSetLink(row, { boq_id: row.link_boq_id, slot_id: row.link_slot_id, covered_qty: v })
+  }
 
   return (
     <tr
@@ -83,6 +108,30 @@ export default function PurchaseBOQRow({
         <input type="text" value={row.warranty_period}
           onChange={e => set(row._key, 'warranty_period', e.target.value)}
           placeholder="12 tháng" />
+      </td>
+
+      <td className="td-supply">
+        {row._isNew || !row.id ? (
+          <span className="boq-masked" title="Lưu dòng trước khi gán">—</span>
+        ) : (
+          <div className="supply-cell">
+            <select className="supply-select" value={curKey} onChange={onSelectTarget}
+              title={curTarget?.label || 'Chọn hàng bán / đầu bán để nhập cho'}>
+              <option value="">— Chưa gán —</option>
+              {targets.map(t => {
+                const k = targetKey(t.boq_id, t.slot_id)
+                return <option key={k} value={k}>{t.label}</option>
+              })}
+            </select>
+            {curTarget && (
+              <span className="supply-qtywrap">
+                <NumberInput value={covered} onChange={setCovered} onBlur={commitCovered}
+                  placeholder="SL phủ" className="supply-qty" />
+                {curTarget.unit && <span className="supply-unit">{curTarget.unit}</span>}
+              </span>
+            )}
+          </div>
+        )}
       </td>
 
       <td className="td-action">

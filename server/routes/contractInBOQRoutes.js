@@ -12,6 +12,7 @@ import {
   reorderPurchaseBOQ,
   bulkDeletePurchaseBOQItems,
 } from '../controllers/contractInBOQController.js'
+import { getSupplyTargets, setLinkForInBoqRow } from '../controllers/supplyLinkController.js'
 import { ownerOfContractIn, ownerVia, ownerViaBody } from '../middleware/contractAccess.js'
 
 const router = Router()
@@ -29,5 +30,9 @@ router.post('/contract-ins/:contractInId/boq/reorder',                  ownerOfC
 router.post('/purchase-boq/bulk-delete',                                ownerViaBody('inBoq'), bulkDeletePurchaseBOQItems)
 router.put('/purchase-boq/:id',                                         ownerVia('inBoq'), updatePurchaseBOQItem)
 router.delete('/purchase-boq/:id',                                      ownerVia('inBoq'), deletePurchaseBOQItem)
+
+// Cột "Nhập cho": danh sách hàng bán/đầu nhập để chọn + gán ghép cho 1 dòng bảng giá nhập.
+router.get('/contract-ins/:contractInId/supply-targets',                getSupplyTargets)
+router.put('/purchase-boq/:id/supply-link',                             ownerVia('inBoq'), setLinkForInBoqRow)
 
 export default router

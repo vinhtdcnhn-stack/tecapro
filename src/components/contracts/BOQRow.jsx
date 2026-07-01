@@ -3,12 +3,14 @@ import NumberInput from '../common/NumberInput'
 import AutoTextarea from '../common/AutoTextarea'
 import BOQZoneRow from './BOQZoneRow'
 import BOQGroupRow from './BOQGroupRow'
+import EditGuard from './EditGuard'
 import { auditRowAttrs } from '../common/rowAudit'
+import { statusMeta } from './supplyCoverageUtils'
 
 // Một dòng trong bảng giá (BOQ). Phân nhánh theo row_kind: zone / group / leaf.
 // Tách riêng để giữ ContractBOQTab gọn dưới 500 dòng.
 export default function BOQRow({
-  row, idx, depth = 0, rollupAmt, currency, showPrice = true, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow, onAddChild, onToggleMultiply,
+  row, idx, depth = 0, rollupAmt, currency, showPrice = true, coverageStatus, onToggleNoImport, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow, onAddChild, onToggleMultiply,
   canDrag, canDrop, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const kind = row.row_kind || 'leaf'
@@ -55,6 +57,29 @@ export default function BOQRow({
         {row._dirty && <span className="dirty-dot" title="Chưa lưu" />}
         {canDrag && <span className="drag-handle" title="Kéo để đổi thứ tự">⠿</span>}
         <span className="stt-num">{idx + 1}</span>
+        {/* Độ phủ nhập: chấm màu (dòng cần nhập) + cờ "không cần nhập" (PM). Chỉ khi đã lưu. */}
+        {row.id && (
+          row.no_import_needed ? (
+            <span className="supply-cov-off" title="Không cần nhập">∅</span>
+          ) : coverageStatus ? (
+            <span
+              className="supply-cov-dot"
+              style={{ background: statusMeta(coverageStatus).color }}
+              title={`Nhập hàng: ${statusMeta(coverageStatus).label}`}
+            />
+          ) : null
+        )}
+        {row.id && (
+          <EditGuard perm="co.boq.manage">
+            <label className="supply-noimp" title="Đánh dấu dòng KHÔNG cần nhập (loại khỏi theo dõi)">
+              <input
+                type="checkbox"
+                checked={!!row.no_import_needed}
+                onChange={(e) => onToggleNoImport(row, e.target.checked)}
+              />
+            </label>
+          </EditGuard>
+        )}
       </td>
 
       <td className="td-name" style={depth ? { paddingLeft: 8 + depth * 22 } : undefined}>

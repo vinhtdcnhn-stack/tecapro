@@ -79,6 +79,11 @@ export default function useBOQTab(contractId) {
   const set = (key, field, value) =>
     setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: value, _dirty: true } : r))
 
+  // Vá trực tiếp 1 vài trường của dòng KHÔNG đánh dấu _dirty (dùng cho cờ no_import_needed
+  // lưu qua endpoint riêng, không đi qua saveRow).
+  const patchRow = (key, patch) =>
+    setRows(prev => prev.map(r => r._key === key ? { ...r, ...patch } : r))
+
   // ── Validate tên (trống / trùng anh-em cùng cành) ─────────────────────────────
 
   // Trả chuỗi lỗi nếu tên trống hoặc trùng dòng khác cùng parent_id; null nếu hợp lệ.
@@ -446,7 +451,7 @@ export default function useBOQTab(contractId) {
     selected, toggleSelect, allSelected, toggleSelectAll, selectableKeys, selectedCount,
     bulkDelete, bulkDeleting,
     // row ops
-    set, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply,
+    set, patchRow, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply,
     // drag-reorder
     dragKey, dragOverKey, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
     // excel import

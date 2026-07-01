@@ -145,6 +145,7 @@ const CONTRACT_TABS = [
   'info', 'boq', 'invoices', 'invoice-summary', 'progress', 'receivable',
   'receivable-payments', 'guarantees', 'folders', 'files', 'deliveries',
   'equipment', 'warranty-cases', 'warranty-activities', 'contract-ins',
+  'supply-coverage',
 ]
 export function invalidateContract(id, ...tabs) {
   if (id == null || tabs.length === 0) return
@@ -186,6 +187,21 @@ export async function invalidateContractMembers(contractId) {
     await Promise.all(rows.map((r) => invalidateUserDashboards(r.user_id)))
   } catch {
     // bỏ qua — xem ghi chú ở trên
+  }
+}
+
+// Ghép "nhập cho" đổi (phía HĐ nhập) → độ phủ nhập của HĐ BÁN cha đổi màu. Map ci →
+// contract_out_id rồi vô hiệu cả 2 tab đọc: 'supply-coverage' (bảng theo dõi) và 'boq'
+// (chấm màu ở bảng giá bán lấy từ summary — cùng namespace tab boq của HĐ bán). Nuốt lỗi.
+export async function invalidateSupplyCoverageFromContractIn(contractInId) {
+  if (contractInId == null) return
+  try {
+    const { rows } = await pool.query(
+      'SELECT contract_out_id FROM contract_in WHERE id = $1', [contractInId])
+    const coId = rows[0]?.contract_out_id
+    if (coId != null) await invalidateContract(coId, 'supply-coverage')
+  } catch {
+    // bỏ qua — cache hơi cũ tới khi hết TTL
   }
 }
 
