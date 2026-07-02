@@ -13,6 +13,7 @@ const ITEMS = [
   { label: 'SAO LƯU / KHÔI PHỤC',  section: 'backup', adminOnly: true },
   { label: 'PHÂN QUYỀN',           section: 'phan-quyen', adminOnly: true },
   { label: 'NHẬT KÝ THAY ĐỔI',     section: 'nhat-ky-thay-doi', adminOnly: true },
+  { label: 'CHẨN ĐOÁN HIỆU NĂNG',  section: 'chan-doan-hieu-nang', adminOnly: true },
 ]
 
 export default function Sidebar() {

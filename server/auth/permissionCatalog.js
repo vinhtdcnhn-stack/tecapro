@@ -64,6 +64,7 @@ const GLOBAL = [
   { key: 'system.telegram_log.view',  group: 'Hệ thống', label: 'Xem nhật ký Telegram', requires: ['module.system.view'], adminOnly: true },
   { key: 'system.audit_log.view',     group: 'Hệ thống', label: 'Xem nhật ký thay đổi',  requires: ['module.system.view'], adminOnly: true },
   { key: 'system.backup.manage',      group: 'Hệ thống', label: 'Sao lưu / Khôi phục',  requires: ['module.system.view'], adminOnly: true },
+  { key: 'system.cache_hint.view',    group: 'Hệ thống', label: 'Chẩn đoán hiệu năng / gợi ý cache', requires: ['module.system.view'], adminOnly: true },
   { key: 'system.permissions.manage', group: 'Hệ thống', label: 'Phân quyền (cấu hình quyền)', requires: ['module.system.view'], adminOnly: true },
 
   // ── Đề xuất — requires module.approvals.view ──────────────────────────────

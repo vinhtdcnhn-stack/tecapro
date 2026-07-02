@@ -1,5 +1,6 @@
 import { createClient } from 'redis'
 import { logger } from './utils/logger.js'
+import { markCacheUsed } from './middleware/cacheHint.js'
 
 // Lớp cache Redis cho API đọc. NGUYÊN TẮC CỐT LÕI: Redis là phụ trợ, KHÔNG phải phụ thuộc
 // cứng. Nếu Redis chưa cấu hình / mất kết nối / lỗi, mọi helper ở đây degrade êm về no-op
@@ -93,9 +94,36 @@ export async function cacheDel(...keys) {
   }
 }
 
+// Thống kê Redis cho trang giám sát hệ thống (chỉ đọc). Trả { ready:false } khi cache tắt/
+// lỗi — KHÔNG ném để endpoint giám sát không vỡ. Parse INFO memory + DBSIZE.
+export async function getCacheStats() {
+  if (!ready()) return { ready: false }
+  try {
+    const info = await client.info('memory')
+    const pick = (k) => {
+      const m = info.match(new RegExp(`^${k}:(.+)$`, 'm'))
+      return m ? m[1].trim() : null
+    }
+    const usedBytes = Number(pick('used_memory')) || null
+    const maxBytes = Number(pick('maxmemory')) || 0 // 0 = không giới hạn
+    const keys = await client.dbSize()
+    return {
+      ready: true,
+      usedBytes,
+      usedHuman: pick('used_memory_human'),
+      maxBytes: maxBytes || null,
+      maxHuman: maxBytes ? pick('maxmemory_human') : null,
+      keys,
+    }
+  } catch {
+    return { ready: false }
+  }
+}
+
 // Helper chính: trả cache nếu hit; nếu miss thì chạy loaderFn(), lưu kết quả rồi trả.
 // Lỗi Redis chỉ làm mất cache (vẫn chạy loaderFn) — KHÔNG bao giờ chặn loader.
 export async function cacheWrap(key, ttlSec, loaderFn) {
+  markCacheUsed() // đánh dấu route hiện tại có dùng lớp cache (cho trang Chẩn đoán hiệu năng)
   const cached = await cacheGet(key)
   if (cached !== null) return cached
   const fresh = await loaderFn()

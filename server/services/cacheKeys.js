@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { cacheDel, cacheVersion, bumpVersion, isCacheReady } from '../cache.js'
+import { markCacheUsed } from '../middleware/cacheHint.js'
 import { DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
 
 // Trung tâm QUY ƯỚC KEY + LỚP INVALIDATION cho toàn bộ cache. Gom hết vào 1 file để
@@ -83,6 +84,7 @@ export async function reportKey(group, name, params = {}) {
 // cũ) — hành xử y như trước khi có lớp này.
 export async function versionNotModified(req, res, ns, tag = ns) {
   if (!isCacheReady()) return false
+  markCacheUsed() // route dùng lớp xác thực 304 → tính là "có cache" trên trang Chẩn đoán
   const v = await cacheVersion(ns)
   const etag = `W/"${tag}-${v}"`
   // no-cache = trình duyệt được phép LƯU nhưng phải revalidate trước khi dùng (đúng cái ta

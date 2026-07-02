@@ -20,14 +20,16 @@ import FeedbackPanel from '../components/admin/FeedbackPanel'
 import BackupPanel from '../components/admin/BackupPanel'
 import PermissionAdminPanel from '../components/permissions/PermissionAdminPanel'
 import AuditLogPage from '../components/admin/auditlog/AuditLogPage'
+import CacheHintPage from '../components/admin/cachehint/CacheHintPage'
 
-const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types', 'telegram-log', 'feedback', 'backup', 'phan-quyen', 'nhat-ky-thay-doi']
+const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types', 'telegram-log', 'feedback', 'backup', 'phan-quyen', 'nhat-ky-thay-doi', 'chan-doan-hieu-nang']
 // Quyền (lớp A) cần để XEM section. Section không liệt kê = chỉ cần vào module Hệ thống.
 const SECTION_VIEW_PERM = {
   'telegram-log': 'system.telegram_log.view',
   'backup': 'system.backup.manage',
   'phan-quyen': 'system.permissions.manage',
   'nhat-ky-thay-doi': 'system.audit_log.view',
+  'chan-doan-hieu-nang': 'system.cache_hint.view',
 }
 // Quyền GHI (hiện nút thêm/sửa) theo từng section quản trị danh mục.
 const SECTION_MANAGE_PERM = {
@@ -365,6 +367,8 @@ export default function QuantriPage() {
           {section === 'phan-quyen' && <PermissionAdminPanel />}
 
           {section === 'nhat-ky-thay-doi' && <AuditLogPage />}
+
+          {section === 'chan-doan-hieu-nang' && <CacheHintPage />}
 
         </section>
       </div>

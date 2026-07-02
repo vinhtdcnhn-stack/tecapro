@@ -32,6 +32,8 @@ import invoiceRoutes from './invoiceRoutes.js'
 import liveRoutes from './liveRoutes.js'
 import permissionRoutes from './permissionRoutes.js'
 import auditRoutes from './auditRoutes.js'
+import cacheHintRoutes from './cacheHintRoutes.js'
+import { cacheHint } from '../middleware/cacheHint.js'
 import { listTelegramLogs } from '../controllers/telegramLogController.js'
 import {
   listFeedback, createFeedback, updateFeedback, deleteFeedback,
@@ -53,6 +55,9 @@ router.post('/auth/logout', authController.logout)
 router.use(requireAuth)
 // Gắn người thao tác cho nhật ký thay đổi (sau requireAuth → đã có req.user.id).
 router.use(withAuditActor)
+// Đo thời gian phản hồi per-route (chỉ GET) để gợi ý chỗ nên cache — chỉ thu thập, không
+// tác động luồng. Đặt sớm để res.on('finish') bắt trọn thời gian xử lý phía dưới.
+router.use(cacheHint)
 
 // Thông tin người dùng hiện tại (danh tính lấy từ cookie phiên)
 router.get('/auth/me', authController.getCurrentUser)
@@ -190,5 +195,8 @@ router.use('/', permissionRoutes)
 
 // Nhật ký thay đổi (audit) — chỉ admin.
 router.use('/', auditRoutes)
+
+// Chẩn đoán hiệu năng / gợi ý cache — chỉ admin.
+router.use('/', cacheHintRoutes)
 
 export default router
