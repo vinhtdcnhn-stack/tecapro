@@ -18,10 +18,11 @@ const MAX_SAMPLES = 200
 const stats = new Map()
 let windowStart = Date.now()
 
-// Route real-time / long-poll: loại khỏi thống kê. /live/poll cố tình TREO ~45s (không phải
-// "chậm"), badge & hộp thư chưa-đọc cố tình KHÔNG cache (dữ liệu phải tươi tức thì) — đưa vào
-// bảng gợi ý chỉ gây nhiễu.
-const EXCLUDE = [/\/live\/poll/, /\/unread-inbox/]
+// Route real-time / long-poll / tự-chẩn-đoán: loại khỏi thống kê. /live/poll cố tình TREO ~45s
+// (không phải "chậm"), badge & hộp thư chưa-đọc cố tình KHÔNG cache (dữ liệu phải tươi tức thì),
+// /admin/system-health là tab tổng quan tự poll 6s/lần + cố tình chậm vì sleep(150ms) đo CPU và
+// không bao giờ nên cache — đưa vào bảng gợi ý chỉ gây nhiễu (dương tính giả 🔴).
+const EXCLUDE = [/\/live\/poll/, /\/unread-inbox/, /\/admin\/system-health/]
 
 // Phát hiện "route có dùng cache" CHÍNH XÁC LÚC CHẠY thay vì đoán bằng danh sách route ghi
 // tay (dễ lệch khi thêm/bớt cacheWrap). Store theo từng request: cacheWrap và versionNotModified
