@@ -2,6 +2,7 @@ import os from 'node:os'
 import { statfs } from 'node:fs/promises'
 import { pool } from '../db.js'
 import { getCacheStats } from '../cache.js'
+import { onlineUserIds } from '../services/presence.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tổng quan sức khỏe hệ thống (CHỈ ADMIN, read-only) — phần cứng/OS + dịch vụ
@@ -78,9 +79,32 @@ async function appCounts() {
         (SELECT count(*) FROM contract_out) AS contracts
     `)
     const r = rows[0]
-    return { users: Number(r.users), customers: Number(r.customers), contracts: Number(r.contracts) }
+    const online = await onlineInfo()
+    return {
+      users: Number(r.users),
+      customers: Number(r.customers),
+      contracts: Number(r.contracts),
+      online,
+    }
   } catch {
     return null
+  }
+}
+
+// Người dùng "đang online" = còn giữ long-poll gần đây (services/presence.js). Kèm tên
+// để hiển thị danh sách. Thất bại phần tra tên vẫn giữ được con số đếm.
+async function onlineInfo() {
+  const ids = onlineUserIds()
+  if (!ids.length) return { count: 0, users: [] }
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, COALESCE(NULLIF(full_name, ''), email) AS name
+         FROM app_user WHERE id = ANY($1::int[]) ORDER BY name`,
+      [ids],
+    )
+    return { count: ids.length, users: rows.map((u) => u.name) }
+  } catch {
+    return { count: ids.length, users: [] }
   }
 }
 

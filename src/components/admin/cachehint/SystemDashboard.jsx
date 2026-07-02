@@ -126,6 +126,28 @@ export default function SystemDashboard() {
           <Row k="Heap" v={`${fmtBytes(proc.heapUsedBytes)} / ${fmtBytes(proc.heapTotalBytes)}`} />
         </Card>
 
+        {/* Người dùng đang online (dựa trên long-poll đang giữ) */}
+        {app?.online && (
+          <Card title="🟢 Đang online">
+            <Row k="Số người" v={<span style={{ color: app.online.count ? '#16a34a' : '#666', fontWeight: 700 }}>
+              {app.online.count?.toLocaleString('vi-VN') ?? 0}
+            </span>} />
+            {app.online.users?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+                {app.online.users.map((name, i) => (
+                  <span key={i} style={{
+                    fontSize: 12, background: '#ecfdf5', color: '#065f46',
+                    border: '1px solid #a7f3d0', borderRadius: 999, padding: '2px 10px',
+                  }}>{name}</span>
+                ))}
+              </div>
+            )}
+            {app.online.count > 0 && !app.online.users?.length && (
+              <Row k="Danh sách" v="(không tra được tên)" small />
+            )}
+          </Card>
+        )}
+
         {/* Số liệu ứng dụng */}
         {app && (
           <Card title="📊 Dữ liệu">

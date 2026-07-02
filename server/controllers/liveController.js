@@ -1,5 +1,6 @@
 import { liveCountsFor } from '../services/liveCounts.js'
 import { onLiveChange } from '../services/eventBus.js'
+import { touch } from '../services/presence.js'
 
 // Giữ kết nối tối đa ~45s rồi trả về (kể cả khi không đổi) để: (1) nằm an toàn trong
 // proxy_read_timeout mặc định 60s của nginx, (2) cho client cơ hội tự reconnect/đổi
@@ -12,6 +13,9 @@ const sameCounts = (a, b) => a && b && a.ct === b.ct && a.dw === b.dw && a.inbox
 // Long-poll: trả NGAY nếu số liệu hiện tại khác số liệu client đang giữ (truyền qua query).
 // Nếu chưa đổi → treo cho tới khi có sự kiện bumpLive làm số liệu thay đổi, hoặc hết HOLD_MS.
 export async function pollLive(req, res) {
+  // Mỗi tab đang mở liên tục giữ long-poll này → dùng làm tín hiệu "đang online".
+  touch(req.user.id)
+
   const known = {
     ct: Number(req.query.ct) || 0,
     dw: Number(req.query.dw) || 0,
