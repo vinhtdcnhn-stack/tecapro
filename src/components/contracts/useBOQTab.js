@@ -4,6 +4,7 @@ import { buildTreeOrder, computeRollup, treeTotals, ROW_KIND } from './boqTree'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 
 // ── Helpers thuần (không phụ thuộc state) ─────────────────────────────────────
 
@@ -56,12 +57,10 @@ export default function useBOQTab(contractId) {
 
   const load = useCallback(async () => {
     try {
-      const [res, cRes] = await Promise.all([
-        fetch(`${API}/contracts/${contractId}/boq`),
-        fetch(`${API}/contracts/${contractId}`),
+      const [data, cData] = await Promise.all([
+        apiGet(`/contracts/${contractId}/boq`, { conditional: true }),
+        apiGet(`/contracts/${contractId}`, { conditional: true }),
       ])
-      const data  = await res.json()
-      const cData = await cRes.json()
       setCurrency(cData?.currency_code || 'VND')
       setLock({ locked: !!cData?.boq_locked, byName: cData?.boq_locked_by_name || null, at: cData?.boq_locked_at || null })
       setRows(data.map(r => toLocalRow(r)))

@@ -8,6 +8,7 @@ import EditGuard from './EditGuard'
 import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 
 function dateDiff(planned, actual) {
   if (!planned || !actual) return null
@@ -39,11 +40,10 @@ export default function ContractInProgressTab({ contractInId }) {
 
   const load = useCallback(async () => {
     try {
-      const [pRes, tRes] = await Promise.all([
-        fetch(`${API}/contract-ins/${contractInId}/progress`),
-        fetch(`${API}/bb-types`),
+      const [pData, tData] = await Promise.all([
+        apiGet(`/contract-ins/${contractInId}/progress`, { conditional: true }),
+        apiGet(`/bb-types`, { conditional: true }),
       ])
-      const [pData, tData] = await Promise.all([pRes.json(), tRes.json()])
       setRows((Array.isArray(pData) ? pData : []).map(r => toLocal(r)))
       setBBTypes(Array.isArray(tData) ? tData : [])
     } catch (e) { console.error('load progress in:', e) }

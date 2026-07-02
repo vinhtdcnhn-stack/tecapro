@@ -1,7 +1,7 @@
 import { pool } from '../db.js'
 import { notifyInfo, pmUserIds, contractLabel, fmtDate } from '../services/notify.js'
 import { cacheWrap } from '../cache.js'
-import { contractKey, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
+import { contractKey, contractTabNotModified, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
 
 const TAB_TTL = 30 * 60 // 30'
 
@@ -48,6 +48,7 @@ async function syncContractRate(contractId, currency, rate, db = pool) {
 
 export async function getSchedule(req, res) {
   try {
+    if (await contractTabNotModified(req, res, req.params.contractId, 'receivable')) return
     const rows = await cacheWrap(contractKey(req.params.contractId, 'receivable'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         'SELECT * FROM public.contract_receivable WHERE contract_out_id = $1 ORDER BY sort_order, id',
@@ -145,6 +146,7 @@ export async function deleteSchedule(req, res) {
 
 export async function getPayments(req, res) {
   try {
+    if (await contractTabNotModified(req, res, req.params.contractId, 'receivable-payments')) return
     const rows = await cacheWrap(contractKey(req.params.contractId, 'receivable-payments'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         'SELECT * FROM public.contract_receivable_payment WHERE contract_out_id=$1 ORDER BY sort_order, payment_date, id',

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react'
 import './ContractProgressTab.css'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { getStatusInfo, computeForecasts, computePlannedDates, fmtDate, forecastHint, tmpId } from './progressUtils'
 import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
@@ -29,12 +30,11 @@ export default function ContractProgressTab({ contractId }) {
 
   const load = useCallback(async () => {
     try {
-      const [pRes, tRes, cRes] = await Promise.all([
-        fetch(`${API}/contracts/${contractId}/progress`),
-        fetch(`${API}/bb-types`),
-        fetch(`${API}/contracts/${contractId}`),
+      const [pData, tData, cData] = await Promise.all([
+        apiGet(`/contracts/${contractId}/progress`, { conditional: true }),
+        apiGet(`/bb-types`, { conditional: true }),
+        apiGet(`/contracts/${contractId}`, { conditional: true }),
       ])
-      const [pData, tData, cData] = await Promise.all([pRes.json(), tRes.json(), cRes.json()])
       setRows((Array.isArray(pData) ? pData : []).map(r => toLocal(r)))
       setBBTypes(Array.isArray(tData) ? tData : [])
       setContractDate(cData?.contract_date || null)

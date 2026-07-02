@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { fmtDate } from './tenderUtils'
 import ChecklistItemModal from './ChecklistItemModal'
@@ -42,8 +43,7 @@ export default function TenderChecklistTab({ tenderId, canEdit }) {
 
   const load = useCallback(() => {
     setLoading(true)
-    fetch(`${API}/tender/${tenderId}/checklist`)
-      .then(r => r.ok ? r.json() : [])
+    apiGet(`/tender/${tenderId}/checklist`, { conditional: true })
       .then(d => setItems(Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false))

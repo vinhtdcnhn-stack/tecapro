@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import NumberInput from '../common/NumberInput'
 import { RESULTS, resultColor, fmtMoney, fmtAmount, ccySuffix } from './tenderUtils'
 import TenderLotBidders from './TenderLotBidders'
@@ -25,9 +26,9 @@ export default function TenderLotsTab({ tender, canEdit, onChanged }) {
   const isWholePackage = lots.length === 1 && lots[0].lot_name === 'Toàn gói'
 
   const load = useCallback(() => {
-    fetch(`${API}/tender/${tender.id}/lots`)
-      .then(r => r.ok ? r.json() : [])
+    apiGet(`/tender/${tender.id}/lots`, { conditional: true })
       .then(d => setLots(Array.isArray(d) ? d : []))
+      .catch(() => setLots([]))
       .finally(() => setLoading(false))
   }, [tender.id])
 

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
 import { buildTree } from './documentController.js'
 import { cacheWrap } from '../cache.js'
-import { tenderKey, invalidateTender } from '../services/cacheKeys.js'
+import { tenderKey, tenderTabNotModified, invalidateTender } from '../services/cacheKeys.js'
 
 const DOC_TTL = 30 * 60 // 30'
 
@@ -51,6 +51,7 @@ export const uploadTender = multer({ storage, limits: UPLOAD_LIMITS, fileFilter:
 export async function getFolderTreeTender(req, res) {
   try {
     const { tenderId } = req.params
+    if (await tenderTabNotModified(req, res, tenderId, 'folders')) return
     const tree = await cacheWrap(tenderKey(tenderId, 'folders'), DOC_TTL, async () => {
       const { rows } = await pool.query(`
         WITH RECURSIVE folder_tree AS (
@@ -123,6 +124,8 @@ export async function getTenderFiles(req, res) {
     query += ' ORDER BY df.uploaded_at DESC'
 
     // Chỉ cache biến thể thư mục GỐC (lần nạp phổ biến); folder cụ thể thì query thẳng.
+    // 304 cũng chỉ áp cho nhánh gốc.
+    if (atRoot && await tenderTabNotModified(req, res, tenderId, 'files')) return
     const load = async () => (await pool.query(query, params)).rows
     const rows = atRoot
       ? await cacheWrap(tenderKey(tenderId, 'files'), DOC_TTL, load)

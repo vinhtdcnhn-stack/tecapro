@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import DateInput from './DateInput'
 import useIsMobile from './useIsMobile'
 import CustomsMobile from './CustomsMobile'
@@ -32,8 +33,7 @@ export default function ContractInCustomsTab({ contractInId }) {
   const [modal, setModal]     = useState(null) // null | 'add' | row-object
   const load = useCallback(async () => {
     try {
-      const res  = await fetch(`${API}/contract-ins/${contractInId}/customs`)
-      const data = await res.json()
+      const data = await apiGet(`/contract-ins/${contractInId}/customs`, { conditional: true })
       setRows(Array.isArray(data) ? data : [])
     } catch (e) { console.error('load customs:', e) }
     finally { setLoading(false) }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtDate, fmtNum } from './deliveryUtils'
 import DeliveryCard from './DeliveryCard'
 import BatchModal from './DeliveryBatchModal'
@@ -23,11 +24,10 @@ export default function ContractInDeliveryTab({ contractInId }) {
 
   const load = useCallback(async () => {
     try {
-      const [dRes, bRes] = await Promise.all([
-        fetch(`${API}/contract-ins/${contractInId}/deliveries`),
-        fetch(`${API}/contract-ins/${contractInId}/boq`),
+      const [dData, bData] = await Promise.all([
+        apiGet(`/contract-ins/${contractInId}/deliveries`, { conditional: true }),
+        apiGet(`/contract-ins/${contractInId}/boq`, { conditional: true }),
       ])
-      const [dData, bData] = await Promise.all([dRes.json(), bRes.json()])
       setDeliveries(Array.isArray(dData) ? dData : [])
       setBoqItems(Array.isArray(bData) ? bData : [])
     } catch (e) { console.error('load deliveries:', e) }

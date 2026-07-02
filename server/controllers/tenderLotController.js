@@ -2,7 +2,7 @@ import { pool } from '../db.js'
 import { logActivity } from './tenderController.js'
 import { roundMoney } from '../utils/money.js'
 import { cacheWrap } from '../cache.js'
-import { tenderKey, invalidateTender, invalidateTenderList, invalidateReports } from '../services/cacheKeys.js'
+import { tenderKey, tenderTabNotModified, invalidateTender, invalidateTenderList, invalidateReports } from '../services/cacheKeys.js'
 
 const LOTS_TTL = 5 * 60 // 5'
 
@@ -63,6 +63,7 @@ async function lotAndTenderOfBidder(bidderId) {
 export async function getLots(req, res) {
   const tenderId = parseInt(req.params.id)
   try {
+    if (await tenderTabNotModified(req, res, tenderId, 'lots')) return
     const out = await cacheWrap(tenderKey(tenderId, 'lots'), LOTS_TTL, async () => {
     const { rows: lots } = await pool.query(
       `SELECT id, tender_id, lot_name, lot_code, estimate, result, sort_order, note

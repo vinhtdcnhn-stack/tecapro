@@ -87,6 +87,19 @@ bản đã cache.
 > `getTenders` chuyển sang `lookupNotModified`. Verify 304 + auto-bump cho lk-customers/users/
 > departments trên Redis thật: đạt. Lint + build sạch.
 
+### GĐ 4b — MỌI tab chi tiết HĐ bán / HĐ nhập / gói thầu ✅ (2026-07-01)
+| Hạng mục | Trạng thái | Ghi chú |
+|---|---|---|
+| Helper `contractTabNotModified` / `contractInTabNotModified` / `tenderTabNotModified` | ✅ | namespace `ctab:` / `citab:` / `ttab:` `<id>:<tab>`; granularity per thực thể per tab |
+| `invalidateContract(All)` / `invalidateContractIn` / `invalidateTender` tự bump version tab | ✅ | song song `cacheDel(key body)` → MỌI call-site invalidate sẵn có tự đồng bộ ETag, không phải sửa (đã xác nhận không có `cacheDel` trực tiếp bypass) |
+| Server: gắn helper vào TẤT CẢ endpoint đọc tab | ✅ | HĐ bán: info, boq, invoices, invoice-summary, progress, receivable, receivable-payments, guarantees, folders, files, deliveries, equipment, warranty-cases, warranty-activities, contract-ins, supply-coverage(×2). HĐ nhập: boq, payables, payments, customs, logistics, guarantees, deliveries, all-serials, all-items, progress, supplier-warranty, warranty-claims, folders, files. Gói thầu: info, activity, checklist, review, lots, folders, files |
+| Ca ternary (files lọc folderId / atRoot) | ✅ | chỉ gọi helper ở nhánh được cache (không lọc) → biến thể lọc luôn 200 |
+| FE: đổi loader tab sang `apiGet(...,{conditional:true})` | ✅ | ~25 component/hook: BOQ, Guarantee, Receivable, Progress, Invoice, Warranty(×4), SupplyCoverage, useSupplyFlags, useBienBanOptions, ContractInTab + các tab HĐ nhập (BOQ, Customs, Logistics, Guarantee, Delivery, Payable, Progress, Serial, SupplierWarranty), tender (Checklist, Activity, Lots, Review). Lookup ghép chung (bb-types, suppliers) cũng bật conditional |
+
+> KHÔNG đổi FE: ContractDocumentsTab (component dùng chung HĐ/HĐ nhập/gói thầu) + các modal
+> quét mã + TenderInfoTab/TenderDetailPage — vẫn `fetch` thô nhưng server đã phát ETag nên
+> vẫn được 304 qua HTTP-cache trình duyệt (same-origin). Lint + build sạch.
+
 ### GĐ 5 — Docs + VPS + memory ⬜
 
 ---

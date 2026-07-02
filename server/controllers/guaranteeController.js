@@ -1,6 +1,6 @@
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
-import { contractKey, invalidateContract, invalidateContractMembers } from '../services/cacheKeys.js'
+import { contractKey, contractTabNotModified, invalidateContract, invalidateContractMembers } from '../services/cacheKeys.js'
 
 const TAB_TTL = 60 * 60 // 60' — bảo lãnh đổi rất ít
 
@@ -13,6 +13,8 @@ function invalidateGuarantee(contractId) {
 export async function getGuarantees(req, res) {
   const contractId = parseInt(req.params.id)
   try {
+    // Xác thực nhẹ: dữ liệu chưa đổi → 304 rỗng (không chạm Redis body/DB, không truyền payload).
+    if (await contractTabNotModified(req, res, contractId, 'guarantees')) return
     const rows = await cacheWrap(contractKey(contractId, 'guarantees'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT * FROM contract_guarantee WHERE contract_out_id = $1 ORDER BY id`,

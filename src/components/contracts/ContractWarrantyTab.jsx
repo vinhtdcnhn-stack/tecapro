@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import './ContractWarrantyTab.css'
 
-import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { useContractPerm } from '../../context/ContractPermContext'
 import EquipmentSubTab from './WarrantyEquipmentSubTab'
 import CasesSubTab from './WarrantyCasesSubTab'
@@ -20,26 +20,22 @@ export default function ContractWarrantyTab({ contractId }) {
   const [loading, setLoading]     = useState(true)
 
   const loadEquipment = useCallback(async () => {
-    const res = await fetch(`${API}/contracts/${contractId}/equipment`)
-    const d   = await res.json()
+    const d = await apiGet(`/contracts/${contractId}/equipment`, { conditional: true })
     setEquipment(Array.isArray(d) ? d : [])
   }, [contractId])
 
   const loadDeliveries = useCallback(async () => {
-    const res = await fetch(`${API}/contracts/${contractId}/deliveries`)
-    const d   = await res.json()
+    const d = await apiGet(`/contracts/${contractId}/deliveries`, { conditional: true })
     setDeliveries(Array.isArray(d) ? d : [])
   }, [contractId])
 
   const loadCases = useCallback(async () => {
-    const res = await fetch(`${API}/contracts/${contractId}/warranty-cases`)
-    const d   = await res.json()
+    const d = await apiGet(`/contracts/${contractId}/warranty-cases`, { conditional: true })
     setCases(Array.isArray(d) ? d : [])
   }, [contractId])
 
   const loadAllActivities = useCallback(async () => {
-    const res = await fetch(`${API}/contracts/${contractId}/warranty-activities`)
-    const d   = await res.json()
+    const d = await apiGet(`/contracts/${contractId}/warranty-activities`, { conditional: true })
     setAllAct(Array.isArray(d) ? d : [])
   }, [contractId])
 

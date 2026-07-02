@@ -8,7 +8,7 @@ import {
 } from './boqHelpers.js'
 import { cacheWrap } from '../cache.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
-import { contractKey, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
+import { contractKey, contractTabNotModified, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
 
 export { excelUpload, downloadBOQTemplate }
 export { importBOQPreview, saveImportedBOQ } from './boqImportController.js'
@@ -32,6 +32,7 @@ export function invalidateBOQ(contractId) {
 
 export async function getBOQ(req, res) {
   try {
+    if (await contractTabNotModified(req, res, req.params.contractId, 'boq')) return
     const rows = await cacheWrap(contractKey(req.params.contractId, 'boq'), BOQ_TTL, async () => {
       const { rows } = await pool.query(
         'SELECT * FROM public.contract_out_boq WHERE contract_out_id = $1 ORDER BY sort_order, id',

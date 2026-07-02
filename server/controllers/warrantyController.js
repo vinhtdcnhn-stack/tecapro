@@ -3,7 +3,7 @@ import { TABLE_EQUIPMENT, TABLE_DELIVERY, serialExists, findExistingSerials } fr
 import { pullImportComponents } from './importComponentSync.js'
 import { notifyAction, pmUserIds, contractLabel } from '../services/notify.js'
 import { cacheWrap } from '../cache.js'
-import { contractKey, invalidateContract, invalidateReports, invalidateSerialLookup } from '../services/cacheKeys.js'
+import { contractKey, contractTabNotModified, invalidateContract, invalidateReports, invalidateSerialLookup } from '../services/cacheKeys.js'
 
 const TAB_TTL = 30 * 60 // 30'
 
@@ -81,6 +81,7 @@ export async function checkImportSerials(req, res) {
 export async function getEquipment(req, res) {
   const contractId = parseInt(req.params.id)
   try {
+    if (await contractTabNotModified(req, res, contractId, 'equipment')) return
     const rows = await cacheWrap(contractKey(contractId, 'equipment'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT
@@ -389,6 +390,7 @@ export const bulkWarrantyEquipment = (req, res) => bulkWarranty('contract_equipm
 export async function getCases(req, res) {
   const contractId = parseInt(req.params.id)
   try {
+    if (await contractTabNotModified(req, res, contractId, 'warranty-cases')) return
     const rows = await cacheWrap(contractKey(contractId, 'warranty-cases'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT
@@ -577,6 +579,7 @@ export async function deleteActivity(req, res) {
 export async function getAllActivities(req, res) {
   const contractId = parseInt(req.params.id)
   try {
+    if (await contractTabNotModified(req, res, contractId, 'warranty-activities')) return
     const rows = await cacheWrap(contractKey(contractId, 'warranty-activities'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT wa.*, wc.case_no, wc.title AS case_title

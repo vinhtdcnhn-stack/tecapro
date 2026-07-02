@@ -7,7 +7,8 @@ import { fileURLToPath } from 'url'
 import { safeUploadFilter, UPLOAD_LIMITS, BLOCKED_EXT } from '../middleware/uploadFilter.js'
 import { cacheWrap } from '../cache.js'
 import {
-  contractKey, contractInKey, invalidateContract, invalidateContractIn, invalidateTender,
+  contractKey, contractInKey, contractTabNotModified, contractInTabNotModified,
+  invalidateContract, invalidateContractIn, invalidateTender,
 } from '../services/cacheKeys.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -122,6 +123,7 @@ export async function getFolderTree(req, res) {
   try {
     const { contractId } = req.params
 
+    if (await contractTabNotModified(req, res, contractId, 'folders')) return
     const tree = await cacheWrap(contractKey(contractId, 'folders'), DOC_TTL, async () => {
       // Recursive CTE to fetch all folders for this contract in tree order.
       // No is_deleted column in schema — filter is omitted.
@@ -277,6 +279,8 @@ export async function getContractFiles(req, res) {
     }
 
     // Chỉ cache biến thể "toàn bộ tệp HĐ" (không lọc folderId) — đây là lần nạp phổ biến.
+    // 304 cũng chỉ áp cho nhánh đó (biến thể lọc folderId luôn tải mới).
+    if (!folderId && await contractTabNotModified(req, res, contractId, 'files')) return
     const rows = folderId
       ? await load()
       : await cacheWrap(contractKey(contractId, 'files'), DOC_TTL, load)
@@ -503,6 +507,7 @@ export async function downloadFolder(req, res) {
 export async function getFolderTreeIn(req, res) {
   try {
     const { contractInId } = req.params
+    if (await contractInTabNotModified(req, res, contractInId, 'folders')) return
     const tree = await cacheWrap(contractInKey(contractInId, 'folders'), DOC_TTL, async () => {
       const { rows } = await pool.query(`
         WITH RECURSIVE folder_tree AS (
@@ -563,6 +568,7 @@ export async function getContractInFiles(req, res) {
     if (folderId) { query += ' AND df.folder_id = $2'; params.push(folderId) }
     query += ' ORDER BY df.uploaded_at DESC'
     const load = async () => (await pool.query(query, params)).rows
+    if (!folderId && await contractInTabNotModified(req, res, contractInId, 'files')) return
     const rows = folderId
       ? await load()
       : await cacheWrap(contractInKey(contractInId, 'files'), DOC_TTL, load)

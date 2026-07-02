@@ -3,7 +3,7 @@ import { notifyAction } from '../services/notify.js'
 import { userIsHead } from '../middleware/tenderAccess.js'
 import { cacheWrap } from '../cache.js'
 import {
-  lookupKey, tenderKey, invalidateTender,
+  lookupKey, tenderKey, tenderTabNotModified, invalidateTender,
   tenderMyKey, invalidateTenderMy, invalidateTenderList, invalidateReports,
   versionNotModified, lookupNotModified,
 } from '../services/cacheKeys.js'
@@ -81,6 +81,7 @@ export async function getTenders(req, res) {
 export async function getTender(req, res) {
   const id = parseInt(req.params.id)
   try {
+    if (await tenderTabNotModified(req, res, id, 'info')) return
     const row = await cacheWrap(tenderKey(id, 'info'), INFO_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT ${SELECT_COLS} FROM tender t ${JOINS} WHERE t.id = $1 AND t.is_deleted = false`,
@@ -277,6 +278,7 @@ export async function deleteTender(req, res) {
 export async function getActivityLog(req, res) {
   const id = parseInt(req.params.id)
   try {
+    if (await tenderTabNotModified(req, res, id, 'activity')) return
     const rows = await cacheWrap(tenderKey(id, 'activity'), ACT_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT l.id, l.action, l.detail, l.created_at, l.user_id, u.full_name AS user_name

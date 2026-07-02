@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { isoToDisplay } from './DateInput'
 
 // Danh sách biên bản (tab Tiến độ biên bản) của HĐ để chọn làm mốc "Bảo hành từ".
@@ -11,8 +11,7 @@ export default function useBienBanOptions(contractId) {
   useEffect(() => {
     let alive = true
     if (!contractId) return
-    fetch(`${API}/contracts/${contractId}/progress`)
-      .then(r => r.json())
+    apiGet(`/contracts/${contractId}/progress`, { conditional: true })
       .then(d => {
         if (!alive) return
         const opts = (Array.isArray(d) ? d : [])

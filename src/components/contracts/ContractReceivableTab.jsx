@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import './ContractReceivableTab.css'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtVND, fmtAmt, useRows } from './receivableUtils'
 import { computeForecasts } from './progressUtils'
 import ScheduleSection from './ReceivableScheduleSection'
@@ -38,16 +39,12 @@ export default function ContractReceivableTab({ contractId }) {
   const loadContractRef = useCallback(async () => {
     try {
       // Lấy tổng BOQ (ưu tiên vì phản ánh bảng giá thực tế) + tiến độ biên bản (mốc thời hạn thu)
-      const [boqRes, contractRes, progRes, bbRes] = await Promise.all([
-        fetch(`${API}/contracts/${contractId}/boq`),
-        fetch(`${API}/contracts/${contractId}`),
-        fetch(`${API}/contracts/${contractId}/progress`),
-        fetch(`${API}/bb-types`),
+      const [boqData, contractData, progData, bbData] = await Promise.all([
+        apiGet(`/contracts/${contractId}/boq`, { conditional: true }),
+        apiGet(`/contracts/${contractId}`, { conditional: true }),
+        apiGet(`/contracts/${contractId}/progress`, { conditional: true }),
+        apiGet(`/bb-types`, { conditional: true }),
       ])
-      const boqData      = await boqRes.json()
-      const contractData = await contractRes.json()
-      const progData     = await progRes.json()
-      const bbData       = await bbRes.json()
 
       const boqTotal = Array.isArray(boqData)
         ? boqData.reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)

@@ -3,7 +3,7 @@ import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { roundMoney } from '../utils/money.js'
 import { cacheWrap } from '../cache.js'
-import { contractInKey, invalidateContractIn, invalidateContract } from '../services/cacheKeys.js'
+import { contractInKey, contractInTabNotModified, invalidateContractIn, invalidateContract } from '../services/cacheKeys.js'
 
 const TAB_TTL = 15 * 60 // 15'
 
@@ -95,6 +95,7 @@ export function downloadPurchaseBOQTemplate(_req, res) {
 // GET /contract-ins/:contractInId/boq
 export async function getPurchaseBOQ(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'boq')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'boq'), TAB_TTL, async () => {
       // Kèm ghép "Nhập cho" hiện tại (1 target/dòng) để cột hiển thị sẵn lựa chọn.
       const { rows } = await pool.query(

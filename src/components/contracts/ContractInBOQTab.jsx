@@ -11,6 +11,7 @@ import EditGuard from './EditGuard'
 import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 
 export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const [rows, setRows]               = useState([])
@@ -49,8 +50,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
 
   const load = useCallback(async () => {
     try {
-      const res  = await fetch(`${API}/contract-ins/${contractInId}/boq`)
-      const data = await res.json()
+      const data = await apiGet(`/contract-ins/${contractInId}/boq`, { conditional: true })
       setRows((Array.isArray(data) ? data : []).map(r => toLocalRow(r)))
       setSelected(new Set())
     } catch (e) { console.error('load purchase BOQ:', e) }

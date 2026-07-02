@@ -2,7 +2,7 @@ import { pool } from '../db.js'
 import { SHOW_ITEM } from './contractInDeliveryShared.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
 import { cacheWrap } from '../cache.js'
-import { contractInKey, invalidateContractIn, invalidateContractInMembers } from '../services/cacheKeys.js'
+import { contractInKey, contractInTabNotModified, invalidateContractIn, invalidateContractInMembers } from '../services/cacheKeys.js'
 
 const TAB_TTL = 15 * 60 // 15'
 
@@ -16,6 +16,7 @@ function invalidateDel(contractInId) {
 
 export async function getDeliveries(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'deliveries')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'deliveries'), TAB_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT

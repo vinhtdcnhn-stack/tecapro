@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, Fragment } from 'react'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import EditGuard from './EditGuard'
 import InvoiceBatchModal from './InvoiceBatchModal'
 import usePasswordPrompt from './usePasswordPrompt'
@@ -33,9 +34,9 @@ export default function ContractInvoiceTab({ contractId }) {
   const load = useCallback(async () => {
     try {
       const [c, s, inv] = await Promise.all([
-        fetch(`${API}/contracts/${contractId}`).then(r => r.json()),
-        fetch(`${API}/contracts/${contractId}/invoice-summary`).then(r => r.json()),
-        fetch(`${API}/contracts/${contractId}/invoices`).then(r => r.json()),
+        apiGet(`/contracts/${contractId}`, { conditional: true }),
+        apiGet(`/contracts/${contractId}/invoice-summary`, { conditional: true }),
+        apiGet(`/contracts/${contractId}/invoices`, { conditional: true }),
       ])
       setContract(c && c.id ? c : null)
       setSummary(Array.isArray(s) ? s : [])

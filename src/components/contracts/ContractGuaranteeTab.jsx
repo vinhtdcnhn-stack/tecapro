@@ -10,6 +10,7 @@ import { useContractPerm } from '../../context/ContractPermContext'
 import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 
 // Giá trị hiển thị trong ô nhập: bỏ số 0 thập phân thừa; tiền VND làm tròn về số nguyên.
 const dispAmount = (amt, currency) => {
@@ -69,8 +70,7 @@ export default function ContractGuaranteeTab({ contractId }) {
   const [contractValue, setContractValue] = useState(0)
 
   useEffect(() => {
-    fetch(`${API}/contracts/${contractId}`)
-      .then(r => r.json())
+    apiGet(`/contracts/${contractId}`, { conditional: true })
       .then(d => {
         if (d.currency_code) setContractCurrency(d.currency_code)
         setContractValue(parseFloat(d.amount_after_vat) || 0)
@@ -87,8 +87,8 @@ export default function ContractGuaranteeTab({ contractId }) {
 
   const load = useCallback(async () => {
     try {
-      const res  = await fetch(`${API}/contracts/${contractId}/guarantees`)
-      const data = await res.json()
+      // conditional: lần ghé lại tab gửi If-None-Match → server trả 304 nếu bảo lãnh chưa đổi
+      const data = await apiGet(`/contracts/${contractId}/guarantees`, { conditional: true })
       setRows((Array.isArray(data) ? data : []).map(r => ({
         ...r,
         _key: String(r.id),

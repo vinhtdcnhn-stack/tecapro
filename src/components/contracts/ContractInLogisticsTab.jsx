@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import useIsMobile from './useIsMobile'
 import EditGuard from './EditGuard'
 import { auditRowAttrs } from '../common/rowAudit'
@@ -30,8 +31,7 @@ export default function ContractInLogisticsTab({ contractInId }) {
 
   const load = useCallback(async () => {
     try {
-      const res  = await fetch(`${API}/contract-ins/${contractInId}/logistics`)
-      const data = await res.json()
+      const data = await apiGet(`/contract-ins/${contractInId}/logistics`, { conditional: true })
       setList(Array.isArray(data) ? data : [])
     } catch (e) { console.error('load logistics:', e) }
     finally { setLoading(false) }

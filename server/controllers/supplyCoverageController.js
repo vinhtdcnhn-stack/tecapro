@@ -1,6 +1,6 @@
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
-import { contractKey, invalidateContract } from '../services/cacheKeys.js'
+import { contractKey, contractTabNotModified, invalidateContract } from '../services/cacheKeys.js'
 import { computeCoverage } from './supplyCoverageHelpers.js'
 
 const TAB_TTL = 15 * 60 // 15'
@@ -15,6 +15,7 @@ function invalidateCoverage(contractOutId) {
 export async function getSupplyCoverage(req, res) {
   const contractId = parseInt(req.params.contractId)
   try {
+    if (await contractTabNotModified(req, res, contractId, 'supply-coverage')) return
     const data = await cacheWrap(
       contractKey(contractId, 'supply-coverage'), TAB_TTL,
       () => computeCoverage(contractId))
@@ -31,6 +32,7 @@ export async function getSupplyCoverage(req, res) {
 export async function getCoverageSummary(req, res) {
   const contractId = parseInt(req.params.contractId)
   try {
+    if (await contractTabNotModified(req, res, contractId, 'supply-coverage')) return
     const data = await cacheWrap(
       contractKey(contractId, 'supply-coverage'), TAB_TTL,
       () => computeCoverage(contractId))

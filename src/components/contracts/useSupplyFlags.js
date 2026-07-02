@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 
 // Cờ độ phủ nhập cho tab Bảng giá bán: bản đồ { boqId: status } cho chấm màu + hàm
 // bật/tắt "không cần nhập" của 1 dòng. Chỉ chứa các dòng CẦN NHẬP (server đã loại
@@ -9,8 +10,7 @@ export default function useSupplyFlags(contractId) {
 
   const reloadCoverage = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/contracts/${contractId}/supply-coverage/summary`)
-      const d = await res.json()
+      const d = await apiGet(`/contracts/${contractId}/supply-coverage/summary`, { conditional: true })
       setCoverage(d && typeof d === 'object' ? d : {})
     } catch { setCoverage({}) }
   }, [contractId])

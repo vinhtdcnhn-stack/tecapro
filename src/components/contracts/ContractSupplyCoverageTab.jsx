@@ -4,6 +4,7 @@ import SupplyLeafRow from './SupplyLeafRow'
 import { statusMeta } from './supplyCoverageUtils'
 import { useCanEdit } from '../../context/ContractPermContext'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 
 // Tab "Theo dõi nhập hàng" (phía HĐ bán). CHỈ liệt kê các dòng hàng CẦN NHẬP
 // (no_import_needed=false — cờ này đặt bên tab Bảng giá). PM tách "đầu bán" cho hàng
@@ -15,8 +16,7 @@ export default function ContractSupplyCoverageTab({ contractId }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/contracts/${contractId}/supply-coverage`)
-      const d = await res.json()
+      const d = await apiGet(`/contracts/${contractId}/supply-coverage`, { conditional: true })
       setLeaves(d && Array.isArray(d.leaves) ? d.leaves : [])
     } catch (e) { console.error('load supply coverage:', e) }
     finally { setLoading(false) }

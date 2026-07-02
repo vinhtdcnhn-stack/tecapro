@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './ContractReceivableTab.css'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtVND, calcVND, useRows } from './contractInPayableUtils'
 import PayableSection from './ContractInPayableSection'
 import PaymentSection from './ContractInPaymentSection'
@@ -27,8 +28,7 @@ export default function ContractInPayableTab({ contractInId }) {
   useEffect(() => {
     async function loadRef() {
       try {
-        const boqRes  = await fetch(`${API}/contract-ins/${contractInId}/boq`)
-        const boqData = await boqRes.json()
+        const boqData = await apiGet(`/contract-ins/${contractInId}/boq`, { conditional: true })
         const boqTotal = Array.isArray(boqData)
           ? boqData.reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
           : 0

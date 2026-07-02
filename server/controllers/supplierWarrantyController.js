@@ -1,6 +1,6 @@
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
-import { contractInKey, invalidateContractIn } from '../services/cacheKeys.js'
+import { contractInKey, contractInTabNotModified, invalidateContractIn } from '../services/cacheKeys.js'
 
 const TAB_TTL = 30 * 60 // 30'
 
@@ -31,6 +31,7 @@ const WARRANTY_GROUP_BY = `
 
 export async function getSupplierWarranties(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'supplier-warranty')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'supplier-warranty'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         `${WARRANTY_SELECT} WHERE w.contract_in_id = $1 ${WARRANTY_GROUP_BY} ORDER BY w.id`,
@@ -155,6 +156,7 @@ export async function bulkUpdateWarrantyStart(req, res) {
 
 export async function getWarrantyClaims(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'warranty-claims')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'warranty-claims'), TAB_TTL, async () => {
       const { rows } = await pool.query(`
         SELECT c.*, w.item_name AS warranty_item_name

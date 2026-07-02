@@ -4,7 +4,7 @@ import { TABLE_DELIVERY, serialExists, findDuplicatesInList, findExistingSerials
 import { parseSerialMatrix } from '../utils/serialMatrix.js'
 import { norm } from './contractInDeliveryShared.js'
 import { cacheWrap } from '../cache.js'
-import { contractInKey, invalidateContractIn, invalidateSerialLookup } from '../services/cacheKeys.js'
+import { contractInKey, contractInTabNotModified, invalidateContractIn, invalidateSerialLookup } from '../services/cacheKeys.js'
 
 const TAB_TTL = 10 * 60 // 10' — danh sách serial tập trung (nặng)
 
@@ -252,6 +252,7 @@ export async function deleteDeliverySerial(req, res) {
 // kèm chủng loại hàng (delivery_item) và đợt nhận (delivery batch).
 export async function getAllDeliverySerials(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'all-serials')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'all-serials'), TAB_TTL, async () => {
       const { rows } = await pool.query(`
         SELECT
@@ -278,6 +279,7 @@ export async function getAllDeliverySerials(req, res) {
 // (để chọn khi thêm linh kiện / import vào màn quản lý serial tập trung).
 export async function getAllDeliveryItems(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'all-items')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'all-items'), TAB_TTL, async () => {
       const { rows } = await pool.query(`
         SELECT di.id, di.item_name, di.unit, d.id AS delivery_id, d.batch_name, d.receive_date, d.locked AS batch_locked

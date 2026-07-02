@@ -5,7 +5,7 @@ import { pool } from '../db.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
 import { logActivity } from './tenderController.js'
 import { cacheWrap } from '../cache.js'
-import { tenderKey, invalidateTender } from '../services/cacheKeys.js'
+import { tenderKey, tenderTabNotModified, invalidateTender } from '../services/cacheKeys.js'
 
 const REVIEW_TTL = 3 * 60 // 3'
 
@@ -102,6 +102,7 @@ async function reviewSetFiles(itemId) {
 export async function getItemsForReview(req, res) {
   const tenderId = parseInt(req.params.id)
   try {
+    if (await tenderTabNotModified(req, res, tenderId, 'review')) return
     const out = await cacheWrap(tenderKey(tenderId, 'review'), REVIEW_TTL, async () => {
     const { rows: items } = await pool.query(
       `SELECT i.id, i.title, i.status, i.review_status, i.review_comment,

@@ -107,6 +107,25 @@ export function reportNotModified(req, res, group) {
 export const lookupNotModified = (req, res, name) =>
   versionNotModified(req, res, `lookup:${name}`, `lk-${name}`)
 
+// Namespace version cho MỘT tab của MỘT HĐ bán (vd bảo lãnh). Song song với key body
+// c:{id}:{tab}: key body bị cacheDel, còn version này bị bump — cả hai do invalidateContract
+// làm cùng lúc (xem dưới) nên mọi call-site sẵn có tự đồng bộ ETag, không phải sửa.
+const contractTabVerNs = (id, tab) => `ctab:${id}:${tab}`
+
+// Wrapper 304 cho tab HĐ bán: namespace 'ctab:<id>:<tab>', nhãn 'ct-<id>-<tab>'. Granularity
+// đúng bằng invalidation hiện có (per HĐ per tab) → ghi bảo lãnh HĐ này không đụng HĐ khác.
+export const contractTabNotModified = (req, res, id, tab) =>
+  versionNotModified(req, res, contractTabVerNs(id, tab), `ct-${id}-${tab}`)
+
+// Tương tự cho tab HĐ nhập (ci:{id}:{tab}) và tab gói thầu (t:{id}:{tab}). Version bump song
+// song với cacheDel trong invalidateContractIn/invalidateTender (xem dưới).
+const contractInTabVerNs = (id, tab) => `citab:${id}:${tab}`
+const tenderTabVerNs = (id, tab) => `ttab:${id}:${tab}`
+export const contractInTabNotModified = (req, res, id, tab) =>
+  versionNotModified(req, res, contractInTabVerNs(id, tab), `ci-${id}-${tab}`)
+export const tenderTabNotModified = (req, res, id, tab) =>
+  versionNotModified(req, res, tenderTabVerNs(id, tab), `t-${id}-${tab}`)
+
 // ----------------------------- Invalidation -----------------------------
 
 // Danh mục: xóa thẳng key body (key xác định) ĐỒNG THỜI bump version 'lookup:<name>' để
@@ -149,23 +168,36 @@ const CONTRACT_TABS = [
 ]
 export function invalidateContract(id, ...tabs) {
   if (id == null || tabs.length === 0) return
-  return cacheDel(tabs.map((t) => contractKey(id, t)))
+  return Promise.all([
+    cacheDel(tabs.map((t) => contractKey(id, t))),
+    ...tabs.map((t) => bumpVersion(contractTabVerNs(id, t))),
+  ])
 }
 export function invalidateContractAll(id) {
   if (id == null) return
-  return cacheDel(CONTRACT_TABS.map((t) => contractKey(id, t)))
+  return Promise.all([
+    cacheDel(CONTRACT_TABS.map((t) => contractKey(id, t))),
+    ...CONTRACT_TABS.map((t) => bumpVersion(contractTabVerNs(id, t))),
+  ])
 }
 
-// Tab của 1 HĐ nhập.
+// Tab của 1 HĐ nhập. Song song cacheDel key body + bump version tab (cho ETag/304) — mọi
+// call-site invalidate tab HĐ nhập sẵn có tự đồng bộ ETag, không phải sửa.
 export function invalidateContractIn(id, ...tabs) {
   if (id == null || tabs.length === 0) return
-  return cacheDel(tabs.map((t) => contractInKey(id, t)))
+  return Promise.all([
+    cacheDel(tabs.map((t) => contractInKey(id, t))),
+    ...tabs.map((t) => bumpVersion(contractInTabVerNs(id, t))),
+  ])
 }
 
-// Tab của 1 gói thầu.
+// Tab của 1 gói thầu. Song song cacheDel + bump version tab (cho ETag/304).
 export function invalidateTender(id, ...tabs) {
   if (id == null || tabs.length === 0) return
-  return cacheDel(tabs.map((t) => tenderKey(id, t)))
+  return Promise.all([
+    cacheDel(tabs.map((t) => tenderKey(id, t))),
+    ...tabs.map((t) => bumpVersion(tenderTabVerNs(id, t))),
+  ])
 }
 
 // Tra cứu serial: xóa cache cho từng serial liên quan (cũ + mới khi thay thế).

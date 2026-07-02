@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 
 // Tab "Lịch sử": nhật ký thao tác trên gói thầu (audit trail).
 const ACTION_LABEL = {
@@ -20,8 +20,7 @@ export default function TenderActivityTab({ tenderId }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async: setState sau await
     setLoading(true)
-    fetch(`${API}/tender/${tenderId}/activity`)
-      .then(r => r.ok ? r.json() : [])
+    apiGet(`/tender/${tenderId}/activity`, { conditional: true })
       .then(d => setRows(Array.isArray(d) ? d : []))
       .catch(() => setRows([]))
       .finally(() => setLoading(false))

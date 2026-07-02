@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { thStyle, tdStyle, fmtDate, fmtNum, statusCfg } from './contractInUtils'
 import ContractInDetail from './ContractInDetail'
 import ContractInFormModal from './ContractInFormModal'
@@ -47,11 +48,10 @@ export default function ContractInTab({ contractId, initialContractInId, initial
 
   const load = useCallback(async () => {
     try {
-      const [iRes, sRes] = await Promise.all([
-        fetch(`${API}/contracts/${contractId}/contract-ins`),
-        fetch(`${API}/suppliers`),
+      const [iData, sData] = await Promise.all([
+        apiGet(`/contracts/${contractId}/contract-ins`, { conditional: true }),
+        apiGet(`/suppliers`, { conditional: true }),
       ])
-      const [iData, sData] = await Promise.all([iRes.json(), sRes.json()])
       setItems(Array.isArray(iData) ? iData : [])
       setSuppliers(Array.isArray(sData) ? sData : [])
     } catch (e) { console.error('load contract-ins:', e) }

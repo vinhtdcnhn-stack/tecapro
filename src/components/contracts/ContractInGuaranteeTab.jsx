@@ -10,6 +10,7 @@ import { useContractPerm } from '../../context/ContractPermContext'
 import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 
 // Bảo lãnh HĐ mua luôn tính bằng VNĐ: bỏ phần thập phân, giữ phân cách hàng nghìn.
 const dispAmount = (amt) => {
@@ -64,8 +65,7 @@ export default function ContractInGuaranteeTab({ contractInId }) {
 
   const load = useCallback(async () => {
     try {
-      const res  = await fetch(`${API}/contract-ins/${contractInId}/guarantees`)
-      const data = await res.json()
+      const data = await apiGet(`/contract-ins/${contractInId}/guarantees`, { conditional: true })
       setRows((Array.isArray(data) ? data : []).map(r => ({
         ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
       })))

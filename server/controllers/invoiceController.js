@@ -3,7 +3,7 @@ import { roundMoney } from '../utils/money.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
 import { computeInvoiceUnits } from './boqTreeUtils.js'
 import { cacheWrap } from '../cache.js'
-import { contractKey, invalidateContract, invalidateReports } from '../services/cacheKeys.js'
+import { contractKey, contractTabNotModified, invalidateContract, invalidateReports } from '../services/cacheKeys.js'
 
 const TAB_TTL = 30 * 60 // 30'
 
@@ -126,6 +126,7 @@ async function insertItems(client, invoiceId, items, currency) {
 // GET /contracts/:id/invoices → danh sách đợt + items + tổng (sau VAT, nguyên tệ).
 export async function getInvoices(req, res) {
   try {
+    if (await contractTabNotModified(req, res, req.params.id, 'invoices')) return
     const rows = await cacheWrap(contractKey(req.params.id, 'invoices'), TAB_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT i.id, i.contract_out_id, i.invoice_no, i.invoice_date, i.currency_code, i.exchange_rate, i.note,
@@ -155,6 +156,7 @@ export async function getInvoices(req, res) {
 // Đơn vị = dòng lá rời + hệ thống (nhóm bật multiply_qty xuất theo bộ).
 export async function getInvoiceSummary(req, res) {
   try {
+    if (await contractTabNotModified(req, res, req.params.id, 'invoice-summary')) return
     const payload = await cacheWrap(contractKey(req.params.id, 'invoice-summary'), TAB_TTL, async () => {
       const { rows: allRows } = await pool.query(
         `SELECT ${BOQ_UNIT_COLS}, sort_order FROM contract_out_boq

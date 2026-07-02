@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { formatDate } from '../contracts/documentsUtils'
 import ContractDocumentsTab from '../contracts/ContractDocumentsTab'
 import { ContractPermProvider } from '../../context/ContractPermContext'
@@ -22,8 +23,7 @@ export default function TenderReviewTab({ tenderId, isHead }) {
 
   const load = useCallback(() => {
     setLoading(true)
-    fetch(`${API}/tender/${tenderId}/review`)
-      .then(r => r.ok ? r.json() : [])
+    apiGet(`/tender/${tenderId}/review`, { conditional: true })
       .then(d => setItems(Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false))

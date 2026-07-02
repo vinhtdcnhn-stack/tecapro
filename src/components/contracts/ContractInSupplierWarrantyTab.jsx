@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { fmtDate, fmtDateInput, claimStatusStyle, warrantyExpiry, th, td } from './supplierWarrantyUtils'
 import WarrantyRow from './SupplierWarrantyRow'
 import { BulkUpdateModal, WarrantyModal, ClaimModal } from './SupplierWarrantyModals'
@@ -23,11 +24,10 @@ export default function ContractInSupplierWarrantyTab({ contractInId }) {
 
   const load = useCallback(async () => {
     try {
-      const [wRes, cRes] = await Promise.all([
-        fetch(`${API}/contract-ins/${contractInId}/supplier-warranty`),
-        fetch(`${API}/contract-ins/${contractInId}/warranty-claims`),
+      const [wData, cData] = await Promise.all([
+        apiGet(`/contract-ins/${contractInId}/supplier-warranty`, { conditional: true }),
+        apiGet(`/contract-ins/${contractInId}/warranty-claims`, { conditional: true }),
       ])
-      const [wData, cData] = await Promise.all([wRes.json(), cRes.json()])
       setWarranties(Array.isArray(wData) ? wData : [])
       setClaims(Array.isArray(cData) ? cData : [])
     } catch (e) { console.error('load warranty:', e) }

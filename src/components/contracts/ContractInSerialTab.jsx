@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { API } from '../../config/api'
+import { apiGet } from '../../lib/api'
 import { SERIAL_STATUSES } from './warrantyUtils'
 import ContractInSerialRow from './ContractInSerialRow'
 import useCtrlSave from './useCtrlSave'
@@ -34,11 +35,10 @@ export default function ContractInSerialTab({ contractInId }) {
 
   const load = useCallback(async () => {
     try {
-      const [sRes, iRes] = await Promise.all([
-        fetch(`${API}/contract-ins/${contractInId}/all-serials`),
-        fetch(`${API}/contract-ins/${contractInId}/all-items`),
+      const [sData, iData] = await Promise.all([
+        apiGet(`/contract-ins/${contractInId}/all-serials`, { conditional: true }),
+        apiGet(`/contract-ins/${contractInId}/all-items`, { conditional: true }),
       ])
-      const [sData, iData] = await Promise.all([sRes.json(), iRes.json()])
       setSerials(Array.isArray(sData) ? sData : [])
       setItems(Array.isArray(iData) ? iData : [])
       setEdits({})

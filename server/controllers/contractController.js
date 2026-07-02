@@ -3,7 +3,7 @@ import { insertContractMembers, MEMBER_ROLE_VN } from './contractMemberControlle
 import { notifyAction, notifyInfo, contractLabel } from '../services/notify.js'
 import { cacheWrap } from '../cache.js'
 import {
-  contractKey, contractListKey, invalidateContractAll, invalidateContractList,
+  contractKey, contractListKey, contractTabNotModified, invalidateContractAll, invalidateContractList,
   invalidateContractMembers, invalidateUserDashboards, invalidateReports,
   versionNotModified,
 } from '../services/cacheKeys.js'
@@ -109,6 +109,7 @@ export async function getContractById(req, res) {
   try {
     const contractId = parseInt(req.params.id)
 
+    if (await contractTabNotModified(req, res, contractId, 'info')) return
     const payload = await cacheWrap(contractKey(contractId, 'info'), INFO_TTL, async () => {
     // Get contract basic info
     const contractSql = `

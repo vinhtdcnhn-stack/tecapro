@@ -1,6 +1,6 @@
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
-import { contractInKey, invalidateContractIn, invalidateContractInMembers, invalidateReports } from '../services/cacheKeys.js'
+import { contractInKey, contractInTabNotModified, invalidateContractIn, invalidateContractInMembers, invalidateReports } from '../services/cacheKeys.js'
 
 const TAB_TTL = 15 * 60 // 15'
 
@@ -26,6 +26,7 @@ function invalidatePay(contractInId) {
 
 export async function getPayables(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'payables')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'payables'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         'SELECT * FROM contract_in_payable WHERE contract_in_id=$1 ORDER BY id',
@@ -100,6 +101,7 @@ export async function deletePayable(req, res) {
 
 export async function getPayments(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'payments')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'payments'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         'SELECT * FROM contract_in_payment WHERE contract_in_id=$1 ORDER BY payment_date, id',

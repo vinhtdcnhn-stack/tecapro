@@ -3,6 +3,7 @@ import { activateReadyTasksSafe } from '../services/taskAutoStart.js'
 import { cacheWrap } from '../cache.js'
 import {
   lookupKey, invalidateLookup, contractKey, contractInKey,
+  contractTabNotModified, contractInTabNotModified,
   invalidateContract, invalidateContractIn, invalidateContractMembers,
   invalidateContractInMembers, invalidateReports, lookupNotModified,
 } from '../services/cacheKeys.js'
@@ -97,6 +98,7 @@ const PROGRESS_SELECT = `
 
 export async function getProgress(req, res) {
   try {
+    if (await contractTabNotModified(req, res, req.params.contractId, 'progress')) return
     const rows = await cacheWrap(contractKey(req.params.contractId, 'progress'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         PROGRESS_SELECT + ' WHERE p.contract_out_id = $1 ORDER BY p.sort_order, p.id',
@@ -228,6 +230,7 @@ const IN_PROGRESS_SELECT = `
 
 export async function getProgressIn(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'progress')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'progress'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         IN_PROGRESS_SELECT + ' WHERE p.contract_in_id = $1 ORDER BY p.sort_order, p.id',

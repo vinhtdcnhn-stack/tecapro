@@ -1,6 +1,6 @@
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
-import { contractInKey, invalidateContractIn, invalidateContractInMembers } from '../services/cacheKeys.js'
+import { contractInKey, contractInTabNotModified, invalidateContractIn, invalidateContractInMembers } from '../services/cacheKeys.js'
 
 const TAB_TTL = 30 * 60 // 30'
 
@@ -35,6 +35,7 @@ function bodyToValues(body) {
 
 export async function getContractInCustoms(req, res) {
   try {
+    if (await contractInTabNotModified(req, res, req.params.contractInId, 'customs')) return
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'customs'), TAB_TTL, async () => {
       const { rows } = await pool.query(
         'SELECT * FROM contract_in_customs WHERE contract_in_id=$1 ORDER BY id',

@@ -3,7 +3,7 @@ import { notifyAction, notifyInfo, fmtDate } from '../services/notify.js'
 import { logActivity } from './tenderController.js'
 import { userIsHead, userIsBidMakerOfItem } from '../middleware/tenderAccess.js'
 import { cacheWrap } from '../cache.js'
-import { tenderKey, invalidateTender } from '../services/cacheKeys.js'
+import { tenderKey, tenderTabNotModified, invalidateTender } from '../services/cacheKeys.js'
 
 const CHECKLIST_TTL = 5 * 60 // 5'
 
@@ -30,6 +30,7 @@ async function tenderLabel(tenderId) {
 export async function getChecklist(req, res) {
   const tenderId = parseInt(req.params.id)
   try {
+    if (await tenderTabNotModified(req, res, tenderId, 'checklist')) return
     const rows = await cacheWrap(tenderKey(tenderId, 'checklist'), CHECKLIST_TTL, async () => {
       const { rows } = await pool.query(
         `SELECT ${ITEM_COLS}
