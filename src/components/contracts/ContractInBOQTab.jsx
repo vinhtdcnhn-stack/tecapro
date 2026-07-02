@@ -26,24 +26,19 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const [dragOverKey, setDragOverKey] = useState(null)
   const excelRef = useRef(null)
 
-  const { targets, reloadTargets, saveLink } = usePurchaseBOQLink(contractInId)
+  const { targets, reloadTargets, saveLinks } = usePurchaseBOQLink(contractInId)
 
   const toLocalRow = (r) => ({
     ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
+    links: Array.isArray(r.links) ? r.links : [],
     quantity: stripNum(r.quantity), unit_price: stripNum(r.unit_price), vat_rate: stripNum(r.vat_rate),
   })
 
-  // Lưu/bỏ ghép "Nhập cho" cho 1 dòng; cập nhật link_* trong state + làm mới target (covered).
-  const setLink = async (row, payload) => {
+  // Thay toàn bộ ghép "Nhập cho" của 1 dòng (nhiều đầu bán); cập nhật links trong state + làm mới target.
+  const setLinks = async (row, links) => {
     try {
-      const link = await saveLink(row.id, payload)
-      setRows(prev => prev.map(r => r._key === row._key ? {
-        ...r,
-        link_id: link?.id ?? null,
-        link_boq_id: link?.boq_id ?? null,
-        link_slot_id: link?.slot_id ?? null,
-        link_covered_qty: link ? link.covered_qty : null,
-      } : r))
+      const saved = await saveLinks(row.id, links)
+      setRows(prev => prev.map(r => r._key === row._key ? { ...r, links: saved } : r))
       reloadTargets()
     } catch (e) { alert('Lỗi lưu "Nhập cho": ' + e.message) }
   }
@@ -92,11 +87,9 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
       const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const saved = await res.json()
       if (!res.ok) throw new Error(saved.error || 'Save failed')
-      // Giữ lại ghép "Nhập cho" (link_*) vì response lưu dòng không kèm các trường này.
+      // Giữ lại ghép "Nhập cho" (links) vì response lưu dòng không kèm trường này.
       setRows(prev => prev.map(r => r._key === row._key ? {
-        ...toLocalRow(saved), _key: row._key,
-        link_id: r.link_id, link_boq_id: r.link_boq_id,
-        link_slot_id: r.link_slot_id, link_covered_qty: r.link_covered_qty,
+        ...toLocalRow(saved), _key: row._key, links: r.links || [],
       } : r))
     } catch (e) {
       alert('Lỗi khi lưu: ' + e.message)
@@ -434,7 +427,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 currency={currency}
                 showPrice={showPrice}
                 targets={targets}
-                onSetLink={setLink}
+                onSetLinks={setLinks}
                 selected={selected.has(r._key)}
                 onToggleSelect={toggleSelect}
                 set={set}

@@ -18,18 +18,18 @@ export default function usePurchaseBOQLink(contractInId) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { reloadTargets() }, [reloadTargets])
 
-  // Lưu/bỏ ghép cho dòng nhập id=rowId. boq_id rỗng = bỏ ghép. Trả link mới (hoặc null).
-  const saveLink = useCallback(async (rowId, { boq_id, slot_id, covered_qty }) => {
-    const res = await fetch(`${API}/purchase-boq/${rowId}/supply-link`, {
+  // Thay toàn bộ ghép của dòng nhập id=rowId bằng mảng links (rỗng = bỏ hết ghép). Trả mảng link mới.
+  const saveLinks = useCallback(async (rowId, links) => {
+    const res = await fetch(`${API}/purchase-boq/${rowId}/supply-links`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ boq_id, slot_id, covered_qty }),
+      body: JSON.stringify({ links: Array.isArray(links) ? links : [] }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Lưu ghép thất bại')
-    return data.link || null
+    return Array.isArray(data.links) ? data.links : []
   }, [])
 
-  return { targets, reloadTargets, saveLink }
+  return { targets, reloadTargets, saveLinks }
 }
 
 // Khóa nhận diện 1 target (leaf hoặc đầu bán): "boqId:slotId" (slot rỗng khi chưa tách).
