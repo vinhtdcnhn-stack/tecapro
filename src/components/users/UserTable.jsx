@@ -1,6 +1,7 @@
-export default function UserTable({ users, searchTerm, departmentFilter, userRole, onEdit }) {
+export default function UserTable({ users, searchTerm, departmentFilter, roleFilter, userRole, onEdit }) {
   const filteredUsers = users.filter(u => {
     if (departmentFilter && String(u.department_id) !== String(departmentFilter)) return false
+    if (roleFilter && String(Number(u.role) === 1 ? 'admin' : 'user') !== roleFilter) return false
     const term = (searchTerm || '').toLowerCase();
     return (
       u.full_name?.toLowerCase().includes(term) ||
@@ -19,8 +20,9 @@ export default function UserTable({ users, searchTerm, departmentFilter, userRol
           <tr>
             <th>Họ tên</th>
             <th>Phòng ban</th>
-            <th>Vị trí</th>
             <th>Số điện thoại</th>
+            <th>Telegram ID</th>
+            <th>Vai trò</th>
             <th>Quản lý trực tiếp</th>
             <th>Hành động</th>
           </tr>
@@ -28,7 +30,7 @@ export default function UserTable({ users, searchTerm, departmentFilter, userRol
         <tbody>
           {filteredUsers.length === 0 ? (
             <tr>
-              <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+              <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                 Không tìm thấy kết quả nào phù hợp.
               </td>
             </tr>
@@ -37,8 +39,9 @@ export default function UserTable({ users, searchTerm, departmentFilter, userRol
               <tr key={u.id}>
                 <td>{u.full_name}</td>
                 <td>{u.department_name || '-'}</td>
-                <td>{Array.isArray(u.positions) && u.positions.length > 0 ? u.positions.map(p => p.name).join(', ') : '-'}</td>
                 <td>{u.phone || '-'}</td>
+                <td>{u.telegram_chat_id || '-'}</td>
+                <td>{Number(u.role) === 1 ? 'Admin' : 'User'}</td>
                 <td>{u.manager_name || '-'}</td>
                 <td>
                   {userRole == 1 && (

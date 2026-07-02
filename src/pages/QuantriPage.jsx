@@ -67,6 +67,7 @@ export default function QuantriPage() {
 
   const [searchTerm, setSearchTerm] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
   const [customerSearchTerm, setCustomerSearchTerm] = useState('')
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('')
 
@@ -225,6 +226,15 @@ export default function QuantriPage() {
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px', minWidth: '140px' }}
+                  >
+                    <option value="">Tất cả vai trò</option>
+                    <option value="admin">Admin</option>
+                    <option value="user">User</option>
+                  </select>
                   <div style={{ maxWidth: '300px' }}>
                     <input
                       type="text"
@@ -236,7 +246,7 @@ export default function QuantriPage() {
                   </div>
                 </div>
               </div>
-              <UserTable users={users} searchTerm={searchTerm} departmentFilter={departmentFilter} userRole={canManage ? 1 : 0} onEdit={(u) => { setEditingUserId(u.id); setShowEditModal(true) }} />
+              <UserTable users={users} searchTerm={searchTerm} departmentFilter={departmentFilter} roleFilter={roleFilter} userRole={canManage ? 1 : 0} onEdit={(u) => { setEditingUserId(u.id); setShowEditModal(true) }} />
               <UserModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleSaveUser} departments={departments} positions={positions} managers={managers} checkEmailExists={checkEmailExists} checkUsernameExists={checkUsernameExists} checkEmployeeCodeExists={checkEmployeeCodeExists} />
               <UserModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setEditingUserId(null) }} onSave={handleSaveUser} user={users.find(u => u.id === editingUserId)} departments={departments} positions={positions} managers={managers} checkEmailExists={checkEmailExists} checkUsernameExists={checkUsernameExists} checkEmployeeCodeExists={checkEmployeeCodeExists} />
             </>
