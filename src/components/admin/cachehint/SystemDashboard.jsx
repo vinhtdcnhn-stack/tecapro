@@ -23,6 +23,8 @@ const fmtDur = (sec) => {
 const pct = (used, total) => (total ? Math.round((used / total) * 1000) / 10 : null)
 // Màu theo mức dùng: <70% xanh, <90% hổ phách, ≥90% đỏ.
 const barColor = (p) => (p == null ? '#9ca3af' : p >= 90 ? '#dc2626' : p >= 70 ? '#d97706' : '#16a34a')
+// Đảo ngược cho chỉ số "cao là tốt" (vd tỷ lệ hit): ≥90% xanh, ≥70% hổ phách, còn lại đỏ.
+const barColorInverse = (p) => (p == null ? '#9ca3af' : p >= 90 ? '#16a34a' : p >= 70 ? '#d97706' : '#dc2626')
 
 export default function SystemDashboard() {
   const [data, setData] = useState(null)
@@ -85,7 +87,7 @@ export default function SystemDashboard() {
         </Card>
 
         {/* PostgreSQL */}
-        <Card title="🐘 PostgreSQL">
+        <Card title="🐘 Hệ thống CSDL PostgreSQL">
           {db?.ok ? (
             <>
               <Row k="Phiên bản" v={db.version} />
@@ -102,6 +104,12 @@ export default function SystemDashboard() {
             <>
               <Row k="Trạng thái" v={<span style={{ color: '#0a0' }}>● đang bật</span>} />
               <Row k="Số key" v={redis.keys?.toLocaleString('vi-VN')} />
+              {redis.hitRatePct != null ? (
+                <Gauge label="Tỷ lệ hit" pctVal={redis.hitRatePct} inverse
+                       text={`${redis.hitRatePct}% (${redis.hits?.toLocaleString('vi-VN')} hit / ${redis.misses?.toLocaleString('vi-VN')} miss)`} />
+              ) : (
+                <Row k="Tỷ lệ hit" v="— (chưa có lượt truy vấn)" />
+              )}
               {redisPct != null
                 ? <Gauge label="Bộ nhớ" pctVal={redisPct} text={`${redis.usedHuman} / ${redis.maxHuman}`} />
                 : <Row k="Bộ nhớ dùng" v={`${redis.usedHuman || fmtBytes(redis.usedBytes)} (không giới hạn)`} />}
@@ -150,8 +158,9 @@ function Row({ k, v, small }) {
 }
 
 // Thanh đo có nhãn + % màu theo mức dùng.
-function Gauge({ label, pctVal, text }) {
+function Gauge({ label, pctVal, text, inverse }) {
   const width = pctVal == null ? 0 : Math.min(100, pctVal)
+  const color = (inverse ? barColorInverse : barColor)(pctVal)
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
@@ -159,7 +168,7 @@ function Gauge({ label, pctVal, text }) {
         <span style={{ color: '#111', fontWeight: 600 }}>{text}</span>
       </div>
       <div style={{ height: 8, background: '#f1f5f9', borderRadius: 5, overflow: 'hidden' }}>
-        <div style={{ width: `${width}%`, height: '100%', background: barColor(pctVal), transition: 'width .4s, background .4s' }} />
+        <div style={{ width: `${width}%`, height: '100%', background: color, transition: 'width .4s, background .4s' }} />
       </div>
     </div>
   )

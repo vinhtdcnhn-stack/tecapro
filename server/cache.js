@@ -99,21 +99,30 @@ export async function cacheDel(...keys) {
 export async function getCacheStats() {
   if (!ready()) return { ready: false }
   try {
+    // Lấy cả 'memory' (dung lượng) và 'stats' (hit/miss) trong một lần INFO.
     const info = await client.info('memory')
-    const pick = (k) => {
-      const m = info.match(new RegExp(`^${k}:(.+)$`, 'm'))
+    const stats = await client.info('stats')
+    const pick = (src, k) => {
+      const m = src.match(new RegExp(`^${k}:(.+)$`, 'm'))
       return m ? m[1].trim() : null
     }
-    const usedBytes = Number(pick('used_memory')) || null
-    const maxBytes = Number(pick('maxmemory')) || 0 // 0 = không giới hạn
+    const usedBytes = Number(pick(info, 'used_memory')) || null
+    const maxBytes = Number(pick(info, 'maxmemory')) || 0 // 0 = không giới hạn
     const keys = await client.dbSize()
+    // keyspace_hits/misses là bộ đếm tích lũy từ lúc Redis khởi động (hoặc CONFIG RESETSTAT).
+    const hits = Number(pick(stats, 'keyspace_hits')) || 0
+    const misses = Number(pick(stats, 'keyspace_misses')) || 0
+    const lookups = hits + misses
     return {
       ready: true,
       usedBytes,
-      usedHuman: pick('used_memory_human'),
+      usedHuman: pick(info, 'used_memory_human'),
       maxBytes: maxBytes || null,
-      maxHuman: maxBytes ? pick('maxmemory_human') : null,
+      maxHuman: maxBytes ? pick(info, 'maxmemory_human') : null,
       keys,
+      hits,
+      misses,
+      hitRatePct: lookups ? Math.round((hits / lookups) * 1000) / 10 : null,
     }
   } catch {
     return { ready: false }
