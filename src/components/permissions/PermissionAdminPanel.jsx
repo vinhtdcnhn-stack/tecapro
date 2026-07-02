@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useUsers } from '../../lib/queries'
-import { fetchCatalog, fetchGlobalMatrix, fetchContractMatrix } from './permissionApi'
+import { fetchCatalog, fetchGlobalMatrix, fetchDepartmentMatrix, fetchContractMatrix } from './permissionApi'
 import GlobalPermissionMatrix from './GlobalPermissionMatrix'
+import DepartmentPermissionMatrix from './DepartmentPermissionMatrix'
 import ContractRolePermissionMatrix from './ContractRolePermissionMatrix'
 import UserOverrideEditor from './UserOverrideEditor'
 import './permissions.css'
@@ -13,14 +14,17 @@ export default function PermissionAdminPanel() {
   const [tab, setTab] = useState('global')
   const [cat, setCat] = useState(null)
   const [global, setGlobal] = useState(null)
+  const [department, setDepartment] = useState(null)
   const [contract, setContract] = useState(null)
   const [err, setErr] = useState('')
 
   useEffect(() => {
     ;(async () => {
       try {
-        const [c, g, ct] = await Promise.all([fetchCatalog(), fetchGlobalMatrix(), fetchContractMatrix()])
-        setCat(c); setGlobal(g); setContract(ct)
+        const [c, g, d, ct] = await Promise.all([
+          fetchCatalog(), fetchGlobalMatrix(), fetchDepartmentMatrix(), fetchContractMatrix(),
+        ])
+        setCat(c); setGlobal(g); setDepartment(d); setContract(ct)
       } catch (e) { setErr(e.message) }
     })()
   }, [])
@@ -43,6 +47,7 @@ export default function PermissionAdminPanel() {
       </p>
       <div className="perm-admin-tabs">
         <button className={`perm-admin-tab${tab === 'global' ? ' active' : ''}`} onClick={() => setTab('global')}>Toàn cục (theo vị trí)</button>
+        <button className={`perm-admin-tab${tab === 'department' ? ' active' : ''}`} onClick={() => setTab('department')}>Toàn cục (theo phòng ban)</button>
         <button className={`perm-admin-tab${tab === 'contract' ? ' active' : ''}`} onClick={() => setTab('contract')}>Theo vai trò hợp đồng</button>
         <button className={`perm-admin-tab${tab === 'user' ? ' active' : ''}`} onClick={() => setTab('user')}>Ghi đè theo người dùng</button>
       </div>
@@ -53,6 +58,14 @@ export default function PermissionAdminPanel() {
         <GlobalPermissionMatrix
           rowPerms={[...globalPerms, ...contractPerms]} allPerms={cat.permissions} positions={global.positions} grants={global.grants}
           onGrantsChange={(posId, keys) => setGlobal(g => ({ ...g, grants: { ...g.grants, [posId]: keys } }))}
+        />
+      )}
+      {tab === 'department' && department && (
+        // Ma trận phòng ban: cấp quyền cho CẢ phòng — mọi user thuộc phòng có quyền
+        // (song song với cấp theo vị trí). Cùng bộ quyền global + HĐ.
+        <DepartmentPermissionMatrix
+          rowPerms={[...globalPerms, ...contractPerms]} allPerms={cat.permissions} departments={department.departments} grants={department.grants}
+          onGrantsChange={(depId, keys) => setDepartment(d => ({ ...d, grants: { ...d.grants, [depId]: keys } }))}
         />
       )}
       {tab === 'contract' && contract && (

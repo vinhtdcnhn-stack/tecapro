@@ -84,8 +84,10 @@ const GLOBAL = [
   { key: 'tender.reports.view',    group: 'Đấu thầu', label: 'Xem báo cáo đấu thầu',   requires: ['module.tender.view'] },
   { key: 'tender.manage',          group: 'Đấu thầu', label: 'Quản trị gói thầu (Trưởng ban)', requires: ['module.tender.view'] },
 
-  // ── Công việc phòng (KT Cơ điện) — requires module.deptwork.view ──────────
-  { key: 'deptwork.manage', group: 'Công việc phòng', label: 'Quản lý công việc phòng (Trưởng/Phó ban)', requires: ['module.deptwork.view'] },
+  // ── Công việc phòng (KT Cơ điện) — CHỈ 1 quyền: ai được VÀO module ─────────
+  // Cấp được theo VỊ TRÍ (position_permission) HOẶC theo PHÒNG BAN (department_permission).
+  // Bên trong module (sidebar tab nào hiện, ai tạo/giao/sửa/xóa) do HARDCODE quyết định
+  // (deptWorkAccess.js: dữ liệu neo phòng 7, quản lý neo vị trí TP/PP) — KHÔNG qua RBAC.
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -230,7 +232,7 @@ export const PAGES = [
   {
     id: 'deptwork', label: 'Công việc phòng', scope: 'global',
     test: (p) => p.startsWith('/cong-viec/kt-co-dien'),
-    permKeys: ['module.deptwork.view', 'deptwork.manage'],
+    permKeys: ['module.deptwork.view'],
   },
   {
     id: 'tender', label: 'Đấu thầu', scope: 'global',

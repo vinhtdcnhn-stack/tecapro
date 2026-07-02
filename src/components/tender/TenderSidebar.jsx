@@ -12,16 +12,21 @@ const ITEMS = [
 export default function TenderSidebar({ isHead }) {
   const items = ITEMS.filter(i => !i.headOnly || isHead)
   return (
-    <aside className="sidebar deptwork-sidebar">
-      {items.map(item => (
-        <NavLink
-          key={item.section}
-          to={`${BASE}/${item.section}`}
-          className={({ isActive }) => `sidebar-btn${isActive ? ' active' : ''}`}
-        >
-          {item.label}
-        </NavLink>
-      ))}
+    <aside className="admin-sidebar deptwork-sidebar">
+      <div className="admin-sidebar-section">
+        <div className="admin-sidebar-category">Kế hoạch đấu thầu</div>
+        <div className="admin-sidebar-items">
+          {items.map(item => (
+            <NavLink
+              key={item.section}
+              to={`${BASE}/${item.section}`}
+              className={({ isActive }) => `admin-sidebar-item${isActive ? ' active' : ''}`}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      </div>
     </aside>
   )
 }

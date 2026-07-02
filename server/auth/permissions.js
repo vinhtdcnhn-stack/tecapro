@@ -28,8 +28,8 @@ export function allGlobalKeys() {
   return [...GLOBAL_KEYS]
 }
 
-// Quyền RIÊNG thô của 1 user (chưa lọc scope, chưa kế thừa): tập allow (position + override
-// 'allow') và tập deny (override 'deny').
+// Quyền RIÊNG thô của 1 user (chưa lọc scope, chưa kế thừa): tập allow (position +
+// department + override 'allow') và tập deny (override 'deny').
 async function effectiveOwnRaw(userId) {
   const { rows } = await pool.query(
     `WITH user_pos AS (
@@ -43,6 +43,15 @@ async function effectiveOwnRaw(userId) {
     [userId],
   )
   const allow = new Set(rows.map(r => r.key))
+  // Tầng PHÒNG BAN: mọi quyền cấp cho phòng của user (department_permission) → hợp vào allow.
+  const { rows: deptRows } = await pool.query(
+    `SELECT dp.perm_key AS key
+       FROM department_permission dp
+       JOIN app_user u ON u.department_id = dp.department_id
+      WHERE u.id = $1`,
+    [userId],
+  )
+  for (const r of deptRows) allow.add(r.key)
   const { rows: ov } = await pool.query(
     'SELECT perm_key, effect FROM user_permission_override WHERE user_id = $1',
     [userId],

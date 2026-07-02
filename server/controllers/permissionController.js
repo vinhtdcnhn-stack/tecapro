@@ -81,6 +81,44 @@ export async function putGlobalMatrix(req, res) {
   }
 }
 
+// ── Lớp A (tầng phòng ban): ma trận department × perm ───────────────────────
+// department_permission cấp quyền cho CẢ PHÒNG — mọi user thuộc phòng có quyền, song song
+// với position_permission. Cùng bộ key hợp lệ (global ∪ contract) như cấp theo vị trí.
+export async function getDepartmentMatrix(_req, res) {
+  const { rows: departments } = await pool.query(
+    'SELECT id, code, name FROM department WHERE is_active = true ORDER BY name, id',
+  )
+  const { rows: grants } = await pool.query('SELECT department_id, perm_key FROM department_permission')
+  const map = {}
+  for (const g of grants) (map[g.department_id] ||= []).push(g.perm_key)
+  res.json({ departments, grants: map })
+}
+
+export async function putDepartmentMatrix(req, res) {
+  const departmentId = Number(req.body?.department_id)
+  if (!Number.isInteger(departmentId)) { res.status(400).json({ error: 'department_id không hợp lệ.' }); return }
+  const raw = Array.isArray(req.body?.perm_keys) ? req.body.perm_keys : []
+  const keys = expandWithRequires(raw).filter(k => GLOBAL_KEYS.has(k) || CONTRACT_KEYS.has(k))
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const dep = await client.query('SELECT 1 FROM department WHERE id = $1', [departmentId])
+    if (!dep.rows.length) { await client.query('ROLLBACK'); res.status(404).json({ error: 'Phòng ban không tồn tại.' }); return }
+    await client.query('DELETE FROM department_permission WHERE department_id = $1', [departmentId])
+    for (const k of keys) {
+      await client.query('INSERT INTO department_permission (department_id, perm_key) VALUES ($1,$2) ON CONFLICT DO NOTHING', [departmentId, k])
+    }
+    await client.query('COMMIT')
+    res.json({ department_id: departmentId, perm_keys: keys })
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
 // ── Thành viên của một vị trí (Lớp A) ───────────────────────────────────────
 // "Ai đang giữ vị trí này" = app_user_position ∪ cột legacy app_user.position_id
 // (đúng theo cách quyền hiệu lực được tính ở permissions.js → effectiveOwnRaw).

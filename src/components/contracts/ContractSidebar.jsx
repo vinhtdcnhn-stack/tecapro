@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useContractPerm } from '../../context/ContractPermContext'
 
 // Tab sidebar → quyền .view (lớp B) cần để THẤY. Thiếu map = luôn hiện.
@@ -18,34 +18,38 @@ const PERM_BY_ID = {
 
 export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen = false, onClose }) {
   const { canView } = useContractPerm()
-  const allMenuItems = [
-    {
-      category: 'I. Hợp đồng bán',
-      items: [
-        { id: 'contract-info', label: 'Thông tin hợp đồng' },
-        { id: 'contract-documents', label: 'Tài liệu hợp đồng' },
-        { id: 'contract-pricing', label: 'Bảng giá' },
-        { id: 'contract-supply', label: 'Theo dõi nhập hàng' },
-        { id: 'contract-progress', label: 'Tiến độ theo biên bản' },
-        { id: 'contract-debt', label: 'Công nợ' },
-        { id: 'contract-invoice', label: 'Quản lý hóa đơn' },
-        { id: 'contract-warranty', label: 'Bảo hành' },
-        { id: 'contract-guarantee', label: 'Bảo lãnh' },
-        { id: 'contract-tasks', label: 'Công việc triển khai' }
-      ]
-    },
-    {
-      category: 'II. Hợp đồng nhập',
-      items: [
-        { id: 'purchase-contract-info', label: 'Thông tin hợp đồng nhập' }
-      ]
-    }
-  ]
 
   // Lọc tab theo quyền .view (lớp B). Bỏ category rỗng. Admin/HĐ-có-quyền thấy đủ như cũ.
-  const menuItems = allMenuItems
-    .map((section) => ({ ...section, items: section.items.filter((it) => !PERM_BY_ID[it.id] || canView(PERM_BY_ID[it.id])) }))
-    .filter((section) => section.items.length > 0)
+  // useMemo để tham chiếu ổn định (chỉ đổi khi canView đổi) → effect Ctrl+↑/↓ phía dưới
+  // dùng menuItems trong deps mà không phải re-subscribe mỗi lần render.
+  const menuItems = useMemo(() => {
+    const allMenuItems = [
+      {
+        category: 'I. Hợp đồng bán',
+        items: [
+          { id: 'contract-info', label: 'Thông tin hợp đồng' },
+          { id: 'contract-documents', label: 'Tài liệu hợp đồng' },
+          { id: 'contract-pricing', label: 'Bảng giá' },
+          { id: 'contract-supply', label: 'Theo dõi nhập hàng' },
+          { id: 'contract-progress', label: 'Tiến độ theo biên bản' },
+          { id: 'contract-debt', label: 'Công nợ' },
+          { id: 'contract-invoice', label: 'Quản lý hóa đơn' },
+          { id: 'contract-warranty', label: 'Bảo hành' },
+          { id: 'contract-guarantee', label: 'Bảo lãnh' },
+          { id: 'contract-tasks', label: 'Công việc triển khai' }
+        ]
+      },
+      {
+        category: 'II. Hợp đồng nhập',
+        items: [
+          { id: 'purchase-contract-info', label: 'Thông tin hợp đồng nhập' }
+        ]
+      }
+    ]
+    return allMenuItems
+      .map((section) => ({ ...section, items: section.items.filter((it) => !PERM_BY_ID[it.id] || canView(PERM_BY_ID[it.id])) }))
+      .filter((section) => section.items.length > 0)
+  }, [canView])
 
   // Ctrl+↓ / Ctrl+↑: chuyển nhanh giữa các mục sidebar (vòng tròn)
   useEffect(() => {
@@ -61,7 +65,7 @@ export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen =
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeMenu, onMenuChange])
+  }, [activeMenu, onMenuChange, menuItems])
 
   const handleSelect = (id) => {
     onMenuChange(id)

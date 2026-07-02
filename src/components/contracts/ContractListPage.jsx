@@ -146,7 +146,6 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const handleSort = (key) => { setSortConfig(prev => { if (prev.key !== key) return { key, direction: 'asc' }; if (prev.direction === 'asc') return { key, direction: 'desc' }; return { key: null, direction: null } }) }
   const getSortIcon = (key) => { if (sortConfig.key !== key) return ''; if (sortConfig.direction === 'asc') return ' ↑'; return ' ↓' }
   const hasActiveFilters = Object.values(filters).some(v => v !== '') || sortConfig.key !== null
-  const formatCurrency = (value) => { if (value === null || value === undefined || isNaN(value)) return '-'; const num = Number(value); return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
   // Convert a contract's native amount to VND for display: USD contracts are multiplied by exchange_rate, VND contracts shown as-is
   const toVnd = (value, c) => { const num = parseFloat(value); if (isNaN(num)) return null; if (c.currency_code === 'USD') return Math.round(num * (parseFloat(c.exchange_rate) || 0)); return num }
   const formatDate = (dateStr) => { if (!dateStr) return '-'; return new Date(dateStr).toLocaleDateString('vi-VN') }

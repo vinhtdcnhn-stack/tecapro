@@ -3,8 +3,11 @@ import { pool } from '../db.js'
 // ─────────────────────────────────────────────────────────────────────────────
 // Phân quyền cho module Quản lý công việc — Ban KT Cơ điện (department id 7).
 // Mẫu giống contractAccess.js: admin (role=1) toàn quyền; còn lại kiểm tra DB.
-// Quyền quản lý bảng việc (tạo/giao/sửa/xóa) lấy theo CHỨC DANH: Trưởng ban / Phó ban
-// (app_user_position → position id 3,4), không còn dùng dept_work_member.dept_role.
+//
+// Phạm vi RBAC của module này CHỈ là "ai được VÀO module" (quyền module.deptwork.view, cấp
+// theo vị trí/phòng ban). Bên trong: là thành viên phòng (department_id = 7) mới đọc được;
+// quyền quản lý (tạo/giao/sửa/xóa) neo theo CHỨC DANH Trưởng ban / Phó ban (position id 3,4).
+// Toàn bộ phần "bên trong" này HARDCODE — không qua RBAC.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const DEPT_KT_CO_DIEN = 7

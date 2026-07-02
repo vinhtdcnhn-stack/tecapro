@@ -3,6 +3,7 @@ import { requirePermission } from '../auth/permissions.js'
 import {
   getCatalog, getForPage,
   getGlobalMatrix, putGlobalMatrix,
+  getDepartmentMatrix, putDepartmentMatrix,
   getPositionMembers, addPositionMember, removePositionMember,
   getContractMatrix, putContractMatrix,
   getUserOverrides, putUserOverrides,
@@ -17,6 +18,8 @@ router.get('/permissions/catalog', getCatalog)
 router.get('/permissions/for-page', getForPage)
 router.get('/permissions/global-matrix', getGlobalMatrix)
 router.put('/permissions/global-matrix', putGlobalMatrix)
+router.get('/permissions/department-matrix', getDepartmentMatrix)
+router.put('/permissions/department-matrix', putDepartmentMatrix)
 router.get('/permissions/position-members', getPositionMembers)
 router.post('/permissions/position-members', addPositionMember)
 router.delete('/permissions/position-members', removePositionMember)

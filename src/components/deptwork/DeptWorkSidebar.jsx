@@ -11,16 +11,21 @@ const ITEMS = [
 export default function DeptWorkSidebar({ canManage }) {
   const items = ITEMS.filter(i => !i.manageOnly || canManage)
   return (
-    <aside className="sidebar deptwork-sidebar">
-      {items.map(item => (
-        <NavLink
-          key={item.section}
-          to={`${BASE}/${item.section}`}
-          className={({ isActive }) => `sidebar-btn${isActive ? ' active' : ''}`}
-        >
-          {item.label}
-        </NavLink>
-      ))}
+    <aside className="admin-sidebar deptwork-sidebar">
+      <div className="admin-sidebar-section">
+        <div className="admin-sidebar-category">Công việc</div>
+        <div className="admin-sidebar-items">
+          {items.map(item => (
+            <NavLink
+              key={item.section}
+              to={`${BASE}/${item.section}`}
+              className={({ isActive }) => `admin-sidebar-item${isActive ? ' active' : ''}`}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      </div>
     </aside>
   )
 }

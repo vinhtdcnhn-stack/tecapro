@@ -18,8 +18,8 @@ export default function DeptWorkPage() {
   const { data: teams = [] } = useDeptTeams()
   const { data: members = [] } = useDeptMembers()
 
-  // Vào module theo RBAC lớp A (admin fail-open). Quyền quản lý (HEAD/DEPUTY) vẫn theo
-  // mô hình động canManageDeptWork — lớp A chỉ gate vào module.
+  // RBAC chỉ gate "vào module" (admin fail-open). Bên trong (tab sidebar nào hiện, quyền quản
+  // lý) theo hardcode: mọi người vào được thấy đủ 3 tab; canManageDeptWork lo phần quản lý.
   if (!has('module.deptwork.view')) return <Navigate to="/" replace />
   if (!VALID.includes(section)) return <Navigate to="/cong-viec/kt-co-dien/board" replace />
 

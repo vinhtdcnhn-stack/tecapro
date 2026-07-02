@@ -40,6 +40,8 @@
 .perm-matrix-rowhead { text-align: left !important; position: sticky; left: 0; background: #fff; z-index: 1; }
 .perm-col { writing-mode: vertical-rl; transform: rotate(180deg); height: 90px; font-weight: 600; color: #334155; }
 .perm-col.saving { color: #2563eb; }
+/* Cột phòng ban: tên dài hơn mã vị trí → cho chiều cao tự giãn để đọc trọn tên. */
+.perm-col-dept { height: auto; min-height: 90px; white-space: nowrap; font-size: 12px; vertical-align: bottom; }
 /* Header cột vị trí là link mở modal thành viên (kế thừa hướng chữ dọc của .perm-col). */
 .perm-pos-link {
   border: none; background: transparent; padding: 0; cursor: pointer; font: inherit;

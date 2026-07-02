@@ -39,7 +39,7 @@ export function allowedEntryTypes(rel) {
 export const MANAGER_POSITION_IDS = [3, 4]
 
 // Người dùng hiện tại có quyền quản lý việc (tạo/giao/sửa/xóa) không.
-// Quyền lấy theo chức danh (app_user_position), không còn theo dept_work_member.
+// Quyền lấy theo chức danh (app_user_position) — HARDCODE, không qua RBAC.
 export function canManageDeptWork(user) {
   if (Number(user?.role) === 1) return true
   return (user?.positions || []).some(p => MANAGER_POSITION_IDS.includes(p.id))

@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useLocation } from 'react-router-dom'
 import { usePermission } from '../../hooks/usePermission'
-import { fetchCatalog, fetchForPage, fetchGlobalMatrix, fetchContractMatrix } from './permissionApi'
+import { fetchCatalog, fetchForPage, fetchGlobalMatrix, fetchDepartmentMatrix, fetchContractMatrix } from './permissionApi'
 import GlobalPermissionMatrix from './GlobalPermissionMatrix'
+import DepartmentPermissionMatrix from './DepartmentPermissionMatrix'
 import ContractRolePermissionMatrix from './ContractRolePermissionMatrix'
 import { subscribeContractInSubTab, getContractInSubTab } from './activeSubTab'
 import { SUB_TABS } from '../contracts/contractInUtils'
@@ -102,8 +103,11 @@ export default function PermissionPanel() {
         if (!fp.page) { if (alive) setData({ page: null }); return }
         let extra = {}
         if (fp.page.scope === 'global') {
-          const gm = await fetchGlobalMatrix()
-          extra = { positions: gm.positions, posGrants: gm.grants }
+          const [gm, dm] = await Promise.all([fetchGlobalMatrix(), fetchDepartmentMatrix()])
+          extra = {
+            positions: gm.positions, posGrants: gm.grants,
+            departments: dm.departments, depGrants: dm.grants,
+          }
         } else {
           // Lớp B (vai trò HĐ) + nếu trang có quyền Lớp A liên quan → tải thêm ma trận vị trí.
           const needGlobal = (fp.globalPerms || []).length > 0
@@ -158,10 +162,21 @@ export default function PermissionPanel() {
             <p>Trang này chưa khai báo quyền trong danh mục. Quản lý đầy đủ ở mục <b>Hệ thống → Phân quyền</b>.</p>
           )}
           {!loading && data?.page?.scope === 'global' && (
-            <GlobalPermissionMatrix
-              rowPerms={data.perms} allPerms={data.allPerms} positions={data.positions} grants={data.posGrants}
-              onGrantsChange={(posId, keys) => setData(d => ({ ...d, posGrants: { ...d.posGrants, [posId]: keys } }))}
-            />
+            <>
+              <div className="perm-panel-subhead">Theo vị trí</div>
+              <GlobalPermissionMatrix
+                rowPerms={data.perms} allPerms={data.allPerms} positions={data.positions} grants={data.posGrants}
+                onGrantsChange={(posId, keys) => setData(d => ({ ...d, posGrants: { ...d.posGrants, [posId]: keys } }))}
+              />
+              <div className="perm-panel-section">
+                <div className="perm-panel-subhead">Theo phòng ban</div>
+                {/* Tick = cấp quyền cho CẢ phòng — mọi user thuộc phòng đó có quyền. */}
+                <DepartmentPermissionMatrix
+                  rowPerms={data.perms} allPerms={data.allPerms} departments={data.departments || []} grants={data.depGrants || {}}
+                  onGrantsChange={(depId, keys) => setData(d => ({ ...d, depGrants: { ...d.depGrants, [depId]: keys } }))}
+                />
+              </div>
+            </>
           )}
           {!loading && data?.page?.scope === 'contract' && (
             <>
