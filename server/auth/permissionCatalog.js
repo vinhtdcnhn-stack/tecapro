@@ -79,10 +79,10 @@ const GLOBAL = [
   // ── Đề xuất — requires module.approvals.view ──────────────────────────────
   { key: 'approvals.forms.manage', group: 'Đề xuất', label: 'Quản trị biểu mẫu & xem mọi đơn', requires: ['module.approvals.view'], adminOnly: true },
 
-  // ── Đấu thầu — requires module.tender.view ────────────────────────────────
-  { key: 'tender.template.manage', group: 'Đấu thầu', label: 'Quản lý mẫu checklist',  requires: ['module.tender.view'] },
-  { key: 'tender.reports.view',    group: 'Đấu thầu', label: 'Xem báo cáo đấu thầu',   requires: ['module.tender.view'] },
-  { key: 'tender.manage',          group: 'Đấu thầu', label: 'Quản trị gói thầu (Trưởng ban)', requires: ['module.tender.view'] },
+  // ── Đấu thầu (KH Đấu thầu) — CHỈ 1 quyền: ai được VÀO module ───────────────
+  // Cấp được theo VỊ TRÍ hoặc PHÒNG BAN. Bên trong module (sidebar tab nào hiện, ai
+  // tạo/sửa/xóa gói/checklist) do HARDCODE quyết định (tenderAccess.js: dữ liệu neo phòng 9,
+  // vai trò theo tender_member HEAD/MEMBER + bid_maker) — KHÔNG qua RBAC.
 
   // ── Công việc phòng (KT Cơ điện) — CHỈ 1 quyền: ai được VÀO module ─────────
   // Cấp được theo VỊ TRÍ (position_permission) HOẶC theo PHÒNG BAN (department_permission).
@@ -237,7 +237,7 @@ export const PAGES = [
   {
     id: 'tender', label: 'Đấu thầu', scope: 'global',
     test: (p) => p.startsWith('/cong-viec/dau-thau') || p.startsWith('/viec-dau-thau'),
-    permKeys: ['module.tender.view', 'tender.template.manage', 'tender.reports.view', 'tender.manage'],
+    permKeys: ['module.tender.view'],
   },
   {
     id: 'approvals', label: 'Đề xuất', scope: 'global',
