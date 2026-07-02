@@ -54,12 +54,21 @@ const GLOBAL = [
   { key: 'dashboard.unread.view',     group: 'Bảng điều khiển', label: 'Chưa đọc' },
 
   // ── Phần Hệ thống — mỗi mục requires module.system.view ───────────────────
-  { key: 'system.users.manage',       group: 'Hệ thống', label: 'Quản lý người dùng',   requires: ['module.system.view'] },
-  { key: 'system.departments.manage', group: 'Hệ thống', label: 'Quản lý phòng ban',    requires: ['module.system.view'] },
-  { key: 'system.positions.manage',   group: 'Hệ thống', label: 'Quản lý vị trí',       requires: ['module.system.view'] },
-  { key: 'system.customers.manage',   group: 'Hệ thống', label: 'Quản lý khách hàng',   requires: ['module.system.view'] },
-  { key: 'system.suppliers.manage',   group: 'Hệ thống', label: 'Quản lý nhà cung cấp', requires: ['module.system.view'] },
-  { key: 'system.bbtypes.manage',     group: 'Hệ thống', label: 'Quản lý loại biên bản',requires: ['module.system.view'] },
+  // Mỗi trang danh mục tách Xem (.view, cần vào module) + Sửa (.manage, cần .view của trang).
+  // .view CHỈ ẩn/hiện trang + menu ở FE — KHÔNG chặn API danh sách (dùng chung cho dropdown
+  // khắp app); .manage mới là guard ghi ở backend (routes system.*.manage).
+  { key: 'system.users.view',         group: 'Hệ thống', label: 'Người dùng — Xem',      requires: ['module.system.view'] },
+  { key: 'system.users.manage',       group: 'Hệ thống', label: 'Người dùng — Sửa',      requires: ['system.users.view'] },
+  { key: 'system.departments.view',   group: 'Hệ thống', label: 'Phòng ban — Xem',       requires: ['module.system.view'] },
+  { key: 'system.departments.manage', group: 'Hệ thống', label: 'Phòng ban — Sửa',       requires: ['system.departments.view'] },
+  { key: 'system.positions.view',     group: 'Hệ thống', label: 'Vị trí — Xem',          requires: ['module.system.view'] },
+  { key: 'system.positions.manage',   group: 'Hệ thống', label: 'Vị trí — Sửa',          requires: ['system.positions.view'] },
+  { key: 'system.customers.view',     group: 'Hệ thống', label: 'Khách hàng — Xem',      requires: ['module.system.view'] },
+  { key: 'system.customers.manage',   group: 'Hệ thống', label: 'Khách hàng — Sửa',      requires: ['system.customers.view'] },
+  { key: 'system.suppliers.view',     group: 'Hệ thống', label: 'Nhà cung cấp — Xem',    requires: ['module.system.view'] },
+  { key: 'system.suppliers.manage',   group: 'Hệ thống', label: 'Nhà cung cấp — Sửa',    requires: ['system.suppliers.view'] },
+  { key: 'system.bbtypes.view',       group: 'Hệ thống', label: 'Loại biên bản — Xem',   requires: ['module.system.view'] },
+  { key: 'system.bbtypes.manage',     group: 'Hệ thống', label: 'Loại biên bản — Sửa',   requires: ['system.bbtypes.view'] },
   { key: 'system.feedback.manage',    group: 'Hệ thống', label: 'Xử lý góp ý cải thiện',requires: ['module.system.view'] },
   { key: 'system.telegram_log.view',  group: 'Hệ thống', label: 'Xem nhật ký Telegram', requires: ['module.system.view'], adminOnly: true },
   { key: 'system.audit_log.view',     group: 'Hệ thống', label: 'Xem nhật ký thay đổi',  requires: ['module.system.view'], adminOnly: true },

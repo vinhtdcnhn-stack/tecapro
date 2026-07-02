@@ -25,6 +25,12 @@ import CacheHintPage from '../components/admin/cachehint/CacheHintPage'
 const VALID_SECTIONS = ['users', 'departments', 'positions', 'customers', 'suppliers', 'bb-types', 'telegram-log', 'feedback', 'backup', 'phan-quyen', 'nhat-ky-thay-doi', 'chan-doan-hieu-nang']
 // Quyền (lớp A) cần để XEM section. Section không liệt kê = chỉ cần vào module Hệ thống.
 const SECTION_VIEW_PERM = {
+  users: 'system.users.view',
+  departments: 'system.departments.view',
+  positions: 'system.positions.view',
+  customers: 'system.customers.view',
+  suppliers: 'system.suppliers.view',
+  'bb-types': 'system.bbtypes.view',
   'telegram-log': 'system.telegram_log.view',
   'backup': 'system.backup.manage',
   'phan-quyen': 'system.permissions.manage',
@@ -187,10 +193,13 @@ export default function QuantriPage() {
 
   // Vào module Hệ thống theo RBAC lớp A (admin fail-open).
   if (!has('module.system.view')) return <Navigate to="/" replace />
-  if (!VALID_SECTIONS.includes(section)) return <Navigate to="/quantri/users" replace />
-  // Section cần quyền riêng: thiếu quyền → đẩy về trang người dùng.
+  // Section đầu tiên user có quyền xem — đích chuyển hướng an toàn (tránh vòng lặp khi
+  // section mặc định 'users' cũng cần quyền riêng). 'feedback' không cần quyền nên luôn có.
+  const firstAllowed = VALID_SECTIONS.find(s => { const p = SECTION_VIEW_PERM[s]; return !p || has(p) })
+  if (!VALID_SECTIONS.includes(section)) return <Navigate to={`/quantri/${firstAllowed || 'feedback'}`} replace />
+  // Section cần quyền riêng mà thiếu → đẩy về section xem được đầu tiên (hoặc trang chủ).
   const needPerm = SECTION_VIEW_PERM[section]
-  if (needPerm && !has(needPerm)) return <Navigate to="/quantri/users" replace />
+  if (needPerm && !has(needPerm)) return <Navigate to={firstAllowed ? `/quantri/${firstAllowed}` : '/'} replace />
 
   return (
     <main className="page admin-page">
