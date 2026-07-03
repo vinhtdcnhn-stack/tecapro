@@ -49,7 +49,7 @@ export default function SystemDashboard() {
   if (error) return <div style={{ color: '#c00', marginBottom: 10 }}>{error}</div>
   if (!data) return <div style={{ color: '#666', padding: 20 }}>Đang tải…</div>
 
-  const { os, disk, process: proc, db, redis, app } = data
+  const { os, disk, process: proc, db, redis, app, security } = data
   const memPct = pct(os.mem.usedBytes, os.mem.totalBytes)
   const diskPct = disk ? pct(disk.usedBytes, disk.totalBytes) : null
   const redisPct = redis?.ready && redis.maxBytes ? pct(redis.usedBytes, redis.maxBytes) : null
@@ -147,6 +147,37 @@ export default function SystemDashboard() {
             )}
           </Card>
         )}
+
+        {/* Bảo mật — dò quét/tấn công bị fail2ban chặn (chỉ có trên VPS) */}
+        <Card title="🛡️ Chống dò quét (fail2ban)">
+          {security?.available ? (
+            <>
+              <Row k="IP đang bị chặn" v={
+                <span style={{ color: security.currentlyBanned ? '#dc2626' : '#16a34a', fontWeight: 700 }}>
+                  {security.currentlyBanned?.toLocaleString('vi-VN') ?? 0}
+                </span>
+              } />
+              <Row k="Tổng lượt chặn" v={security.totalBanned?.toLocaleString('vi-VN') ?? 0} />
+              <Row k="Tổng lượt dò/thất bại" v={security.totalFailed?.toLocaleString('vi-VN') ?? 0} small />
+              {security.jails?.length > 0 && (
+                <div style={{ marginTop: 4, borderTop: '1px solid #f1f5f9', paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {security.jails.map((j) => (
+                    <div key={j.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                      <span style={{ color: '#666', wordBreak: 'break-word' }}>{j.name}</span>
+                      <span style={{ color: '#111', flexShrink: 0, marginLeft: 8 }}>
+                        {j.currentlyBanned == null
+                          ? '—'
+                          : <>🔒 {j.currentlyBanned?.toLocaleString('vi-VN')} · Σ {j.totalBanned?.toLocaleString('vi-VN')}</>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <Row k="Trạng thái" v={<span style={{ color: '#c60' }}>○ {security?.hint || 'Không có dữ liệu'}</span>} />
+          )}
+        </Card>
 
         {/* Số liệu ứng dụng */}
         {app && (

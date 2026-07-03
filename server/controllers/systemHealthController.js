@@ -1,8 +1,12 @@
 import os from 'node:os'
 import { statfs } from 'node:fs/promises'
+import { exec } from 'node:child_process'
+import { promisify } from 'node:util'
 import { pool } from '../db.js'
 import { getCacheStats } from '../cache.js'
 import { onlineUserIds } from '../services/presence.js'
+
+const execAsync = promisify(exec)
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tổng quan sức khỏe hệ thống (CHỈ ADMIN, read-only) — phần cứng/OS + dịch vụ
@@ -108,6 +112,68 @@ async function onlineInfo() {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Bảo mật: số IP dò quét/tấn công đang bị fail2ban chặn. CHỈ có trên VPS (Linux);
+// máy Windows dev không cài fail2ban → trả available:false kèm ghi chú. Đọc qua
+// `fail2ban-client` (cần chạy được lệnh — thường app chạy quyền đủ trên VPS). Kết quả
+// được cache ngắn để không spawn tiến trình mỗi 6s khi tab tự làm mới.
+// ──────────────────────────────────────────────────────────────────────────────
+let securityCache = { at: 0, data: null }
+const SECURITY_TTL_MS = 20000
+
+function parseField(text, label) {
+  // Dòng dạng "   |- Currently banned:\t2" — lấy số sau nhãn.
+  const m = text.match(new RegExp(`${label}:\\s*(\\d+)`))
+  return m ? Number(m[1]) : 0
+}
+
+async function securityInfo() {
+  if (process.platform === 'win32') {
+    return { available: false, hint: 'fail2ban chỉ chạy trên VPS (Linux).' }
+  }
+  if (securityCache.data && Date.now() - securityCache.at < SECURITY_TTL_MS) {
+    return securityCache.data
+  }
+  try {
+    const opts = { timeout: 4000 }
+    const { stdout: statusOut } = await execAsync('fail2ban-client status', opts)
+    // "`- Jail list:\tnginx-bad-request, sshd" → danh sách tên jail.
+    const listLine = statusOut.split('\n').find((l) => /Jail list:/.test(l)) || ''
+    const jailNames = (listLine.split(/Jail list:/)[1] || '')
+      .split(',').map((s) => s.trim()).filter(Boolean)
+
+    const jails = []
+    let currentlyBanned = 0, totalBanned = 0, totalFailed = 0
+    for (const name of jailNames) {
+      try {
+        const { stdout } = await execAsync(`fail2ban-client status ${name}`, opts)
+        const cur = parseField(stdout, 'Currently banned')
+        const tot = parseField(stdout, 'Total banned')
+        const failed = parseField(stdout, 'Total failed')
+        currentlyBanned += cur; totalBanned += tot; totalFailed += failed
+        jails.push({ name, currentlyBanned: cur, totalBanned: tot, totalFailed: failed })
+      } catch {
+        jails.push({ name, currentlyBanned: null, totalBanned: null, totalFailed: null })
+      }
+    }
+    const data = { available: true, currentlyBanned, totalBanned, totalFailed, jails }
+    securityCache = { at: Date.now(), data }
+    return data
+  } catch (err) {
+    // 127 = không tìm thấy lệnh; EACCES/quyền → không đọc được socket fail2ban.
+    const notFound = /not found|ENOENT|127/.test(err.message || '') || err.code === 127
+    const data = {
+      available: false,
+      hint: notFound
+        ? 'Chưa cài fail2ban hoặc không tìm thấy lệnh fail2ban-client.'
+        : 'Không đọc được fail2ban (thiếu quyền chạy fail2ban-client?).',
+    }
+    // Cache cả trạng thái không đọc được để tránh spawn lỗi liên tục.
+    securityCache = { at: Date.now(), data }
+    return data
+  }
+}
+
 // GET /api/admin/system-health
 export async function getSystemHealth(_req, res) {
   const totalMem = os.totalmem()
@@ -115,11 +181,12 @@ export async function getSystemHealth(_req, res) {
   const mem = process.memoryUsage()
 
   // Chạy song song các phần độc lập.
-  const [usagePct, disk, db, app] = await Promise.all([
+  const [usagePct, disk, db, app, security] = await Promise.all([
     cpuUsagePct(),
     diskInfo(),
     dbInfo(),
     appCounts(),
+    securityInfo(),
   ])
   const redis = await getCacheStats()
 
@@ -156,5 +223,6 @@ export async function getSystemHealth(_req, res) {
     db,
     redis,
     app,
+    security,
   })
 }
