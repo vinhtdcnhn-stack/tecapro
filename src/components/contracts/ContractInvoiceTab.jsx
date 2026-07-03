@@ -6,6 +6,8 @@ import InvoiceBatchModal from './InvoiceBatchModal'
 import usePasswordPrompt from './usePasswordPrompt'
 import { useContractPerm } from '../../context/ContractPermContext'
 import { auditRowAttrs } from '../common/rowAudit'
+import { useCopyMenu } from '../common/useCopyMenu'
+import { contractPath } from '../common/deepLink'
 import './ContractInvoiceTab.css'
 
 const fmt = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
@@ -59,6 +61,23 @@ export default function ContractInvoiceTab({ contractId }) {
   const totalContract = parseFloat(contract?.amount_after_vat) || 0
   const totalInvoiced = invoices.reduce((s, i) => s + (parseFloat(i.total_after_vat) || 0), 0)
   const remainValue = summary.reduce((s, r) => s + (parseFloat(r.qty_remaining) || 0) * (parseFloat(r.unit_price) || 0), 0)
+
+  // Menu chuột phải/ấn giữ "Sao chép thông tin" cho từng đợt xuất hóa đơn.
+  const { getRowProps, copyMenu } = useCopyMenu(
+    (inv) => {
+      const parts = [
+        `📌 Đợt xuất hóa đơn — ${fmtDate(inv.invoice_date)}`,
+        `Số HĐ: ${inv.invoice_no || '—'}`,
+        `Số dòng: ${(inv.items || []).length}`,
+        `Giá trị (sau VAT): ${showAmounts ? `${fmt(inv.total_after_vat)} ${inv.currency_code}` : '•••'}`,
+      ]
+      if (inv.note) parts.push(`Ghi chú: ${inv.note}`)
+      if (inv.locked) parts.push(`🔒 Đã khóa${inv.locked_by_name ? ` bởi ${inv.locked_by_name}` : ''}`)
+      return parts.join('\n')
+    },
+    (inv) => `Đợt HĐ ${inv.invoice_no || fmtDate(inv.invoice_date)}`,
+    () => contractPath(contractId, { tab: 'contract-invoice' }),
+  )
 
   const onDelete = async (inv) => {
     if (!confirm(`Xóa đợt xuất hóa đơn ${inv.invoice_no || ''} ngày ${fmtDate(inv.invoice_date)}?`)) return
@@ -117,7 +136,7 @@ export default function ContractInvoiceTab({ contractId }) {
             <tbody>
               {invoices.map(inv => (
                 <Fragment key={inv.id}>
-                  <tr className="inv-row" {...auditRowAttrs('contract_out_invoice', inv.id)} onClick={() => setExpanded(expanded === inv.id ? null : inv.id)}>
+                  <tr className="inv-row" {...auditRowAttrs('contract_out_invoice', inv.id)} {...getRowProps(inv)} onClick={() => setExpanded(expanded === inv.id ? null : inv.id)}>
                     <td>{expanded === inv.id ? '▾ ' : '▸ '}{fmtDate(inv.invoice_date)}</td>
                     <td>{inv.invoice_no || '—'}</td>
                     <td className="num">{(inv.items || []).length}</td>
@@ -159,6 +178,7 @@ export default function ContractInvoiceTab({ contractId }) {
               ))}
             </tbody>
           </table>
+          {copyMenu}
         </div>
       )}
 
