@@ -23,6 +23,11 @@ const BOQ_UNIT_COLS = `id, parent_id, row_kind, multiply_qty, item_name, unit, q
 
 const norm = (s) => String(s || '').trim().toLowerCase()
 
+// Một đợt được coi là ĐÃ XUẤT hóa đơn thực sự khi có đủ ngày xuất VÀ số HĐ. Đợt nháp
+// (thiếu 1 trong 2) không tính vào SL/giá trị đã xuất, không trừ vào tồn chưa xuất.
+// Alias bảng phải là `i`. Dùng chung cho tồn (getInvoiceSummary) và guard tồn (validateItems).
+const ISSUED_INVOICE_SQL = `i.invoice_date IS NOT NULL AND btrim(coalesce(i.invoice_no, '')) <> ''`
+
 // Kiểm tra danh mục + tồn trước khi lưu một đợt. Mọi dòng phải khớp bảng giá
 // (theo boq_id hoặc tên), và SL lũy kế không được vượt SL hợp đồng của dòng bảng giá.
 // Gán lại boq_id đã khớp vào từng item (để lưu liên kết). Trả về chuỗi lỗi hoặc null.
@@ -76,7 +81,8 @@ async function validateItems(client, contractId, items, excludeInvoiceId = null)
     `SELECT it.boq_id, SUM(it.quantity) AS qty
        FROM contract_out_invoice_item it
        JOIN contract_out_invoice i ON i.id = it.invoice_id
-      WHERE i.contract_out_id = $1 AND it.boq_id IS NOT NULL${exClause}
+      WHERE i.contract_out_id = $1 AND it.boq_id IS NOT NULL
+        AND ${ISSUED_INVOICE_SQL}${exClause}
       GROUP BY it.boq_id`, params)
   const invoiced = new Map(invRows.map(r => [String(r.boq_id), parseFloat(r.qty) || 0]))
 
@@ -168,6 +174,7 @@ export async function getInvoiceSummary(req, res) {
            FROM contract_out_invoice_item it
            JOIN contract_out_invoice i ON i.id = it.invoice_id
           WHERE i.contract_out_id = $1 AND it.boq_id IS NOT NULL
+            AND ${ISSUED_INVOICE_SQL}
           GROUP BY it.boq_id`, [req.params.id])
       const invMap = new Map(invRows.map(r => [String(r.boq_id), parseFloat(r.q) || 0]))
 

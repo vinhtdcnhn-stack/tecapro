@@ -5,6 +5,7 @@ import EditGuard from './EditGuard'
 import InvoiceBatchModal from './InvoiceBatchModal'
 import usePasswordPrompt from './usePasswordPrompt'
 import { useContractPerm } from '../../context/ContractPermContext'
+import { roundMoney } from './boqUtils'
 import { auditRowAttrs } from '../common/rowAudit'
 import { useCopyMenu } from '../common/useCopyMenu'
 import { contractPath } from '../common/deepLink'
@@ -59,8 +60,19 @@ export default function ContractInvoiceTab({ contractId }) {
   }))
   // Tổng giá trị HĐ = tổng giá trị hợp đồng đã đồng bộ (đã gồm hệ số ×SL của hệ thống).
   const totalContract = parseFloat(contract?.amount_after_vat) || 0
-  const totalInvoiced = invoices.reduce((s, i) => s + (parseFloat(i.total_after_vat) || 0), 0)
-  const remainValue = summary.reduce((s, r) => s + (parseFloat(r.qty_remaining) || 0) * (parseFloat(r.unit_price) || 0), 0)
+  // "Đã xuất hóa đơn" chỉ tính đợt đã xuất THỰC SỰ — có đủ cả ngày xuất VÀ số HĐ.
+  // Đợt nháp (thiếu 1 trong 2) coi như chưa xuất: không cộng vào đây, vẫn nằm ở "tồn"
+  // (server getInvoiceSummary cũng bỏ qua đợt nháp nên 3 số Tổng/Đã xuất/Tồn luôn khớp).
+  const isIssued = (i) => !!i.invoice_date && !!String(i.invoice_no || '').trim()
+  const totalInvoiced = invoices.reduce((s, i) => s + (isIssued(i) ? (parseFloat(i.total_after_vat) || 0) : 0), 0)
+  // Giá trị tồn phải tính SAU VAT để khớp với 2 card kia (Tổng HĐ + Đã xuất đều sau VAT):
+  // Tổng HĐ = Đã xuất + Tồn. unit_price là đơn giá trước VAT nên phải nhân (1 + VAT%).
+  const remainValue = summary.reduce((s, r) => {
+    const remain = parseFloat(r.qty_remaining) || 0
+    const before = remain * (parseFloat(r.unit_price) || 0)
+    const after = roundMoney(before * (1 + (parseFloat(r.vat_rate) || 0) / 100), cur)
+    return s + after
+  }, 0)
 
   // Menu chuột phải/ấn giữ "Sao chép thông tin" cho từng đợt xuất hóa đơn.
   const { getRowProps, copyMenu } = useCopyMenu(

@@ -1,5 +1,6 @@
 import Modal from '../common/Modal'
 import ContractTaskTimeline from './ContractTaskTimeline'
+import Linkify from '../common/Linkify'
 import { API } from '../../config/api'
 import { fmtDate, statusClass, priorityClass } from './taskUtils'
 import { auditRowAttrs } from '../common/rowAudit'
@@ -42,10 +43,10 @@ export default function ContractTaskDetailDrawer({
         </dl>
 
         {task.description && (
-          <Section title="Mô tả"><p className="task-pre">{task.description}</p></Section>
+          <Section title="Mô tả"><p className="task-pre"><Linkify text={task.description} onNavigate={onClose} /></p></Section>
         )}
         {task.note && (
-          <Section title="Ghi chú"><p className="task-pre">{task.note}</p></Section>
+          <Section title="Ghi chú"><p className="task-pre"><Linkify text={task.note} onNavigate={onClose} /></p></Section>
         )}
 
         <Section title={`Tài liệu đính kèm (${atts.length})`}>

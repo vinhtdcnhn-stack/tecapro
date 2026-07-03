@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Modal from '../common/Modal'
+import Linkify from '../common/Linkify'
 import { Field } from '../contracts/MobileEditSheet'
 import HandoffModal from './HandoffModal'
 import TaskTimeline from './TaskTimeline'
@@ -133,7 +134,7 @@ export default function TaskDetailDrawer({ taskId, currentUser, canManage, membe
             {task.origin === 'customer' && <><dt>Khách hàng</dt><dd>{task.customer_name || '—'}{task.customer_contact ? ` · ${task.customer_contact}` : ''}</dd></>}
           </dl>
 
-          {task.description && <Section title="Mô tả"><p className="dw-pre">{task.description}</p></Section>}
+          {task.description && <Section title="Mô tả"><p className="dw-pre"><Linkify text={task.description} onNavigate={onClose} /></p></Section>}
           {task.instructions && <Section title="Chỉ đạo / yêu cầu"><p className="dw-pre">{task.instructions}</p></Section>}
           {task.escalated && task.escalation_note && (
             <Section title="Lý do đẩy cấp trên"><p className="dw-pre dw-esc-note">{task.escalation_note}</p></Section>
