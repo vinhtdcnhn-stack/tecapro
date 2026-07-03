@@ -64,7 +64,19 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const set = (key, field, value) =>
     setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: value, _dirty: true } : r))
 
+  // Không cho phép 2 dòng trùng tên hàng (đã cắt khoảng trắng, không phân biệt hoa/thường).
+  const duplicateNameKey = (row) => {
+    const name = (row.item_name || '').trim().toLowerCase()
+    if (!name) return null
+    const dup = rows.find(r => r._key !== row._key && (r.item_name || '').trim().toLowerCase() === name)
+    return dup ? dup._key : null
+  }
+
   const saveRow = async (row) => {
+    if (duplicateNameKey(row)) {
+      alert(`Trùng tên hàng hóa: "${row.item_name.trim()}" đã có ở dòng khác trong bảng giá mua.`)
+      return
+    }
     setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
     const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
     const body = {

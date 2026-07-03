@@ -33,6 +33,7 @@
 .inv-actions { text-align: right; }
 .inv-link { background: none; border: none; color: #2563eb; cursor: pointer; font-size: 12px; font-weight: 600; margin-left: 8px; }
 .inv-del-link { color: #dc2626; }
+.inv-order-link { color: #16a34a; }
 .inv-remain { color: #d97706; font-weight: 700; }
 .inv-done { color: #16a34a; }
 

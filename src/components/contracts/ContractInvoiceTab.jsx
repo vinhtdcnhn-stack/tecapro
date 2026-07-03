@@ -3,12 +3,13 @@ import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
 import EditGuard from './EditGuard'
 import InvoiceBatchModal from './InvoiceBatchModal'
+import TaskModal from './TaskModal'
 import usePasswordPrompt from './usePasswordPrompt'
 import { useContractPerm } from '../../context/ContractPermContext'
 import { roundMoney } from './boqUtils'
 import { auditRowAttrs } from '../common/rowAudit'
 import { useCopyMenu } from '../common/useCopyMenu'
-import { contractPath } from '../common/deepLink'
+import { contractPath, absUrl } from '../common/deepLink'
 import './ContractInvoiceTab.css'
 
 const fmt = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
@@ -21,7 +22,7 @@ const LockOpenIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill=
 
 // Tab "Xuất hóa đơn" trong chi tiết HĐ bán (dưới "Công nợ"). Nhập theo từng đợt,
 // xem số lượng tồn chưa xuất hóa đơn theo bảng giá.
-export default function ContractInvoiceTab({ contractId }) {
+export default function ContractInvoiceTab({ contractId, currentUser }) {
   const { canSection } = useContractPerm()
   const showAmounts = canSection('co.invoice.amounts')
   const mfmt = (n) => showAmounts ? fmt(n) : '•••' // che số tiền hóa đơn
@@ -33,6 +34,10 @@ export default function ContractInvoiceTab({ contractId }) {
   const [expanded, setExpanded] = useState(null)
   const [hideZeroRemain, setHideZeroRemain] = useState(false)
   const { promptPassword, passwordModal } = usePasswordPrompt()
+  // "Gửi lệnh xuất HĐ": mở modal thêm công việc (menu Công việc triển khai) với ghi chú
+  // điền sẵn thông tin đợt. taskModal = null | { note, title }; taskMeta nạp 1 lần khi mở.
+  const [taskModal, setTaskModal] = useState(null)
+  const [taskMeta, setTaskMeta] = useState({ departments: [], users: [] })
 
   const load = useCallback(async () => {
     try {
@@ -74,22 +79,55 @@ export default function ContractInvoiceTab({ contractId }) {
     return s + after
   }, 0)
 
+  // Thông tin đợt xuất hóa đơn dạng văn bản — dùng chung cho "Sao chép thông tin" (menu
+  // chuột phải) và ghi chú điền sẵn khi "Gửi lệnh xuất HĐ".
+  const buildInvoiceCopyText = (inv) => {
+    const parts = [
+      `📌 Đợt xuất hóa đơn — ${fmtDate(inv.invoice_date)}`,
+      `Số HĐ: ${inv.invoice_no || '—'}`,
+      `Số dòng: ${(inv.items || []).length}`,
+      `Giá trị (sau VAT): ${showAmounts ? `${fmt(inv.total_after_vat)} ${inv.currency_code}` : '•••'}`,
+    ]
+    if (inv.note) parts.push(`Ghi chú: ${inv.note}`)
+    if (inv.locked) parts.push(`🔒 Đã khóa${inv.locked_by_name ? ` bởi ${inv.locked_by_name}` : ''}`)
+    return parts.join('\n')
+  }
+
   // Menu chuột phải/ấn giữ "Sao chép thông tin" cho từng đợt xuất hóa đơn.
   const { getRowProps, copyMenu } = useCopyMenu(
-    (inv) => {
-      const parts = [
-        `📌 Đợt xuất hóa đơn — ${fmtDate(inv.invoice_date)}`,
-        `Số HĐ: ${inv.invoice_no || '—'}`,
-        `Số dòng: ${(inv.items || []).length}`,
-        `Giá trị (sau VAT): ${showAmounts ? `${fmt(inv.total_after_vat)} ${inv.currency_code}` : '•••'}`,
-      ]
-      if (inv.note) parts.push(`Ghi chú: ${inv.note}`)
-      if (inv.locked) parts.push(`🔒 Đã khóa${inv.locked_by_name ? ` bởi ${inv.locked_by_name}` : ''}`)
-      return parts.join('\n')
-    },
+    buildInvoiceCopyText,
     (inv) => `Đợt HĐ ${inv.invoice_no || fmtDate(inv.invoice_date)}`,
     () => contractPath(contractId, { tab: 'contract-invoice' }),
   )
+
+  // Mở modal thêm công việc với ghi chú điền sẵn thông tin đợt. Nạp phòng ban/nhân sự
+  // 1 lần (cho ô chọn người thực hiện); thiếu vẫn mở được modal.
+  const openExportOrder = async (inv) => {
+    if (taskMeta.departments.length === 0 && taskMeta.users.length === 0) {
+      try {
+        const [dRes, uRes] = await Promise.all([fetch(`${API}/departments`), fetch(`${API}/users`)])
+        const [d, u] = await Promise.all([dRes.json(), uRes.json()])
+        setTaskMeta({ departments: Array.isArray(d) ? d : [], users: Array.isArray(u) ? u : [] })
+      } catch { /* vẫn mở modal, chỉ thiếu danh sách chọn */ }
+    }
+    // Mô tả = thông tin đợt + dòng 🔗 (như "Sao chép thông tin") để người nhận bấm nhảy tới.
+    const link = absUrl(contractPath(contractId, { tab: 'contract-invoice' }))
+    const description = link ? `${buildInvoiceCopyText(inv)}\n🔗 ${link}` : buildInvoiceCopyText(inv)
+    setTaskModal({ title: `Gửi lệnh xuất hóa đơn — ${fmtDate(new Date())}`, description })
+  }
+
+  // Lưu công việc mới (menu Công việc triển khai) — cùng endpoint như tab Công việc.
+  const handleTaskSave = async (formData) => {
+    try {
+      const res = await fetch(`${API}/contracts/${contractId}/tasks`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, created_by: currentUser?.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Lỗi lưu')
+      return data
+    } catch (e) { alert('Lỗi: ' + e.message); return null }
+  }
 
   const onDelete = async (inv) => {
     if (!confirm(`Xóa đợt xuất hóa đơn ${inv.invoice_no || ''} ngày ${fmtDate(inv.invoice_date)}?`)) return
@@ -175,6 +213,12 @@ export default function ContractInvoiceTab({ contractId }) {
                           <button className="inv-link" onClick={() => setModal(inv)}>Sửa</button>
                           <button className="inv-link inv-del-link" onClick={() => onDelete(inv)}>Xóa</button>
                         </>}
+                        {/* Đợt chưa có ngày xuất (nháp) → cho gửi lệnh xuất HĐ = tạo công việc */}
+                        {!inv.invoice_date && (
+                          <button className="inv-link inv-order-link" onClick={() => openExportOrder(inv)}>
+                            Gửi lệnh xuất HĐ
+                          </button>
+                        )}
                       </EditGuard>
                     </td>
                   </tr>
@@ -242,6 +286,20 @@ export default function ContractInvoiceTab({ contractId }) {
           initial={modal.id ? modal : null}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load() }}
+        />
+      )}
+
+      {taskModal && (
+        <TaskModal
+          task={null}
+          departments={taskMeta.departments}
+          users={taskMeta.users}
+          allTasks={[]}
+          milestones={[]}
+          currentUser={currentUser}
+          defaults={taskModal}
+          onSave={handleTaskSave}
+          onClose={() => setTaskModal(null)}
         />
       )}
 

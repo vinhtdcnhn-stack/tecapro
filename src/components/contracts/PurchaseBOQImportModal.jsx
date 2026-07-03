@@ -8,6 +8,17 @@ const fmtQty = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberFo
 export default function PurchaseBOQImportModal({
   importData, importMode, importSaving, currency, onModeChange, onConfirm, onClose,
 }) {
+  // Đánh dấu các dòng trùng tên hàng ngay trong file (không cho phép nhập trùng).
+  const seen = new Set()
+  const dupIdx = new Set()
+  importData.items.forEach((item, idx) => {
+    const key = (item.item_name || '').trim().toLowerCase()
+    if (!key) return
+    if (seen.has(key)) dupIdx.add(idx)
+    else seen.add(key)
+  })
+  const hasDup = dupIdx.size > 0
+
   return (
     <Modal onClose={onClose} contentClassName="boq-import-modal" labelledBy="boqin-import-title">
       <div className="boq-import-header">
@@ -35,6 +46,12 @@ export default function PurchaseBOQImportModal({
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
         Định dạng cột Excel: A=Danh mục · B=ĐVT · C=Số lượng · D=Đơn giá · E=VAT(%) · F=Thời hạn bảo hành
       </div>
+      {hasDup && (
+        <div className="boq-import-hint" style={{ color: '#b91c1c', background: '#fef2f2', borderColor: '#fecaca' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+          Có {dupIdx.size} dòng trùng tên hàng hóa (tô đỏ). Không thể nhập khi còn tên trùng — hãy sửa lại file.
+        </div>
+      )}
       <div className="boq-import-preview">
         <table className="boq-table">
           <thead>
@@ -53,10 +70,15 @@ export default function PurchaseBOQImportModal({
           <tbody>
             {importData.items.map((item, idx) => {
               const { before, after } = calcAmounts(item.quantity, item.unit_price, item.vat_rate, currency)
+              const isDup = dupIdx.has(idx)
               return (
-                <tr key={idx}>
+                <tr key={idx} style={isDup ? { background: '#fef2f2' } : undefined}>
                   <td className="td-stt"><span className="stt-num">{idx+1}</span></td>
-                  <td className="td-name"><span className="preview-text">{item.item_name}</span></td>
+                  <td className="td-name">
+                    <span className="preview-text" style={isDup ? { color: '#b91c1c', fontWeight: 600 } : undefined}>
+                      {item.item_name}{isDup && ' ⚠ trùng'}
+                    </span>
+                  </td>
                   <td className="td-unit"><span className="preview-text">{item.unit}</span></td>
                   <td className="td-num"><span className="preview-text">{fmtQty(item.quantity)}</span></td>
                   <td className="td-num"><span className="preview-text">{fmtNum(item.unit_price, currency)}</span></td>
@@ -72,8 +94,8 @@ export default function PurchaseBOQImportModal({
       </div>
       <div className="boq-import-footer">
         <button className="btn-cancel" onClick={onClose}>Hủy</button>
-        <button className="btn-confirm" onClick={onConfirm} disabled={importSaving}>
-          {importSaving ? 'Đang lưu...' : `Xác nhận nhập ${importData.total} dòng`}
+        <button className="btn-confirm" onClick={onConfirm} disabled={importSaving || hasDup}>
+          {importSaving ? 'Đang lưu...' : hasDup ? 'Còn tên trùng' : `Xác nhận nhập ${importData.total} dòng`}
         </button>
       </div>
     </Modal>

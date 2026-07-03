@@ -46,6 +46,26 @@ async function getContractInCurrency(contractInId, db = pool) {
   return rows[0]?.currency_code || 'VND'
 }
 
+// Không cho phép 2 dòng bảng giá mua trùng tên hàng trong cùng 1 HĐ nhập
+// (so khớp không phân biệt hoa/thường, đã cắt khoảng trắng). Tên rỗng bỏ qua.
+// excludeId: bỏ qua chính dòng đang sửa. Trả về id dòng trùng đầu tiên hoặc null.
+async function findDuplicateName(contractInId, itemName, excludeId = null, db = pool) {
+  const name = String(itemName ?? '').trim()
+  if (!name) return null
+  const { rows } = await db.query(
+    `SELECT id FROM contract_in_boq
+      WHERE contract_in_id = $1
+        AND LOWER(TRIM(item_name)) = LOWER($2)
+        AND ($3::bigint IS NULL OR id <> $3)
+      LIMIT 1`,
+    [contractInId, name, excludeId]
+  )
+  return rows[0]?.id || null
+}
+
+const dupNameError = (name) =>
+  `Trùng tên hàng hóa: "${String(name).trim()}" đã tồn tại trong bảng giá mua.`
+
 // Đồng bộ tổng giá trị HĐ nhập = SUM(amount_after_vat) của bảng giá mua (nguyên tệ HĐ).
 // Giá trị HĐ nhập do bảng giá quyết định, không nhập tay.
 async function syncContractInTotal(contractInId, db = pool) {
@@ -126,6 +146,9 @@ export async function createPurchaseBOQItem(req, res) {
   try {
     const { contractInId } = req.params
     const { item_name, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
+    if (await findDuplicateName(contractInId, item_name)) {
+      return res.status(409).json({ error: dupNameError(item_name) })
+    }
     const currency = await getContractInCurrency(contractInId)
     const { price, before, after } = calc(quantity, unit_price, vat_rate, currency)
     const { rows: mx } = await pool.query(
@@ -157,6 +180,9 @@ export async function insertPurchaseBOQAfter(req, res) {
   try {
     const { contractInId, refId } = req.params
     const { item_name, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
+    if (await findDuplicateName(contractInId, item_name)) {
+      return res.status(409).json({ error: dupNameError(item_name) })
+    }
     const { rows: ref } = await pool.query(
       'SELECT sort_order FROM contract_in_boq WHERE id = $1 AND contract_in_id = $2',
       [refId, contractInId]
@@ -193,10 +219,14 @@ export async function updatePurchaseBOQItem(req, res) {
   try {
     const { item_name, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
     const { rows: cur } = await pool.query(
-      `SELECT c.currency_code FROM contract_in_boq b
+      `SELECT c.currency_code, b.contract_in_id FROM contract_in_boq b
        JOIN contract_in c ON c.id = b.contract_in_id
        WHERE b.id = $1`, [req.params.id]
     )
+    if (!cur.length) return res.status(404).json({ error: 'Not found' })
+    if (await findDuplicateName(cur[0].contract_in_id, item_name, req.params.id)) {
+      return res.status(409).json({ error: dupNameError(item_name) })
+    }
     const currency = cur[0]?.currency_code || 'VND'
     const { price, before, after } = calc(quantity, unit_price, vat_rate, currency)
     const { rows } = await pool.query(`
@@ -323,6 +353,25 @@ export async function saveImportedPurchaseBOQ(req, res) {
     if (!Array.isArray(items) || !items.length) {
       return res.status(400).json({ error: 'Không có dữ liệu để lưu' })
     }
+
+    // Chặn trùng tên hàng: (1) trong chính file import, (2) với dòng đã có nếu là chế độ nối thêm.
+    const seen = new Set()
+    for (const item of items) {
+      const key = String(item.item_name ?? '').trim().toLowerCase()
+      if (!key) continue
+      if (seen.has(key)) {
+        return res.status(409).json({ error: `Trùng tên hàng hóa trong file: "${String(item.item_name).trim()}".` })
+      }
+      seen.add(key)
+    }
+    if (!replaceAll) {
+      for (const item of items) {
+        if (await findDuplicateName(contractInId, item.item_name)) {
+          return res.status(409).json({ error: dupNameError(item.item_name) })
+        }
+      }
+    }
+
     const client = await pool.connect()
     try {
       await client.query('BEGIN')

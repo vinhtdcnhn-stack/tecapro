@@ -34,12 +34,16 @@ function buildItemCopyText(it) {
 //   title          — tiêu đề mục (ReactNode); số lượng hiển thị được nối tự động
 //   emptyMessage   — câu hiển thị khi KHÔNG có item nào
 //   windowDays     — chỉ giữ mốc đến hạn trong N ngày tới (mặc định 30); Infinity = mọi mốc
+//   dueFilter      — 'overdue' | 'upcoming' | null; lọc thêm theo trạng thái hạn (bấm ô thống kê)
+//   onClearDueFilter — () => void; bỏ lọc theo hạn (nút ✕ trên chip)
 export default function TrackingTable({
   items,
   onSaveTracking,
   title,
   emptyMessage = 'Chưa có mục nào cần theo dõi.',
   windowDays = WINDOW_DAYS,
+  dueFilter = null,
+  onClearDueFilter,
 }) {
   const navigate = useNavigate()
   const [contractFilter, setContractFilter] = useState('')
@@ -83,11 +87,18 @@ export default function TrackingTable({
     return [...set].sort()
   }, [inWindow])
 
-  // Áp bộ lọc theo số HĐ
-  const visible = useMemo(
-    () => contractFilter ? sorted.filter(it => it.contract_no === contractFilter) : sorted,
-    [sorted, contractFilter]
-  )
+  // Áp bộ lọc theo số HĐ + theo trạng thái hạn (ô "Quá hạn" / "Sắp đến hạn")
+  const visible = useMemo(() => {
+    let out = contractFilter ? sorted.filter(it => it.contract_no === contractFilter) : sorted
+    if (dueFilter) {
+      out = out.filter(it => {
+        const d = dueInfo(it.due_date).days
+        if (d == null) return false
+        return dueFilter === 'overdue' ? d < 0 : (d >= 0 && d <= 7)
+      })
+    }
+    return out
+  }, [sorted, contractFilter, dueFilter])
 
   const today = todayISO()
 
@@ -95,6 +106,16 @@ export default function TrackingTable({
     <div className="dash-section">
       <div className="pm-section-bar">
         <h2 className="dash-section-title">{title} ({visible.length})</h2>
+        {dueFilter && (
+          <button
+            type="button"
+            className={`pm-due-chip ${dueFilter}`}
+            title="Bỏ lọc theo hạn"
+            onClick={() => onClearDueFilter && onClearDueFilter()}
+          >
+            {dueFilter === 'overdue' ? '⚠️ Quá hạn' : '⏰ Sắp đến hạn (≤7 ngày)'} <span className="pm-due-chip-x" aria-hidden>✕</span>
+          </button>
+        )}
         {contractOptions.length > 0 && (
           <div className={`pm-filter-wrap ${contractFilter ? 'active' : ''}`} title="Lọc theo số hợp đồng">
             <span className="pm-filter-icon" aria-hidden>⛃</span>

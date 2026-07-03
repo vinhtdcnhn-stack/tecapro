@@ -14,7 +14,7 @@ const fmtSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function TaskModal({ task, parentTask = null, departments, users, allTasks = [], milestones = [], currentUser, onSave, onClose }) {
+export default function TaskModal({ task, parentTask = null, departments, users, allTasks = [], milestones = [], currentUser, defaults = null, onSave, onClose }) {
   const isEdit = !!task
   const isSubtask = !isEdit && !!parentTask
   // Việc cha (tạo việc con: từ prop; sửa việc con: tra từ allTasks) → cho phép neo ngày theo cha.
@@ -26,8 +26,8 @@ export default function TaskModal({ task, parentTask = null, departments, users,
     || Number(task?.created_by) === Number(currentUser?.id)
 
   const [form, setForm] = useState({
-    title:         task?.title         ?? '',
-    description:   task?.description   ?? '',
+    title:         task?.title         ?? defaults?.title       ?? '',
+    description:   task?.description   ?? defaults?.description ?? '',
     department_id: task?.department_id ?? '',
     assigned_to:   task?.assigned_to   ?? '',
     priority:      task?.priority      ?? 'Bình thường',
@@ -35,7 +35,7 @@ export default function TaskModal({ task, parentTask = null, departments, users,
     due_date:      task?.due_date?.slice(0, 10) ?? '',
     status:        task?.status        ?? 'Chờ xử lý',
     completed_at:  task?.completed_at?.slice(0, 10) ?? '',
-    note:          task?.note          ?? '',
+    note:          task?.note          ?? defaults?.note        ?? '',
   })
   const [errors, setErrors]         = useState({})
   const [saving, setSaving]         = useState(false)

@@ -154,7 +154,7 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
 case 'contract-debt':
         return <ContractReceivableTab contractId={contractId} />
       case 'contract-invoice':
-        return <ContractInvoiceTab contractId={contractId} />
+        return <ContractInvoiceTab contractId={contractId} currentUser={currentUser} />
       case 'contract-warranty':
         return <ContractWarrantyTab contractId={contractId} />
       case 'contract-guarantee':

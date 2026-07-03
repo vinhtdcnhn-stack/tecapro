@@ -2,6 +2,7 @@ import { pool } from '../db.js'
 import { insertContractMembers, syncContractMembers, MEMBER_ROLE_VN } from './contractMemberController.js'
 import { notifyAction, notifyInfo, contractLabel } from '../services/notify.js'
 import { cacheWrap } from '../cache.js'
+import { loadGlobalPermissions } from '../auth/permissions.js'
 import {
   contractKey, contractListKey, contractTabNotModified, invalidateContractAll, invalidateContractList,
   invalidateContractMembers, invalidateUserDashboards, invalidateReports,
@@ -98,6 +99,17 @@ export async function getAllContracts(req, res) {
     const result = await pool.query(sql, params)
     return result.rows
     })
+
+    // Ẩn giá trị tiền server-side nếu user thiếu quyền module.contracts.amounts (admin luôn có).
+    // Strip SAU cacheWrap (cache lưu bản đầy đủ) để bản trả về đúng theo quyền từng user.
+    const gk = await loadGlobalPermissions(req.user.id, req.user.role)
+    if (!gk.includes('module.contracts.amounts')) {
+      const stripped = rows.map(r => ({
+        ...r, amount_before_vat: null, amount_after_vat: null, currency_code: null, exchange_rate: null,
+      }))
+      res.json(stripped)
+      return
+    }
     res.json(rows)
   } catch (err) {
     console.error('Failed to load contracts:', err)

@@ -2,8 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { API_BASE } from '../../config/api'
 import { prefetchContract } from '../../lib/idlePrefetch'
 import ContractModal from './ContractModal'
+import ColumnSettingsPanel from './ColumnSettingsPanel'
 import DateInput from './DateInput'
 import useIsMobile from './useIsMobile'
+import { usePermission } from '../../hooks/usePermission'
+import { LOCKED_COLUMNS, MOVABLE_COLUMN_KEYS, COLUMNS_BY_KEY } from './contractListColumns'
+import { useColumnPrefs } from './useColumnPrefs'
+import { useContractListNav } from './useContractListNav'
 
 // Mặc định lọc theo ngày ký: từ 1/1 đến 31/12 năm hiện tại
 const currentYear = new Date().getFullYear()
@@ -37,8 +42,18 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   
   // Modal state for adding contract
   const [showAddContractModal, setShowAddContractModal] = useState(false)
-  
+
+  // Tùy chỉnh cột: thứ tự + ẩn/hiện (lưu localStorage), panel ⚙, kéo thả trên header
+  const { order: columnOrder, hidden: hiddenColumns, toggleColumn, moveColumn, resetColumns } = useColumnPrefs(MOVABLE_COLUMN_KEYS)
+  const [showColumnPanel, setShowColumnPanel] = useState(false)
+  const dragColKey = useRef(null)
+  const [dragOverColKey, setDragOverColKey] = useState(null)
+
   const isMobile = useIsMobile()
+  const { has } = usePermission()
+  // Xem cột tiền (Trước VAT / Sau VAT / USD + card Tổng giá trị). Thiếu quyền → ẩn hết cột tiền.
+  // Backend cũng strip số tiền cho user thiếu quyền nên đây chỉ là ẩn hiển thị.
+  const canSeeAmounts = has('module.contracts.amounts')
   const isPM = currentUser?.positions?.some(p => p.code === 'PM_TEAM')
            || currentUser?.position_code === 'PM_TEAM'
 
@@ -88,59 +103,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     return 0
   })
 
-  // Giữ danh sách + chỉ số đang chọn mới nhất cho trình nghe phím (tránh gắn lại listener mỗi lần render)
-  const navRef = useRef({ list: [], selectedIndex: -1 })
-  useEffect(() => { navRef.current.list = filteredAndSortedContracts; navRef.current.selectedIndex = selectedIndex })
-
-  // Điều hướng bằng bàn phím: ↑/↓ chọn hàng, Space mở chi tiết hàng đang chọn
-  useEffect(() => {
-    if (isMobile) return
-    const onKeyDown = (e) => {
-      // Bỏ qua khi đang gõ trong ô nhập liệu / phần tử soạn thảo
-      const t = e.target
-      const tag = t.tagName
-      if (t.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      const list = navRef.current.list
-      if (!list || list.length === 0) return
-      const cur = navRef.current.selectedIndex
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        if (e.key === 'ArrowDown') {
-          setSelectedIndex(cur < 0 ? 0 : Math.min(cur + 1, list.length - 1))
-        } else {
-          setSelectedIndex(cur < 0 ? list.length - 1 : Math.max(cur - 1, 0))
-        }
-      } else if (e.altKey && (e.key === 'c' || e.key === 'C')) {
-        // Alt + C: lọc theo chủ đầu tư của hàng đang chọn
-        if (cur >= 0 && cur < list.length) {
-          e.preventDefault()
-          const name = list[cur].customer_name || ''
-          setFilters(prev => ({ ...prev, customer_name: name }))
-        }
-      } else if (e.altKey && (e.key === 'p' || e.key === 'P')) {
-        // Alt + P: lọc theo PM chính của hàng đang chọn
-        if (cur >= 0 && cur < list.length) {
-          e.preventDefault()
-          const name = list[cur].pm_name || ''
-          setFilters(prev => ({ ...prev, pm_name: name }))
-        }
-      } else if (e.code === 'Space' || e.key === ' ') {
-        if (cur >= 0 && cur < list.length) {
-          e.preventDefault()
-          if (onManage) onManage(list[cur])
-        }
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [isMobile, onManage])
-
-  // Cuộn hàng đang chọn vào tầm nhìn
-  useEffect(() => {
-    if (selectedIndex >= 0 && selectedRowRef.current) {
-      selectedRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    }
-  }, [selectedIndex])
+  // Điều hướng bàn phím (↑/↓, Space, Alt+C/P) + cuộn hàng đang chọn vào tầm nhìn
+  useContractListNav({ isMobile, list: filteredAndSortedContracts, selectedIndex, setSelectedIndex, setFilters, onManage, selectedRowRef })
 
   const clearAllFilters = () => { setFilters({ contract_no: '', project_name: '', customer_name: '', pm_name: '', status: '' }); setSortConfig({ key: null, direction: null }) }
   const handleSort = (key) => { setSortConfig(prev => { if (prev.key !== key) return { key, direction: 'asc' }; if (prev.direction === 'asc') return { key, direction: 'desc' }; return { key: null, direction: null } }) }
@@ -148,6 +112,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const hasActiveFilters = Object.values(filters).some(v => v !== '') || sortConfig.key !== null
   // Convert a contract's native amount to VND for display: USD contracts are multiplied by exchange_rate, VND contracts shown as-is
   const toVnd = (value, c) => { const num = parseFloat(value); if (isNaN(num)) return null; if (c.currency_code === 'USD') return Math.round(num * (parseFloat(c.exchange_rate) || 0)); return num }
+  const formatCurrency = (value) => { if (value === null || value === undefined || isNaN(value)) return '-'; const num = Number(value); return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: num % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 }).format(num) }
   const formatDate = (dateStr) => { if (!dateStr) return '-'; return new Date(dateStr).toLocaleDateString('vi-VN') }
   const getStatusBadge = (status) => { const config = { 'Active': { className: 'status-active', label: 'Đang thực hiện' }, 'Completed': { className: 'status-completed', label: 'Hoàn thành' }, 'Pending': { className: 'status-pending', label: 'Chờ xử lý' }, 'Cancelled': { className: 'status-cancelled', label: 'Hủy bỏ' } }[status] || { className: 'bg-gray-100 text-gray-800', label: status }; return <span className={`status-badge ${config.className}`}>{config.label}</span> }
   const getAvatarBadge = (name) => { if (!name) return <span className="text-gray-400">-</span>; const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 3); return (<div className="pm-badge"><span className="pm-avatar">{initials}</span><span className="text-gray-700">{name}</span></div>) }
@@ -156,6 +121,26 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const renderSelectDropdown = (columnKey, options) => { const isOpen = openDropdown === columnKey; return (<span ref={isOpen ? currentDropdownRef : null} className="relative inline-block"><button onClick={() => setOpenDropdown(isOpen ? null : columnKey)} className="ml-1 text-gray-400 hover:text-tecapro-600 transition-colors">▼</button>{isOpen && (<div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 p-2"><button onClick={() => { setFilters(prev => ({ ...prev, [columnKey]: '' })); setOpenDropdown(null) }} className={`w-full text-left px-3 py-2 text-sm rounded-md ${!filters[columnKey] ? 'bg-tecapro-50 text-tecapro-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>Tất cả</button>{options.map(opt => (<button key={opt} onClick={() => { setFilters(prev => ({ ...prev, [columnKey]: opt })); setOpenDropdown(null) }} className={`w-full text-left px-3 py-2 text-sm rounded-md ${filters[columnKey] === opt ? 'bg-tecapro-50 text-tecapro-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>{opt}</button>))}</div>)}</span>) }
 
   const stats = { total: dateFilteredContracts.length, active: dateFilteredContracts.filter(c => c.status === 'Active').length, completed: dateFilteredContracts.filter(c => c.status === 'Completed').length, totalValue: dateFilteredContracts.reduce((sum, c) => sum + (toVnd(c.amount_after_vat, c) || 0), 0) }
+
+  // Ẩn cột tiền nếu thiếu quyền, dù cấu hình đã lưu có bật.
+  const isColumnAllowed = (col) => !col.gated || (col.gated === 'amounts' && canSeeAmounts)
+  // Cột hiển thị = cột dính cố định + cột movable (theo thứ tự đã lưu, bỏ cột ẩn / không có quyền)
+  const orderedMovable = columnOrder.map(k => COLUMNS_BY_KEY[k]).filter(Boolean)
+  const visibleColumns = [
+    ...LOCKED_COLUMNS,
+    ...orderedMovable.filter(col => isColumnAllowed(col) && !hiddenColumns.includes(col.key)),
+  ]
+  // Danh sách cột cho panel ⚙ (chỉ movable + được phép xem), theo đúng thứ tự hiện tại
+  const panelColumns = orderedMovable.filter(isColumnAllowed).map(col => ({ key: col.key, label: col.label }))
+  // Ngữ cảnh render ô: cấp các hàm format/helper cho renderCell của mỗi cột
+  const cellCtx = { onManage, formatDate, formatCurrency, toVnd, getAvatarBadge, getStatusBadge }
+
+  // Nội dung header 1 cột: nhãn + icon sort + dropdown lọc (nếu có)
+  const renderHeaderContent = (col) => (<>
+    {col.label}{col.sortable ? getSortIcon(col.key) : ''}
+    {col.filter?.type === 'text' && renderFilterDropdown(col.key, col.filter.placeholder)}
+    {col.filter?.type === 'select' && renderSelectDropdown(col.key, col.filter.optionsKey === 'pm_name' ? uniquePMs : uniqueStatuses)}
+  </>)
 
   async function handleSaveContract(formData) {
     try {
@@ -214,7 +199,7 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
 
       {/* Card Thống kê — ẩn trên mobile */}
       {!isMobile && (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="stat-card">
           <p className="stat-label">Tổng hợp đồng</p>
           <p className="stat-value">{stats.total}</p>
@@ -227,6 +212,12 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           <p className="stat-label">Hoàn thành</p>
           <p className="stat-value text-blue-600">{stats.completed}</p>
         </div>
+        {canSeeAmounts && (
+        <div className="stat-card">
+          <p className="stat-label">Tổng giá trị</p>
+          <p className="stat-value money">{formatCurrency(stats.totalValue)} ₫</p>
+        </div>
+        )}
       </div>
       )}
 
@@ -265,6 +256,31 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           onChange={(e) => { setLocalSearchTerm(e.target.value); window.dispatchEvent(new CustomEvent('contract-search-change', { detail: e.target.value })) }}
           className="search-input ml-auto shrink-0"
         />
+
+        {/* Tùy chỉnh cột (chỉ desktop — mobile dùng danh sách thẻ) */}
+        {!isMobile && (
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowColumnPanel(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-50"
+              title="Tùy chỉnh cột hiển thị"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              Cột
+            </button>
+            {showColumnPanel && (
+              <ColumnSettingsPanel
+                columns={panelColumns}
+                hidden={hiddenColumns}
+                onToggle={toggleColumn}
+                onMove={moveColumn}
+                onReset={resetColumns}
+                onClose={() => setShowColumnPanel(false)}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Active Filters Info */}
@@ -362,32 +378,34 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           <table className="contract-table divide-y divide-gray-200">
             <thead className="table-header">
               <tr>
-                <th className="sticky-col-1 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Quản trị</th>
-                <th className="sticky-col-2 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 col-contract-no" onClick={() => handleSort('contract_no')}>
-                  Số HĐ{getSortIcon('contract_no')}{renderFilterDropdown('contract_no', 'Tìm số HĐ')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-customer-name" onClick={() => handleSort('customer_name')}>
-                  Chủ đầu tư{getSortIcon('customer_name')}{renderFilterDropdown('customer_name', 'Tìm CĐT')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100" onClick={() => handleSort('contract_date')}>
-                  Ngày ký{getSortIcon('contract_date')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col col-tender-name">Gói thầu</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-pm-name" onClick={() => handleSort('pm_name')}>
-                  PM chính{getSortIcon('pm_name')}{renderSelectDropdown('pm_name', uniquePMs)}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-status" onClick={() => handleSort('status')}>
-                  Trạng thái{getSortIcon('status')}{renderSelectDropdown('status', uniqueStatuses)}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider sticky-col cursor-pointer hover:bg-gray-100 col-project-name" onClick={() => handleSort('project_name')}>
-                  Tên dự án{getSortIcon('project_name')}{renderFilterDropdown('project_name', 'Tìm dự án')}
-                </th>
+                {visibleColumns.map(col => {
+                  const draggable = !col.locked
+                  const isOver = dragOverColKey === col.key
+                  return (
+                    <th
+                      key={col.key}
+                      className={col.thClass}
+                      style={isOver ? { boxShadow: 'inset 3px 0 0 0 #34d399' } : undefined}
+                      onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                      draggable={draggable || undefined}
+                      onMouseDown={draggable ? (e => e.stopPropagation()) : undefined}
+                      onDragStart={draggable ? (() => { dragColKey.current = col.key }) : undefined}
+                      onDragOver={draggable ? (e => { e.preventDefault(); if (dragOverColKey !== col.key) setDragOverColKey(col.key) }) : undefined}
+                      onDragLeave={draggable ? (() => setDragOverColKey(prev => (prev === col.key ? null : prev))) : undefined}
+                      onDrop={draggable ? (() => { if (dragColKey.current) moveColumn(dragColKey.current, col.key); dragColKey.current = null; setDragOverColKey(null) }) : undefined}
+                      onDragEnd={draggable ? (() => { dragColKey.current = null; setDragOverColKey(null) }) : undefined}
+                      title={draggable ? 'Kéo để đổi thứ tự cột' : undefined}
+                    >
+                      {renderHeaderContent(col)}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100 table-body">
               {filteredAndSortedContracts.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={visibleColumns.length} className="px-4 py-12 text-center text-gray-500">
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     <p className="mt-2 text-sm">Không tìm thấy kết quả nào phù hợp.</p>
                   </td>
@@ -414,28 +432,11 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
                       if (onManage) onManage(c)
                     }}
                   >
-                    <td className="sticky-col-1 px-4 py-3 whitespace-nowrap" style={jvBg}>
-                      <button className="btn-manage" onClick={(e) => { e.stopPropagation(); if (onManage) onManage(c) }} title="Quản trị">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      </button>
-                    </td>
-                    <td className="sticky-col-2 px-4 py-3 whitespace-nowrap text-sm text-gray-900" style={jvBg}>
-                      {c.contract_no || '-'}
-                      {jv && (
-                        <span style={{
-                          display: 'inline-block', marginLeft: 6, padding: '1px 7px',
-                          fontSize: 10, fontWeight: 700, lineHeight: 1.6, borderRadius: 999,
-                          color: '#c2410c', background: '#ffedd5', border: '1px solid #fed7aa',
-                          whiteSpace: 'nowrap',
-                        }}>Liên danh</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.customer_name || '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDate(c.contract_date)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{c.tender_name || '-'}</td>
-                    <td className="px-6 py-3 whitespace-nowrap">{getAvatarBadge(c.pm_name)}</td>
-                    <td className="px-6 py-3 whitespace-nowrap">{getStatusBadge(c.status)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{c.project_name || '-'}</td>
+                    {visibleColumns.map(col => (
+                      <td key={col.key} className={col.tdClass} style={col.applyRowBgStyle ? jvBg : undefined}>
+                        {col.renderCell(c, cellCtx)}
+                      </td>
+                    ))}
                   </tr>
                   )
                 })
