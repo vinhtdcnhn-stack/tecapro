@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import MobileEditSheet, { Field } from './MobileEditSheet'
 import useIsMobile from './useIsMobile'
-import { API } from '../../config/api'
+import { API, API_BASE } from '../../config/api'
 import {
   ENTRY_TYPES, ENTRY_TYPE_LABEL, ENTRY_TYPE_CLASS, allowedEntryTypes, fmtDateTime,
 } from './taskEntryUtils'
@@ -9,6 +9,8 @@ import {
 // Dòng thời gian trao đổi của một việc HĐ: Báo cáo / Chỉ đạo / Quyết định / Trao đổi.
 // Đăng được loại nào suy từ vai trò người dùng với việc (rel). Mở mục này (GET) tự
 // ghi mốc đã đọc ở server → dòng việc hết chấm chưa đọc sau khi tab tải lại.
+// Mỗi mục kèm được ảnh (dán Ctrl+V hoặc chọn tệp), hiển thị thu nhỏ ngay trong dòng
+// thời gian; bấm ảnh để phóng to.
 export default function ContractTaskTimeline({ taskId, task, currentUser, canManage, onChanged, onRead }) {
   const isMobile = useIsMobile()
   const [entries, setEntries] = useState([])
@@ -16,6 +18,9 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
   const [content, setContent] = useState('')
   const [type, setType] = useState('discussion')
   const [saving, setSaving] = useState(false)
+  const [pending, setPending] = useState([]) // { file, url }
+  const [lightbox, setLightbox] = useState(null) // src ảnh phóng to
+  const fileInputRef = useRef(null)
 
   // Vai trò của người dùng với việc (khớp luật server) → quyết định loại được đăng.
   const uid = Number(currentUser?.id)
@@ -43,21 +48,58 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
   // eslint-disable-next-line react-hooks/set-state-in-effect -- async: setState sau await
   useEffect(() => { load() }, [load])
 
-  const openComposer = () => { setType(defaultType); setContent(''); setAdding(true) }
+  // Dọn URL xem trước khi rời trang.
+  useEffect(() => () => { pending.forEach(p => URL.revokeObjectURL(p.url)) }, [pending])
+
+  function resetComposer() {
+    setContent('')
+    setPending(prev => { prev.forEach(p => URL.revokeObjectURL(p.url)); return [] })
+    setAdding(false)
+  }
+  const openComposer = () => { setType(defaultType); setContent(''); setPending([]); setAdding(true) }
+
+  function addImages(files) {
+    const imgs = [...files].filter(f => f && f.type.startsWith('image/'))
+    if (imgs.length) setPending(prev => [...prev, ...imgs.map(f => ({ file: f, url: URL.createObjectURL(f) }))])
+  }
+
+  // Dán ảnh từ clipboard (Ctrl+V vào ô nội dung).
+  function handlePaste(e) {
+    const files = [...(e.clipboardData?.items || [])]
+      .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
+      .map(it => it.getAsFile())
+      .filter(Boolean)
+    if (files.length) { e.preventDefault(); addImages(files) }
+  }
+
+  function removePending(idx) {
+    setPending(prev => {
+      const next = [...prev]
+      const [rm] = next.splice(idx, 1)
+      if (rm) URL.revokeObjectURL(rm.url)
+      return next
+    })
+  }
 
   async function submit() {
     const text = content.trim()
-    if (!text) { alert('Vui lòng nhập nội dung.'); return }
+    if (!text && pending.length === 0) { alert('Vui lòng nhập nội dung hoặc đính kèm ảnh.'); return }
     setSaving(true)
     try {
       const res = await fetch(`${API}/tasks/${taskId}/entries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entry_type: type, content: text }),
+        body: JSON.stringify({ entry_type: type, content: text || '📷 Hình ảnh' }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) { alert(d.error || 'Gửi thất bại'); return }
-      setContent(''); setAdding(false)
+      // Tải ảnh đính kèm (nếu có) lên mục vừa tạo.
+      for (const p of pending) {
+        const form = new FormData()
+        form.append('image', p.file)
+        await fetch(`${API}/task-entries/${d.id}/images`, { method: 'POST', body: form })
+      }
+      resetComposer()
       await load(); onChanged?.()
     } catch { alert('Có lỗi xảy ra.') }
     finally { setSaving(false) }
@@ -75,6 +117,18 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
 
   const typeOptions = ENTRY_TYPES.filter(t => allowed.includes(t.key))
 
+  // Xem trước ảnh đã chọn trong ô soạn (dùng chung desktop + mobile).
+  const previewStrip = pending.length > 0 && (
+    <div className="task-tl-preview">
+      {pending.map((p, idx) => (
+        <div key={idx} className="task-tl-preview-item">
+          <img src={p.url} alt="" />
+          <button type="button" onClick={() => removePending(idx)} title="Bỏ ảnh">×</button>
+        </div>
+      ))}
+    </div>
+  )
+
   return (
     <div className="task-detail-section">
       <h4 className="task-detail-title">Dòng thời gian — báo cáo · chỉ đạo · trao đổi ({entries.length})</h4>
@@ -91,6 +145,19 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
               )}
             </div>
             <p className="task-pre task-tl-content">{e.content}</p>
+            {e.images?.length > 0 && (
+              <div className="task-tl-imgs">
+                {e.images.map(img => (
+                  <img
+                    key={img.id}
+                    src={`${API_BASE}${img.file_path}`}
+                    alt={img.file_name}
+                    title={img.file_name}
+                    onClick={() => setLightbox(`${API_BASE}${img.file_path}`)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {entries.length === 0 && <p className="task-detail-empty">Chưa có nội dung nào.</p>}
@@ -102,14 +169,27 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
             <select className="task-tl-type" value={type} onChange={e => setType(e.target.value)}>
               {typeOptions.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
-            <textarea
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              placeholder="Nhập báo cáo, chỉ đạo, quyết định hoặc trao đổi..."
-              autoFocus
+            <div className="task-tl-box">
+              {previewStrip}
+              <textarea
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                onPaste={handlePaste}
+                placeholder="Nhập báo cáo, chỉ đạo, quyết định hoặc trao đổi… (dán ảnh trực tiếp bằng Ctrl+V)"
+                autoFocus
+              />
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={e => { addImages(e.target.files); e.target.value = '' }}
             />
             <div className="task-tl-add-actions">
-              <button className="cancel-btn" onClick={() => { setAdding(false); setContent('') }}>Hủy</button>
+              <button type="button" className="task-tl-img-btn" onClick={() => fileInputRef.current?.click()}>🖼️ Thêm ảnh</button>
+              <button className="cancel-btn" onClick={resetComposer}>Hủy</button>
               <button className="save-btn" onClick={submit} disabled={saving}>{saving ? 'Đang gửi…' : 'Gửi'}</button>
             </div>
           </div>
@@ -123,16 +203,26 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
       )}
 
       {isMobile && adding && (
-        <MobileEditSheet title="Thêm nội dung" onClose={() => { setAdding(false); setContent('') }} onSave={submit} saving={saving} saveLabel="Gửi">
+        <MobileEditSheet title="Thêm nội dung" onClose={resetComposer} onSave={submit} saving={saving} saveLabel="Gửi">
           <Field label="Loại">
             <select value={type} onChange={e => setType(e.target.value)}>
               {typeOptions.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
           </Field>
           <Field label="Nội dung">
-            <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="Báo cáo, chỉ đạo, quyết định hoặc trao đổi..." />
+            <textarea value={content} onChange={e => setContent(e.target.value)} onPaste={handlePaste} placeholder="Báo cáo, chỉ đạo, quyết định hoặc trao đổi…" />
+          </Field>
+          <Field label="Ảnh đính kèm">
+            {previewStrip}
+            <input type="file" accept="image/*" multiple onChange={e => { addImages(e.target.files); e.target.value = '' }} />
           </Field>
         </MobileEditSheet>
+      )}
+
+      {lightbox && (
+        <div className="task-tl-lightbox" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="" />
+        </div>
       )}
     </div>
   )

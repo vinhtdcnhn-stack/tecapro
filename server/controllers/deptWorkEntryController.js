@@ -1,10 +1,18 @@
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
 import { userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
+import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
 import { userName, assigneeIds, headIds } from '../services/deptWorkNotify.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
 import { deptWorkUnread } from '../services/liveCounts.js'
 import { bumpLive } from '../services/eventBus.js'
 import { invalidateUserDashboards, invalidateDashboardsForDeptWorkTask } from '../services/cacheKeys.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Dòng thời gian trao đổi của một việc phòng (dept_work_entry): Báo cáo / Chỉ đạo /
@@ -22,6 +30,52 @@ import { invalidateUserDashboards, invalidateDashboardsForDeptWorkTask } from '.
 
 const ENTRY_TYPES = new Set(['report', 'directive', 'decision', 'discussion'])
 const TYPE_LABEL = { report: 'Báo cáo', directive: 'Chỉ đạo', decision: 'Quyết định', discussion: 'Trao đổi' }
+
+// ── Ảnh đính kèm cho mục dòng thời gian (chỉ ảnh) ─────────────────────────────
+const imgStorage = multer.diskStorage({
+  destination(req, file, cb) {
+    const entryId = String(req.params.id)
+    if (!/^\d+$/.test(entryId)) { cb(new Error('ID không hợp lệ.')); return }
+    const dir = path.join(UPLOADS_ROOT, 'dept-work-entries', entryId)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    cb(null, dir)
+  },
+  filename(req, file, cb) {
+    const safe = Buffer.from(file.originalname, 'latin1').toString('utf8')
+    cb(null, `${Date.now()}_${safe.replace(/[/\\?%*:|"<>]/g, '_')}`)
+  },
+})
+
+// Chỉ nhận ảnh: chạy bộ lọc an toàn chung rồi siết thêm mime ảnh.
+function imageOnlyFilter(req, file, cb) {
+  safeUploadFilter(req, file, (err) => {
+    if (err) { cb(err); return }
+    if (!String(file.mimetype || '').startsWith('image/')) {
+      cb(new Error('Chỉ cho phép đính kèm ảnh.')); return
+    }
+    cb(null, true)
+  })
+}
+
+export const uploadEntryImage = multer({ storage: imgStorage, limits: UPLOAD_LIMITS, fileFilter: imageOnlyFilter })
+
+// Gắn mảng ảnh vào từng mục (1 truy vấn cho cả danh sách).
+async function attachImages(entries) {
+  if (!entries.length) return entries
+  const ids = entries.map(e => e.id)
+  const { rows } = await pool.query(
+    `SELECT id, entry_id, file_name, file_path, mime_type
+       FROM dept_work_entry_image WHERE entry_id = ANY($1) ORDER BY id`,
+    [ids],
+  )
+  const byEntry = new Map()
+  for (const r of rows) {
+    if (!byEntry.has(String(r.entry_id))) byEntry.set(String(r.entry_id), [])
+    byEntry.get(String(r.entry_id)).push(r)
+  }
+  for (const e of entries) e.images = byEntry.get(String(e.id)) || []
+  return entries
+}
 
 // Vai trò của người dùng đối với một việc — để áp luật đăng + xác định liên quan.
 async function relationOf(taskId, userId, userRole) {
@@ -73,6 +127,7 @@ export async function getEntries(req, res) {
         ORDER BY e.created_at, e.id`,
       [taskId],
     )
+    await attachImages(rows)
     // Ghi mốc đã đọc TRƯỚC khi trả về: client làm mới badge/nền ngay sau khi nhận entries,
     // nên trạng thái "đã đọc" phải kịp persist để deptWorkUnread tính lại đúng. Lỗi ghi mốc
     // không được chặn việc trả nội dung → nuốt lỗi, chỉ log.
@@ -121,6 +176,7 @@ export async function addEntry(req, res) {
     const entry = rows[0]
     const me = await pool.query('SELECT full_name FROM app_user WHERE id = $1', [req.user.id])
     entry.author_name = me.rows[0]?.full_name || null
+    entry.images = []
     res.status(201).json(entry)
 
     // Đánh thức các long-poll đang treo: có mục mới → số "chưa đọc" của người liên quan đổi.
@@ -152,6 +208,31 @@ export async function addEntry(req, res) {
   }
 }
 
+// POST /dept-work/entries/:id/images  (field 'image') — chỉ tác giả mục (hoặc trưởng/phó) đính ảnh.
+export async function addEntryImage(req, res) {
+  const id = parseInt(req.params.id)
+  if (!req.file) return res.status(400).json({ error: 'Chưa có ảnh.' })
+  try {
+    const { rows } = await pool.query('SELECT author_id FROM dept_work_entry WHERE id = $1', [id])
+    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy nội dung.' })
+    const isHead = await userIsHeadOrDeputy(req.user.id, req.user.role)
+    if (rows[0].author_id !== req.user.id && !isHead) {
+      return res.status(403).json({ error: 'Không có quyền đính kèm ảnh.' })
+    }
+    const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
+    const filePath = `/uploads/dept-work-entries/${id}/${req.file.filename}`
+    const { rows: img } = await pool.query(
+      `INSERT INTO dept_work_entry_image (entry_id, file_name, file_path, file_size, mime_type)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, entry_id, file_name, file_path, mime_type`,
+      [id, fileName, filePath, req.file.size, req.file.mimetype],
+    )
+    res.status(201).json(img[0])
+  } catch (err) {
+    console.error('deptWork addEntryImage:', err)
+    res.status(500).json({ error: 'Không lưu được ảnh.' })
+  }
+}
+
 // DELETE /dept-work/entries/:id — tác giả hoặc trưởng/phó phòng.
 export async function deleteEntry(req, res) {
   const id = parseInt(req.params.id)
@@ -163,6 +244,11 @@ export async function deleteEntry(req, res) {
       return res.status(403).json({ error: 'Bạn chỉ được xóa nội dung của chính mình.' })
     }
     await pool.query('DELETE FROM dept_work_entry WHERE id = $1', [id])
+    // Xóa luôn thư mục ảnh trên đĩa (DB đã CASCADE; defense-in-depth: chỉ trong uploads/dept-work-entries).
+    const dir = path.resolve(UPLOADS_ROOT, 'dept-work-entries', String(id))
+    if (dir.startsWith(path.join(UPLOADS_ROOT, 'dept-work-entries') + path.sep) && fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
     res.json({ success: true })
     // Xóa mục → số chưa đọc của người liên quan có thể đổi → làm mới dashboard của họ.
     invalidateDashboardsForDeptWorkTask(rows[0].task_id)

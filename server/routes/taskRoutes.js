@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { getTasks, createTask, updateTask, deleteTask, reorderTasks, transferTask, getAssignmentLog } from '../controllers/taskController.js'
 import { getAttachments, uploadAttachment, deleteAttachment, upload } from '../controllers/taskAttachmentController.js'
-import { getEntries, addEntry, deleteEntry, getUnreadCount } from '../controllers/taskEntryController.js'
+import { getEntries, addEntry, deleteEntry, getUnreadCount, addEntryImage, uploadEntryImage } from '../controllers/taskEntryController.js'
 import { pmVia, canCreateTask, canWriteTask, canReorderTasks, canTransferTask } from '../middleware/contractAccess.js'
 
 const router = Router()
@@ -28,5 +28,7 @@ router.get('/contract-tasks/unread-count',      getUnreadCount)
 router.get('/tasks/:taskId/entries',            getEntries)
 router.post('/tasks/:taskId/entries',           addEntry)
 router.delete('/task-entries/:id',              deleteEntry)
+// Đính ảnh cho một mục dòng thời gian (quyền gác trong controller theo tác giả/PM).
+router.post('/task-entries/:id/images',         uploadEntryImage.single('image'), addEntryImage)
 
 export default router

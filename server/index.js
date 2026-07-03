@@ -66,7 +66,15 @@ app.use(express.json())
 // Serve uploaded files — YÊU CẦU đăng nhập (link same-origin ở production tự gửi cookie phiên).
 // Tài liệu HĐ phục vụ qua /api/files/:id/view; mount này chủ yếu cho file đính kèm công việc.
 app.use('/uploads', requireAuth, express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+  // File upload có tên duy nhất (timestamp) và không bao giờ đổi nội dung → cache "immutable"
+  // 1 năm: trình duyệt phục vụ thẳng từ cache, lần sau không cần cả request kiểm tra. Dùng
+  // `private` (không cache ở proxy dùng chung) vì file nằm sau requireAuth.
+  maxAge: '365d',
+  immutable: true,
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable')
+  },
 }))
 
 // Health check — public, nên cache kết quả DB 5 giây: spam endpoint này không được

@@ -16,7 +16,7 @@ import {
   handoff, acceptHandoff, rejectHandoff, escalate, escalateResolve,
 } from '../controllers/deptWorkTransferController.js'
 import {
-  getEntries, addEntry, deleteEntry, getUnreadCount,
+  getEntries, addEntry, deleteEntry, getUnreadCount, addEntryImage, uploadEntryImage,
 } from '../controllers/deptWorkEntryController.js'
 import {
   getLogs, addLog, updateLog, deleteLog, getCapacity,
@@ -59,6 +59,8 @@ router.get('/dept-work/unread-count', isDeptMember, getUnreadCount)
 router.get('/dept-work/tasks/:taskId/entries', isDeptMember, getEntries)
 router.post('/dept-work/tasks/:taskId/entries', isDeptMember, addEntry)
 router.delete('/dept-work/entries/:id', isDeptMember, deleteEntry)
+// Đính ảnh cho một mục dòng thời gian (quyền gác trong controller theo tác giả/trưởng-phó).
+router.post('/dept-work/entries/:id/images', isDeptMember, uploadEntryImage.single('image'), addEntryImage)
 
 // Nhật ký công việc + báo cáo năng lực. Ghi cho chính mình; sửa/xóa chỉ chủ nhật ký.
 router.get('/dept-work/logs', isDeptMember, getLogs)

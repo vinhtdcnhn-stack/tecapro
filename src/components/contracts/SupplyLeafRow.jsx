@@ -85,11 +85,21 @@ function SlotItem({ slot, canEdit, onUpdate, onDelete }) {
 
 export default function SupplyLeafRow({ leaf, canEdit, onAddSlot, onUpdateSlot, onDeleteSlot }) {
   const [adding, setAdding] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const remaining = Math.max(0, (Number(leaf.needed) || 0) - (Number(leaf.covered) || 0))
 
+  // Dòng đã tách đầu bán luôn sổ rộng; dòng chưa tách thu gọn 1 dòng, bấm để mở.
+  const collapsible = !leaf.split
+  const open = leaf.split || expanded
+
   return (
-    <div className={`sc-leaf ${statusMeta(leaf.status).cls}`}>
-      <div className="sc-leaf-head">
+    <div className={`sc-leaf ${statusMeta(leaf.status).cls}${collapsible ? ' sc-leaf-collapsible' : ''}`}>
+      <div
+        className="sc-leaf-head"
+        onClick={collapsible ? () => setExpanded((v) => !v) : undefined}
+        role={collapsible ? 'button' : undefined}
+      >
+        {collapsible && <span className={`sc-caret${open ? ' sc-caret-open' : ''}`}>▸</span>}
         <StatusPill status={leaf.status} />
         <div className="sc-leaf-title">
           {leaf.group_path && <span className="sc-leaf-path">{leaf.group_path} › </span>}
@@ -100,6 +110,7 @@ export default function SupplyLeafRow({ leaf, canEdit, onAddSlot, onUpdateSlot, 
         </span>
       </div>
 
+      {open && (
       <div className="sc-leaf-body">
         {leaf.split ? (
           leaf.slots.map((s) => (
@@ -126,6 +137,7 @@ export default function SupplyLeafRow({ leaf, canEdit, onAddSlot, onUpdateSlot, 
           )}
         </EditGuard>
       </div>
+      )}
     </div>
   )
 }

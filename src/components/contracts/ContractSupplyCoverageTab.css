@@ -25,6 +25,12 @@
 .sc-leaf.sc-full    { border-left-color: #16a34a; }
 
 .sc-leaf-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sc-leaf-collapsible > .sc-leaf-head { cursor: pointer; user-select: none; }
+.sc-caret {
+  display: inline-block; color: #9ca3af; font-size: 11px;
+  transition: transform 0.12s ease; flex: none;
+}
+.sc-caret-open { transform: rotate(90deg); }
 .sc-leaf-title { flex: 1; min-width: 160px; }
 .sc-leaf-path { color: #9ca3af; font-size: 12px; }
 .sc-leaf-name { font-weight: 600; }

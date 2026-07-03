@@ -10,6 +10,9 @@ import { targetKey } from './usePurchaseBOQLink'
 export default function PurchaseSupplyLinks({ links = [], targets = [], disabled = false, onChange }) {
   // SL phủ đang gõ theo targetKey (commit onBlur). Tách khỏi links để gõ mượt.
   const [draftQty, setDraftQty] = useState({})
+  // Ô "+ thêm đầu bán" chỉ hiện khi đang thao tác trong ô (hover / focus-within),
+  // hoặc khi chưa có đầu bán nào (cần chỗ để bắt đầu gán). Rời ô thì ẩn đi cho gọn.
+  const [active, setActive] = useState(false)
 
   const usedKeys = new Set(links.map(l => targetKey(l.boq_id, l.slot_id)))
   const available = targets.filter(t => !usedKeys.has(targetKey(t.boq_id, t.slot_id)))
@@ -41,8 +44,14 @@ export default function PurchaseSupplyLinks({ links = [], targets = [], disabled
     return <span className="boq-masked" title="Lưu dòng trước khi gán">—</span>
   }
 
+  const showAdd = available.length > 0 && (links.length === 0 || active)
+
   return (
-    <div className="supply-links">
+    <div className="supply-links"
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onFocus={() => setActive(true)}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setActive(false) }}>
       {links.map(l => {
         const key = targetKey(l.boq_id, l.slot_id)
         const t = targets.find(x => targetKey(x.boq_id, x.slot_id) === key)
@@ -67,7 +76,7 @@ export default function PurchaseSupplyLinks({ links = [], targets = [], disabled
         )
       })}
 
-      {available.length > 0 && (
+      {showAdd && (
         <select className="supply-select supply-link-add" value="" title="Thêm đầu bán để nhập cho"
           onChange={e => { addTarget(e.target.value); e.target.value = '' }}>
           <option value="">+ thêm đầu bán…</option>
