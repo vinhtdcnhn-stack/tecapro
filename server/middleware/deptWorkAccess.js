@@ -1,4 +1,5 @@
 import { pool } from '../db.js'
+import { HEAD_POSITION_IDS } from '../auth/positionIds.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phân quyền cho module Quản lý công việc — Ban KT Cơ điện (department id 7).
@@ -12,8 +13,9 @@ import { pool } from '../db.js'
 
 export const DEPT_KT_CO_DIEN = 7
 
-// Chức danh được coi là quản lý phòng việc: Trưởng ban (3), Phó ban (4).
-export const MANAGER_POSITION_IDS = [3, 4]
+// Chức danh được coi là quản lý phòng việc: Trưởng ban / Phó ban — cùng nguồn
+// HEAD_POSITION_IDS (auth/positionIds.js) với kế thừa TP/PP trong permissions.js.
+export const MANAGER_POSITION_IDS = HEAD_POSITION_IDS
 
 const ID_RE = /^\d+$/
 

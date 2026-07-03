@@ -124,3 +124,55 @@ export async function getCashflowSummary(req, res) {
     res.status(500).json({ error: 'Không thể tải tổng quan dòng tiền.' })
   }
 }
+
+// GET /reports/invoice-revenue?from=&to=
+// Doanh thu đã xuất hóa đơn (HĐ bán) theo từng hóa đơn, lọc theo khoảng ngày xuất.
+// from/to (tùy chọn, yyyy-mm-dd): giới hạn i.invoice_date. Trả về danh sách hóa đơn
+// (quy VND) + tổng.
+export async function getInvoiceRevenue(req, res) {
+  try {
+    if (await reportNotModified(req, res, 'debt')) return
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from) ? req.query.from : null
+    const to   = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to)   ? req.query.to   : null
+
+    const key = await reportKey('debt', 'invoice-revenue', { from, to })
+    const payload = await cacheWrap(key, REPORT_TTL, async () => {
+      const { rows } = await pool.query(`
+        SELECT i.id, i.invoice_no, i.invoice_date, i.contract_out_id,
+               i.currency_code, i.exchange_rate,
+               co.contract_no, co.project_name,
+               cu.name AS customer_name,
+               SUM(it.amount_after_vat) AS amount_native,
+               SUM(CASE WHEN i.currency_code = 'VND' THEN it.amount_after_vat
+                        ELSE it.amount_after_vat * COALESCE(i.exchange_rate, 1) END) AS amount_vnd
+          FROM contract_out_invoice i
+          JOIN contract_out_invoice_item it ON it.invoice_id = i.id
+          JOIN contract_out co ON co.id = i.contract_out_id
+          LEFT JOIN customer cu ON cu.id = co.customer_id
+         WHERE ($1::date IS NULL OR i.invoice_date >= $1::date)
+           AND ($2::date IS NULL OR i.invoice_date <= $2::date)
+         GROUP BY i.id, co.contract_no, co.project_name, cu.name
+         ORDER BY i.invoice_date DESC NULLS LAST, i.id DESC`, [from, to])
+
+      const list = rows.map(r => ({
+        id: r.id,
+        invoice_no: r.invoice_no,
+        invoice_date: r.invoice_date,
+        contract_out_id: r.contract_out_id,
+        contract_no: r.contract_no,
+        project_name: r.project_name,
+        customer_name: r.customer_name,
+        currency_code: r.currency_code,
+        amount_native: parseFloat(r.amount_native) || 0,
+        amount_vnd: parseFloat(r.amount_vnd) || 0,
+      }))
+      const total_vnd = list.reduce((s, r) => s + r.amount_vnd, 0)
+      return { from, to, total_vnd, count: list.length, rows: list }
+    })
+
+    res.json(payload)
+  } catch (err) {
+    console.error('getInvoiceRevenue:', err)
+    res.status(500).json({ error: 'Không thể tải doanh thu xuất hóa đơn.' })
+  }
+}

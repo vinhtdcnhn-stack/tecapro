@@ -4,7 +4,7 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
 import { isPmOfContract } from '../middleware/contractAccess.js'
-import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
+import { safeUploadFilter, UPLOAD_LIMITS, discardUploadedFile } from '../middleware/uploadFilter.js'
 import { notifyAction, notifyInfo, contractLabel, pmUserIds } from '../services/notify.js'
 import { contractTaskUnread } from '../services/liveCounts.js'
 import { bumpLive } from '../services/eventBus.js'
@@ -221,10 +221,14 @@ export async function addEntryImage(req, res) {
         WHERE e.id = $1`,
       [id],
     )
-    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy nội dung.' })
+    if (!rows.length) {
+      discardUploadedFile(req.file) // multer đã ghi file trước khi kiểm tra — dọn lại
+      return res.status(404).json({ error: 'Không tìm thấy nội dung.' })
+    }
     const isManager = Number(req.user.role) === 1
       || await isPmOfContract(req.user.id, String(rows[0].contract_out_id))
     if (Number(rows[0].author_id) !== Number(req.user.id) && !isManager) {
+      discardUploadedFile(req.file)
       return res.status(403).json({ error: 'Không có quyền đính kèm ảnh.' })
     }
     const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
@@ -237,7 +241,10 @@ export async function addEntryImage(req, res) {
     res.status(201).json(img[0])
   } catch (err) {
     console.error('contractTask addEntryImage:', err)
-    res.status(500).json({ error: 'Không lưu được ảnh.' })
+    if (!res.headersSent) {
+      discardUploadedFile(req.file) // chưa lưu được bản ghi DB → file trên đĩa là mồ côi
+      res.status(500).json({ error: 'Không lưu được ảnh.' })
+    }
   }
 }
 

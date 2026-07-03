@@ -1,3 +1,6 @@
+import fs from 'fs'
+import path from 'path'
+
 // Bộ lọc loại file cho multer: chặn các định dạng thực thi/script nguy hiểm.
 // Tài liệu hợp pháp (office, pdf, ảnh, nén, text) vẫn được chấp nhận.
 
@@ -30,3 +33,13 @@ export function safeUploadFilter(req, file, cb) {
 }
 
 export const UPLOAD_LIMITS = { fileSize: 50 * 1024 * 1024 } // 50 MB
+
+// Xóa file multer đã ghi xuống đĩa khi request bị từ chối SAU upload (404/403/lỗi):
+// diskStorage lưu file trước khi controller kịp kiểm tra quyền, không dọn thì thành
+// file mồ côi. Dọn kèm thư mục cha nếu rỗng (storage tạo thư mục theo id ngay cả khi
+// bản ghi không tồn tại); rmdir tự thất bại nếu thư mục còn file khác — giữ nguyên.
+export function discardUploadedFile(file) {
+  if (!file?.path) return
+  try { fs.unlinkSync(file.path) } catch { /* best-effort */ }
+  try { fs.rmdirSync(path.dirname(file.path)) } catch { /* không rỗng / đã mất — bỏ qua */ }
+}

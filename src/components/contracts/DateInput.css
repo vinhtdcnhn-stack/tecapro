@@ -4,8 +4,10 @@
   display: inline-block;
   width: 100%;
 }
-/* Chừa chỗ bên phải cho nút lịch */
+/* Chừa chỗ bên phải cho nút lịch; input luôn lấp đầy wrap (tránh tràn width mặc định) */
 .date-input-text {
+  width: 100%;
+  box-sizing: border-box;
   padding-right: 24px !important;
 }
 .date-input-btn {

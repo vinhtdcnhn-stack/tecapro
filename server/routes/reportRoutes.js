@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAccountant } from '../middleware/accountantAccess.js'
-import { getOverdueReceivables, getCashflowSummary } from '../controllers/reportController.js'
+import { getOverdueReceivables, getCashflowSummary, getInvoiceRevenue } from '../controllers/reportController.js'
 import {
   getReceivablesReport, getPayablesReport, getProgressCollection,
   getDebtByContract, getDebtByCustomer, getContractsAsOf,
@@ -13,6 +13,7 @@ const router = Router()
 
 // Báo cáo tài chính — chỉ kế toán / BGĐ / admin.
 router.get('/reports/cashflow-summary',     requireAccountant, getCashflowSummary)
+router.get('/reports/invoice-revenue',      requireAccountant, getInvoiceRevenue)     // doanh thu xuất hóa đơn theo khoảng ngày
 router.get('/reports/overdue-receivables',  requireAccountant, getOverdueReceivables)
 router.get('/reports/receivables',          requireAccountant, getReceivablesReport)   // #3/#4
 router.get('/reports/payables',             requireAccountant, getPayablesReport)       // #5

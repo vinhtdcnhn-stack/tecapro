@@ -1,5 +1,5 @@
 import { pool } from '../db.js'
-import { insertContractMembers, MEMBER_ROLE_VN } from './contractMemberController.js'
+import { insertContractMembers, syncContractMembers, MEMBER_ROLE_VN } from './contractMemberController.js'
 import { notifyAction, notifyInfo, contractLabel } from '../services/notify.js'
 import { cacheWrap } from '../cache.js'
 import {
@@ -499,16 +499,16 @@ export async function updateContract(req, res) {
         parseInt(contractId)
       ])
 
-      // Ghi nhớ thành viên cũ để chỉ thông báo cho người MỚI được thêm (tránh báo lại
-      // toàn bộ mỗi lần sửa hợp đồng, vì danh sách bị xoá-rồi-chèn-lại).
+      // Ghi nhớ thành viên cũ để (1) làm mới dashboard người bị gỡ, (2) không báo lại
+      // người vốn đã là thành viên khi họ được thêm vào một vai trò khác.
       const before = await client.query(
         'SELECT user_id FROM contract_out_member WHERE contract_out_id = $1',
         [parseInt(contractId)],
       )
       const oldIds = new Set(before.rows.map(r => Number(r.user_id)))
 
-      await client.query('DELETE FROM contract_out_member WHERE contract_out_id = $1', [parseInt(contractId)])
-      const inserted = await insertContractMembers(client, parseInt(contractId), { pm_primary_id, pm_team, sale_team, presale_team, technical_team, import_export_team, accounting_team, followers })
+      // Đồng bộ theo diff (chỉ thêm/bớt phần thay đổi) để nhật ký không phình xoá-chèn cả danh sách.
+      const inserted = await syncContractMembers(client, parseInt(contractId), { pm_primary_id, pm_team, sale_team, presale_team, technical_team, import_export_team, accounting_team, followers })
 
       await client.query('COMMIT')
 

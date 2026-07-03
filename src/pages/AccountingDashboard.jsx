@@ -5,6 +5,7 @@ import OverdueAlertsPage from './accounting/OverdueAlertsPage'
 import ReceivablesReportPage from './accounting/ReceivablesReportPage'
 import PayablesReportPage from './accounting/PayablesReportPage'
 import ProgressCollectionPage from './accounting/ProgressCollectionPage'
+import InvoiceRevenueReportPage from './accounting/InvoiceRevenueReportPage'
 import DebtSummaryPage from './accounting/DebtSummaryPage'
 import WarrantyReportPage from './accounting/WarrantyReportPage'
 import './Dashboard.css'
@@ -47,16 +48,18 @@ function Overview() {
 
 const TABS = [
   { key: 'overview',    label: 'Tổng quan' },
-  { key: 'overdue',     label: 'Cảnh báo nợ quá hạn' },
+  { key: 'invoice',     label: 'Xuất hóa đơn' },
+  { key: 'overdue',     label: 'Nợ quá hạn' },
   { key: 'receivables', label: 'Công nợ phải thu' },
   { key: 'payables',    label: 'Công nợ phải trả' },
-  { key: 'progress',    label: 'Tổng kết tiến độ thu' },
+  { key: 'progress',    label: 'Tiến độ thu' },
   { key: 'debt',        label: 'Tổng hợp theo KH/HĐ' },
   { key: 'warranty',    label: 'Tình trạng bảo hành' },
 ]
 
 function renderTab(tab) {
   switch (tab) {
+    case 'invoice':     return <InvoiceRevenueReportPage />
     case 'overdue':     return <OverdueAlertsPage />
     case 'receivables': return <ReceivablesReportPage />
     case 'payables':    return <PayablesReportPage />

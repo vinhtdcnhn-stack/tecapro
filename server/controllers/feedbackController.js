@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
-import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
+import { safeUploadFilter, UPLOAD_LIMITS, discardUploadedFile } from '../middleware/uploadFilter.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -137,8 +137,12 @@ export async function addFeedbackImage(req, res) {
   if (!req.file) return res.status(400).json({ error: 'Chưa có ảnh.' })
   try {
     const { rows: own } = await pool.query('SELECT user_id FROM app_feedback WHERE id = $1', [id])
-    if (!own.length) return res.status(404).json({ error: 'Không tìm thấy góp ý.' })
+    if (!own.length) {
+      discardUploadedFile(req.file) // multer đã ghi file trước khi kiểm tra — dọn lại
+      return res.status(404).json({ error: 'Không tìm thấy góp ý.' })
+    }
     if (String(own[0].user_id) !== String(req.user.id)) {
+      discardUploadedFile(req.file)
       return res.status(403).json({ error: 'Không có quyền đính kèm.' })
     }
     const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
@@ -151,7 +155,10 @@ export async function addFeedbackImage(req, res) {
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('addFeedbackImage:', err)
-    res.status(500).json({ error: 'Không lưu được ảnh.' })
+    if (!res.headersSent) {
+      discardUploadedFile(req.file) // chưa lưu được bản ghi DB → file trên đĩa là mồ côi
+      res.status(500).json({ error: 'Không lưu được ảnh.' })
+    }
   }
 }
 

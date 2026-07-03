@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { ALL_PERMISSIONS, expandWithRequires } from './permissionCatalog.js'
+import { HEAD_POSITION_IDS } from './positionIds.js'
 
 const CONTRACT_KEYS = ALL_PERMISSIONS.filter(p => p.scope === 'contract').map(p => p.key)
 const CONTRACT_KEY_SET = new Set(CONTRACT_KEYS)
@@ -22,9 +23,6 @@ const CONTRACT_KEY_SET = new Set(CONTRACT_KEYS)
 
 const GLOBAL_KEYS = ALL_PERMISSIONS.filter(p => p.scope === 'global').map(p => p.key)
 const GLOBAL_KEY_SET = new Set(GLOBAL_KEYS)
-// Neo theo ID (không theo mã) để đổi tên mã vị trí không làm gãy kế thừa; khớp
-// MANAGER_POSITION_IDS trong deptWorkAccess.js. Đừng xóa-tạo-lại 2 vị trí này (id đổi).
-const HEAD_POSITION_IDS = [3, 4] // Trưởng ban (3) / Phó ban (4)
 
 export function allGlobalKeys() {
   return [...GLOBAL_KEYS]

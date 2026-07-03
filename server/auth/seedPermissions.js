@@ -3,6 +3,7 @@ import { pool } from '../db.js'
 import {
   ALL_PERMISSIONS, MEMBER_ROLES, expandWithRequires,
 } from './permissionCatalog.js'
+import { HEAD_POSITION_IDS } from './positionIds.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Đồng bộ danh mục `permission` từ catalog (nguồn-sự-thật-duy-nhất) + seed bootstrap
@@ -90,20 +91,28 @@ export async function seedBootstrap(client = pool) {
     )
   }
   // Bảng điều khiển neo theo MÃ vị trí (khớp gating cũ trong useHomeDashboards):
-  //   pm→PM_TEAM, dept→TB/PB, director→GD/PGD/TQ_TEAM, accounting→KT_DASH.
+  //   pm→PM_TEAM, director→GD/PGD/TQ_TEAM, accounting→KT_DASH.
   for (const [perm, codes] of [
     ['dashboard.pm.view',         ['PM_TEAM']],
-    ['dashboard.dept.view',       ['TB', 'PB']],
     ['dashboard.director.view',   ['GD', 'PGD', 'TQ_TEAM']],
     ['dashboard.accounting.view', ['GD', 'PGD', 'KT_DASH']],
-    // Khóa/mở khóa bảng giá — quyền giám sát của Trưởng/Phó ban (không cấp cho PM).
-    ['co.boq.lock',               ['TB', 'PB']],
   ]) {
     await client.query(
       `INSERT INTO position_permission (position_id, perm_key)
          SELECT id, $1 FROM "position" WHERE is_active = true AND code = ANY($2)
        ON CONFLICT DO NOTHING`,
       [perm, codes],
+    )
+  }
+  // Quyền của Trưởng/Phó ban neo theo ID vị trí (HEAD_POSITION_IDS — cùng nguồn với
+  // kế thừa TP/PP trong permissions.js, không phụ thuộc mã có thể bị đổi tên):
+  // dashboard phòng + khóa/mở khóa bảng giá (không cấp cho PM).
+  for (const perm of ['dashboard.dept.view', 'co.boq.lock']) {
+    await client.query(
+      `INSERT INTO position_permission (position_id, perm_key)
+         SELECT id, $1 FROM "position" WHERE is_active = true AND id = ANY($2)
+       ON CONFLICT DO NOTHING`,
+      [perm, HEAD_POSITION_IDS],
     )
   }
   // Lưu ý: KHÔNG seed các quyền *.manage / admin_only → mặc định chỉ admin (role==1, fail-open).

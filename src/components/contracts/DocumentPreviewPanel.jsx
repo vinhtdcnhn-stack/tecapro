@@ -2,6 +2,29 @@ import { useState, useEffect } from 'react'
 import { API } from '../../config/api'
 import { getFileIcon, isDocx } from './documentsUtils'
 
+// Làm sạch HTML mammoth sinh từ .docx trước khi render bằng dangerouslySetInnerHTML:
+// mammoth escape text nhưng GIỮ NGUYÊN href của hyperlink trong tài liệu → một .docx
+// cài link "javascript:..." sẽ thành stored XSS khi người xem click. Chỉ giữ scheme
+// an toàn; ảnh mammoth nhúng dạng data:image/* nên giữ lại.
+function sanitizeDocxHtml(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  doc.body.querySelectorAll('script, iframe, object, embed, form').forEach(el => el.remove())
+  for (const el of doc.body.querySelectorAll('*')) {
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase()
+      if (name.startsWith('on')) { el.removeAttribute(attr.name); continue }
+      if (name === 'href' || name === 'src') {
+        const v = attr.value.trim().toLowerCase()
+        const ok = v.startsWith('http://') || v.startsWith('https://')
+          || v.startsWith('mailto:') || v.startsWith('#')
+          || (name === 'src' && v.startsWith('data:image/'))
+        if (!ok) el.removeAttribute(attr.name)
+      }
+    }
+  }
+  return doc.body.innerHTML
+}
+
 export default function DocumentPreviewPanel({ file, viewUrl, downloadUrl }) {
   // viewUrl/downloadUrl tùy chọn để dùng lại panel cho tệp ở module khác (vd Đấu thầu).
   // Mặc định trỏ tới tệp tài liệu hợp đồng (/files/:id/view|download).
@@ -19,7 +42,7 @@ export default function DocumentPreviewPanel({ file, viewUrl, downloadUrl }) {
       import('mammoth'),
     ])
       .then(([arrayBuffer, mammoth]) => mammoth.convertToHtml({ arrayBuffer }))
-      .then(result => { if (!cancelled) setDocx({ id: file.id, html: result.value, error: false }) })
+      .then(result => { if (!cancelled) setDocx({ id: file.id, html: sanitizeDocxHtml(result.value), error: false }) })
       .catch(() => { if (!cancelled) setDocx({ id: file.id, html: '', error: true }) })
     return () => { cancelled = true }
   }, [file, view])

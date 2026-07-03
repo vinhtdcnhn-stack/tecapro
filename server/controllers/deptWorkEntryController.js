@@ -4,7 +4,7 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
 import { userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
-import { safeUploadFilter, UPLOAD_LIMITS } from '../middleware/uploadFilter.js'
+import { safeUploadFilter, UPLOAD_LIMITS, discardUploadedFile } from '../middleware/uploadFilter.js'
 import { userName, assigneeIds, headIds } from '../services/deptWorkNotify.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
 import { deptWorkUnread } from '../services/liveCounts.js'
@@ -214,9 +214,13 @@ export async function addEntryImage(req, res) {
   if (!req.file) return res.status(400).json({ error: 'Chưa có ảnh.' })
   try {
     const { rows } = await pool.query('SELECT author_id FROM dept_work_entry WHERE id = $1', [id])
-    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy nội dung.' })
+    if (!rows.length) {
+      discardUploadedFile(req.file) // multer đã ghi file trước khi kiểm tra — dọn lại
+      return res.status(404).json({ error: 'Không tìm thấy nội dung.' })
+    }
     const isHead = await userIsHeadOrDeputy(req.user.id, req.user.role)
     if (rows[0].author_id !== req.user.id && !isHead) {
+      discardUploadedFile(req.file)
       return res.status(403).json({ error: 'Không có quyền đính kèm ảnh.' })
     }
     const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
@@ -229,7 +233,10 @@ export async function addEntryImage(req, res) {
     res.status(201).json(img[0])
   } catch (err) {
     console.error('deptWork addEntryImage:', err)
-    res.status(500).json({ error: 'Không lưu được ảnh.' })
+    if (!res.headersSent) {
+      discardUploadedFile(req.file) // chưa lưu được bản ghi DB → file trên đĩa là mồ côi
+      res.status(500).json({ error: 'Không lưu được ảnh.' })
+    }
   }
 }
 
