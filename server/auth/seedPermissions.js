@@ -90,14 +90,14 @@ export async function seedBootstrap(client = pool) {
     )
   }
   // Bảng điều khiển neo theo MÃ vị trí (khớp gating cũ trong useHomeDashboards):
-  //   pm→PM_TEAM, dept→TP/PP, director→GD/PGD/TQ_TEAM, accounting→KT_DASH.
+  //   pm→PM_TEAM, dept→TB/PB, director→GD/PGD/TQ_TEAM, accounting→KT_DASH.
   for (const [perm, codes] of [
     ['dashboard.pm.view',         ['PM_TEAM']],
-    ['dashboard.dept.view',       ['TP', 'PP']],
+    ['dashboard.dept.view',       ['TB', 'PB']],
     ['dashboard.director.view',   ['GD', 'PGD', 'TQ_TEAM']],
     ['dashboard.accounting.view', ['GD', 'PGD', 'KT_DASH']],
     // Khóa/mở khóa bảng giá — quyền giám sát của Trưởng/Phó ban (không cấp cho PM).
-    ['co.boq.lock',               ['TP', 'PP']],
+    ['co.boq.lock',               ['TB', 'PB']],
   ]) {
     await client.query(
       `INSERT INTO position_permission (position_id, perm_key)

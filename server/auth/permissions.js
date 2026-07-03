@@ -22,7 +22,9 @@ const CONTRACT_KEY_SET = new Set(CONTRACT_KEYS)
 
 const GLOBAL_KEYS = ALL_PERMISSIONS.filter(p => p.scope === 'global').map(p => p.key)
 const GLOBAL_KEY_SET = new Set(GLOBAL_KEYS)
-const HEAD_POSITION_CODES = ['TP', 'PP'] // Trưởng ban / Phó ban
+// Neo theo ID (không theo mã) để đổi tên mã vị trí không làm gãy kế thừa; khớp
+// MANAGER_POSITION_IDS trong deptWorkAccess.js. Đừng xóa-tạo-lại 2 vị trí này (id đổi).
+const HEAD_POSITION_IDS = [3, 4] // Trưởng ban (3) / Phó ban (4)
 
 export function allGlobalKeys() {
   return [...GLOBAL_KEYS]
@@ -77,18 +79,18 @@ async function loadEffectiveByScope(userId, scopeSet) {
   return [...keys]
 }
 
-// Các phòng (department_id) mà user là Trưởng/Phó ban (giữ chức TP/PP, cùng phòng).
+// Các phòng (department_id) mà user là Trưởng/Phó ban (giữ chức id 3/4, cùng phòng).
 async function headDeptIds(userId) {
   const { rows } = await pool.query(
     `SELECT u.department_id AS dept
        FROM app_user u
       WHERE u.id = $1 AND u.department_id IS NOT NULL
         AND (
-          EXISTS (SELECT 1 FROM app_user_position up JOIN "position" p ON p.id = up.position_id
-                   WHERE up.user_id = $1 AND p.code = ANY($2))
-          OR EXISTS (SELECT 1 FROM "position" p WHERE p.id = u.position_id AND p.code = ANY($2))
+          EXISTS (SELECT 1 FROM app_user_position up
+                   WHERE up.user_id = $1 AND up.position_id = ANY($2))
+          OR u.position_id = ANY($2)
         )`,
-    [userId, HEAD_POSITION_CODES],
+    [userId, HEAD_POSITION_IDS],
   )
   return rows.map(r => r.dept)
 }
