@@ -35,7 +35,12 @@ export default function CustomerTable({ customers, searchTerm, userRole, onEdit 
             </tr>
           ) : (
             filteredCustomers.map((c) => (
-              <tr key={c.id}>
+              <tr
+                key={c.id}
+                onDoubleClick={userRole == 1 ? () => onEdit(c) : undefined}
+                style={userRole == 1 ? { cursor: 'pointer' } : undefined}
+                title={userRole == 1 ? 'Nhấn đúp để sửa' : undefined}
+              >
                 <td>{c.code || '-'}</td>
                 <td>{c.name}</td>
                 <td>{c.tax_code || '-'}</td>

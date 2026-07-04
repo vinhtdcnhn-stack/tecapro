@@ -24,6 +24,7 @@ export default function UserModal({
     phone: '',
     employee_code: '',
     department_id: '',
+    department_ids: [],
     position_ids: [],
     manager_id: '',
     role: '2',
@@ -80,6 +81,7 @@ export default function UserModal({
         phone: user.phone || '',
         employee_code: user.employee_code || '',
         department_id: user.department_id || '',
+        department_ids: Array.isArray(user.extra_departments) ? user.extra_departments.map(d => d.id) : [],
         position_ids: Array.isArray(user.positions) ? user.positions.map(p => p.id) : [],
         manager_id: user.manager_id || '',
         role: String(user.role),
@@ -100,6 +102,7 @@ export default function UserModal({
       phone: '',
       employee_code: '',
       department_id: '',
+      department_ids: [],
       position_ids: [],
       manager_id: '',
       role: '2',
@@ -202,14 +205,35 @@ export default function UserModal({
           </div>
 
           <div className="field">
-            <label>Phòng ban</label>
+            <label>Phòng ban <span style={{ fontWeight: 'normal', color: '#888', fontSize: 12 }}>(phòng chính)</span></label>
             <select
               value={formData.department_id}
-              onChange={(e) => updateField('department_id', e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value
+                setFormData(prev => ({
+                  ...prev,
+                  department_id: val,
+                  // Phòng chính không thể đồng thời là ban kiêm nhiệm → loại khỏi danh sách.
+                  department_ids: prev.department_ids.filter(id => String(id) !== String(val)),
+                }))
+              }}
             >
               <option value="">Chọn phòng ban</option>
               {departments.map(dep => (
                 <option key={dep.id} value={dep.id}>{dep.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label>Quản lý trực tiếp</label>
+            <select
+              value={formData.manager_id}
+              onChange={(e) => updateField('manager_id', e.target.value)}
+            >
+              <option value="">Chọn quản lý</option>
+              {managers.map(m => (
+                <option key={m.id} value={m.id}>{m.full_name}</option>
               ))}
             </select>
           </div>
@@ -244,16 +268,32 @@ export default function UserModal({
           </div>
 
           <div className="field">
-            <label>Quản lý trực tiếp</label>
-            <select
-              value={formData.manager_id}
-              onChange={(e) => updateField('manager_id', e.target.value)}
-            >
-              <option value="">Chọn quản lý</option>
-              {managers.map(m => (
-                <option key={m.id} value={m.id}>{m.full_name}</option>
+            <label>Ban kiêm nhiệm <span style={{ fontWeight: 'normal', color: '#888', fontSize: 12 }}>(thuộc thêm ban khác — chỉ để cấp quyền)</span></label>
+            <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '6px 10px', maxHeight: 160, overflowY: 'auto', background: '#fff' }}>
+              {departments.filter(dep => String(dep.id) !== String(formData.department_id)).length === 0 ? (
+                <span style={{ color: '#9ca3af', fontSize: 13 }}>Không có ban nào khác</span>
+              ) : departments.filter(dep => String(dep.id) !== String(formData.department_id)).map(dep => (
+                <label key={dep.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.department_ids.includes(dep.id)}
+                    onChange={e => {
+                      const next = e.target.checked
+                        ? [...formData.department_ids, dep.id]
+                        : formData.department_ids.filter(id => id !== dep.id)
+                      updateField('department_ids', next)
+                    }}
+                    style={{ width: 14, height: 14, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 13, color: '#374151' }}>{dep.name}</span>
+                </label>
               ))}
-            </select>
+            </div>
+            {formData.department_ids.length > 0 && (
+              <div style={{ marginTop: 4, fontSize: 12, color: '#6b7280' }}>
+                Kiêm nhiệm: {departments.filter(d => formData.department_ids.includes(d.id)).map(d => d.name).join(', ')}
+              </div>
+            )}
           </div>
 
           <div className="field">

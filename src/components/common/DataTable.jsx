@@ -1,4 +1,4 @@
-export default function DataTable({ title, columns, data, emptyMessage = 'Chưa có dữ liệu.', headerActions = null }) {
+export default function DataTable({ title, columns, data, emptyMessage = 'Chưa có dữ liệu.', headerActions = null, onRowDoubleClick = null }) {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
@@ -23,7 +23,12 @@ export default function DataTable({ title, columns, data, emptyMessage = 'Chưa 
               </tr>
             ) : (
               data.map((item) => (
-                <tr key={item.id}>
+                <tr
+                  key={item.id}
+                  onDoubleClick={onRowDoubleClick ? () => onRowDoubleClick(item) : undefined}
+                  style={onRowDoubleClick ? { cursor: 'pointer' } : undefined}
+                  title={onRowDoubleClick ? 'Nhấn đúp để sửa' : undefined}
+                >
                   {columns.map((col, idx) => (
                     <td key={idx}>{col.render ? col.render(item) : item[col.field] || '-'}</td>
                   ))}

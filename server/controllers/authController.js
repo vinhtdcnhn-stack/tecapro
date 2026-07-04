@@ -140,6 +140,7 @@ export async function createUser(req, res) {
     phone,
     employee_code,
     department_id,
+    department_ids,
     position_ids,
     manager_id,
     role
@@ -158,6 +159,10 @@ export async function createUser(req, res) {
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
   const posIds = Array.isArray(position_ids) ? position_ids.map(Number).filter(Boolean) : []
+  // Ban KIÊM NHIỆM (chỉ dùng cho phân quyền) — bỏ phòng chính khỏi danh sách để tránh trùng.
+  const deptIds = Array.isArray(department_ids)
+    ? [...new Set(department_ids.map(Number).filter(Boolean))].filter(d => d !== Number(department_id))
+    : []
 
   // Transaction: tạo user + gán vị trí phải toàn vẹn (cùng thành công hoặc cùng hủy).
   const client = await pool.connect()
@@ -186,6 +191,12 @@ export async function createUser(req, res) {
       await client.query(
         'INSERT INTO app_user_position (user_id, position_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
         [userId, pid]
+      )
+    }
+    for (const did of deptIds) {
+      await client.query(
+        'INSERT INTO app_user_department (user_id, department_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+        [userId, did]
       )
     }
     await client.query('COMMIT')
@@ -332,7 +343,12 @@ export async function getAllUsers(req, res) {
           SELECT json_agg(json_build_object('id', p.id, 'name', p.name) ORDER BY p.id)
           FROM app_user_position up JOIN position p ON p.id = up.position_id
           WHERE up.user_id = u.id
-        ), '[]') AS positions
+        ), '[]') AS positions,
+        COALESCE((
+          SELECT json_agg(json_build_object('id', d2.id, 'name', d2.name) ORDER BY d2.id)
+          FROM app_user_department ud JOIN department d2 ON d2.id = ud.department_id
+          WHERE ud.user_id = u.id
+        ), '[]') AS extra_departments
       FROM app_user u
       LEFT JOIN department d ON d.id = u.department_id
       LEFT JOIN app_user m   ON m.id = u.manager_id
@@ -364,6 +380,11 @@ export async function getUserById(req, res) {
          FROM app_user_position up JOIN position p ON p.id = up.position_id
          WHERE up.user_id = u.id
        ), '[]') AS positions,
+       COALESCE((
+         SELECT json_agg(json_build_object('id', d2.id, 'name', d2.name) ORDER BY d2.id)
+         FROM app_user_department ud JOIN department d2 ON d2.id = ud.department_id
+         WHERE ud.user_id = u.id
+       ), '[]') AS extra_departments,
        EXISTS(SELECT 1 FROM contract_out_member m WHERE m.user_id = u.id) AS has_projects
      FROM app_user u
      LEFT JOIN department d ON d.id = u.department_id
@@ -387,7 +408,7 @@ export async function getUserById(req, res) {
 
 export async function updateUser(req, res) {
   const id = req.params.id
-  const { username, email, password, full_name, phone, employee_code, department_id, position_ids, manager_id, role, telegram_chat_id } = req.body
+  const { username, email, password, full_name, phone, employee_code, department_id, department_ids, position_ids, manager_id, role, telegram_chat_id } = req.body
 
   if (!username || !email) {
     res.status(400).json({ error: 'Tên đăng nhập và email là bắt buộc.' })
@@ -399,6 +420,10 @@ export async function updateUser(req, res) {
   }
 
   const posIds = Array.isArray(position_ids) ? position_ids.map(Number).filter(Boolean) : []
+  // Ban KIÊM NHIỆM (chỉ dùng cho phân quyền) — bỏ phòng chính khỏi danh sách để tránh trùng.
+  const deptIds = Array.isArray(department_ids)
+    ? [...new Set(department_ids.map(Number).filter(Boolean))].filter(d => d !== Number(department_id))
+    : []
   const tgChatId = telegram_chat_id?.trim() || null
 
   // Transaction: cập nhật user + đồng bộ bảng vị trí phải toàn vẹn.
@@ -444,6 +469,14 @@ export async function updateUser(req, res) {
       await client.query(
         'INSERT INTO app_user_position (user_id, position_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
         [id, pid]
+      )
+    }
+    // Ban kiêm nhiệm (chỉ ảnh hưởng phân quyền): xóa cũ, insert mới
+    await client.query('DELETE FROM app_user_department WHERE user_id=$1', [id])
+    for (const did of deptIds) {
+      await client.query(
+        'INSERT INTO app_user_department (user_id, department_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+        [id, did]
       )
     }
 

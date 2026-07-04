@@ -256,6 +256,7 @@ export default function QuantriPage() {
             <>
               <DataTable
                 title="QUẢN LÝ PHÒNG BAN"
+                onRowDoubleClick={canManage ? (d) => { setEditingDept(d); setShowDeptModal(true) } : null}
                 headerActions={canManage && (
                   <button className="add-btn" onClick={() => { setEditingDept(null); setShowDeptModal(true) }}>Thêm phòng ban</button>
                 )}
@@ -285,6 +286,7 @@ export default function QuantriPage() {
             <>
               <DataTable
                 title="QUẢN LÝ VỊ TRÍ"
+                onRowDoubleClick={canManage ? (p) => { setEditingPosition(p); setShowPositionModal(true) } : null}
                 headerActions={canManage && (
                   <button className="add-btn" onClick={() => { setEditingPosition(null); setShowPositionModal(true) }}>Thêm vị trí</button>
                 )}
@@ -352,6 +354,7 @@ export default function QuantriPage() {
             <>
               <DataTable
                 title="QUẢN LÝ LOẠI BIÊN BẢN"
+                onRowDoubleClick={canManage ? (t) => { setEditingBBType(t); setShowBBTypeModal(true) } : null}
                 headerActions={canManage && (
                   <button className="add-btn" onClick={() => { setEditingBBType(null); setShowBBTypeModal(true) }}>Thêm loại biên bản</button>
                 )}

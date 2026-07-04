@@ -34,7 +34,12 @@ export default function SupplierTable({ suppliers, searchTerm, userRole, onEdit 
               </td>
             </tr>
           ) : filtered.map(s => (
-            <tr key={s.id}>
+            <tr
+              key={s.id}
+              onDoubleClick={userRole == 1 ? () => onEdit(s) : undefined}
+              style={userRole == 1 ? { cursor: 'pointer' } : undefined}
+              title={userRole == 1 ? 'Nhấn đúp để sửa' : undefined}
+            >
               <td>{s.code || '-'}</td>
               <td>{s.name}</td>
               <td>{s.tax_code || '-'}</td>

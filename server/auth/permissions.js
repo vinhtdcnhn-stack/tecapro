@@ -43,12 +43,18 @@ async function effectiveOwnRaw(userId) {
     [userId],
   )
   const allow = new Set(rows.map(r => r.key))
-  // Tầng PHÒNG BAN: mọi quyền cấp cho phòng của user (department_permission) → hợp vào allow.
+  // Tầng PHÒNG BAN: mọi quyền cấp cho MỌI phòng user thuộc (department_permission) → hợp vào
+  // allow. "Thuộc phòng" = phòng CHÍNH (app_user.department_id) HỢP các ban KIÊM NHIỆM
+  // (app_user_department) — một người có thể ở nhiều ban.
   const { rows: deptRows } = await pool.query(
-    `SELECT dp.perm_key AS key
+    `WITH user_dept AS (
+       SELECT department_id FROM app_user_department WHERE user_id = $1
+       UNION
+       SELECT department_id FROM app_user WHERE id = $1 AND department_id IS NOT NULL
+     )
+     SELECT dp.perm_key AS key
        FROM department_permission dp
-       JOIN app_user u ON u.department_id = dp.department_id
-      WHERE u.id = $1`,
+       JOIN user_dept ud ON ud.department_id = dp.department_id`,
     [userId],
   )
   for (const r of deptRows) allow.add(r.key)
@@ -77,17 +83,22 @@ async function loadEffectiveByScope(userId, scopeSet) {
   return [...keys]
 }
 
-// Các phòng (department_id) mà user là Trưởng/Phó ban (giữ chức id 3/4, cùng phòng).
+// Các phòng (department_id) mà user là Trưởng/Phó ban (giữ chức id 3/4). Nếu user giữ chức
+// TP/PP thì coi là head của MỌI ban user thuộc (phòng chính + các ban kiêm nhiệm) — kế thừa
+// quyền thành viên của cả các ban đó.
 async function headDeptIds(userId) {
   const { rows } = await pool.query(
-    `SELECT u.department_id AS dept
-       FROM app_user u
-      WHERE u.id = $1 AND u.department_id IS NOT NULL
-        AND (
-          EXISTS (SELECT 1 FROM app_user_position up
-                   WHERE up.user_id = $1 AND up.position_id = ANY($2))
-          OR u.position_id = ANY($2)
-        )`,
+    `WITH user_dept AS (
+       SELECT department_id FROM app_user_department WHERE user_id = $1
+       UNION
+       SELECT department_id FROM app_user WHERE id = $1 AND department_id IS NOT NULL
+     )
+     SELECT ud.department_id AS dept
+       FROM user_dept ud
+      WHERE EXISTS (SELECT 1 FROM app_user_position up
+                     WHERE up.user_id = $1 AND up.position_id = ANY($2))
+         OR EXISTS (SELECT 1 FROM app_user u
+                     WHERE u.id = $1 AND u.position_id = ANY($2))`,
     [userId, HEAD_POSITION_IDS],
   )
   return rows.map(r => r.dept)
@@ -96,7 +107,13 @@ async function headDeptIds(userId) {
 // Hợp quyền RIÊNG hiệu lực (allow trừ deny của từng người) của MỌI thành viên trong các phòng.
 async function deptMembersEffectiveRaw(deptIds) {
   const { rows } = await pool.query(
-    `WITH members AS (SELECT id, position_id FROM app_user WHERE department_id = ANY($1::int[])),
+    `WITH members AS (
+       SELECT id, position_id FROM app_user WHERE department_id = ANY($1::int[])
+       UNION
+       SELECT u.id, u.position_id FROM app_user u
+         JOIN app_user_department ud ON ud.user_id = u.id
+        WHERE ud.department_id = ANY($1::int[])
+     ),
      mpos AS (
        SELECT m.id AS user_id, aup.position_id FROM members m JOIN app_user_position aup ON aup.user_id = m.id
        UNION
