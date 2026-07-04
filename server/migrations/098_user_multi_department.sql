@@ -8,8 +8,9 @@
 --
 -- Engine phân quyền (server/auth/permissions.js) coi user "thuộc phòng D" nếu
 --   D = app_user.department_id  HOẶC  (user_id, D) ∈ app_user_department.
--- → hợp thêm department_permission của MỌI ban, và nếu là TP/PP thì kế thừa quyền thành
---   viên của MỌI ban user thuộc.
+-- → hợp thêm department_permission của MỌI ban. Riêng KẾ THỪA TP/PP (thừa hưởng quyền
+--   thành viên phòng) CHỈ áp cho PHÒNG CHÍNH (app_user.department_id) — các ban kiêm
+--   nhiệm KHÔNG được kế thừa quyền thành viên (xem headDeptIds trong permissions.js).
 --
 -- CHỈ tạo CẤU TRÚC. CẦN ÁP CẢ LOCAL LẪN VPS. Idempotent.
 

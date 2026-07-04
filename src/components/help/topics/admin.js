@@ -18,7 +18,7 @@ export const ADMIN_GROUP = {
             'Sửa nhanh: NHẤN ĐÚP (double click) vào một dòng để mở ngay cửa sổ sửa người đó — không cần bấm nút "Sửa".',
             'Một người có thể giữ NHIỀU chức danh cùng lúc (ví dụ vừa Trưởng phòng vừa PM).',
             'Một người có thể thuộc NHIỀU ban: chọn "Phòng ban" là phòng CHÍNH, rồi tích thêm ở ô "Ban kiêm nhiệm" nếu người đó còn thuộc ban khác. Trong danh sách người dùng, cột "Phòng ban" hiện phòng chính kèm chú thích "+ kiêm nhiệm ...".',
-            'Ban kiêm nhiệm CHỈ dùng để CẤP QUYỀN: người đó nhận thêm quyền của ban kia; nếu là Trưởng/Phó ban thì kế thừa quyền thành viên của cả các ban đó. Riêng các module theo phòng (Công việc phòng, Dashboard phòng, Đấu thầu) vẫn tính theo phòng CHÍNH.',
+            'Ban kiêm nhiệm CHỈ dùng để CẤP QUYỀN: người đó nhận thêm các quyền được cấp trực tiếp cho ban kia. LƯU Ý: nếu là Trưởng/Phó ban thì chỉ kế thừa quyền thành viên của PHÒNG CHÍNH — các ban kiêm nhiệm KHÔNG kế thừa quyền thành viên. Riêng các module theo phòng (Công việc phòng, Dashboard phòng, Đấu thầu) vẫn tính theo phòng CHÍNH.',
             'Muốn người dùng nhận thông báo Telegram: điền mã Telegram (chat id) vào hồ sơ của họ.',
           ],
         },

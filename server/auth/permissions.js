@@ -83,22 +83,19 @@ async function loadEffectiveByScope(userId, scopeSet) {
   return [...keys]
 }
 
-// Các phòng (department_id) mà user là Trưởng/Phó ban (giữ chức id 3/4). Nếu user giữ chức
-// TP/PP thì coi là head của MỌI ban user thuộc (phòng chính + các ban kiêm nhiệm) — kế thừa
-// quyền thành viên của cả các ban đó.
+// Phòng (department_id) mà user là Trưởng/Phó ban (giữ chức id 3/4). CHỈ kế thừa theo
+// PHÒNG CHÍNH (app_user.department_id) — nếu user giữ chức TP/PP thì kế thừa quyền thành
+// viên của ĐÚNG phòng chính. Các ban KIÊM NHIỆM (app_user_department) KHÔNG được kế thừa
+// (dù ở đó user cũng là TP/PP), để tránh gom nhầm quyền của thành viên các ban kiêm nhiệm.
+// (Tầng department_permission cấp trực tiếp cho ban vẫn hợp từ mọi ban — xem effectiveOwnRaw.)
 async function headDeptIds(userId) {
   const { rows } = await pool.query(
-    `WITH user_dept AS (
-       SELECT department_id FROM app_user_department WHERE user_id = $1
-       UNION
-       SELECT department_id FROM app_user WHERE id = $1 AND department_id IS NOT NULL
-     )
-     SELECT ud.department_id AS dept
-       FROM user_dept ud
-      WHERE EXISTS (SELECT 1 FROM app_user_position up
-                     WHERE up.user_id = $1 AND up.position_id = ANY($2))
-         OR EXISTS (SELECT 1 FROM app_user u
-                     WHERE u.id = $1 AND u.position_id = ANY($2))`,
+    `SELECT u.department_id AS dept
+       FROM app_user u
+      WHERE u.id = $1 AND u.department_id IS NOT NULL
+        AND (u.position_id = ANY($2)
+             OR EXISTS (SELECT 1 FROM app_user_position up
+                         WHERE up.user_id = $1 AND up.position_id = ANY($2)))`,
     [userId, HEAD_POSITION_IDS],
   )
   return rows.map(r => r.dept)
