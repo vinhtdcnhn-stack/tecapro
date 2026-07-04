@@ -211,11 +211,11 @@ export default function QuantriPage() {
           {section === 'users' && (
             <>
               <h2 className="section-title">QUẢN LÝ NGƯỜI DÙNG</h2>
-              <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+              <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 {canManage && (
                   <button className="add-btn" onClick={() => setShowAddModal(true)}>Thêm người dùng</button>
                 )}
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <select
                     value={departmentFilter}
                     onChange={(e) => setDepartmentFilter(e.target.value)}
@@ -315,7 +315,7 @@ export default function QuantriPage() {
           {section === 'customers' && (
             <>
               <h2 className="section-title">QUẢN LÝ KHÁCH HÀNG</h2>
-              <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 {canManage && (
                   <button className="add-btn" onClick={() => setShowAddCustomerModal(true)}>Thêm khách hàng</button>
                 )}
@@ -334,7 +334,7 @@ export default function QuantriPage() {
           {section === 'suppliers' && (
             <>
               <h2 className="section-title">QUẢN LÝ NHÀ CUNG CẤP</h2>
-              <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="content-header" style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 {canManage && (
                   <button className="add-btn" onClick={() => setShowAddSupplierModal(true)}>Thêm nhà cung cấp</button>
                 )}

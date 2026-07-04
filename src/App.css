@@ -1518,11 +1518,6 @@ body.dw-page-alert .brand-logo {
     padding: 0.65rem 1rem;
   }
 
-  /* Trên mobile chỉ giữ Trang chủ + Tra cứu bảo hành; ẩn các mục desktop-only */
-  .menu-item--desktop-only {
-    display: none;
-  }
-
   /* Dropdown trên mobile: chiếm hết hàng, panel xổ INLINE (không nổi tuyệt đối) */
   .menu-dropdown { display: flex; flex-direction: column; width: 100%; }
   .menu-dropdown > .menu-item { width: 100%; text-align: left; }
@@ -1562,17 +1557,39 @@ body.dw-page-alert .brand-logo {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
+  /* Mobile: sidebar quản trị thành thanh chip cuộn ngang (mỗi danh mục 1 hàng),
+     gọn để không chiếm nửa màn hình như kiểu wrap cũ. */
   .admin-sidebar {
     width: 100%;
+    padding: 10px 12px;
+  }
+  .admin-sidebar-section {
+    margin-bottom: 10px;
+  }
+  .admin-sidebar-category {
+    padding: 4px 2px;
+    margin-bottom: 6px;
+    font-size: 12px;
   }
   .admin-sidebar-items {
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 4px;
   }
   .admin-sidebar-item {
-    flex: 1 1 140px;
+    flex: 0 0 auto;
     text-align: center;
-    font-size: 12px;
+    font-size: 13px;
+    padding: 9px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .admin-sidebar-item.active {
+    border-color: transparent;
   }
 
   /* Contract management body */

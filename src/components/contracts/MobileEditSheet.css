@@ -71,6 +71,27 @@
 .mcard-meta { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #6b7280; }
 .mcard-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; }
 
+/* Thẻ chỉ để xem (không mở modal): bỏ con trỏ tay */
+.mcard--static { cursor: default; }
+.mcard--static:active { background: #fff; }
+
+/* Nhãn nhỏ cạnh tiêu đề thẻ (vd vai trò, trạng thái) */
+.mcard-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; line-height: 1.4;
+  background: #eef2ff; color: #4338ca; flex-shrink: 0;
+}
+.mcard-badge.is-admin { background: #dcfce7; color: #15803d; }
+.mcard-badge.is-muted { background: #f3f4f6; color: #6b7280; }
+.mcard-badge.is-warn  { background: #fef3c7; color: #b45309; }
+.mcard-badge.is-danger { background: #fee2e2; color: #b91c1c; }
+
+/* Thông báo rỗng của danh sách thẻ */
+.mcards-empty {
+  text-align: center; color: #6b7280; padding: 28px 12px; font-size: 14px;
+}
+
 .mcard-add {
   border: 1px dashed #86efac; color: #15803d; background: #f0fdf4;
   border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600;

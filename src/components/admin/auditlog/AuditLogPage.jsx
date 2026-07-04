@@ -4,6 +4,7 @@ import { fetchChanges, fetchOptions } from './auditApi'
 import { tableLabel, fmtDateTime, OP_LABELS, OP_COLORS } from './auditLabels'
 import AuditFilters from './AuditFilters'
 import AuditDiffTable from './AuditDiffTable'
+import useIsMobile from '../../contracts/useIsMobile'
 import './audit.css'
 
 const PAGE_SIZE = 50
@@ -11,6 +12,7 @@ const EMPTY_FILTERS = { q: '', tableName: '', actorId: '', op: '', from: '', to:
 
 // Trang admin "Nhật ký thay đổi": tra cứu lịch sử sửa đổi của module hợp đồng.
 export default function AuditLogPage() {
+  const isMobile = useIsMobile()
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [page, setPage] = useState(1)
   const [items, setItems] = useState([])
@@ -70,6 +72,38 @@ export default function AuditLogPage() {
 
       {error && <div style={{ color: '#c00', marginBottom: 10 }}>{error}</div>}
 
+      {isMobile ? (
+        <div className="mcards">
+          {items.length === 0 && !loading ? (
+            <div className="mcards-empty">Chưa có thay đổi nào.</div>
+          ) : items.map(it => {
+            const open = expanded.has(it.id)
+            return (
+              <div key={it.id} className="mcard" onClick={() => toggle(it.id)}>
+                <div className="mcard-head">
+                  <span style={{ fontWeight: 700, color: OP_COLORS[it.op], fontSize: 12 }}>{OP_LABELS[it.op] || it.op}</span>
+                  <span className="mcard-title">{tableLabel(it.table_name)} {it.row_id != null && <span style={{ color: '#999' }}>#{it.row_id}</span>}</span>
+                  <span className="mcard-amount" style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{open ? '▾' : '▸'}</span>
+                </div>
+                <div className="mcard-meta">
+                  <span>{fmtDateTime(it.at)}</span>
+                  <span>{it.actor_name || it.actor_email || '(hệ thống)'}</span>
+                  {it.contract_out_id && (
+                    <span onClick={e => e.stopPropagation()}>
+                      <Link to={`/qlda/${it.contract_out_id}`}>{it.contract_no || `HĐ #${it.contract_out_id}`}</Link>
+                    </span>
+                  )}
+                </div>
+                {open && (
+                  <div style={{ marginTop: 8, overflowX: 'auto' }} onClick={e => e.stopPropagation()}>
+                    <AuditDiffTable row={it} />
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
       <div className="content-scrollable">
         <div className="table-wrapper">
           <table className="user-table audit-table">
@@ -103,6 +137,7 @@ export default function AuditLogPage() {
           </table>
         </div>
       </div>
+      )}
 
       <div style={{ textAlign: 'center', marginTop: 12 }}>
         {hasMore ? (

@@ -24,7 +24,7 @@ const MENUS = [
   },
   { label: 'Đề xuất',          path: '/de-xuat', perm: 'module.approvals.view' },
   { label: 'Tra cứu bảo hành', path: '/tracuu', perm: 'module.warranty_lookup.view' },
-  { label: 'Hệ thống', path: '/quantri', desktopOnly: true, perm: 'module.system.view' },
+  { label: 'Hệ thống', path: '/quantri', perm: 'module.system.view' },
 ]
 
 export default function Header({ onChangePassword, inboxCount = 0 }) {
@@ -107,7 +107,7 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
           <nav ref={navRef} className={`menu${mobileMenuOpen ? ' menu--open' : ''}`} aria-label="Chính">
             {menus.map((m) => (
               m.children ? (
-                <div key={m.label} className={`menu-dropdown${openDropdown === m.label ? ' open' : ''} ${m.desktopOnly ? 'menu-item--desktop-only' : ''}`}>
+                <div key={m.label} className={`menu-dropdown${openDropdown === m.label ? ' open' : ''}`}>
                   <button
                     type="button"
                     className={`menu-item ${isActive(m) ? 'is-active' : ''}`}
@@ -134,7 +134,7 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
                 <button
                   key={m.label}
                   type="button"
-                  className={`menu-item ${isActive(m) ? 'is-active' : ''} ${m.desktopOnly ? 'menu-item--desktop-only' : ''}`}
+                  className={`menu-item ${isActive(m) ? 'is-active' : ''}`}
                   onClick={() => handleMenuClick(m)}
                 >
                   {m.label}

@@ -1,4 +1,8 @@
+import useIsMobile from '../contracts/useIsMobile'
+import MobileCardList from '../common/MobileCardList'
+
 export default function SupplierTable({ suppliers, searchTerm, userRole, onEdit }) {
+  const isMobile = useIsMobile()
   const filtered = suppliers.filter(s => {
     const term = (searchTerm || '').toLowerCase()
     return (
@@ -10,6 +14,28 @@ export default function SupplierTable({ suppliers, searchTerm, userRole, onEdit 
       s.email?.toLowerCase().includes(term)
     )
   })
+
+  if (isMobile) {
+    return (
+      <MobileCardList
+        items={filtered}
+        emptyText="Không tìm thấy kết quả nào phù hợp."
+        onCardClick={userRole == 1 ? onEdit : undefined}
+        audit={{ table: 'supplier', id: (s) => s.id }}
+        title={(s) => s.name}
+        badges={(s) => [s.is_active
+          ? { text: 'Hoạt động', cls: 'is-admin' }
+          : { text: 'Ngừng', cls: 'is-danger' }]}
+        meta={(s) => [
+          s.code ? `Mã: ${s.code}` : null,
+          s.tax_code ? `MST: ${s.tax_code}` : null,
+          s.contact_person ? `LH: ${s.contact_person}` : null,
+          s.phone ? `☎ ${s.phone}` : null,
+          s.email || null,
+        ]}
+      />
+    )
+  }
 
   return (
     <div className="table-wrapper">

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTenders, qk } from '../../lib/queries'
 import { prefetchTender } from '../../lib/idlePrefetch'
 import { useCopyMenu } from '../common/useCopyMenu'
+import useIsMobile from '../contracts/useIsMobile'
 import TenderModal from './TenderModal'
 import { exportTenders } from './tenderExport'
 import {
@@ -17,6 +18,7 @@ import {
 // Trưởng phòng (isHead) phân công người làm thầu/AM ngay trong form tạo/sửa.
 export default function TenderList({ mode = 'all', canCreate = true, isHead = false, members = [] }) {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const queryClient = useQueryClient()
   const [modal, setModal] = useState(null)   // null | { } (tender being edited) | 'new'
   const [q, setQ] = useState('')
@@ -91,6 +93,36 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
         <p className="dash-empty">Đang tải…</p>
       ) : !filtered.length ? (
         <p className="dash-empty">Chưa có gói thầu nào.</p>
+      ) : isMobile ? (
+        <div className="mcards">
+          {filtered.map((t, i) => {
+            const sc = statusColor(t.workflow_status)
+            const bc = bidStatusColor(t.bid_status)
+            const rc = resultColor(t.result)
+            const d = daysUntil(t.submit_date)
+            const due = d != null && d <= 3 && !t.result
+            return (
+              <div key={t.id} {...getRowProps(t)} className="mcard" onClick={() => open(t)}>
+                <div className="mcard-head">
+                  <span className="mcard-title">{i + 1}. {t.package_name}{t.package_code ? ` (${t.package_code})` : ''}</span>
+                  {t.estimate != null && <span className="mcard-amount">{fmtAmount(t.estimate, t.currency_code)}</span>}
+                </div>
+                <div className="mcard-meta">
+                  {t.investor && <span>{t.investor}</span>}
+                  {t.submit_date && <span className={due ? 'tender-due' : ''}>Nộp: {fmtDate(t.submit_date)}{due ? ' ⚠' : ''}</span>}
+                  {t.field && <span>{t.field}</span>}
+                  <span>Người làm: {t.bid_maker_name || 'Chưa giao'}</span>
+                  {t.am_name && <span>AM: {t.am_name}</span>}
+                </div>
+                <div className="mcard-meta">
+                  <span className="tender-badge" style={{ background: sc.bg, color: sc.fg }}>{t.workflow_status}</span>
+                  {t.bid_status && <span className="tender-badge" style={{ background: bc.bg, color: bc.fg }}>{t.bid_status}</span>}
+                  {rc && <span className="tender-badge" style={{ background: rc.bg, color: rc.fg }}>{t.result}</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       ) : (
         <div className="tender-table-wrap">
           <table className="tender-table">

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API_BASE as API } from '../../config/api'
+import useIsMobile from '../contracts/useIsMobile'
+import MobileCardList from '../common/MobileCardList'
 
 const PAGE_SIZE = 50
 
@@ -23,6 +25,7 @@ function plainText(s) {
 
 // Nhật ký gửi Telegram (chỉ admin). Tải dần theo trang, có nút làm mới.
 export default function TelegramLogPanel() {
+  const isMobile = useIsMobile()
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -69,6 +72,22 @@ export default function TelegramLogPanel() {
 
       {error && <div style={{ color: '#c00', marginBottom: '10px' }}>{error}</div>}
 
+      {isMobile ? (
+        <MobileCardList
+          items={items}
+          emptyText={loading ? 'Đang tải…' : 'Chưa có nhật ký nào.'}
+          title={(it) => it.user_name || it.user_email || '-'}
+          value={(it) => <span style={{ fontSize: 11, color: '#888', fontWeight: 500 }}>{fmtDateTime(it.created_at)}</span>}
+          badges={(it) => [it.ok
+            ? { text: '✅ OK', cls: 'is-admin' }
+            : { text: '❌ Lỗi', cls: 'is-danger' }]}
+          meta={(it) => [
+            it.chat_id ? `Chat: ${it.chat_id}` : null,
+            plainText(it.message),
+            it.error ? `Lỗi: ${it.error}` : null,
+          ]}
+        />
+      ) : (
       <div className="content-scrollable">
         <div className="table-wrapper">
         <table className="user-table">
@@ -111,6 +130,7 @@ export default function TelegramLogPanel() {
         </table>
         </div>
       </div>
+      )}
 
       <div style={{ textAlign: 'center', marginTop: '12px' }}>
         {hasMore ? (

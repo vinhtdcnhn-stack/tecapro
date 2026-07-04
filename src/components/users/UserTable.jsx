@@ -1,4 +1,8 @@
+import useIsMobile from '../contracts/useIsMobile'
+import MobileCardList from '../common/MobileCardList'
+
 export default function UserTable({ users, searchTerm, departmentFilter, roleFilter, userRole, onEdit }) {
+  const isMobile = useIsMobile()
   const filteredUsers = users.filter(u => {
     if (departmentFilter) {
       // Khớp cả phòng CHÍNH lẫn ban KIÊM NHIỆM — lọc "Ban X" ra cả người kiêm nhiệm Ban X.
@@ -19,6 +23,35 @@ export default function UserTable({ users, searchTerm, departmentFilter, roleFil
       (Array.isArray(u.extra_departments) && u.extra_departments.some(d => d.name?.toLowerCase().includes(term)))
     )
   })
+
+  const extraDeptText = (u) => (
+    Array.isArray(u.extra_departments) && u.extra_departments.length > 0
+      ? ' + kiêm nhiệm ' + u.extra_departments.map(d => d.name).join(', ')
+      : ''
+  )
+
+  if (isMobile) {
+    return (
+      <MobileCardList
+        items={filteredUsers}
+        emptyText="Không tìm thấy kết quả nào phù hợp."
+        onCardClick={userRole == 1 ? onEdit : undefined}
+        audit={{ table: 'app_user', id: (u) => u.id }}
+        title={(u) => u.full_name}
+        badges={(u) => [
+          Number(u.role) === 1
+            ? { text: 'Admin', cls: 'is-admin' }
+            : { text: 'User', cls: 'is-muted' },
+        ]}
+        meta={(u) => [
+          `${u.department_name || '-'}${extraDeptText(u)}`,
+          u.phone ? `☎ ${u.phone}` : null,
+          u.telegram_chat_id ? `TG: ${u.telegram_chat_id}` : null,
+          u.manager_name ? `QL: ${u.manager_name}` : null,
+        ]}
+      />
+    )
+  }
 
   return (
     <div className="table-wrapper">

@@ -28,6 +28,17 @@
   --chip-text: #166534;       /* chữ chip (green-800) */
 }
 
+/* ── Lưới an toàn mobile ─────────────────────────────────────────────────────
+   Không để một bảng/phần tử lỡ rộng đẩy cả trang trượt ngang trên điện thoại.
+   Bảng rộng vẫn cuộn ngang TRONG vùng riêng của nó (.table-wrapper /
+   .content-scrollable), chỉ chặn trượt ở cấp trang. */
+@media (max-width: 768px) {
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
+
 /* Custom styles for Contract List Page */
 @layer components {
   .stat-card {

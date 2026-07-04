@@ -60,7 +60,9 @@ export const GENERAL_GROUP = {
           heading: 'Trên điện thoại',
           items: [
             'Menu thu gọn vào nút ☰ ở góc phải trên — bấm để mở danh sách mục.',
+            'Toàn bộ tính năng đều dùng được trên điện thoại, kể cả mục "Hệ thống" (Quản trị: người dùng, phòng ban, khách hàng, phân quyền, nhật ký…).',
             'Các bảng dữ liệu chuyển thành danh sách thẻ, mỗi thẻ là một dòng. Chạm vào thẻ để xem/sửa.',
+            'Trong mục "Hệ thống", dải chọn nhóm chức năng (Quản lý người dùng, Phân quyền…) cuộn NGANG — vuốt trái/phải để thấy thêm.',
           ],
         },
       ],

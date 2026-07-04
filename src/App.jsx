@@ -37,8 +37,12 @@ const PRELOAD_ROUTES = [
 ]
 
 function RequireAuth({ children }) {
-  const { user } = useAuth()
+  const { user, authLoading } = useAuth()
   const location = useLocation()
+  // Khi tải cứng (reload/bookmark/link trực tiếp) một route cần đăng nhập, phiên còn đang
+  // khôi phục qua /api/auth/me (authLoading). Chờ xong rồi mới quyết định — nếu không sẽ
+  // đá về /login oan dù cookie hợp lệ (hay gặp khi mở thẳng link Hệ thống trên mobile).
+  if (authLoading) return <div className="page" style={{ padding: 24, color: '#6b7280' }}>Đang tải…</div>
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />
   return children
 }
