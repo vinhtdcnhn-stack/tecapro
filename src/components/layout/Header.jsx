@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { usePermission } from '../../hooks/usePermission'
-import { parseDeepLink } from '../../components/common/deepLink'
 import { useHomeDashboards } from '../../lib/useHomeDashboards'
+import HelpPanel from '../help/HelpPanel'
+import { resolveHelpTarget } from '../help/helpContext'
 import DashSwitcher from '../../pages/DashSwitcher'
 import { getBrand } from '../../config/brand'
 import fallbackLogo from '../../assets/tecapro-logo.png'
@@ -32,10 +33,9 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState(null)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchText, setSearchText] = useState('')
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [helpTarget, setHelpTarget] = useState(null)
   const navRef = useRef(null)
-  const searchRef = useRef(null)
 
   // Nút đổi bảng điều khiển trang chủ — trên mobile thay cho ô tra cứu (ẩn trên mobile).
   // Chỉ hiện ở trang chủ vì các bảng điều khiển là khái niệm của trang chủ.
@@ -52,16 +52,6 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [openDropdown])
-
-  // Đóng ô tra cứu công việc khi bấm ra ngoài hoặc nhấn Esc.
-  useEffect(() => {
-    if (!searchOpen) return
-    const onDocClick = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setSearchOpen(false) }
-    const onKey = (e) => { if (e.key === 'Escape') setSearchOpen(false) }
-    document.addEventListener('mousedown', onDocClick)
-    document.addEventListener('keydown', onKey)
-    return () => { document.removeEventListener('mousedown', onDocClick); document.removeEventListener('keydown', onKey) }
-  }, [searchOpen])
 
   // Lọc menu theo RBAC lớp A (usePermission, admin fail-open). Mục con "Công việc" gắn
   // perm riêng; dropdown hiện khi có ít nhất một mục con hợp lệ. Mục không khai perm luôn hiện.
@@ -94,20 +84,6 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
     setMobileMenuOpen(false)
     logout()
     navigate('/')
-  }
-
-  // Dán đường dẫn (đã sao chép từ menu "Sao chép thông tin") → nhảy đúng vị trí.
-  function handleTaskSearch(e) {
-    e?.preventDefault()
-    const path = parseDeepLink(searchText)
-    if (!path) {
-      alert('Không nhận dạng được đường dẫn. Hãy dán đúng đoạn đã sao chép (có dòng 🔗).')
-      return
-    }
-    setSearchOpen(false)
-    setSearchText('')
-    setMobileMenuOpen(false)
-    navigate(path)
   }
 
   return (
@@ -187,34 +163,26 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
               <button type="button" className="topbar-btn" onClick={handleLogout}>
                 Đăng xuất
               </button>
-              <div className="topbar-search" ref={searchRef}>
-                <button
-                  type="button"
-                  className="topbar-btn topbar-icon-btn"
-                  title="Tra cứu: dán đường dẫn đã sao chép để nhảy tới đúng vị trí (việc, công nợ, bảo hành...)"
-                  aria-label="Tra cứu theo đường dẫn đã sao chép"
-                  aria-expanded={searchOpen}
-                  onClick={() => setSearchOpen(o => !o)}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.3-4.3"></path>
-                  </svg>
-                </button>
-                {searchOpen && (
-                  <form className="topbar-search-pop" onSubmit={handleTaskSearch}>
-                    <input
-                      type="text"
-                      autoFocus
-                      value={searchText}
-                      onChange={e => setSearchText(e.target.value)}
-                      placeholder="Dán đường dẫn đã sao chép..."
-                      aria-label="Đường dẫn đã sao chép"
-                    />
-                    <button type="submit" className="topbar-search-go">Đi tới</button>
-                  </form>
-                )}
-              </div>
+              <button
+                type="button"
+                className="topbar-btn topbar-icon-btn topbar-help-btn"
+                title="Trợ giúp: hướng dẫn sử dụng & tra cứu nhanh"
+                aria-label="Mở hướng dẫn sử dụng"
+                aria-expanded={helpOpen}
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  // Định vị trang/tab đang đứng để panel mở thẳng tới hướng dẫn tương ứng.
+                  setHelpTarget(resolveHelpTarget(location.pathname, location.search, active))
+                  setHelpOpen(true)
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <path d="M12 17h.01"></path>
+                </svg>
+              </button>
+              {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} target={helpTarget} />}
               {onHome && (
                 <span className="topbar-dash-switch">
                   <DashSwitcher available={available} active={active} onPick={pick} />

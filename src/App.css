@@ -185,60 +185,13 @@
   transform: translateY(0);
 }
 
-/* Nút icon tra cứu công việc + ô dán đường dẫn */
-.topbar-search {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
+/* Nút icon trợ giúp (mở panel hướng dẫn sử dụng — chứa cả ô dán đường dẫn tra cứu) */
 .topbar-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0.4rem;
   line-height: 0;
-}
-.topbar-search-pop {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 60;
-  display: flex;
-  gap: 0.4rem;
-  padding: 0.5rem;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-}
-.topbar-search-pop input {
-  width: 280px;
-  max-width: 60vw;
-  padding: 0.45rem 0.6rem;
-  font-size: 0.9rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  color: #111827;
-  background: #fff;
-}
-.topbar-search-pop input:focus {
-  outline: none;
-  border-color: var(--accent, #16a34a);
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
-}
-.topbar-search-go {
-  flex-shrink: 0;
-  padding: 0.45rem 0.8rem;
-  font-weight: 700;
-  font-size: 0.88rem;
-  color: #fff;
-  background: var(--accent, #16a34a);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.topbar-search-go:hover {
-  filter: brightness(1.05);
 }
 
 /* Nút đổi bảng điều khiển trang chủ trên Header: chỉ dùng trên mobile (thay cho ô tra
@@ -1540,8 +1493,7 @@ body.dw-page-alert .brand-logo {
     margin-left: auto;
   }
 
-  /* Mobile: bỏ ô tra cứu, thay bằng nút đổi bảng điều khiển trang chủ ngay vị trí đó */
-  .topbar-search { display: none; }
+  /* Mobile: hiện thêm nút đổi bảng điều khiển trang chủ cạnh nút trợ giúp */
   .topbar-dash-switch { display: inline-flex; align-items: center; }
   /* Menu xổ canh phải để không tràn ra ngoài mép màn hình */
   .topbar-dash-switch .dash-switcher-menu { left: auto; right: 0; }

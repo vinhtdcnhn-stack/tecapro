@@ -203,6 +203,16 @@ export async function createInvoice(req, res) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    // Mỗi HĐ chỉ được có tối đa 1 đợt nháp (thiếu Số HĐ hoặc Ngày xuất) tại một thời điểm.
+    // Còn đợt nháp thì phải hoàn thiện (điền đủ Số HĐ + Ngày xuất) hoặc xóa trước khi tạo
+    // đợt mới — tránh cùng một mặt hàng bị đưa vào nhiều đợt nháp gây trùng tồn.
+    const { rows: draftRows } = await client.query(
+      `SELECT id FROM contract_out_invoice i
+        WHERE i.contract_out_id = $1 AND NOT (${ISSUED_INVOICE_SQL}) LIMIT 1`, [contractId])
+    if (draftRows.length) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Đang có đợt hóa đơn nháp (chưa đủ Số HĐ + Ngày xuất). Hãy hoàn thiện hoặc xóa đợt nháp đó trước khi tạo đợt mới.' })
+    }
     const vErr = await validateItems(client, contractId, items)
     if (vErr) { await client.query('ROLLBACK'); return res.status(400).json({ error: vErr }) }
     const { rows } = await client.query(

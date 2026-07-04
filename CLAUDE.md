@@ -74,6 +74,24 @@ BOQ amounts (`contract_out_boq.unit_price`, `amount_before_vat`, `amount_after_v
 
 Consequently, the Receivable tab (`ContractReceivableTab`, `ReceivableScheduleSection`, `LinkedPaymentsRow`) must do **all** calculations on the native `amount` values — totals, "% theo HĐ" (`amount / refTotal × 100`), tỷ lệ thu, and the Phải thu/Đã thu/Còn thiếu comparison. The "Quy đổi VNĐ" column (`amount_vnd = amount × exchange_rate`) is a display-only derived value; never drive aggregations or ratios off it.
 
+## User Guide Sync Rule
+
+The app has an in-app user guide (❓ icon in the Header → `HelpPanel`), with content in
+`src/components/help/topics/*` aggregated by `src/components/help/helpTopics.js`
+(`HELP_GROUPS`: group = module area → page = one screen/tab → sections). Groups/pages
+carry `perm` (layer-A permission) so users only see guides for modules they can access.
+
+**Whenever a change touches the UI or a user-facing flow** (new page/tab/button, renamed
+labels, changed steps, changed permissions, removed features), update the matching guide
+content in the same task — grep the old label under `src/components/help/` to find stale
+text. New module → new group in `HELP_GROUPS`. Writing style: step-by-step for complete
+beginners, in Vietnamese; for read-only pages explain what each column/number means.
+
+The ❓ button is context-aware: `src/components/help/helpContext.js` maps the current
+route/tab (URL path + `?tab=`/`?inTab=`, home-dashboard key, `accounting_tab` in
+localStorage) to a guide page id, so the panel opens scrolled to the current screen's
+guide. When adding a page/tab or changing a route, update that map too.
+
 ## File Size Rule
 
 **Any file that exceeds 500 lines must be split.** When writing or editing code causes a file to cross this threshold, proactively break it up before finishing the task. Splitting strategies:

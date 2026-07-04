@@ -10,6 +10,28 @@ import './Accounting.css'
 
 const startOfYear = () => `${new Date().getFullYear()}-01-01`
 
+const LS_KEY = 'invoiceRevenue.range'
+const loadRange = () => {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || {} } catch { return {} }
+}
+
+const pad = (n) => String(n).padStart(2, '0')
+const ymd = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`
+// Khoảng ngày [đầu tháng, cuối tháng] của tháng chứa mốc (year, month 0-based).
+const monthRangeOf = (y, m) => {
+  const first = new Date(y, m, 1)
+  const last = new Date(y, m + 1, 0)
+  return {
+    from: ymd(first.getFullYear(), first.getMonth() + 1, 1),
+    to: ymd(last.getFullYear(), last.getMonth() + 1, last.getDate()),
+  }
+}
+// Khoảng của tháng hiện tại.
+const currentMonthRange = () => {
+  const now = new Date()
+  return monthRangeOf(now.getFullYear(), now.getMonth())
+}
+
 // Text dán chat: một hóa đơn đã xuất.
 function buildCopyText(r) {
   const crumbs = [r.contract_no ? `HĐ ${r.contract_no}` : null, r.project_name, r.customer_name].filter(Boolean)
@@ -20,14 +42,39 @@ function buildCopyText(r) {
 
 // Doanh thu xuất hóa đơn (HĐ bán) theo khoảng ngày do người dùng chọn.
 export default function InvoiceRevenueReportPage() {
-  const [from, setFrom] = useState(startOfYear())
-  const [to, setTo] = useState(todayLocal())
+  const saved = loadRange()
+  const [from, setFrom] = useState(saved.from || startOfYear())
+  const [to, setTo] = useState(saved.to || todayLocal())
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.invoice_no || r.contract_no || 'Hóa đơn',
     (r) => contractPath(r.contract_out_id, { tab: 'contract-invoice' }))
   const goContract = useContractNav()
   const isMobile = useIsMobile()
+
+  // Nhảy tới tháng hiện tại.
+  const goCurrentMonth = () => {
+    const { from: f, to: t } = currentMonthRange()
+    setFrom(f)
+    setTo(t)
+  }
+  // Lùi/tiến một tháng so với khoảng đang chọn (bấm nhiều lần chạy dần).
+  const shiftMonth = (delta) => {
+    const base = from ? new Date(from) : new Date()
+    const { from: f, to: t } = monthRangeOf(base.getFullYear(), base.getMonth() + delta)
+    setFrom(f)
+    setTo(t)
+  }
+  // Không cho sang tháng tương lai: chặn khi tháng đang chọn >= tháng hiện tại.
+  const nextDisabled = useMemo(() => {
+    const base = from ? new Date(from) : new Date()
+    const now = new Date()
+    return base.getFullYear() * 12 + base.getMonth() >= now.getFullYear() * 12 + now.getMonth()
+  }, [from])
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ from, to })) } catch { /* ignore */ }
+  }, [from, to])
 
   useEffect(() => {
     let alive = true
@@ -64,6 +111,9 @@ export default function InvoiceRevenueReportPage() {
         <label className="acc-field">Đến ngày
           <DateInput value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         </label>
+        <button type="button" className="acc-quick-range" onClick={() => shiftMonth(-1)}>Tháng trước</button>
+        <button type="button" className="acc-quick-range" onClick={goCurrentMonth}>Tháng hiện tại</button>
+        <button type="button" className="acc-quick-range" onClick={() => shiftMonth(1)} disabled={nextDisabled}>Tháng sau</button>
         <span className="acc-report-total">
           Tổng doanh thu: <strong style={{ color: 'var(--brand)' }}>{fmtMoney(total)} đ</strong>
           {' '}({rows.length} hóa đơn)

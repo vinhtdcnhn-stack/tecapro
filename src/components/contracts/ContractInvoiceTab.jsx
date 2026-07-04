@@ -70,6 +70,9 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
   // (server getInvoiceSummary cũng bỏ qua đợt nháp nên 3 số Tổng/Đã xuất/Tồn luôn khớp).
   const isIssued = (i) => !!i.invoice_date && !!String(i.invoice_no || '').trim()
   const totalInvoiced = invoices.reduce((s, i) => s + (isIssued(i) ? (parseFloat(i.total_after_vat) || 0) : 0), 0)
+  // Còn đợt nháp (thiếu Số HĐ hoặc Ngày xuất) thì không cho tạo đợt mới — buộc hoàn thiện
+  // hoặc xóa đợt nháp trước (khớp guard ở backend). Tránh trùng mặt hàng giữa các đợt nháp.
+  const hasDraft = invoices.some(i => !isIssued(i))
   // Giá trị tồn phải tính SAU VAT để khớp với 2 card kia (Tổng HĐ + Đã xuất đều sau VAT):
   // Tổng HĐ = Đã xuất + Tồn. unit_price là đơn giá trước VAT nên phải nhân (1 + VAT%).
   const remainValue = summary.reduce((s, r) => {
@@ -173,9 +176,15 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
       <div className="inv-section-head">
         <h3>Các đợt xuất hóa đơn</h3>
         <EditGuard perm="co.invoice.manage">
-          <button className="inv-add" onClick={() => setModal({})}>+ Thêm đợt xuất hóa đơn</button>
+          <button className="inv-add" onClick={() => setModal({})} disabled={hasDraft}
+            title={hasDraft ? 'Đang có đợt nháp chưa đủ Số HĐ + Ngày xuất. Hãy hoàn thiện hoặc xóa đợt nháp trước khi tạo đợt mới.' : ''}>
+            + Thêm đợt xuất hóa đơn
+          </button>
         </EditGuard>
       </div>
+      {hasDraft && (
+        <p className="inv-draft-note">⚠ Đang có đợt hóa đơn nháp (chưa đủ Số HĐ + Ngày xuất). Hãy hoàn thiện hoặc xóa đợt nháp đó trước khi tạo đợt mới.</p>
+      )}
 
       {invoices.length === 0 ? (
         <p className="inv-empty-box">Chưa có đợt xuất hóa đơn nào.</p>
