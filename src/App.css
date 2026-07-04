@@ -271,21 +271,25 @@ body.dw-page-alert .page {
   body.dw-page-alert .page { animation: none; background-color: #fca5a5; }
 }
 
-/* Cảnh báo tương tự cho công việc HỢP ĐỒNG chưa đọc (useLiveAlerts). */
-body.task-page-alert .page {
+/* Cảnh báo tương tự cho công việc HỢP ĐỒNG + ĐẤU THẦU chưa đọc (useLiveAlerts). */
+body.task-page-alert .page,
+body.tender-page-alert .page {
   background-color: #f87171;
   background-image: none;
   animation: dw-page-alert-pulse 1.5s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  body.task-page-alert .page { animation: none; background-color: #fca5a5; }
+  body.task-page-alert .page,
+  body.tender-page-alert .page { animation: none; background-color: #fca5a5; }
 }
 
 /* Logo header NHẤP NHÁY cảnh báo khi có việc chưa đọc — cùng điều kiện với nền đỏ
-   (class task-page-alert / dw-page-alert do useLiveAlerts gắn lên <body>). Nhìn thấy
-   trên mọi trang vì Header luôn hiện; tiêu đề tab cũng nháy khi ở tab khác. */
+   (class task-page-alert / dw-page-alert / tender-page-alert do useLiveAlerts gắn lên
+   <body>). Nhìn thấy trên mọi trang vì Header luôn hiện; tiêu đề tab cũng nháy khi ở tab
+   khác. Đây là cảnh báo chính hiện nay vì nền đỏ bị ô trắng full-bleed che trên mobile. */
 body.task-page-alert .brand-logo,
-body.dw-page-alert .brand-logo {
+body.dw-page-alert .brand-logo,
+body.tender-page-alert .brand-logo {
   animation: logo-alert-blink 1s ease-in-out infinite;
 }
 @keyframes logo-alert-blink {
@@ -294,7 +298,8 @@ body.dw-page-alert .brand-logo {
 }
 @media (prefers-reduced-motion: reduce) {
   body.task-page-alert .brand-logo,
-  body.dw-page-alert .brand-logo { animation: none; opacity: 1; }
+  body.dw-page-alert .brand-logo,
+  body.tender-page-alert .brand-logo { animation: none; opacity: 1; }
 }
 
 /* Trang đăng nhập đứng độc lập (ngoài .shell) nên cần tự cao toàn màn hình
@@ -1544,20 +1549,27 @@ body.dw-page-alert .brand-logo {
     padding: 1rem 1rem calc(64px + env(safe-area-inset-bottom));
   }
 
-  /* Admin */
+  /* Admin: full-bleed trên mobile — ô trắng nội dung tràn sát mép cho rộng màn.
+     Bỏ hẳn padding nền của trang (không còn viền nền xanh quanh ô trắng). Áp cho
+     MỌI trang admin: HĐ bán, Đấu thầu, Hệ thống, Duyệt, Công việc phòng… */
   .admin-page {
-    padding: 12px 16px;
+    padding: 0;
   }
   .admin-layout {
     flex-direction: column;
   }
-  /* Mobile: panel nội dung tự cuộn dọc. Các tab dạng bảng có vùng cuộn riêng nên
-     không đổi; tab chỉ là danh sách thẻ (vd Năng lực) trước đây bị overflow:hidden
-     của .content-area cắt mất phần dưới — giờ cuộn được. overflow-x vẫn hidden. */
+
+  /* .content-area: vùng cuộn dọc + full-bleed (bỏ bo góc/đổ bóng/viền hai bên để
+     không lộ viền nền xanh). Chừa đáy cho BottomNav ngay tại đây. Tab dạng bảng có
+     vùng cuộn riêng nên không đổi; tab danh sách thẻ vẫn cuộn được. */
   .admin-page .content-area {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: calc(64px + env(safe-area-inset-bottom)); /* chừa chỗ cho BottomNav */
+    border-radius: 0;
+    box-shadow: none;
+    border-left: none;
+    border-right: none;
+    padding: 14px 14px calc(64px + env(safe-area-inset-bottom));
   }
   /* Mobile: ẩn hẳn sidebar quản trị — việc chọn chức năng Hệ thống đã do menu bung
      từ ô "Hệ thống ▾" ở thanh đáy (BottomNav) đảm nhiệm, khỏi chiếm chỗ hiển thị. */
@@ -1595,7 +1607,12 @@ body.dw-page-alert .brand-logo {
   }
   .contract-sidebar-mobile-header { display: flex; }
   .contract-management-content {
-    padding: 16px 16px calc(64px + env(safe-area-inset-bottom)); /* chừa chỗ cho BottomNav */
+    /* Full-bleed như các trang admin khác: tràn sát mép, bỏ bo góc/đổ bóng/viền bên */
+    border-radius: 0;
+    box-shadow: none;
+    border-left: none;
+    border-right: none;
+    padding: 14px 14px calc(64px + env(safe-area-inset-bottom)); /* chừa chỗ cho BottomNav */
   }
 
   /* Mobile: ẩn các card thống kê + banner trong tab — chỉ giữ phần sửa */
@@ -1618,9 +1635,16 @@ body.dw-page-alert .brand-logo {
   }
 
   /* Tables: scroll ngang */
-  .table-wrapper,
-  .content-scrollable {
+  .table-wrapper {
     overflow-x: auto;
+  }
+  /* .content-scrollable bọc danh sách thẻ (KH/NCC) trên mobile: bỏ chiều cao cố
+     định + không cắt, để .content-area cuộn hết cả danh sách (trước đây flex:1 +
+     overflow:hidden khiến thẻ tràn ra bị cắt, không kéo xem hết được). */
+  .content-scrollable {
+    flex: 0 0 auto;
+    overflow: visible;
+    min-height: 0;
   }
 
   /* Modals */

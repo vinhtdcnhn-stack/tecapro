@@ -40,6 +40,9 @@ export default function TenderChecklistTimeline({ itemId, item, currentUser, can
     try {
       const r = await fetch(`${API}/tender/checklist/${itemId}/entries`)
       setEntries(r.ok ? await r.json() : [])
+      // Mở/đọc dòng thời gian → server ghi mốc đã đọc; ép long-poll tính lại để badge
+      // "chưa đọc" (icon Trang chủ + logo) tắt ngay, không chờ ~45s.
+      window.dispatchEvent(new Event('tender:refresh-unread'))
     } catch (e) { console.error('load timeline:', e) }
   }, [itemId])
 

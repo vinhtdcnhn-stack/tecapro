@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
+import { userIsHead } from '../middleware/tenderAccess.js'
 
 // Các hàm ĐẾM dùng chung cho cảnh báo/badge — nguồn sự thật duy nhất cho cả endpoint
 // long-poll (liveController) lẫn các endpoint /unread-count cũ (giữ tương thích). Tách
@@ -43,6 +44,27 @@ export async function deptWorkUnread(userId, userRole) {
   return rows[0]?.count || 0
 }
 
+// Số mục dòng thời gian CHƯA ĐỌC trên mọi ĐẦU VIỆC ĐẤU THẦU liên quan. "Liên quan" =
+// người tạo đầu việc / người được giao / người làm thầu gói / Trưởng phòng (thấy hết).
+export async function tenderChecklistUnread(userId, userRole) {
+  const isHead = await userIsHead(userId, userRole)
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS count
+       FROM tender_checklist_entry e
+       JOIN tender_checklist_item i ON i.id = e.item_id
+       JOIN tender tn ON tn.id = i.tender_id AND COALESCE(tn.is_deleted, false) = false
+       LEFT JOIN tender_checklist_read r ON r.item_id = e.item_id AND r.user_id = $1
+      WHERE e.author_id <> $1
+        AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
+        AND ( $2
+              OR i.created_by = $1
+              OR i.assignee_id = $1
+              OR tn.bid_maker_id = $1 )`,
+    [userId, isHead],
+  )
+  return rows[0]?.count || 0
+}
+
 // Số đơn đề xuất đang CHỜ CHÍNH MÌNH duyệt (badge menu "Đề xuất").
 export async function approvalInboxCount(userId) {
   const { rows } = await pool.query(
@@ -64,12 +86,13 @@ export async function approvalInboxCount(userId) {
   return rows[0]?.count || 0
 }
 
-// Gói cả 3 số liệu cảnh báo của một người dùng.
+// Gói cả 4 số liệu cảnh báo của một người dùng.
 export async function liveCountsFor(user) {
-  const [ct, dw, inbox] = await Promise.all([
+  const [ct, dw, tn, inbox] = await Promise.all([
     contractTaskUnread(user.id),
     deptWorkUnread(user.id, user.role),
+    tenderChecklistUnread(user.id, user.role),
     approvalInboxCount(user.id),
   ])
-  return { ct, dw, inbox }
+  return { ct, dw, tn, inbox }
 }

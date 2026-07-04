@@ -23,6 +23,9 @@
     overflow-x: hidden;
     overflow-y: auto;
     max-width: 100%;
+    /* Full-bleed: bỏ hết padding hai bên & phía trên để ô trắng tràn sát mép,
+       không còn viền nền xanh; chỉ chừa chỗ cho BottomNav ở đáy. */
+    padding: 0 0 calc(64px + env(safe-area-inset-bottom));
   }
 }
 

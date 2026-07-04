@@ -7,9 +7,10 @@ import { touch } from '../services/presence.js'
 // phiên. Client sẽ nối lại ngay lập tức → tạo thành long-poll liên tục.
 const HOLD_MS = 45000
 
-const sameCounts = (a, b) => a && b && a.ct === b.ct && a.dw === b.dw && a.inbox === b.inbox
+const sameCounts = (a, b) =>
+  a && b && a.ct === b.ct && a.dw === b.dw && a.tn === b.tn && a.inbox === b.inbox
 
-// GET /api/live/poll?ct=&dw=&inbox=
+// GET /api/live/poll?ct=&dw=&tn=&inbox=
 // Long-poll: trả NGAY nếu số liệu hiện tại khác số liệu client đang giữ (truyền qua query).
 // Nếu chưa đổi → treo cho tới khi có sự kiện bumpLive làm số liệu thay đổi, hoặc hết HOLD_MS.
 export async function pollLive(req, res) {
@@ -19,6 +20,7 @@ export async function pollLive(req, res) {
   const known = {
     ct: Number(req.query.ct) || 0,
     dw: Number(req.query.dw) || 0,
+    tn: Number(req.query.tn) || 0,
     inbox: Number(req.query.inbox) || 0,
   }
 

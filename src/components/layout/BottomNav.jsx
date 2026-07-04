@@ -31,7 +31,7 @@ const IconInbox = () => <Icon><path d="M3 12h5l2 3h4l2-3h5" /><path d="M5 5h14l2
 const IconShield = () => <Icon><path d="M12 3l7 3v6c0 4-3 6.5-7 8-4-1.5-7-4-7-8V6z" /><path d="M9 12l2 2 4-4" /></Icon>
 const IconGear = () => <Icon><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" /></Icon>
 
-export default function BottomNav({ inboxCount = 0 }) {
+export default function BottomNav({ inboxCount = 0, homeUnread = 0 }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { has, isAdmin } = usePermission()
@@ -53,7 +53,7 @@ export default function BottomNav({ inboxCount = 0 }) {
 
   // Danh sách rút gọn (tối đa 5 ô) — chỉ giữ ô người dùng có quyền.
   const items = [
-    { key: 'home', label: 'Trang chủ', Icon: IconHome, show: true,
+    { key: 'home', label: 'Trang chủ', Icon: IconHome, show: true, badge: homeUnread,
       active: path === '/' || path === '/giaoban', onClick: () => go('/') },
     { key: 'co', label: 'Hợp đồng', Icon: IconDoc, show: has('module.contracts.view'),
       active: path.startsWith('/qlda'), onClick: () => go('/qlda') },

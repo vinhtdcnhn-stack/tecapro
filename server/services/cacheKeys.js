@@ -287,6 +287,34 @@ export async function invalidateDashboardsForContractTask(taskId) {
   }
 }
 
+// Tương tự cho ĐẦU VIỆC ĐẤU THẦU. Người thấy việc trên dashboard "Công việc của phòng":
+//   • người được giao (assignee_id)                         → dashboard cá nhân của họ
+//   • trưởng/phó (+admin) phòng người được giao thuộc về     → dashboard "Công việc của phòng"
+// (Người tạo/người làm thầu cũng liên quan cho badge/thông báo, nhưng dashboard phòng chỉ
+//  gom theo assignee; giữ đúng phạm vi dashboard.)
+export async function invalidateDashboardsForTenderItem(itemId) {
+  if (itemId == null) return
+  try {
+    const { rows } = await pool.query(
+      `WITH i AS (
+         SELECT assignee_id FROM tender_checklist_item WHERE id = $1
+       )
+       SELECT assignee_id AS id FROM i WHERE assignee_id IS NOT NULL
+       UNION
+       SELECT u.id
+         FROM app_user u
+         LEFT JOIN app_user_position ap ON ap.user_id = u.id
+        WHERE u.department_id = (SELECT department_id FROM app_user
+                                  WHERE id = (SELECT assignee_id FROM i))
+          AND (ap.position_id = ANY($2::int[]) OR u.role = 1)`,
+      [itemId, MANAGER_POSITION_IDS],
+    )
+    await Promise.all(rows.map((r) => invalidateUserDashboards(r.id)))
+  } catch {
+    // bỏ qua — cache hơi cũ tới khi hết TTL, không được làm hỏng request ghi
+  }
+}
+
 // Tương tự cho VIỆC NỘI BỘ PHÒNG (KT Cơ điện). Người thấy việc:
 //   • người đang được giao (assignment active) → dashboard "Việc của tôi"
 //   • trưởng/phó (+admin) phòng KT Cơ điện      → dashboard "Công việc của phòng"

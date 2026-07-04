@@ -15,30 +15,34 @@ function fmtMoney(n, cur = 'VND') {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(num)
 }
 
-// Gắn unread_count cho các item là công việc HĐ ('task') và việc phòng ('dept_work_task')
-// — để dashboard tô nền hổ phách dòng việc khi có nội dung dòng thời gian chưa đọc
-// (song song chấm chưa đọc trong tab công việc / Gantt). Sửa items tại chỗ.
+// Gắn unread_count cho công việc HĐ ('task'), việc phòng ('dept_work_task') và đầu việc
+// đấu thầu ('tender_checklist') — để dashboard tô nền hổ phách dòng việc khi có nội dung
+// dòng thời gian chưa đọc (song song chấm chưa đọc trong tab). Sửa items tại chỗ.
 export async function attachUnread(items, userId) {
   const taskIds = items.filter(i => i.source_type === 'task').map(i => i.source_id)
   const dwIds   = items.filter(i => i.source_type === 'dept_work_task').map(i => i.source_id)
-  const countUnread = (entryTbl, readTbl, ids) =>
+  const tnIds   = items.filter(i => i.source_type === 'tender_checklist').map(i => i.source_id)
+  // entryTbl/readTbl gắn với cột khóa `col` (task_id với HĐ/phòng, item_id với đấu thầu).
+  const countUnread = (entryTbl, readTbl, col, ids) =>
     ids.length
       ? pool.query(
-          `SELECT e.task_id, COUNT(*)::int AS c
+          `SELECT e.${col} AS k, COUNT(*)::int AS c
              FROM ${entryTbl} e
-             LEFT JOIN ${readTbl} r ON r.task_id = e.task_id AND r.user_id = $1
-            WHERE e.author_id <> $1 AND e.task_id = ANY($2)
+             LEFT JOIN ${readTbl} r ON r.${col} = e.${col} AND r.user_id = $1
+            WHERE e.author_id <> $1 AND e.${col} = ANY($2)
               AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
-            GROUP BY e.task_id`, [userId, ids])
-          .then(r => new Map(r.rows.map(x => [String(x.task_id), x.c])))
+            GROUP BY e.${col}`, [userId, ids])
+          .then(r => new Map(r.rows.map(x => [String(x.k), x.c])))
       : Promise.resolve(new Map())
-  const [ctMap, dwMap] = await Promise.all([
-    countUnread('contract_task_entry', 'contract_task_read', taskIds),
-    countUnread('dept_work_entry', 'dept_work_task_read', dwIds),
+  const [ctMap, dwMap, tnMap] = await Promise.all([
+    countUnread('contract_task_entry', 'contract_task_read', 'task_id', taskIds),
+    countUnread('dept_work_entry', 'dept_work_task_read', 'task_id', dwIds),
+    countUnread('tender_checklist_entry', 'tender_checklist_read', 'item_id', tnIds),
   ])
   items.forEach(i => {
     if (i.source_type === 'task') i.unread_count = ctMap.get(String(i.source_id)) || 0
     else if (i.source_type === 'dept_work_task') i.unread_count = dwMap.get(String(i.source_id)) || 0
+    else if (i.source_type === 'tender_checklist') i.unread_count = tnMap.get(String(i.source_id)) || 0
   })
 }
 

@@ -143,13 +143,19 @@
 
 /* ─── Mobile: bỏ phần đầu + card thống kê, bảng mốc → thẻ xếp dọc vừa màn hình ─── */
 @media (max-width: 768px) {
-  .pm-dashboard { padding: 0.85rem; }
+  /* Bỏ lớp padding thừa: khung trang (.page.dash-page) đã chừa mép rồi */
+  .pm-dashboard { padding: 0; }
 
   /* Ẩn tiêu đề/lời chào + các ô thống kê cho gọn (nút đổi bảng đã chuyển lên Header). */
   .pm-dashboard .dash-welcome,
   .pm-dashboard .pm-stats { display: none; }
 
-  .pm-dashboard .dash-section { padding: 0.85rem; }
+  /* Ô trắng tràn sát mép: bỏ bo góc + đổ bóng để không lộ nền xanh quanh viền */
+  .pm-dashboard .dash-section {
+    padding: 0.85rem;
+    border-radius: 0;
+    box-shadow: none;
+  }
   .pm-dashboard .dash-section-title { margin-bottom: 0; font-size: 0.9rem; }
 
   /* Thanh tiêu đề: tiêu đề + icon lọc trên cùng một dòng */

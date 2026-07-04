@@ -6,6 +6,8 @@ import { pool } from '../db.js'
 import { userIsHead, userIsBidMakerOfItem, DEPT_DAU_THAU } from '../middleware/tenderAccess.js'
 import { safeUploadFilter, UPLOAD_LIMITS, discardUploadedFile } from '../middleware/uploadFilter.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
+import { bumpLive } from '../services/eventBus.js'
+import { invalidateUserDashboards, invalidateDashboardsForTenderItem } from '../services/cacheKeys.js'
 import { canDeleteEntry, ENTRY_DELETE_DENIED } from '../utils/entryDelete.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -124,7 +126,17 @@ async function tenderLabel(tenderId) {
   return rows[0]?.package_name || `#${tenderId}`
 }
 
-// GET /tender/checklist/:itemId/entries — danh sách mục.
+// Ghi mốc đã đọc cho viewer ở một đầu việc (để hết chưa đọc: badge + nền hổ phách).
+async function markRead(itemId, userId) {
+  await pool.query(
+    `INSERT INTO tender_checklist_read (item_id, user_id, last_read_at)
+     VALUES ($1, $2, now())
+     ON CONFLICT (item_id, user_id) DO UPDATE SET last_read_at = now()`,
+    [itemId, userId],
+  )
+}
+
+// GET /tender/checklist/:itemId/entries — danh sách + tự ghi mốc đã đọc.
 export async function getEntries(req, res) {
   const itemId = parseInt(req.params.itemId)
   try {
@@ -139,7 +151,15 @@ export async function getEntries(req, res) {
       [itemId],
     )
     await attachImages(rows)
+    // Ghi mốc đã đọc TRƯỚC khi trả về: client làm mới badge ngay sau khi nhận entries, nên
+    // trạng thái "đã đọc" phải kịp persist để tenderChecklistUnread tính lại đúng. Lỗi ghi
+    // mốc không được chặn việc trả nội dung → nuốt lỗi, chỉ log.
+    if (rows.length) {
+      try { await markRead(itemId, req.user.id) } catch (e) { console.error('tenderChecklist markRead:', e) }
+    }
     res.json(rows)
+    // Đọc xong → làm mới dashboard người xem để hết nền hổ phách (không chặn response).
+    if (rows.length) invalidateUserDashboards(req.user.id)
   } catch (err) {
     console.error('tenderChecklist getEntries:', err)
     res.status(500).json({ error: 'Không thể tải dòng thời gian.' })
@@ -171,6 +191,13 @@ export async function addEntry(req, res) {
     entry.author_name = actor
     entry.images = []
     res.status(201).json(entry)
+
+    // Đánh thức long-poll đang treo: có mục mới → số "chưa đọc" của người liên quan đổi.
+    bumpLive('tender')
+    // Có mục mới → dòng việc chuyển nền hổ phách: làm mới dashboard người liên quan.
+    invalidateDashboardsForTenderItem(itemId)
+    // Tác giả coi như đã đọc (không tự chưa-đọc với chính mình).
+    markRead(itemId, req.user.id).catch(e => console.error('tenderChecklist markRead:', e))
 
     // Báo người liên quan (trừ tác giả).
     const it = await pool.query('SELECT title FROM tender_checklist_item WHERE id = $1', [itemId])
@@ -236,6 +263,7 @@ export async function deleteEntry(req, res) {
     if (!canDeleteEntry(rows[0], req.user)) {
       return res.status(403).json({ error: ENTRY_DELETE_DENIED })
     }
+    const itemId = rows[0].item_id
     await pool.query('DELETE FROM tender_checklist_entry WHERE id = $1', [id])
     // Xóa luôn thư mục ảnh trên đĩa (DB đã CASCADE; defense-in-depth: chỉ trong uploads/tender-checklist-entries).
     const dir = path.resolve(UPLOADS_ROOT, 'tender-checklist-entries', String(id))
@@ -243,6 +271,9 @@ export async function deleteEntry(req, res) {
       fs.rmSync(dir, { recursive: true, force: true })
     }
     res.json({ success: true })
+    // Xóa mục → số chưa đọc của người liên quan có thể đổi → đánh thức long-poll + làm mới dashboard.
+    bumpLive('tender')
+    invalidateDashboardsForTenderItem(itemId)
   } catch (err) {
     console.error('tenderChecklist deleteEntry:', err)
     res.status(500).json({ error: 'Không thể xóa nội dung.' })

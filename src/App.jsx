@@ -56,7 +56,12 @@ function Layout() {
 
   // Long-poll hợp nhất: nền đỏ cảnh báo (việc HĐ + việc phòng) và badge inbox đề xuất,
   // qua MỘT kết nối duy nhất tới server (thay 3 vòng poll định kỳ cũ).
-  const { inbox: inboxCount } = useLiveAlerts(user)
+  const { inbox: inboxCount, ct, dw, tn } = useLiveAlerts(user)
+  // Việc chưa đọc để badge số trên icon Trang chủ (thay cho nền đỏ toàn trang giờ bị ô
+  // trắng full-bleed che). Cùng điều kiện với nền cảnh báo: việc HĐ (mọi user) + việc
+  // phòng (chỉ admin / Ban KT Cơ điện, dept 7) + đầu việc đấu thầu (server tự lọc liên quan).
+  const dwEligible = !!user && (Number(user.role) === 1 || Number(user.department_id) === 7)
+  const homeUnread = (ct || 0) + (dwEligible ? (dw || 0) : 0) + (tn || 0)
 
   // Sau khi đăng nhập, nạp sẵn chunk các trang lúc trình duyệt rảnh → chuyển trang tức thì.
   useEffect(() => { if (user) preloadRoutesOnIdle(PRELOAD_ROUTES) }, [user])
@@ -135,7 +140,7 @@ function Layout() {
         <Outlet />
       </Suspense>
       {/* Thanh điều hướng dưới — chỉ hiện trên mobile (CSS), lối tắt giữa các module. */}
-      {user && <BottomNav inboxCount={inboxCount} />}
+      {user && <BottomNav inboxCount={inboxCount} homeUnread={homeUnread} />}
       {/* Ctrl+Shift+Q: bảng phân quyền cho trang hiện tại (chỉ người có quyền cấu hình). */}
       {user && <PermissionPanel />}
       {/* Ctrl+Shift+H: lịch sử 1 dòng dữ liệu (chỉ admin) — trỏ chuột vào dòng rồi nhấn. */}
