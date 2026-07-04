@@ -94,6 +94,24 @@ export async function cacheDel(...keys) {
   }
 }
 
+// Xóa TOÀN BỘ cache của DB Redis hiện tại (FLUSHDB). Dùng cho nút "Xóa cache" ở trang
+// Chẩn đoán hiệu năng khi cần buộc mọi API đọc lại từ DB. Trả số key đã xóa (ước lượng
+// bằng DBSIZE trước khi flush). Ném lỗi khi cache tắt để controller báo rõ cho admin.
+// Đồng thời CONFIG RESETSTAT để đưa bộ đếm hit/miss (keyspace_hits/misses) về 0 — vì sau
+// khi làm sạch cache, tỷ lệ hit cũ không còn ý nghĩa, đo lại từ đầu cho khớp. RESETSTAT
+// cần quyền admin trên Redis; nếu bị chặn (ACL) thì chỉ bỏ qua bước reset, flush vẫn tính.
+export async function flushCache() {
+  if (!ready()) throw new Error('Cache đang tắt (chưa cấu hình/mất kết nối Redis).')
+  const cleared = await client.dbSize()
+  await client.flushDb()
+  try {
+    await client.sendCommand(['CONFIG', 'RESETSTAT'])
+  } catch (err) {
+    if (DEBUG) logger.debug('[cache] CONFIG RESETSTAT bị chặn (bỏ qua):', err.message)
+  }
+  return cleared
+}
+
 // Thống kê Redis cho trang giám sát hệ thống (chỉ đọc). Trả { ready:false } khi cache tắt/
 // lỗi — KHÔNG ném để endpoint giám sát không vỡ. Parse INFO memory + DBSIZE.
 export async function getCacheStats() {

@@ -1,6 +1,7 @@
 import { pool } from '../db.js'
 import { snapshotHints, resetHints } from '../middleware/cacheHint.js'
-import { isCacheReady } from '../cache.js'
+import { isCacheReady, flushCache } from '../cache.js'
+import { verifyUserPassword } from '../auth/verifyPassword.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Chẩn đoán hiệu năng (CHỈ ADMIN, read-only). Hai lớp:
@@ -21,6 +22,19 @@ export async function getCacheHints(req, res) {
 export function postResetCacheHints(_req, res) {
   resetHints()
   res.json({ ok: true })
+}
+
+// POST /api/admin/cache/flush — XÓA TOÀN BỘ cache Redis (thao tác nhạy cảm). Buộc admin
+// nhập lại mật khẩu của chính mình để xác nhận. Sau khi xóa, mọi API đọc sẽ nạp lại từ DB.
+export async function postFlushCache(req, res) {
+  const ok = await verifyUserPassword(req.user.id, req.body?.password)
+  if (!ok) return res.status(401).json({ error: 'Mật khẩu không đúng.' })
+  try {
+    const cleared = await flushCache()
+    res.json({ ok: true, cleared })
+  } catch (err) {
+    res.status(409).json({ error: err.message || 'Không xóa được cache.' })
+  }
 }
 
 // GET /api/admin/slow-queries?limit=  — top query đọc đắt nhất theo tổng thời gian thực thi.

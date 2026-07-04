@@ -5,6 +5,9 @@ import { promisify } from 'node:util'
 import { pool } from '../db.js'
 import { getCacheStats } from '../cache.js'
 import { onlineUserIds } from '../services/presence.js'
+import { getWeeklyConnPeak } from '../services/dbConnPeak.js'
+import { readEventLoopDelay } from '../services/eventLoopMonitor.js'
+import { getDiskBreakdown } from '../services/diskUsage.js'
 
 const execAsync = promisify(exec)
 
@@ -37,6 +40,18 @@ async function cpuUsagePct() {
   return Math.round((1 - idleDiff / totalDiff) * 1000) / 10
 }
 
+// % CPU của RIÊNG tiến trình Node (khác CPU toàn máy) trong ~150ms, quy theo MỘT nhân.
+// process.cpuUsage() trả micro-giây CPU (user+system) đã dùng; chia cho thời gian trôi.
+async function procCpuPct() {
+  const start = process.cpuUsage()
+  const t0 = Date.now()
+  await sleep(150)
+  const diff = process.cpuUsage(start)          // micro-giây từ mốc start
+  const elapsedMicros = (Date.now() - t0) * 1000
+  if (elapsedMicros <= 0) return null
+  return Math.round(((diff.user + diff.system) / elapsedMicros) * 1000) / 10
+}
+
 // Dung lượng đĩa chứa thư mục làm việc. statfs có trên Node ≥19 (Linux + Windows).
 async function diskInfo() {
   try {
@@ -49,23 +64,38 @@ async function diskInfo() {
   }
 }
 
-// PostgreSQL: phiên bản, kích thước DB, số kết nối theo trạng thái, + tình trạng pool app.
+// PostgreSQL: phiên bản, kích thước DB, số kết nối theo trạng thái, trần max_connections,
+// số phiên "idle in transaction" (transaction rò rỉ), tỷ lệ hit buffer cache, + pool app.
 async function dbInfo() {
   try {
     const { rows } = await pool.query(`
       SELECT
         current_setting('server_version')                                          AS version,
+        current_setting('max_connections')::int                                    AS max_conn,
         pg_database_size(current_database())::bigint                               AS size_bytes,
         (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database())  AS conn_total,
         (SELECT count(*) FROM pg_stat_activity
-           WHERE datname = current_database() AND state = 'active')                 AS conn_active
+           WHERE datname = current_database() AND state = 'active')                 AS conn_active,
+        (SELECT count(*) FROM pg_stat_activity
+           WHERE datname = current_database() AND state = 'idle in transaction')    AS conn_idle_tx,
+        (SELECT CASE WHEN blks_hit + blks_read > 0
+                     THEN round(blks_hit::numeric / (blks_hit + blks_read) * 100, 2)
+                     ELSE NULL END
+           FROM pg_stat_database WHERE datname = current_database())                AS cache_hit_pct
     `)
     const r = rows[0]
     return {
       ok: true,
       version: r.version,
       sizeBytes: Number(r.size_bytes),
-      connections: { total: Number(r.conn_total), active: Number(r.conn_active) },
+      connections: {
+        total: Number(r.conn_total),
+        active: Number(r.conn_active),
+        max: Number(r.max_conn),
+        idleInTx: Number(r.conn_idle_tx),
+      },
+      cacheHitPct: r.cache_hit_pct == null ? null : Number(r.cache_hit_pct),
+      connPeakWeek: getWeeklyConnPeak(),   // đỉnh kết nối 7 ngày (bộ lấy mẫu nền) hoặc null
       pool: { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount },
     }
   } catch (err) {
@@ -180,15 +210,23 @@ export async function getSystemHealth(_req, res) {
   const freeMem = os.freemem()
   const mem = process.memoryUsage()
 
-  // Chạy song song các phần độc lập.
-  const [usagePct, disk, db, app, security] = await Promise.all([
+  // Chạy song song các phần độc lập (procCpuPct cũng ngủ ~150ms, chạy đồng thời).
+  const [usagePct, procCpu, disk, db, app, security] = await Promise.all([
     cpuUsagePct(),
+    procCpuPct(),
     diskInfo(),
     dbInfo(),
     appCounts(),
     securityInfo(),
   ])
   const redis = await getCacheStats()
+  const eventLoopDelay = readEventLoopDelay()   // đọc + reset histogram (đồng bộ, rẻ)
+
+  // Phân rã dung lượng (uploads/backup đo nền, cache 10' — đồng bộ, rẻ) + kích thước DB
+  // (từ db.sizeBytes) để FE tính phần "khác" và vẽ thanh phân đoạn.
+  const diskWithBreakdown = disk
+    ? { ...disk, breakdown: getDiskBreakdown(), dbSizeBytes: db?.ok ? db.sizeBytes : null }
+    : disk
 
   const cpus = os.cpus()
   res.json({
@@ -212,12 +250,14 @@ export async function getSystemHealth(_req, res) {
         usedBytes: totalMem - freeMem,
       },
     },
-    disk,
+    disk: diskWithBreakdown,
     process: {
       uptimeSec: Math.round(process.uptime()),
       rssBytes: mem.rss,
       heapUsedBytes: mem.heapUsed,
       heapTotalBytes: mem.heapTotal,
+      cpuPct: procCpu,                 // % một nhân của riêng tiến trình (null nếu không đo được)
+      eventLoopDelay,                  // { mean, p99, max } ms
       env: process.env.NODE_ENV || 'development',
     },
     db,

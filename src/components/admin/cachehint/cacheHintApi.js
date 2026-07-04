@@ -19,6 +19,18 @@ export async function resetHints() {
   return res.json()
 }
 
+// Xóa toàn bộ cache Redis — thao tác nhạy cảm, cần xác nhận bằng mật khẩu của admin.
+export async function flushCache(password) {
+  const res = await fetch(`${API_BASE}/api/admin/cache/flush`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Không xóa được cache.')
+  return data
+}
+
 // Lớp ②: top query đắt từ pg_stat_statements. { available, rows[] } | { available:false, hint }
 export function fetchSlowQueries(limit = 30) {
   return apiGet(`/admin/slow-queries?limit=${limit}`)

@@ -118,6 +118,44 @@ export const ADMIN_GROUP = {
             'Trang không tự thay đổi gì hệ thống; chỉ là công cụ chẩn đoán.',
           ],
         },
+        {
+          heading: 'Thẻ "Hệ thống CSDL PostgreSQL" — đọc các con số',
+          items: [
+            'Phiên bản, Kích thước DB: thông tin cơ bản của cơ sở dữ liệu.',
+            'Kết nối: "X chạy · Y tổng / Z (%)" — X là số phiên đang chạy lệnh, Y là tổng số phiên đang mở tới DB, Z là giới hạn tối đa (max_connections) và % là Y so với Z. Con số chuyển màu vàng khi vượt 80% và ĐỎ khi vượt 90% — lúc đó cần chú ý vì hết slot kết nối sẽ khiến ứng dụng không vào được DB.',
+            'Lưu ý: "tổng" đếm MỌI phiên nối tới DB (kể cả psql hay tiến trình khác), còn "Pool ứng dụng" bên dưới chỉ đếm riêng kết nối của máy chủ ứng dụng — nên hai số có thể bằng nhau khi ứng dụng là client duy nhất.',
+            'Đỉnh kết nối (7 ngày): giá trị "tổng" CAO NHẤT quan sát được trong 7 ngày gần nhất và thời điểm xảy ra. Hệ thống tự lấy mẫu ngầm mỗi phút (kể cả khi không ai mở màn hình này), nên đây mới là con số dự báo nguy cơ "sắp hết kết nối" — cùng quy tắc màu vàng ≥80%, đỏ ≥90%. Mốc này được giữ trong bộ nhớ và sẽ đặt lại khi máy chủ khởi động lại (ví dụ sau khi cập nhật phần mềm).',
+            'Idle in transaction: số phiên đã mở một giao dịch nhưng đang "treo" không làm gì. Bình thường phải là 0 (màu xanh); nếu > 0 kéo dài (màu vàng) là dấu hiệu giao dịch bị rò rỉ — nó giữ khóa và cản dọn dẹp tự động, là nguyên nhân nghẽn phổ biến.',
+            'Tỷ lệ hit cache: phần trăm dữ liệu được đọc từ bộ nhớ đệm thay vì đọc đĩa. Cao là tốt: xanh khi ≥ 99%, vàng ≥ 95%, đỏ dưới đó (đọc đĩa nhiều = chậm, thường do thiếu RAM). "—" nghĩa là DB chưa có đủ lượt truy vấn để tính.',
+            'Pool ứng dụng: số kết nối do máy chủ ứng dụng đang giữ (mở / rảnh / chờ).',
+          ],
+        },
+        {
+          heading: 'Thẻ "Đĩa" — dung lượng và phân rã',
+          items: [
+            'Thanh trên cùng cho biết đã dùng bao nhiêu trên tổng dung lượng đĩa và còn trống bao nhiêu; đổi màu xanh/vàng/đỏ theo mức dùng (vàng ≥ 70%, đỏ ≥ 90%).',
+            'Phần "Phân rã dung lượng" tách phần đã dùng thành: Tệp đính kèm (thư mục uploads — tài liệu, ảnh người dùng tải lên), Bản sao lưu (các tệp .tar do module Sao lưu/Khôi phục tạo ra, rất dễ phình to), Cơ sở dữ liệu (kích thước PostgreSQL) và Khác/hệ thống (hệ điều hành, log, phần còn lại). "Trống" là chỗ còn lại tới tổng.',
+            'Dùng phần này để biết CHỖ NÀO đang ăn đĩa khi sắp đầy — ví dụ nếu "Bản sao lưu" chiếm quá nhiều thì nên xóa bớt bản .tar cũ trong module Sao lưu/Khôi phục.',
+            'Hai số uploads và bản sao lưu được đo ngầm khoảng 10 phút/lần (quét cả thư mục lớn khá tốn kém nên không đo liên tục); dòng cuối ghi thời điểm đo gần nhất. Lần đầu mới mở có thể hiện "Đang đo…" một lúc.',
+          ],
+        },
+        {
+          heading: 'Thẻ "Tiến trình ứng dụng" — đọc các con số',
+          items: [
+            'Node, Môi trường, Uptime tiến trình: phiên bản Node, chế độ chạy (development/production) và thời gian tiến trình đã chạy.',
+            'RSS, Heap: lượng RAM tiến trình đang chiếm và phần bộ nhớ đối tượng của Node.',
+            'Trễ vòng lặp: mức "kẹt" của vòng lặp sự kiện Node, hiển thị p99 (99% số lần dưới mức này) và đỉnh, tính bằng mili-giây. Đây là chỉ số sức khỏe quan trọng nhất của tiến trình: Node xử lý một luồng, nếu một tác vụ nặng làm vòng lặp trễ thì MỌI yêu cầu đều chậm theo. Xanh khi < 50ms, vàng 50–200ms, ĐỎ ≥ 200ms.',
+            'CPU tiến trình: phần trăm CPU (theo một nhân) mà RIÊNG tiến trình ứng dụng đang dùng — khác với CPU toàn máy ở thẻ "Phần cứng". Xanh < 70%, vàng 70–90%, đỏ ≥ 90%. Cao kéo dài nghĩa là app đang bị nghẽn tính toán.',
+          ],
+        },
+        {
+          heading: 'Xóa cache',
+          items: [
+            'Tại thẻ "Hệ thống Cache" (tab Tổng quan hệ thống) có nút 🗑️ Xóa cache. Bấm để xóa sạch toàn bộ cache Redis khi cần buộc mọi màn hình nạp lại số liệu mới nhất từ cơ sở dữ liệu.',
+            'Đây là thao tác nhạy cảm nên hệ thống yêu cầu nhập lại MẬT KHẨU của bạn để xác nhận. Nhập sai mật khẩu sẽ không xóa.',
+            'Sau khi xóa xong, ô "Số key" và "Tỷ lệ hit" đều về 0 (bộ đếm hit/miss cũng được đặt lại để đo lại từ đầu), và các trang có thể chậm hơn một chút ở lần tải đầu (vì phải đọc lại từ DB rồi cache lại). Nút chỉ hiện khi cache đang bật.',
+          ],
+        },
       ],
     },
   ],

@@ -12,6 +12,7 @@ import { logger } from './utils/logger.js'
 import { startReminderScheduler } from './services/reminderScheduler.js'
 import { startTaskAutoStartScheduler } from './services/taskAutoStart.js'
 import { startOverdueAlertScheduler } from './services/overdueDebtScheduler.js'
+import { startDbConnPeakSampler } from './services/dbConnPeak.js'
 import { purgeOldTelegramLogs } from './controllers/telegramLogController.js'
 import { initPermissions } from './auth/seedPermissions.js'
 
@@ -140,6 +141,8 @@ app.listen(port, host, () => {
   startTaskAutoStartScheduler()
   // Cảnh báo nợ quá hạn leo thang (tự bỏ qua nếu không cấu hình Telegram).
   startOverdueAlertScheduler()
+  // Lấy mẫu nền đỉnh kết nối PostgreSQL trong tuần (hiển thị ở tab Tổng quan hệ thống).
+  startDbConnPeakSampler()
   // Dọn nhật ký gửi Telegram quá 3 ngày: chạy ngay khi khởi động + mỗi 6 giờ.
   purgeOldTelegramLogs()
   setInterval(purgeOldTelegramLogs, 6 * 60 * 60 * 1000).unref()
