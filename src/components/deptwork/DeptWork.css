@@ -260,19 +260,31 @@
   .dw-drawer-panel { width: 100%; max-width: 100%; }
   .dw-log-add { margin-left: 0; }
 
-  /* Toolbar gọn cho mobile: 4 bộ lọc xếp lưới 2×2 đều nhau, nút thêm full-width. */
+  /* Mobile: ẩn tiêu đề đầy đủ (dùng "CÔNG VIỆC" gọn trong toolbar), nút thêm full-width. */
+  .dw-board-title { display: none; }
   .dw-toolbar { gap: 8px; }
-  .dw-filters {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
+  /* Dòng trên cùng: "CÔNG VIỆC" + ô chọn bộ lọc nằm cạnh nhau cho gọn */
+  .dw-mobile-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     width: 100%;
   }
-  .dw-filter-btn {
-    padding: 8px 6px;
-    font-size: 12px;
-    text-align: center;
+  .dw-mobile-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
     white-space: nowrap;
+  }
+  .dw-filter-select {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
   }
   .dw-toolbar .add-btn { width: 100%; }
 }

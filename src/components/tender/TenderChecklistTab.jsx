@@ -4,6 +4,7 @@ import { apiGet } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { fmtDate } from './tenderUtils'
 import ChecklistItemModal from './ChecklistItemModal'
+import TenderChecklistItemDrawer from './TenderChecklistItemDrawer'
 import ContractDocumentsTab from '../contracts/ContractDocumentsTab'
 import { ContractPermProvider } from '../../context/ContractPermContext'
 
@@ -40,6 +41,7 @@ export default function TenderChecklistTab({ tenderId, canEdit }) {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState({})
   const [modal, setModal] = useState(null)   // { item } | { parentId } | 'new'
+  const [detail, setDetail] = useState(null) // đầu việc đang mở drawer chi tiết + dòng thời gian
 
   const load = useCallback(() => {
     setLoading(true)
@@ -50,6 +52,9 @@ export default function TenderChecklistTab({ tenderId, canEdit }) {
   }, [tenderId])
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() async: setState sau await
   useEffect(load, [load])
+
+  // Đầu việc đang mở drawer, lấy bản MỚI NHẤT từ danh sách (đổi trạng thái/làm lại… phản ánh ngay).
+  const detailItem = detail ? (items.find(i => i.id === detail.id) || detail) : null
 
   const tree = useMemo(() => buildTree(items), [items])
   const progress = useMemo(() => {
@@ -120,7 +125,8 @@ export default function TenderChecklistTab({ tenderId, canEdit }) {
           <button className="tender-ci-toggle" onClick={() => setExpanded(e => ({ ...e, [it.id]: !e[it.id] }))}>
             {isOpen ? '▾' : '▸'}
           </button>
-          <span className="tender-ci-title">{it.title}</span>
+          <button className="tender-ci-title tender-ci-title-btn" onClick={() => setDetail(it)}
+            title="Xem chi tiết + dòng thời gian trao đổi">{it.title}</button>
           <span className="tender-muted">{it.department_name || ''}</span>
           <span className="tender-muted">{it.assignee_name || 'Chưa giao'}</span>
           <span className="tender-muted">{fmtDate(it.due_date)}</span>
@@ -218,6 +224,19 @@ export default function TenderChecklistTab({ tenderId, canEdit }) {
           parentId={modal.parentId || null}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load() }}
+        />
+      )}
+
+      {detailItem && (
+        <TenderChecklistItemDrawer
+          item={detailItem}
+          currentUser={user}
+          canManage={canEdit}
+          onEdit={canEdit && detailItem.review_status !== 'approved'
+            ? (it) => { setDetail(null); setModal({ item: it }) }
+            : undefined}
+          onClose={() => setDetail(null)}
+          onChanged={load}
         />
       )}
     </div>

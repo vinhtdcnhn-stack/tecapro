@@ -10,6 +10,7 @@ import { notifyAction, notifyInfo } from '../services/notify.js'
 import { deptWorkUnread } from '../services/liveCounts.js'
 import { bumpLive } from '../services/eventBus.js'
 import { invalidateUserDashboards, invalidateDashboardsForDeptWorkTask } from '../services/cacheKeys.js'
+import { canDeleteEntry, ENTRY_DELETE_DENIED } from '../utils/entryDelete.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
@@ -240,15 +241,14 @@ export async function addEntryImage(req, res) {
   }
 }
 
-// DELETE /dept-work/entries/:id — tác giả hoặc trưởng/phó phòng.
+// DELETE /dept-work/entries/:id — tác giả trong 3 phút đầu, hoặc admin.
 export async function deleteEntry(req, res) {
   const id = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query('SELECT author_id, task_id FROM dept_work_entry WHERE id = $1', [id])
+    const { rows } = await pool.query('SELECT author_id, task_id, created_at FROM dept_work_entry WHERE id = $1', [id])
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy nội dung.' })
-    const isHead = await userIsHeadOrDeputy(req.user.id, req.user.role)
-    if (rows[0].author_id !== req.user.id && !isHead) {
-      return res.status(403).json({ error: 'Bạn chỉ được xóa nội dung của chính mình.' })
+    if (!canDeleteEntry(rows[0], req.user)) {
+      return res.status(403).json({ error: ENTRY_DELETE_DENIED })
     }
     await pool.query('DELETE FROM dept_work_entry WHERE id = $1', [id])
     // Xóa luôn thư mục ảnh trên đĩa (DB đã CASCADE; defense-in-depth: chỉ trong uploads/dept-work-entries).

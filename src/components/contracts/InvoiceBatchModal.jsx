@@ -254,11 +254,11 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
 
         <div className="inv-items-toolbar">
           <button type="button" className="inv-btn" onClick={openPicker}>+ Thêm hàng hóa</button>
-          <label className="inv-import">⬆ Import Excel
+          <label className="inv-import hide-on-mobile">⬆ Import Excel
             <input type="file" accept=".xlsx,.xls" onChange={onImport} hidden />
           </label>
-          <button type="button" className="inv-btn inv-tpl" onClick={downloadTemplate}>⬇ Tải file mẫu</button>
-          <button type="button" className="inv-btn inv-export" onClick={exportExcel}>📤 Export Excel</button>
+          <button type="button" className="inv-btn inv-tpl hide-on-mobile" onClick={downloadTemplate}>⬇ Tải file mẫu</button>
+          <button type="button" className="inv-btn inv-export hide-on-mobile" onClick={exportExcel}>📤 Export Excel</button>
           <span className="inv-hint">Tên hàng / ĐVT / Đơn giá / VAT lấy theo bảng giá — chỉ chọn mặt hàng và nhập Số lượng.</span>
         </div>
 

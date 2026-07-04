@@ -24,7 +24,8 @@ export default function ContractHeader({ contract, onTitleClick }) {
       tabIndex={0}
       onKeyDown={(e) => { if (onTitleClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onTitleClick() } }}
     >
-      {/* Dòng đầu: Tên dự án và Số hợp đồng + ngày ký - Căn giữa */}
+      {/* Dòng đầu: Tên dự án và Số hợp đồng + ngày ký - Căn giữa.
+          Trên mobile: tên dự án (h1) được ẩn (App.css) — chọn mục qua nút ☰ cạnh nút trợ giúp trên Header. */}
       <div className="contract-header-title">
         <h1>{contract.project_name || '-'}</h1>
         <p className="contract-no">
@@ -33,8 +34,6 @@ export default function ContractHeader({ contract, onTitleClick }) {
             <span className="contract-signed-date"> · Ký ngày {fmtSignedDate(contract.contract_date)}</span>
           )}
         </p>
-        {/* Gợi ý bấm để mở menu — chỉ hiện trên mobile */}
-        <span className="contract-header-tap-hint">☰ Bấm để chọn mục</span>
       </div>
     </div>
   )

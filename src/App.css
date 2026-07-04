@@ -202,6 +202,41 @@
    dashboard + ô tra cứu. */
 .topbar-dash-switch { display: none; }
 
+/* Nút icon "chọn mục trong module" (cạnh nút trợ giúp): CHỈ mobile — desktop đã có sidebar. */
+.topbar-section-nav { display: none; position: relative; }
+.topbar-section-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1000;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.topbar-section-menu-item {
+  text-align: left;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+  border-radius: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.topbar-section-menu-item:active { background: #f3f4f6; }
+.topbar-section-menu-item.is-active { color: var(--accent); background: var(--accent-soft); }
+
 .page {
   position: relative;
   display: flex;
@@ -1107,9 +1142,6 @@ body.dw-page-alert .brand-logo {
   overflow-y: auto;
 }
 
-/* Gợi ý bấm vào header để mở menu — ẩn trên desktop */
-.contract-header-tap-hint { display: none; }
-
 /* Header trong drawer (chỉ hiện trên mobile) */
 .contract-sidebar-mobile-header {
   display: none;
@@ -1478,6 +1510,9 @@ body.dw-page-alert .brand-logo {
 
   /* Mobile: hiện thêm nút đổi bảng điều khiển trang chủ cạnh nút trợ giúp */
   .topbar-dash-switch { display: inline-flex; align-items: center; }
+
+  /* Mobile: hiện nút icon chọn mục trong module (sidebar bị ẩn) */
+  .topbar-section-nav { display: inline-flex; align-items: center; }
   /* Menu xổ canh phải để không tràn ra ngoài mép màn hình */
   .topbar-dash-switch .dash-switcher-menu { left: auto; right: 0; }
 
@@ -1533,15 +1568,9 @@ body.dw-page-alert .brand-logo {
     flex-direction: column;
     min-height: auto;
   }
-  /* Mobile: sidebar trở thành drawer trượt từ trái, mở bằng cách bấm vào header HĐ */
+  /* Mobile: sidebar trở thành drawer trượt từ trái; chọn mục qua nút ☰ trên Header,
+     hoặc bấm vào card header HĐ (mở drawer có phân nhóm I/II) */
   .contract-header--clickable { cursor: pointer; }
-  .contract-header-tap-hint {
-    display: block;
-    margin-top: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--accent-hover);
-  }
   .contract-sidebar {
     display: block;
     position: fixed;
@@ -1583,8 +1612,9 @@ body.dw-page-alert .brand-logo {
   .contract-header {
     padding: 16px;
   }
+  /* Mobile: ẩn tên dự án dài dòng — chọn mục qua nút ☰ cạnh nút trợ giúp trên Header */
   .contract-header-title h1 {
-    font-size: 22px;
+    display: none;
   }
 
   /* Tables: scroll ngang */

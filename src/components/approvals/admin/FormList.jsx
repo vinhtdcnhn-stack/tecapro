@@ -87,7 +87,7 @@ export default function FormList() {
             <div className="ab-form-card-actions">
               <button type="button" className="btn btn-sm btn-primary" onClick={() => setBuilderId(f.id)}>Cấu hình</button>
               <button type="button" className="btn btn-sm" onClick={() => openEdit(f)}>Sửa</button>
-              <button type="button" className="btn btn-sm" onClick={() => setExportForm(f)}>Xuất Excel</button>
+              <button type="button" className="btn btn-sm hide-on-mobile" onClick={() => setExportForm(f)}>Xuất Excel</button>
               <button type="button" className="btn btn-sm btn-danger" onClick={() => remove(f)}>Xóa</button>
             </div>
           </div>

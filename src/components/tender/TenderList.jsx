@@ -81,7 +81,7 @@ export default function TenderList({ mode = 'all', canCreate = true, isHead = fa
           {RESULTS.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
         <div className="tender-toolbar-spacer" />
-        <button className="btn-secondary" onClick={() => exportTenders(filtered)} disabled={!filtered.length}>
+        <button className="btn-secondary hide-on-mobile" onClick={() => exportTenders(filtered)} disabled={!filtered.length}>
           Xuất Excel
         </button>
         {canCreate && (

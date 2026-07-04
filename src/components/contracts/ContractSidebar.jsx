@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useContractPerm } from '../../context/ContractPermContext'
+import { useRegisterSectionNav } from '../../context/SectionNavContext'
 
 // Tab sidebar → quyền .view (lớp B) cần để THẤY. Thiếu map = luôn hiện.
 const PERM_BY_ID = {
@@ -18,6 +20,7 @@ const PERM_BY_ID = {
 
 export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen = false, onClose }) {
   const { canView } = useContractPerm()
+  const { pathname } = useLocation()
 
   // Lọc tab theo quyền .view (lớp B). Bỏ category rỗng. Admin/HĐ-có-quyền thấy đủ như cũ.
   // useMemo để tham chiếu ổn định (chỉ đổi khi canView đổi) → effect Ctrl+↑/↓ phía dưới
@@ -50,6 +53,18 @@ export default function ContractSidebar({ activeMenu, onMenuChange, mobileOpen =
       .map((section) => ({ ...section, items: section.items.filter((it) => !PERM_BY_ID[it.id] || canView(PERM_BY_ID[it.id])) }))
       .filter((section) => section.items.length > 0)
   }, [canView])
+
+  // Đăng ký thanh chọn mục cho Header (nút ☰ cạnh nút trợ giúp — chỉ hiện trên mobile, thay
+  // sidebar bị ẩn). Tab HĐ dùng query ?tab= nên mỗi mục tự cấp `to` đầy đủ; URL đổi → trang
+  // đồng bộ lại activeMenu (ContractManagementPage). Danh mục đã lọc theo quyền .view.
+  useRegisterSectionNav({
+    current: activeMenu,
+    items: menuItems.flatMap((section) => section.items).map((it) => ({
+      label: it.label,
+      value: it.id,
+      to: `${pathname}?tab=${it.id}`,
+    })),
+  })
 
   // Ctrl+↓ / Ctrl+↑: chuyển nhanh giữa các mục sidebar (vòng tròn)
   useEffect(() => {

@@ -184,7 +184,7 @@ export default function HandoverBatchCard({
           <span className="hbatch-count">· {batchAll.length} thiết bị</span>
         </div>
         <div className="wty-actions" onClick={e => e.stopPropagation()} style={{ alignItems: 'center' }}>
-          <button className="wty-btn wty-btn-blue" onClick={() => setShowExport(true)} title="Xuất serial bàn giao của đợt này ra Excel">
+          <button className="wty-btn wty-btn-blue hide-on-mobile" onClick={() => setShowExport(true)} title="Xuất serial bàn giao của đợt này ra Excel">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
             Export serial bàn giao
           </button>
@@ -205,12 +205,12 @@ export default function HandoverBatchCard({
           <div className="wty-toolbar">
             <div />
             <div className="wty-toolbar-right">
-              <button className="wty-btn wty-btn-secondary" onClick={downloadTemplate}>
+              <button className="wty-btn wty-btn-secondary hide-on-mobile" onClick={downloadTemplate}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                 Tải mẫu Excel
               </button>
               <EditGuard>
-                <label className="wty-btn wty-btn-blue" style={{ cursor: 'pointer' }}>
+                <label className="wty-btn wty-btn-blue hide-on-mobile" style={{ cursor: 'pointer' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
                   Import Excel
                   <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFile} />

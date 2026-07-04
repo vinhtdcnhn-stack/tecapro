@@ -307,7 +307,9 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
     <div className="boq-tab">
       {/* ── Toolbar ── */}
       <div className="boq-toolbar">
-        <div className="boq-toolbar-left">
+        {/* Ẩn trên điện thoại: Import/Tải template Excel không dùng trên mobile,
+            và nút Thêm dòng đã có sẵn trong thẻ BOQMobile. */}
+        <div className="boq-toolbar-left hide-on-mobile">
           <EditGuard>
             <button className="boq-btn boq-btn-green" onClick={() => excelRef.current?.click()}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">

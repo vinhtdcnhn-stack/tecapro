@@ -228,12 +228,12 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
             <option value="">— Tất cả loại thiết bị —</option>
             {equipment.map(eq => <option key={eq.id} value={eq.id}>{eq.name}</option>)}
           </select>
-          <button className="wty-btn wty-btn-secondary" onClick={downloadTemplate}>
+          <button className="wty-btn wty-btn-secondary hide-on-mobile" onClick={downloadTemplate}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
             Tải mẫu Excel
           </button>
           <EditGuard perm="co.warranty.serials.manage">
-            <label className="wty-btn wty-btn-blue" style={{ cursor: 'pointer' }}>
+            <label className="wty-btn wty-btn-blue hide-on-mobile" style={{ cursor: 'pointer' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
               Import Excel
               <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFile} />

@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { API } from '../config/api'
 import ContractDocumentsTab from '../components/contracts/ContractDocumentsTab'
+import TenderChecklistItemDrawer from '../components/tender/TenderChecklistItemDrawer'
 import { ContractPermProvider } from '../context/ContractPermContext'
+import { useAuth } from '../context/AuthContext'
 import { statusColor, fmtDate } from '../components/tender/tenderUtils'
 import '../components/tender/Tender.css'
 
@@ -17,11 +19,13 @@ const STATUSES = ['Chờ xử lý', 'Đang thực hiện', 'Hoàn thành', 'Hủ
 export default function MyTenderTaskPage() {
   const { itemId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState('docs')
+  const [showTimeline, setShowTimeline] = useState(false) // mở drawer dòng thời gian
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -126,6 +130,9 @@ export default function MyTenderTaskPage() {
                   onClick={() => changeStatus(s)}
                 >{s}</button>
               ))}
+              <button type="button" className="mtt-timeline-btn" onClick={() => setShowTimeline(true)}>
+                💬 Dòng thời gian trao đổi
+              </button>
             </div>
             {locked && (
               <p className="tender-muted mtt-locked-note">
@@ -160,6 +167,16 @@ export default function MyTenderTaskPage() {
 
         </section>
       </div>
+
+      {showTimeline && (
+        <TenderChecklistItemDrawer
+          item={item}
+          currentUser={user}
+          canManage={item.can_manage}
+          onClose={() => setShowTimeline(false)}
+          onChanged={load}
+        />
+      )}
     </main>
   )
 }

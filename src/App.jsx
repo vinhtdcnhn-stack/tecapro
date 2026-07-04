@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext'
 import { preloadRoutesOnIdle } from './lib/idlePrefetch'
 import Header from './components/layout/Header'
 import BottomNav from './components/layout/BottomNav'
+import { SectionNavProvider } from './context/SectionNavContext'
 import ChangePasswordModal from './components/auth/ChangePasswordModal'
 import PermissionPanel from './components/permissions/PermissionPanel'
 import RowAuditViewer from './components/audit/RowAuditViewer'
@@ -120,6 +121,7 @@ function Layout() {
   }
 
   return (
+    <SectionNavProvider>
     <div className="shell">
       <Header onChangePassword={() => setShowChangePwModal(true)} inboxCount={inboxCount} />
       <ChangePasswordModal
@@ -139,6 +141,7 @@ function Layout() {
       {/* Ctrl+Shift+H: lịch sử 1 dòng dữ liệu (chỉ admin) — trỏ chuột vào dòng rồi nhấn. */}
       {user && <RowAuditViewer user={user} />}
     </div>
+    </SectionNavProvider>
   )
 }
 

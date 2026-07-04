@@ -9,6 +9,7 @@ import { notifyAction, notifyInfo, contractLabel, pmUserIds } from '../services/
 import { contractTaskUnread } from '../services/liveCounts.js'
 import { bumpLive } from '../services/eventBus.js'
 import { invalidateUserDashboards, invalidateDashboardsForContractTask } from '../services/cacheKeys.js'
+import { canDeleteEntry, ENTRY_DELETE_DENIED } from '../utils/entryDelete.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
@@ -248,22 +249,17 @@ export async function addEntryImage(req, res) {
   }
 }
 
-// DELETE /task-entries/:id — tác giả hoặc PM của HĐ / admin.
+// DELETE /task-entries/:id — tác giả trong 3 phút đầu, hoặc admin.
 export async function deleteEntry(req, res) {
   const id = parseInt(req.params.id)
   try {
     const { rows } = await pool.query(
-      `SELECT e.author_id, e.task_id, t.contract_out_id
-         FROM contract_task_entry e
-         JOIN contract_task t ON t.id = e.task_id
-        WHERE e.id = $1`,
+      'SELECT author_id, task_id, created_at FROM contract_task_entry WHERE id = $1',
       [id],
     )
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy nội dung.' })
-    const isManager = Number(req.user.role) === 1
-      || await isPmOfContract(req.user.id, String(rows[0].contract_out_id))
-    if (Number(rows[0].author_id) !== Number(req.user.id) && !isManager) {
-      return res.status(403).json({ error: 'Bạn chỉ được xóa nội dung của chính mình.' })
+    if (!canDeleteEntry(rows[0], req.user)) {
+      return res.status(403).json({ error: ENTRY_DELETE_DENIED })
     }
     await pool.query('DELETE FROM contract_task_entry WHERE id = $1', [id])
     // Xóa luôn thư mục ảnh trên đĩa (DB đã CASCADE; defense-in-depth: chỉ trong uploads/task-entries).

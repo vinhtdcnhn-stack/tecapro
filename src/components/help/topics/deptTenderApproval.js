@@ -132,6 +132,7 @@ export const TENDER_GROUP = {
             'Bấm "Áp dụng mẫu" để sinh nhanh danh sách đầu việc từ MẪU CHECKLIST dùng chung (mẫu do trưởng ban soạn, dùng lại cho mọi gói).',
             'Giao từng đầu việc cho thành viên; người được giao vào trang việc của mình để nộp tệp sản phẩm (hỗ trợ cả thư mục).',
             'Người được giao mở gói từ trang riêng có 2 tab: tài liệu gói (để đọc) và chỗ nộp sản phẩm của mình.',
+            'Bấm vào TÊN đầu việc để mở ngăn chi tiết bên phải: thông tin tóm tắt + DÒNG THỜI GIAN trao đổi (báo cáo · chỉ đạo · quyết định · trao đổi), dán được ảnh trực tiếp bằng Ctrl+V (trên điện thoại có nút 📷 chụp ảnh thẳng từ camera). Mục MỚI NHẤT nằm trên cùng và ô "+ Thêm nội dung" ở ngay đầu — không phải cuộn xuống đáy. Người liên quan (người tạo, người được giao, người làm thầu, trưởng phòng) được báo Telegram khi có mục mới.',
           ],
         },
       ],

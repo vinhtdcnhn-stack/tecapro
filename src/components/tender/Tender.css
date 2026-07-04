@@ -116,6 +116,9 @@
 .tender-ci-lock { font-size: 12px; font-weight: 600; color: #15803d; white-space: nowrap; }
 .tender-ci-toggle { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 13px; width: 16px; }
 .tender-ci-title { font-weight: 600; color: #0f172a; flex: 1 1 auto; min-width: 160px; }
+/* Tên đầu việc là nút mở drawer chi tiết + dòng thời gian trao đổi. */
+.tender-ci-title-btn { background: none; border: none; padding: 0; font: inherit; text-align: left; cursor: pointer; }
+.tender-ci-title-btn:hover { color: #2563eb; text-decoration: underline; }
 .tender-ci-files { font-size: 12px; color: #64748b; }
 .tender-ci-status { padding: 3px 8px; border-radius: 999px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; }
 .tender-ci-actions { display: flex; gap: 2px; }
@@ -191,6 +194,11 @@
   .tender-info-grid, .tender-form-grid, .tender-dash-cols, .tender-rep-grid { grid-template-columns: 1fr; }
   .tender-cards { grid-template-columns: repeat(2, 1fr); }
   .tender-status-edit { flex-direction: column; gap: 8px; }
+}
+
+/* Mobile: sidebar bị ẩn → chọn mục qua nút icon trên Header; tiêu đề đầy đủ ẩn cho gọn. */
+@media (max-width: 768px) {
+  .tender-section-title { display: none; }
 }
 
 /* ── Tab "Kết quả dự thầu": lô + nhà thầu (xếp hạng giá) ──────────────────── */
@@ -285,6 +293,9 @@
 .mtt-status-btn.active { background: #15803d; border-color: #15803d; color: #fff; cursor: default; }
 .mtt-status-btn:disabled:not(.active) { opacity: .55; cursor: default; }
 .mtt-locked-note { margin: 10px 0 0; font-size: 13px; }
+/* Nút mở drawer dòng thời gian trao đổi — tách khỏi nhóm nút trạng thái bằng viền trái. */
+.mtt-timeline-btn { margin-left: auto; border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 5px 14px; font-size: 13px; font-weight: 600; color: #15803d; cursor: pointer; }
+.mtt-timeline-btn:hover { border-color: #15803d; background: #f0fdf4; }
 
 /* ── Review theo đầu việc + gợi ý curate ─────────────────────────────────── */
 .tender-ci-review-hint {

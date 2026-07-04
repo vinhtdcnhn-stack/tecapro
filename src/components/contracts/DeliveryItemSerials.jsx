@@ -65,7 +65,7 @@ export default function DeliveryItemSerials({ item, deliveryId, contractInId, lo
       <div style={{ display:'flex', gap:8, marginBottom:10, alignItems:'center', flexWrap:'wrap' }}>
         <strong style={{ fontSize:12, color:'#1d4ed8' }}>Serial của "{item.item_name}"</strong>
         <button
-          onClick={() => downloadSerialTemplate(item)}
+          onClick={() => downloadSerialTemplate(item)} className="hide-on-mobile"
           style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#f0fdf4', color:'#15803d', border:'1px solid #bbf7d0', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
@@ -73,7 +73,7 @@ export default function DeliveryItemSerials({ item, deliveryId, contractInId, lo
         </button>
         {serials.length > 0 && (
           <button
-            onClick={() => exportItemSerials(API, item)} title="Xuất serial ra Excel (máy chính + thành phần)"
+            onClick={() => exportItemSerials(API, item)} title="Xuất serial ra Excel (máy chính + thành phần)" className="hide-on-mobile"
             style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#f0fdf4', color:'#15803d', border:'1px solid #bbf7d0', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
@@ -82,7 +82,7 @@ export default function DeliveryItemSerials({ item, deliveryId, contractInId, lo
         )}
         {!locked && (
           <EditGuard serial>
-            <label style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#e0f2fe', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
+            <label className="hide-on-mobile" style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', background:'#e0f2fe', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
               Import Excel
               <input ref={importRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={importSerials} />

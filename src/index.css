@@ -37,6 +37,11 @@
     max-width: 100%;
     overflow-x: hidden;
   }
+
+  /* Tiện ích: ẩn phần tử trên giao diện điện thoại. Dùng cho các thao tác chỉ hợp
+     lý trên máy tính — tiêu biểu là nhập/xuất Excel (không thao tác bảng tính trên
+     điện thoại). Đặt class "hide-on-mobile" lên nút/nhãn cần ẩn. */
+  .hide-on-mobile { display: none !important; }
 }
 
 /* Custom styles for Contract List Page */

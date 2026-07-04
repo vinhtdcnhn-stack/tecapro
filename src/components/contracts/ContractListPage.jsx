@@ -185,11 +185,12 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     <div className="contract-list-root">
       {/* Header Page */}
       <div className="page-header">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="page-title" style={{ margin: 0 }}>HỢP ĐỒNG BÁN</h1>
+        <div className="flex items-center justify-between gap-3" style={isMobile ? { position: 'relative', justifyContent: 'center' } : undefined}>
+          <h1 className="page-title" style={isMobile ? { margin: 0, textAlign: 'center' } : { margin: 0 }}>HỢP ĐỒNG BÁN</h1>
           {isMobile && isPM && (
             <button className="btn-primary clp-add-icon" onClick={() => setShowAddContractModal(true)}
-              title="Thêm hợp đồng" aria-label="Thêm hợp đồng">
+              title="Thêm hợp đồng" aria-label="Thêm hợp đồng"
+              style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             </button>
           )}

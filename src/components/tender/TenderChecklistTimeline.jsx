@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import MobileEditSheet, { Field } from './MobileEditSheet'
-import useIsMobile from './useIsMobile'
+import MobileEditSheet, { Field } from '../contracts/MobileEditSheet'
+import useIsMobile from '../contracts/useIsMobile'
 import { API, API_BASE } from '../../config/api'
 import {
   ENTRY_TYPES, ENTRY_TYPE_LABEL, ENTRY_TYPE_CLASS, allowedEntryTypes, fmtDateTime, canDeleteEntry,
-} from './taskEntryUtils'
+} from '../contracts/taskEntryUtils'
+import '../contracts/ContractTaskTab.css'
 
-// Dòng thời gian trao đổi của một việc HĐ: Báo cáo / Chỉ đạo / Quyết định / Trao đổi.
-// Đăng được loại nào suy từ vai trò người dùng với việc (rel). Mở mục này (GET) tự
-// ghi mốc đã đọc ở server → dòng việc hết chấm chưa đọc sau khi tab tải lại.
-// Mỗi mục kèm được ảnh (dán Ctrl+V hoặc chọn tệp), hiển thị thu nhỏ ngay trong dòng
-// thời gian; bấm ảnh để phóng to.
-export default function ContractTaskTimeline({ taskId, task, currentUser, canManage, onChanged, onRead }) {
+// Dòng thời gian trao đổi của một ĐẦU VIỆC đấu thầu: Báo cáo / Chỉ đạo / Quyết định /
+// Trao đổi. Song song ContractTaskTimeline nhưng gọi API /tender/checklist/:id/entries.
+// Đăng được loại nào suy từ vai trò người dùng với đầu việc (rel). Mỗi mục kèm được ảnh
+// (dán Ctrl+V hoặc chọn tệp), hiển thị thu nhỏ ngay trong dòng thời gian; bấm ảnh để phóng to.
+//   canManage = Trưởng phòng / người làm thầu của gói (quyết định loại mục được đăng)
+export default function TenderChecklistTimeline({ itemId, item, currentUser, canManage, onChanged }) {
   const isMobile = useIsMobile()
   const [entries, setEntries] = useState([])
   const [adding, setAdding] = useState(false)
@@ -22,11 +23,11 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
   const [lightbox, setLightbox] = useState(null) // src ảnh phóng to
   const fileInputRef = useRef(null)
 
-  // Vai trò của người dùng với việc (khớp luật server) → quyết định loại được đăng.
+  // Vai trò của người dùng với đầu việc (khớp luật server) → quyết định loại được đăng.
   const uid = Number(currentUser?.id)
   const rel = {
-    isCreator: Number(task?.created_by) === uid,
-    isAssignee: Number(task?.assigned_to) === uid,
+    isCreator: Number(item?.created_by) === uid,
+    isAssignee: Number(item?.assignee_id) === uid,
     isManager: !!canManage,
   }
   const allowed = allowedEntryTypes(rel)
@@ -37,13 +38,10 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch(`${API}/tasks/${taskId}/entries`)
+      const r = await fetch(`${API}/tender/checklist/${itemId}/entries`)
       setEntries(r.ok ? await r.json() : [])
-      // GET tự ghi mốc đã đọc ở server → báo cha xóa nền hổ phách dòng việc (danh sách/Gantt)
-      // ngay, không chờ tải lại cả tab.
-      if (r.ok) onRead?.(taskId)
     } catch (e) { console.error('load timeline:', e) }
-  }, [taskId, onRead])
+  }, [itemId])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- async: setState sau await
   useEffect(() => { load() }, [load])
@@ -86,7 +84,7 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
     if (!text && pending.length === 0) { alert('Vui lòng nhập nội dung hoặc đính kèm ảnh.'); return }
     setSaving(true)
     try {
-      const res = await fetch(`${API}/tasks/${taskId}/entries`, {
+      const res = await fetch(`${API}/tender/checklist/${itemId}/entries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entry_type: type, content: text || '📷 Hình ảnh' }),
@@ -97,7 +95,7 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
       for (const p of pending) {
         const form = new FormData()
         form.append('image', p.file)
-        await fetch(`${API}/task-entries/${d.id}/images`, { method: 'POST', body: form })
+        await fetch(`${API}/tender/checklist-entries/${d.id}/images`, { method: 'POST', body: form })
       }
       resetComposer()
       await load(); onChanged?.()
@@ -108,7 +106,7 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
   async function remove(id) {
     if (!confirm('Xóa nội dung này khỏi dòng thời gian?')) return
     try {
-      const res = await fetch(`${API}/task-entries/${id}`, { method: 'DELETE' })
+      const res = await fetch(`${API}/tender/checklist-entries/${id}`, { method: 'DELETE' })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) { alert(d.error || 'Xóa thất bại'); return }
       await load(); onChanged?.()

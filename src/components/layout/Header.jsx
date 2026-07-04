@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { usePermission } from '../../hooks/usePermission'
+import { useSectionNav } from '../../context/SectionNavContext'
 import { useHomeDashboards } from '../../lib/useHomeDashboards'
 import HelpPanel from '../help/HelpPanel'
 import { resolveHelpTarget } from '../help/helpContext'
@@ -35,7 +36,13 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
   const [openDropdown, setOpenDropdown] = useState(null)
   const [helpOpen, setHelpOpen] = useState(false)
   const [helpTarget, setHelpTarget] = useState(null)
+  const [sectionMenuOpen, setSectionMenuOpen] = useState(false)
   const navRef = useRef(null)
+  const sectionNavRef = useRef(null)
+
+  // Thanh chọn mục trong module (mobile) — trang con đăng ký qua useRegisterSectionNav.
+  // Sidebar bị ẩn ở mobile nên nút icon này (cạnh nút trợ giúp) thay việc chuyển trang.
+  const sectionNav = useSectionNav()
 
   // Nút đổi bảng điều khiển trang chủ — trên mobile thay cho ô tra cứu (ẩn trên mobile).
   // Chỉ hiện ở trang chủ vì các bảng điều khiển là khái niệm của trang chủ.
@@ -52,6 +59,14 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [openDropdown])
+
+  // Đóng menu chọn mục khi bấm ra ngoài (chọn 1 mục sẽ tự đóng trong onClick).
+  useEffect(() => {
+    if (!sectionMenuOpen) return
+    const onDocClick = (e) => { if (sectionNavRef.current && !sectionNavRef.current.contains(e.target)) setSectionMenuOpen(false) }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [sectionMenuOpen])
 
   // Lọc menu theo RBAC lớp A (usePermission, admin fail-open). Mục con "Công việc" gắn
   // perm riêng; dropdown hiện khi có ít nhất một mục con hợp lệ. Mục không khai perm luôn hiện.
@@ -175,6 +190,45 @@ export default function Header({ onChangePassword, inboxCount = 0 }) {
                   <line x1="21" y1="12" x2="9" y2="12"></line>
                 </svg>
               </button>
+              {sectionNav && sectionNav.items?.length > 0 && (
+                <div className="topbar-section-nav" ref={sectionNavRef}>
+                  <button
+                    type="button"
+                    className="topbar-btn topbar-icon-btn topbar-section-btn"
+                    title="Chọn mục trong module"
+                    aria-label="Chọn mục"
+                    aria-haspopup="menu"
+                    aria-expanded={sectionMenuOpen}
+                    onClick={() => setSectionMenuOpen(o => !o)}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="4" y1="6" x2="20" y2="6"></line>
+                      <line x1="4" y1="12" x2="20" y2="12"></line>
+                      <line x1="4" y1="18" x2="20" y2="18"></line>
+                    </svg>
+                  </button>
+                  {sectionMenuOpen && (
+                    <div className="topbar-section-menu" role="menu" aria-label="Chọn mục trong module">
+                      {sectionNav.items.map(item => {
+                        // Deptwork/Tender điều hướng theo path (base + value); trang chi tiết HĐ
+                        // dùng query ?tab= nên tự cấp `to` đầy đủ cho từng mục.
+                        const to = item.to || `${sectionNav.base}/${item.value}`
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            role="menuitem"
+                            className={`topbar-section-menu-item${item.value === sectionNav.current ? ' is-active' : ''}`}
+                            onClick={() => { setSectionMenuOpen(false); navigate(to) }}
+                          >
+                            {item.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               <button
                 type="button"
                 className="topbar-btn topbar-icon-btn topbar-help-btn"

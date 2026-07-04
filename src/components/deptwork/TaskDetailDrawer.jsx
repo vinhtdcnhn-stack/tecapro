@@ -5,9 +5,7 @@ import { Field } from '../contracts/MobileEditSheet'
 import HandoffModal from './HandoffModal'
 import TaskTimeline from './TaskTimeline'
 import { API, API_BASE } from '../../config/api'
-import {
-  fmtDate, statusClass, priorityClass, ORIGIN_LABEL, ACCEPT_LABEL,
-} from './deptWorkUtils'
+import { fmtDate, ACCEPT_LABEL } from './deptWorkUtils'
 
 const fmtSize = (b) => !b ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`
 
@@ -97,14 +95,6 @@ export default function TaskDetailDrawer({ taskId, currentUser, canManage, membe
         <div className="dw-drawer-body"><p className="dash-empty">Đang tải...</p></div>
       ) : (
         <div className="dw-drawer-body">
-          <div className="dw-detail-badges">
-            <span className={`dw-badge ${statusClass(task.status)}`}>{task.status}</span>
-            <span className={`dw-chip ${priorityClass(task.priority)}`}>{task.priority}</span>
-            {task.team_name && <span className="dw-chip">{task.team_name}</span>}
-            <span className="dw-chip">{ORIGIN_LABEL[task.origin] || task.origin}</span>
-            {task.escalated && <span className="dw-badge dw-badge-esc">Đã đẩy cấp trên</span>}
-          </div>
-
           {(myAsg || (canManage && task.escalated)) && (
             <div className="dw-action-area">
               {myAsg?.accept_state === 'pending' && (
@@ -130,15 +120,9 @@ export default function TaskDetailDrawer({ taskId, currentUser, canManage, membe
 
           <dl className="dw-detail-grid">
             <dt>Hạn hoàn thành</dt><dd>{fmtDate(task.due_date)}</dd>
-            <dt>Người tạo</dt><dd>{task.created_by_name || '—'}</dd>
-            {task.origin === 'customer' && <><dt>Khách hàng</dt><dd>{task.customer_name || '—'}{task.customer_contact ? ` · ${task.customer_contact}` : ''}</dd></>}
           </dl>
 
           {task.description && <Section title="Mô tả"><p className="dw-pre"><Linkify text={task.description} onNavigate={onClose} /></p></Section>}
-          {task.instructions && <Section title="Chỉ đạo / yêu cầu"><p className="dw-pre">{task.instructions}</p></Section>}
-          {task.escalated && task.escalation_note && (
-            <Section title="Lý do đẩy cấp trên"><p className="dw-pre dw-esc-note">{task.escalation_note}</p></Section>
-          )}
 
           <Section title={`Người nhận (${task.assignees?.length || 0})`}>
             {task.assignees?.length ? (

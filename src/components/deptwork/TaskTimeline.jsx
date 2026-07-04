@@ -3,7 +3,7 @@ import MobileEditSheet, { Field } from '../contracts/MobileEditSheet'
 import useIsMobile from '../contracts/useIsMobile'
 import { API, API_BASE } from '../../config/api'
 import {
-  ENTRY_TYPES, ENTRY_TYPE_LABEL, ENTRY_TYPE_CLASS, allowedEntryTypes,
+  ENTRY_TYPES, ENTRY_TYPE_LABEL, ENTRY_TYPE_CLASS, allowedEntryTypes, canDeleteEntry,
 } from './deptWorkUtils'
 
 // dd/mm/yyyy HH:mm cho mốc thời gian của mục.
@@ -141,36 +141,6 @@ export default function TaskTimeline({ taskId, task, currentUser, canManage, onC
     <div className="dw-detail-section">
       <h4 className="dw-detail-title">Dòng thời gian — báo cáo · chỉ đạo · trao đổi ({entries.length})</h4>
 
-      <div className="dw-tl-list">
-        {entries.map(e => (
-          <div key={e.id} className="dw-tl-item">
-            <div className="dw-tl-head">
-              <span className={`dw-tl-tag ${ENTRY_TYPE_CLASS[e.entry_type] || ''}`}>{ENTRY_TYPE_LABEL[e.entry_type] || e.entry_type}</span>
-              <span className="dw-tl-author">{e.author_name || '—'}</span>
-              <span className="dw-tl-time">{fmtDateTime(e.created_at)}</span>
-              {(canManage || e.author_id === uid) && (
-                <button className="dw-tl-del" onClick={() => remove(e.id)} title="Xóa">✕</button>
-              )}
-            </div>
-            <p className="dw-pre dw-tl-content">{e.content}</p>
-            {e.images?.length > 0 && (
-              <div className="dw-tl-imgs">
-                {e.images.map(img => (
-                  <img
-                    key={img.id}
-                    src={`${API_BASE}${img.file_path}`}
-                    alt={img.file_name}
-                    title={img.file_name}
-                    onClick={() => setLightbox(`${API_BASE}${img.file_path}`)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-        {entries.length === 0 && <p className="dash-empty">Chưa có nội dung nào.</p>}
-      </div>
-
       {canPost && !isMobile && (
         adding ? (
           <div className="dw-tl-add">
@@ -210,6 +180,37 @@ export default function TaskTimeline({ taskId, task, currentUser, canManage, onC
         <button className="dw-att-add" onClick={openComposer}>+ Thêm nội dung</button>
       )}
 
+      {/* Mới nhất lên đầu → không phải cuộn xuống đáy để xem tin mới / thêm nội dung. */}
+      <div className="dw-tl-list">
+        {[...entries].reverse().map(e => (
+          <div key={e.id} className="dw-tl-item">
+            <div className="dw-tl-head">
+              <span className={`dw-tl-tag ${ENTRY_TYPE_CLASS[e.entry_type] || ''}`}>{ENTRY_TYPE_LABEL[e.entry_type] || e.entry_type}</span>
+              <span className="dw-tl-author">{e.author_name || '—'}</span>
+              <span className="dw-tl-time">{fmtDateTime(e.created_at)}</span>
+              {canDeleteEntry(e, currentUser) && (
+                <button className="dw-tl-del" onClick={() => remove(e.id)} title="Xóa (chỉ trong 3 phút đầu; sau đó chỉ admin)">✕</button>
+              )}
+            </div>
+            <p className="dw-pre dw-tl-content">{e.content}</p>
+            {e.images?.length > 0 && (
+              <div className="dw-tl-imgs">
+                {e.images.map(img => (
+                  <img
+                    key={img.id}
+                    src={`${API_BASE}${img.file_path}`}
+                    alt={img.file_name}
+                    title={img.file_name}
+                    onClick={() => setLightbox(`${API_BASE}${img.file_path}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        {entries.length === 0 && <p className="dash-empty">Chưa có nội dung nào.</p>}
+      </div>
+
       {isMobile && adding && (
         <MobileEditSheet title="Thêm nội dung" onClose={resetComposer} onSave={submit} saving={saving} saveLabel="Gửi">
           <Field label="Loại">
@@ -222,7 +223,16 @@ export default function TaskTimeline({ taskId, task, currentUser, canManage, onC
           </Field>
           <Field label="Ảnh đính kèm">
             {previewStrip}
-            <input type="file" accept="image/*" multiple onChange={e => { addImages(e.target.files); e.target.value = '' }} />
+            <label className="dw-tl-img-btn" title="Chụp ảnh từ camera" style={{ display: 'inline-block', marginRight: 8, cursor: 'pointer' }}>
+              📷
+              <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                onChange={e => { addImages(e.target.files); e.target.value = '' }} />
+            </label>
+            <label className="dw-tl-img-btn" title="Chọn ảnh từ thư viện" style={{ display: 'inline-block', cursor: 'pointer' }}>
+              🖼️
+              <input type="file" accept="image/*" multiple style={{ display: 'none' }}
+                onChange={e => { addImages(e.target.files); e.target.value = '' }} />
+            </label>
           </Field>
         </MobileEditSheet>
       )}

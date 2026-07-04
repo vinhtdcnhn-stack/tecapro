@@ -184,7 +184,7 @@ export default function ContractInSerialTab({ contractInId }) {
           style={{ padding:'8px 14px', background:'#eef2ff', color:'#4338ca', border:'1px solid #c7d2fe', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>
           📷 Nhập từ barcode
         </button>
-        <button onClick={() => setShowImport(true)}
+        <button onClick={() => setShowImport(true)} className="hide-on-mobile"
           style={{ padding:'8px 14px', background:'#e0f2fe', color:'#0369a1', border:'1px solid #bae6fd', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>
           Import Excel
         </button>

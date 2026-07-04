@@ -18,6 +18,7 @@ const ITEM_COLS = `
   i.id, i.tender_id, i.title, i.description, i.department_id, d.name AS department_name,
   i.assignee_id, u.full_name AS assignee_name, i.due_date, i.status,
   i.parent_item_id, i.sort_order, i.completed_at, i.created_at,
+  i.created_by, cb.full_name AS created_by_name,
   i.rework_count, i.rework_reason, i.review_status, i.review_comment,
   (SELECT count(*)::int FROM document_file df WHERE df.item_id = i.id) AS attachment_count`
 
@@ -37,6 +38,7 @@ export async function getChecklist(req, res) {
            FROM tender_checklist_item i
            LEFT JOIN department d ON d.id = i.department_id
            LEFT JOIN app_user u ON u.id = i.assignee_id
+           LEFT JOIN app_user cb ON cb.id = i.created_by
           WHERE i.tender_id = $1
           ORDER BY i.parent_item_id NULLS FIRST, i.sort_order, i.id`,
         [tenderId],
@@ -58,14 +60,17 @@ export async function getMyTask(req, res) {
   const itemId = parseInt(req.params.itemId)
   try {
     const { rows: itemRows } = await pool.query(
-      `SELECT i.id, i.tender_id, i.title, i.description, i.due_date, i.status,
-              i.rework_count, i.rework_reason,
+      `SELECT i.id, i.tender_id, i.title, i.description, i.due_date, i.status, i.completed_at,
+              i.rework_count, i.rework_reason, i.review_status, i.review_comment,
+              i.assignee_id, i.created_by,
               d.name AS department_name, u.full_name AS assignee_name,
+              cb.full_name AS created_by_name,
               t.package_name, t.package_code, t.investor
          FROM tender_checklist_item i
          JOIN tender t ON t.id = i.tender_id
          LEFT JOIN department d ON d.id = i.department_id
          LEFT JOIN app_user u ON u.id = i.assignee_id
+         LEFT JOIN app_user cb ON cb.id = i.created_by
         WHERE i.id = $1`,
       [itemId],
     )

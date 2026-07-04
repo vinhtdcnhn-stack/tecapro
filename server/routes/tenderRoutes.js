@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import {
   isTenderMember, isHead, isBidMakerOrHead, isChecklistEditor, isChecklistContributor,
-  isItemDocEditor, isItemReviewCurator, isLotEditor, isBidderEditor,
+  isItemDocEditor, isItemReviewCurator, isLotEditor, isBidderEditor, isEntryMemberOrContributor,
 } from '../middleware/tenderAccess.js'
 import {
   getTenders, getTender, createTender, updateTender,
@@ -10,6 +10,11 @@ import {
 import {
   getChecklist, createItem, updateItem, updateItemStatus, deleteItem, getMyTask,
 } from '../controllers/tenderChecklistController.js'
+import {
+  getEntries as getItemEntries, addEntry as addItemEntry,
+  addEntryImage as addItemEntryImage, deleteEntry as deleteItemEntry,
+  uploadEntryImage as uploadItemEntryImage,
+} from '../controllers/tenderChecklistEntryController.js'
 import {
   getTemplate, createTemplateItem, updateTemplateItem, deleteTemplateItem, applyTemplate,
 } from '../controllers/tenderChecklistTemplateController.js'
@@ -80,6 +85,15 @@ router.post('/tender/:id/checklist', isBidMakerOrHead('id'), createItem)
 router.put('/tender/checklist/:itemId', isChecklistEditor('itemId'), updateItem)
 router.put('/tender/checklist/:itemId/status', isChecklistContributor('itemId'), updateItemStatus)
 router.delete('/tender/checklist/:itemId', isChecklistEditor('itemId'), deleteItem)
+
+// ── Dòng thời gian trao đổi của đầu việc (báo cáo · chỉ đạo · trao đổi + ảnh) ──
+// Cho thành viên ban HOẶC người được giao/người làm thầu của đúng đầu việc (trang "Việc
+// đấu thầu của tôi" cho người ngoài ban). Loại mục được đăng gác theo vai trò trong
+// controller. Guard TRƯỚC multer cho route đính ảnh.
+router.get('/tender/checklist/:itemId/entries', isEntryMemberOrContributor(), getItemEntries)
+router.post('/tender/checklist/:itemId/entries', isEntryMemberOrContributor(), addItemEntry)
+router.post('/tender/checklist-entries/:id/images', isEntryMemberOrContributor({ from: 'entry', param: 'id' }), uploadItemEntryImage.single('image'), addItemEntryImage)
+router.delete('/tender/checklist-entries/:id', isEntryMemberOrContributor({ from: 'entry', param: 'id' }), deleteItemEntry)
 
 // ── "Việc đấu thầu của tôi" — cho người được giao (không thuộc Ban Đấu thầu) ──
 // Xem chi tiết việc + tệp sản phẩm + danh sách hồ sơ mời thầu, đổi trạng thái, nộp/

@@ -75,7 +75,7 @@ export default function DeliveryItemRow({ idx, item, deliveryId, contractInId, l
             )}
             {serialCount > 0 && (
               <button
-                onClick={() => exportItemSerials(API, item)} title="Xuất serial ra Excel (máy chính + thành phần)"
+                onClick={() => exportItemSerials(API, item)} title="Xuất serial ra Excel (máy chính + thành phần)" className="hide-on-mobile"
                 style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'2px 10px', background:'#f0fdf4', color:'#15803d', border:'1px solid #bbf7d0', borderRadius:99, fontSize:11, fontWeight:600, cursor:'pointer' }}
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>

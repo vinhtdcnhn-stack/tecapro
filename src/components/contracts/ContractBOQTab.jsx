@@ -152,7 +152,9 @@ export default function ContractBOQTab({ contractId }) {
 
       {/* ── Toolbar ── */}
       <div className="boq-toolbar">
-        <div className="boq-toolbar-left">
+        {/* Trên điện thoại ẩn cả cụm nút này: Import/Tải template Excel không dùng
+            trên mobile, còn Thêm dòng/phần/hệ thống đã có sẵn trong thẻ BOQMobile. */}
+        <div className="boq-toolbar-left hide-on-mobile">
           <EditGuard perm="co.boq.manage" disabled={locked}>
             <button className="boq-btn boq-btn-green" onClick={() => excelRef.current?.click()}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -224,7 +226,7 @@ export default function ContractBOQTab({ contractId }) {
           )}
 
           <button
-            className="boq-btn boq-btn-fs"
+            className="boq-btn boq-btn-fs hide-on-mobile"
             onClick={() => setFullscreen(v => !v)}
             title={fullscreen ? 'Thoát toàn màn hình (Esc)' : 'Phóng to toàn màn hình'}
           >

@@ -139,6 +139,31 @@ export function isChecklistContributor(param = 'itemId') {
   }
 }
 
+// Đọc/ghi DÒNG THỜI GIAN trao đổi của đầu việc: cho THÀNH VIÊN BAN (xem mọi việc trong
+// module) HOẶC NGƯỜI ĐƯỢC GIAO/người làm thầu của đúng đầu việc (kể cả người ngoài Ban,
+// vào từ trang "Việc đấu thầu của tôi"). param từ itemId (GET/POST entries) hoặc từ id
+// của entry (đính ảnh/xoá) → tra ngược ra đầu việc. Loại mục được đăng vẫn gác ở controller.
+async function itemIdFromEntry(entryId) {
+  const { rows } = await pool.query(
+    'SELECT item_id FROM tender_checklist_entry WHERE id = $1 LIMIT 1', [entryId])
+  return rows[0]?.item_id ?? null
+}
+
+export function isEntryMemberOrContributor({ from = 'item', param = 'itemId' } = {}) {
+  return async (req, res, next) => {
+    try {
+      if (isAdmin(req)) return next()
+      if (await queryIsMember(req.user.id)) return next()
+      const raw = paramId(req, param)
+      if (!raw) return res.status(400).json({ error: 'Tham số id không hợp lệ.' })
+      const itemId = from === 'entry' ? await itemIdFromEntry(raw) : raw
+      if (!itemId) return res.status(404).json({ error: 'Không tìm thấy đầu việc.' })
+      if (await itemContributor(itemId, req.user.id)) return next()
+      FORBIDDEN(res, 'Bạn không có quyền với dòng thời gian của đầu việc này.')
+    } catch (err) { next(err) }
+  }
+}
+
 // GHI tệp sản phẩm của đầu việc (tạo thư mục / upload). Như isChecklistContributor
 // nhưng ĐÓNG BĂNG khi đầu việc đã 'Hoàn thành': lúc đó không ai được thay đổi tệp
 // (kể cả người làm thầu/Trưởng phòng) — phải mở lại trạng thái trước. admin ngoại lệ.

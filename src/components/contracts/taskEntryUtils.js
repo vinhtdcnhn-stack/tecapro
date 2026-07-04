@@ -27,6 +27,18 @@ export function allowedEntryTypes(rel) {
   }).map(t => t.key)
 }
 
+// Chính sách XÓA mục dòng thời gian: tác giả CHỈ được xóa trong 3 phút đầu; sau đó chỉ
+// admin (role = 1). Khớp gác backend ở server/utils/entryDelete.js.
+export const ENTRY_DELETE_WINDOW_MS = 3 * 60 * 1000
+export function canDeleteEntry(entry, currentUser) {
+  if (!entry || !currentUser) return false
+  if (Number(currentUser.role) === 1) return true // admin xóa bất kỳ lúc nào
+  if (Number(entry.author_id) !== Number(currentUser.id)) return false
+  const created = new Date(entry.created_at).getTime()
+  if (Number.isNaN(created)) return false
+  return Date.now() - created < ENTRY_DELETE_WINDOW_MS
+}
+
 // dd/mm/yyyy HH:mm cho mốc thời gian của mục.
 export function fmtDateTime(ts) {
   if (!ts) return ''

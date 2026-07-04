@@ -1,7 +1,9 @@
 import { useParams, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usePermission } from '../hooks/usePermission'
+import { useRegisterSectionNav } from '../context/SectionNavContext'
 import ApprovalSidebar from '../components/approvals/ApprovalSidebar'
+import { APPROVAL_BASE, APPROVAL_GROUPS } from '../components/approvals/approvalNav'
 import FormList from '../components/approvals/admin/FormList'
 import RequestList from '../components/approvals/RequestList'
 import Inbox from '../components/approvals/Inbox'
@@ -17,12 +19,28 @@ export default function ApprovalPage() {
   const { has } = usePermission()
   const { section } = useParams()
 
-  // Toàn công ty: mọi nhân viên đã đăng nhập đều dùng được.
-  if (!user) return <Navigate to="/login" replace />
-  if (!VALID.includes(section)) return <Navigate to="/de-xuat/my" replace />
-
   // Quản trị biểu mẫu / xem mọi đơn theo RBAC lớp A (admin fail-open).
   const canManage = has('approvals.forms.manage')
+  const validSection = VALID.includes(section)
+
+  // Đăng ký thanh chọn mục cho Header (nút icon hiện trên mobile — thay sidebar bị ẩn).
+  // Gọi vô điều kiện (Rules of Hooks); truyền null khi không ở màn hợp lệ.
+  useRegisterSectionNav(
+    user && validSection
+      ? {
+          base: APPROVAL_BASE,
+          current: section,
+          items: APPROVAL_GROUPS
+            .flatMap(g => g.items)
+            .filter(i => !i.adminOnly || canManage)
+            .map(i => ({ label: i.label, value: i.section })),
+        }
+      : null
+  )
+
+  // Toàn công ty: mọi nhân viên đã đăng nhập đều dùng được.
+  if (!user) return <Navigate to="/login" replace />
+  if (!validSection) return <Navigate to="/de-xuat/my" replace />
   // Chặn truy cập section quản trị nếu không phải admin.
   if (ADMIN_ONLY.includes(section) && !canManage) return <Navigate to="/de-xuat/my" replace />
 

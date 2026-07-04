@@ -129,11 +129,21 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
   return (
     <div className="dw-board">
       <div className="dw-toolbar">
-        <div className="dw-filters">
-          {STATUS_FILTERS.map(f => (
-            <button key={f.key} className={`dw-filter-btn ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
-          ))}
-        </div>
+        {isMobile ? (
+          // Mobile: tiêu đề gọn "CÔNG VIỆC" + ô chọn bộ lọc (thay 4 nút cho đỡ chiếm chỗ)
+          <div className="dw-mobile-head">
+            <h2 className="dw-mobile-title">CÔNG VIỆC</h2>
+            <select className="dw-filter-select" value={filter} onChange={e => setFilter(e.target.value)}>
+              {STATUS_FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+          </div>
+        ) : (
+          <div className="dw-filters">
+            {STATUS_FILTERS.map(f => (
+              <button key={f.key} className={`dw-filter-btn ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
+            ))}
+          </div>
+        )}
         <button className="add-btn" onClick={openCreate}>+ Thêm công việc</button>
       </div>
 

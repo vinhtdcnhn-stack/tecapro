@@ -1,15 +1,10 @@
 import { NavLink } from 'react-router-dom'
+import { DEPTWORK_BASE, DEPTWORK_ITEMS } from './deptWorkNav'
 
-// Sidebar (desktop) / thanh tab ngang (mobile) cho module KT Cơ điện.
-const BASE = '/cong-viec/kt-co-dien'
-const ITEMS = [
-  { label: 'Bảng công việc', section: 'board' },
-  { label: 'Nhật ký công việc', section: 'logs' },
-  { label: 'Năng lực', section: 'capacity' },
-]
-
+// Sidebar (desktop) cho module KT Cơ điện. Trên mobile sidebar bị ẩn (App.css) → việc chọn
+// mục do nút icon trên Header đảm nhiệm (DeptWorkPage đăng ký qua useRegisterSectionNav).
 export default function DeptWorkSidebar({ canManage }) {
-  const items = ITEMS.filter(i => !i.manageOnly || canManage)
+  const items = DEPTWORK_ITEMS.filter(i => !i.manageOnly || canManage)
   return (
     <aside className="admin-sidebar deptwork-sidebar">
       <div className="admin-sidebar-section">
@@ -18,7 +13,7 @@ export default function DeptWorkSidebar({ canManage }) {
           {items.map(item => (
             <NavLink
               key={item.section}
-              to={`${BASE}/${item.section}`}
+              to={`${DEPTWORK_BASE}/${item.section}`}
               className={({ isActive }) => `admin-sidebar-item${isActive ? ' active' : ''}`}
             >
               {item.label}

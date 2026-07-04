@@ -1,16 +1,10 @@
 import { NavLink } from 'react-router-dom'
+import { TENDER_BASE, TENDER_ITEMS } from './tenderNav'
 
-// Sidebar (desktop) / tab ngang (mobile) cho module Kế hoạch Đấu thầu.
-const BASE = '/cong-viec/dau-thau'
-const ITEMS = [
-  { label: 'Danh sách gói', section: 'list' },
-  { label: 'Việc của tôi', section: 'my' },
-  { label: 'Mẫu checklist', section: 'template', headOnly: true },
-  { label: 'Báo cáo', section: 'reports' },
-]
-
+// Sidebar (desktop) cho module Kế hoạch Đấu thầu. Trên mobile sidebar bị ẩn (App.css) →
+// việc chọn mục do nút icon trên Header đảm nhiệm (TenderPage đăng ký qua useRegisterSectionNav).
 export default function TenderSidebar({ isHead }) {
-  const items = ITEMS.filter(i => !i.headOnly || isHead)
+  const items = TENDER_ITEMS.filter(i => !i.headOnly || isHead)
   return (
     <aside className="admin-sidebar deptwork-sidebar">
       <div className="admin-sidebar-section">
@@ -19,7 +13,7 @@ export default function TenderSidebar({ isHead }) {
           {items.map(item => (
             <NavLink
               key={item.section}
-              to={`${BASE}/${item.section}`}
+              to={`${TENDER_BASE}/${item.section}`}
               className={({ isActive }) => `admin-sidebar-item${isActive ? ' active' : ''}`}
             >
               {item.label}

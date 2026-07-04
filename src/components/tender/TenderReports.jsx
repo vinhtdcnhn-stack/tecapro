@@ -60,7 +60,7 @@ export default function TenderReports() {
         <label className="tender-rep-filter">Đến
           <input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
         <div className="tender-toolbar-spacer" />
-        <button className="btn-secondary" onClick={exportExcel} disabled={!data}>Xuất Excel</button>
+        <button className="btn-secondary hide-on-mobile" onClick={exportExcel} disabled={!data}>Xuất Excel</button>
       </div>
 
       {loading ? <p className="dash-empty">Đang tải…</p> : !data ? <p className="dash-empty">Không có dữ liệu.</p> : (

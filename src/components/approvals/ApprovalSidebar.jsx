@@ -1,29 +1,11 @@
 import { NavLink } from 'react-router-dom'
+import { APPROVAL_BASE, APPROVAL_GROUPS } from './approvalNav'
 
-// Sidebar (desktop) / thanh tab ngang (mobile) cho module Đề xuất / Phê duyệt.
+// Sidebar (desktop) cho module Đề xuất / Phê duyệt. Trên mobile sidebar bị ẩn (App.css) →
+// việc chọn mục do nút icon trên Header đảm nhiệm (ApprovalPage đăng ký qua useRegisterSectionNav).
 // Nhóm "Quản trị" (tất cả đề xuất + loại đơn) chỉ hiện cho admin.
-const BASE = '/de-xuat'
-const GROUPS = [
-  {
-    category: 'I. Đề xuất của tôi',
-    items: [
-      { label: 'Đơn của tôi', section: 'my' },
-      { label: 'Chờ tôi duyệt', section: 'inbox' },
-      { label: 'Sắp đến lượt tôi', section: 'upcoming' },
-      { label: 'Tôi theo dõi', section: 'following' },
-    ],
-  },
-  {
-    category: 'II. Quản trị',
-    items: [
-      { label: 'Tất cả đề xuất', section: 'all', adminOnly: true },
-      { label: 'Loại đơn', section: 'forms', adminOnly: true },
-    ],
-  },
-]
-
 export default function ApprovalSidebar({ canManage }) {
-  const groups = GROUPS
+  const groups = APPROVAL_GROUPS
     .map(group => ({ ...group, items: group.items.filter(i => !i.adminOnly || canManage) }))
     .filter(group => group.items.length > 0)
 
@@ -36,7 +18,7 @@ export default function ApprovalSidebar({ canManage }) {
             {group.items.map(item => (
               <NavLink
                 key={item.section}
-                to={`${BASE}/${item.section}`}
+                to={`${APPROVAL_BASE}/${item.section}`}
                 className={({ isActive }) => `admin-sidebar-item${isActive ? ' active' : ''}`}
               >
                 {item.label}
