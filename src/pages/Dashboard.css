@@ -13,6 +13,19 @@
   padding: 2rem 1.5rem;
 }
 
+/* Mobile: trang chủ cuộn DỌC theo cả trang, nhưng KHÔNG cho trượt NGANG.
+   .page.dash-page là phần tử cuộn thực tế (overflow:auto), nên lưới an toàn
+   overflow-x:hidden ở html/body (index.css) không chặn được — phải chặn ngay
+   tại đây, nếu không một phần tử lỡ rộng hơn màn hình sẽ khiến cả trang "lắc
+   qua lắc lại" trên iPhone. Bảng rộng vẫn cuộn ngang trong vùng riêng của nó. */
+@media (max-width: 768px) {
+  .page.dash-page {
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-width: 100%;
+  }
+}
+
 .dash-welcome {
   margin-bottom: 2rem;
 }
