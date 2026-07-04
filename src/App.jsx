@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react
 import { useAuth } from './context/AuthContext'
 import { preloadRoutesOnIdle } from './lib/idlePrefetch'
 import Header from './components/layout/Header'
+import BottomNav from './components/layout/BottomNav'
 import ChangePasswordModal from './components/auth/ChangePasswordModal'
 import PermissionPanel from './components/permissions/PermissionPanel'
 import RowAuditViewer from './components/audit/RowAuditViewer'
@@ -131,6 +132,8 @@ function Layout() {
       <Suspense fallback={<div className="page" style={{ padding: 24, color: '#6b7280' }}>Đang tải…</div>}>
         <Outlet />
       </Suspense>
+      {/* Thanh điều hướng dưới — chỉ hiện trên mobile (CSS), lối tắt giữa các module. */}
+      {user && <BottomNav inboxCount={inboxCount} />}
       {/* Ctrl+Shift+Q: bảng phân quyền cho trang hiện tại (chỉ người có quyền cấu hình). */}
       {user && <PermissionPanel />}
       {/* Ctrl+Shift+H: lịch sử 1 dòng dữ liệu (chỉ admin) — trỏ chuột vào dòng rồi nhấn. */}

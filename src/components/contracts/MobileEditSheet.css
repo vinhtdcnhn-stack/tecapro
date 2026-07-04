@@ -22,7 +22,7 @@
 .msheet-title { font-size: 15px; font-weight: 700; color: #111827; flex: 1; }
 .msheet-close {
   border: none; background: #f3f4f6; color: #6b7280; cursor: pointer;
-  width: 30px; height: 30px; border-radius: 8px; font-size: 15px; line-height: 1;
+  width: 40px; height: 40px; border-radius: 8px; font-size: 16px; line-height: 1; flex-shrink: 0;
 }
 .msheet-close:hover { background: #e5e7eb; color: #374151; }
 
@@ -30,14 +30,17 @@
 
 .msheet-footer {
   display: flex; align-items: center; gap: 8px;
-  padding: 12px 16px; border-top: 1px solid #e5e7eb; flex-shrink: 0;
+  /* +safe-area: chừa thanh gạt Home của iPhone khỏi che nút Lưu/Đóng */
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid #e5e7eb; flex-shrink: 0;
 }
 .msheet-spacer { flex: 1; }
 .msheet-btn {
-  padding: 9px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  padding: 11px 18px; min-height: 44px; border-radius: 8px; font-size: 15px; font-weight: 600;
   cursor: pointer; border: 1px solid transparent; font-family: inherit;
 }
-.msheet-btn-primary { background: #16a34a; color: #fff; }
+.msheet-btn-primary { background: var(--accent); color: #fff; }
+.msheet-btn-primary:hover { background: var(--accent-hover); }
 .msheet-btn-primary:disabled { opacity: 0.6; }
 .msheet-btn-secondary { background: #fff; color: #374151; border-color: #d1d5db; }
 .msheet-btn-danger { background: #fee2e2; color: #b91c1c; }
@@ -50,11 +53,12 @@
 .msheet-field .date-input,
 .msheet-field input {
   width: 100%; box-sizing: border-box;
-  padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 8px;
-  font-size: 14px; font-family: inherit; outline: none; background: #fff; color: #1f2937;
+  padding: 10px 11px; border: 1px solid #d1d5db; border-radius: 8px;
+  /* 16px: dưới 16px Safari iOS tự phóng to trang mỗi lần focus — giữ ≥16px để hết zoom */
+  font-size: 16px; font-family: inherit; outline: none; background: #fff; color: #1f2937;
 }
 .msheet-field > input:focus,
-.msheet-field > select:focus { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,.15); }
+.msheet-field > select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 
 /* ── Danh sách thẻ tóm tắt (thay bảng trên mobile) ─────────────────────────── */
 .mcards { display: flex; flex-direction: column; gap: 10px; }
@@ -93,20 +97,20 @@
 }
 
 .mcard-add {
-  border: 1px dashed #86efac; color: #15803d; background: #f0fdf4;
-  border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600;
+  border: 1px dashed var(--accent); color: var(--accent); background: var(--accent-soft);
+  border-radius: 12px; padding: 12px; min-height: 44px; font-size: 14px; font-weight: 600;
   cursor: pointer; width: 100%; font-family: inherit;
 }
-.mcard-add:active { background: #dcfce7; }
+.mcard-add:active { filter: brightness(0.96); }
 
 /* Nút phụ trong thẻ nhóm/phần (thêm con, bật ×SL) */
 .mcard-subbtn {
   border: 1px solid #cbd5e1; color: #475569; background: #fff;
-  border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600;
+  border-radius: 8px; padding: 8px 12px; min-height: 40px; font-size: 13px; font-weight: 600;
   cursor: pointer; font-family: inherit;
 }
 .mcard-subbtn:disabled { opacity: 0.4; cursor: not-allowed; }
-.mcard-subbtn--on { background: #16a34a; color: #fff; border-color: #16a34a; }
+.mcard-subbtn--on { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* Chip serial trong thẻ hàng của đợt nhận (mở sheet serial) */
 .dlc-serial-chip {
@@ -141,8 +145,8 @@
 .recv-pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .recv-pay-block input {
   width: 100%; box-sizing: border-box;
-  padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px;
-  font-size: 14px; font-family: inherit; outline: none;
+  padding: 9px 10px; border: 1px solid #d1d5db; border-radius: 8px;
+  font-size: 16px; font-family: inherit; outline: none; /* ≥16px: chống Safari iOS tự zoom khi focus */
 }
 .recv-pay-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .recv-pay-actions .msheet-btn { padding: 7px 12px; font-size: 13px; }

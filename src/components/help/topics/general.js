@@ -59,10 +59,11 @@ export const GENERAL_GROUP = {
         {
           heading: 'Trên điện thoại',
           items: [
-            'Menu thu gọn vào nút ☰ ở góc phải trên — bấm để mở danh sách mục.',
+            'Toàn bộ điều hướng nằm ở thanh cố định dưới ĐÁY màn hình (Trang chủ, Hợp đồng, Công việc, Đề xuất, Bảo hành, Hệ thống) — chạm 1 lần để chuyển thẳng. Không còn nút ☰ ở trên nữa.',
+            'Ô nào có nhiều mục con sẽ kèm dấu ▾ — như "Công việc" (Dự án/CGCN, Đấu thầu) hay "Hệ thống" (Người dùng, Phòng ban, Phân quyền, Sao lưu…). Chạm vào sẽ bung một menu nhỏ ngay trên thanh để chọn thẳng, KHÔNG cần vào trong (nên trang Hệ thống trên điện thoại không còn dải chọn nhóm chức năng riêng nữa). Mục "Đề xuất" hiện chấm đỏ kèm số đơn chờ bạn duyệt. Bạn chỉ thấy các ô/mục mình được cấp quyền.',
+            'Tên bạn, nút Đăng xuất và nút trợ giúp (❓) luôn ở thanh trên cùng; chạm vào tên để đổi mật khẩu.',
             'Toàn bộ tính năng đều dùng được trên điện thoại, kể cả mục "Hệ thống" (Quản trị: người dùng, phòng ban, khách hàng, phân quyền, nhật ký…).',
             'Các bảng dữ liệu chuyển thành danh sách thẻ, mỗi thẻ là một dòng. Chạm vào thẻ để xem/sửa.',
-            'Trong mục "Hệ thống", dải chọn nhóm chức năng (Quản lý người dùng, Phân quyền…) cuộn NGANG — vuốt trái/phải để thấy thêm.',
           ],
         },
       ],

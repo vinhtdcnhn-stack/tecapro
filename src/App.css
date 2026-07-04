@@ -185,6 +185,9 @@
   transform: translateY(0);
 }
 
+/* Nút đăng xuất: desktop hiện chữ, ẩn icon (icon chỉ dùng trên mobile) */
+.topbar-logout-icon { display: none; }
+
 /* Nút icon trợ giúp (mở panel hướng dẫn sử dụng — chứa cả ô dán đường dẫn tra cứu) */
 .topbar-icon-btn {
   display: inline-flex;
@@ -1460,24 +1463,6 @@ body.dw-page-alert .brand-logo {
   }
 }
 
-/* ─── Hamburger button (desktop: hidden) ─── */
-.hamburger {
-  display: none;
-  border: none;
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  font-size: 1.25rem;
-  line-height: 1;
-  padding: 0.4rem 0.65rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-  flex-shrink: 0;
-}
-.hamburger:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
 /* ─── Mobile breakpoint ─── */
 @media (max-width: 768px) {
 
@@ -1488,48 +1473,17 @@ body.dw-page-alert .brand-logo {
     gap: 0.5rem;
   }
 
-  .hamburger {
-    display: block;
-    margin-left: auto;
-  }
+  /* Actions (tên, đăng xuất, trợ giúp) canh phải — thay chỗ menu vốn đẩy chúng sang phải */
+  .topbar-actions { margin-left: auto; }
 
   /* Mobile: hiện thêm nút đổi bảng điều khiển trang chủ cạnh nút trợ giúp */
   .topbar-dash-switch { display: inline-flex; align-items: center; }
   /* Menu xổ canh phải để không tràn ra ngoài mép màn hình */
   .topbar-dash-switch .dash-switcher-menu { left: auto; right: 0; }
 
-  /* Hide nav by default on mobile; show when open */
-  .menu {
-    display: none;
-    width: 100%;
-    flex-direction: column;
-    gap: 0.25rem;
-    order: 4;
-    overflow: visible;
-    padding-bottom: 0.5rem;
-  }
-  .menu--open {
-    display: flex;
-  }
-  .menu-item {
-    border-radius: 10px;
-    text-align: left;
-    width: 100%;
-    padding: 0.65rem 1rem;
-  }
-
-  /* Dropdown trên mobile: chiếm hết hàng, panel xổ INLINE (không nổi tuyệt đối) */
-  .menu-dropdown { display: flex; flex-direction: column; width: 100%; }
-  .menu-dropdown > .menu-item { width: 100%; text-align: left; }
-  .menu-dropdown-panel {
-    position: static;
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: none;
-    border: none;
-    margin: 2px 0 2px 0.75rem;
-    min-width: 0;
-  }
-  .menu-dropdown-item { padding: 0.6rem 1rem; }
+  /* Trên mobile điều hướng module do thanh đáy (BottomNav) đảm nhiệm; ẩn menu ngang
+     của Header để không lộ trùng lặp (không còn nút ☰ để mở nữa). */
+  .menu { display: none; }
 
   /* Hiện tên người dùng trên mobile (rút gọn) để biết ai đang đăng nhập */
   .user-pill {
@@ -1538,9 +1492,21 @@ body.dw-page-alert .brand-logo {
     padding: 0.35rem 0.55rem;
   }
 
+  /* Mobile: nút đăng xuất thu về chỉ còn icon cho gọn */
+  .topbar-logout-text { display: none; }
+  .topbar-logout-icon { display: inline-flex; }
+  .topbar-logout-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem;
+    line-height: 0;
+  }
+
   /* Page */
   .page {
-    padding: 1rem;
+    /* +đáy: chừa chỗ cho thanh điều hướng dưới (BottomNav) khỏi che nội dung cuối */
+    padding: 1rem 1rem calc(64px + env(safe-area-inset-bottom));
   }
 
   /* Admin */
@@ -1556,41 +1522,11 @@ body.dw-page-alert .brand-logo {
   .admin-page .content-area {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom)); /* chừa chỗ cho BottomNav */
   }
-  /* Mobile: sidebar quản trị thành thanh chip cuộn ngang (mỗi danh mục 1 hàng),
-     gọn để không chiếm nửa màn hình như kiểu wrap cũ. */
-  .admin-sidebar {
-    width: 100%;
-    padding: 10px 12px;
-  }
-  .admin-sidebar-section {
-    margin-bottom: 10px;
-  }
-  .admin-sidebar-category {
-    padding: 4px 2px;
-    margin-bottom: 6px;
-    font-size: 12px;
-  }
-  .admin-sidebar-items {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    gap: 8px;
-    padding-bottom: 4px;
-  }
-  .admin-sidebar-item {
-    flex: 0 0 auto;
-    text-align: center;
-    font-size: 13px;
-    padding: 9px 14px;
-    border: 1px solid #e5e7eb;
-    border-radius: 999px;
-    white-space: nowrap;
-  }
-  .admin-sidebar-item.active {
-    border-color: transparent;
-  }
+  /* Mobile: ẩn hẳn sidebar quản trị — việc chọn chức năng Hệ thống đã do menu bung
+     từ ô "Hệ thống ▾" ở thanh đáy (BottomNav) đảm nhiệm, khỏi chiếm chỗ hiển thị. */
+  .admin-sidebar { display: none; }
 
   /* Contract management body */
   .contract-management-body {
@@ -1630,7 +1566,7 @@ body.dw-page-alert .brand-logo {
   }
   .contract-sidebar-mobile-header { display: flex; }
   .contract-management-content {
-    padding: 16px;
+    padding: 16px 16px calc(64px + env(safe-area-inset-bottom)); /* chừa chỗ cho BottomNav */
   }
 
   /* Mobile: ẩn các card thống kê + banner trong tab — chỉ giữ phần sửa */

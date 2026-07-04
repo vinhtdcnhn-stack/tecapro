@@ -1,0 +1,96 @@
+/* ── Thanh điều hướng dưới (mobile) ──────────────────────────────────────────
+   Ẩn mặc định; chỉ hiện ở ≤768px. z-index 900: dưới bottom-sheet/drawer (1099-1100)
+   để các lớp phủ đó che được nó, nhưng trên nội dung trang. */
+.bottomnav { display: none; }
+
+@media (max-width: 768px) {
+  .bottomnav {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 900;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+    /* chừa thanh gạt Home của iPhone */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .bottomnav-item {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    min-height: 52px;
+    padding: 6px 2px;
+    border: none; background: none; cursor: pointer;
+    color: #6b7280; font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bottomnav-item.is-active { color: var(--accent); }
+  .bottomnav-item:active { background: #f3f4f6; }
+
+  .bottomnav-icon { position: relative; line-height: 0; }
+
+  /* Dấu ▾ báo ô có menu con — gắn góc dưới-phải icon để không bị nhãn cắt mất */
+  .bottomnav-caret {
+    position: absolute; right: -9px; bottom: -2px;
+    font-size: 9px; line-height: 1; color: currentColor;
+  }
+
+  .bottomnav-label {
+    font-size: 11px; font-weight: 600; line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Badge số đơn chờ duyệt (góc trên phải icon) */
+  .bottomnav-badge {
+    position: absolute; top: -6px; left: 12px;
+    min-width: 16px; height: 16px; padding: 0 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #dc2626; color: #fff;
+    font-size: 10px; font-weight: 700; line-height: 1;
+    border-radius: 999px;
+  }
+
+  /* Menu chọn mục con "Công việc" — nổi ngay trên thanh nav */
+  .bottomnav-backdrop {
+    position: fixed; inset: 0; z-index: 899; background: transparent;
+  }
+  .bottomnav-popup {
+    position: fixed; z-index: 901;
+    left: 8px; right: 8px;
+    bottom: calc(52px + env(safe-area-inset-bottom) + 8px);
+    background: #fff;
+    border: 1px solid #e5e7eb; border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+    padding: 6px;
+    display: flex; flex-direction: column; gap: 2px;
+    animation: bottomnav-pop 0.15s ease-out;
+  }
+  /* Menu dài (Hệ thống nhiều mục) → cuộn trong, không tràn màn hình */
+  .bottomnav-popup--scroll {
+    max-height: 62vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .bottomnav-popup-group { display: flex; flex-direction: column; gap: 2px; }
+  .bottomnav-popup-group + .bottomnav-popup-group { margin-top: 4px; }
+  .bottomnav-popup-cat {
+    padding: 8px 14px 4px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.03em; color: #9ca3af; text-transform: uppercase;
+  }
+  @keyframes bottomnav-pop {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .bottomnav-popup-item {
+    text-align: left; width: 100%;
+    min-height: 48px; padding: 10px 14px;
+    border: none; background: none; cursor: pointer;
+    font-family: inherit; font-size: 15px; font-weight: 600; color: #374151;
+    border-radius: 10px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bottomnav-popup-item:active { background: #f3f4f6; }
+  .bottomnav-popup-item.is-active { color: var(--accent); background: var(--accent-soft); }
+}
