@@ -5,7 +5,7 @@ import PurchaseSupplyLinks from './PurchaseSupplyLinks'
 
 // Một dòng trong bảng giá mua (purchase BOQ). Tách riêng để giữ ContractInBOQTab gọn dưới 500 dòng.
 export default function PurchaseBOQRow({
-  row, idx, currency, showPrice = true, targets = [], onSetLinks, selected, onToggleSelect,
+  row, idx, currency, showPrice = true, targets = [], viewContractId, onSetLinks, selected, onToggleSelect,
   set, saveRow, insertAfter, deleteRow,
   canDrag, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
@@ -89,8 +89,10 @@ export default function PurchaseBOQRow({
 
       <td className="td-supply">
         <PurchaseSupplyLinks
-          links={row.links || []}
+          allLinks={row.links || []}
           targets={targets}
+          viewContractId={viewContractId}
+          rowQuantity={Number(row.quantity) || 0}
           disabled={row._isNew || !row.id}
           onChange={(links) => onSetLinks(row, links)}
         />

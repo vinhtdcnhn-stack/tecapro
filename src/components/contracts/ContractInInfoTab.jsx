@@ -4,6 +4,7 @@ import DateInput from './DateInput'
 import { API } from '../../config/api'
 import { CURRENCIES, PURCHASE_TYPES, STATUSES, statusCfg } from './contractInUtils'
 import EditGuard from './EditGuard'
+import ContractInTargets from './ContractInTargets'
 import { useContractPerm } from '../../context/ContractPermContext'
 import { auditRowAttrs } from '../common/rowAudit'
 
@@ -151,6 +152,8 @@ export default function ContractInInfoTab({ item, suppliers, onUpdate, onDelete 
         </div>
       </div>
       </EditGuard>
+
+      <ContractInTargets item={item} />
     </div>
   )
 }

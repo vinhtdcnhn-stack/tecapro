@@ -161,6 +161,7 @@ export const CONTRACTS_CORE_PAGES = [
         heading: 'Gắn hàng nhập vào hàng bán',
         items: [
           'Việc gắn làm ở phía HỢP ĐỒNG NHẬP: người tạo HĐ nhập mở tab "Bảng giá mua", ở cột "Nhập cho" chọn dòng hàng bán (hoặc đầu bán) tương ứng.',
+          'Một hợp đồng nhập có thể phục vụ nhiều hợp đồng bán: nếu HĐ nhập nằm ở hợp đồng bán khác nhưng được khai báo "nhập cho" hợp đồng này (tab Thông tin của HĐ nhập), hàng của nó vẫn gắn vào đây bình thường.',
           'Gắn xong, quay lại tab này sẽ thấy màu và số lượng cập nhật.',
         ],
       },

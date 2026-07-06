@@ -19,7 +19,7 @@ import { useContractPerm } from '../../context/ContractPermContext'
 
 // ── Detail view ───────────────────────────────────────────────────────────────
 
-export default function ContractInDetail({ item, suppliers, initialTab, onBack, onUpdate, onDelete }) {
+export default function ContractInDetail({ item, suppliers, initialTab, viewContractId, onBack, onUpdate, onDelete }) {
   const { canView, canSection } = useContractPerm()
   const showAmounts = canSection('ci.info.amounts')
   // Lọc sub-tab HĐ nhập theo quyền .view (lớp B). Thiếu quyền → ẩn tab đó.
@@ -218,7 +218,8 @@ export default function ContractInDetail({ item, suppliers, initialTab, onBack, 
             basePath={`contract-ins/${item.id}`}
           />
         ) : activeTab === 'pricing' ? (
-          <ContractInBOQTab contractInId={item.id} currency={item.currency_code || 'VND'} />
+          <ContractInBOQTab contractInId={item.id} currency={item.currency_code || 'VND'}
+            viewContractId={viewContractId ?? item.contract_out_id} />
         ) : activeTab === 'delivery' ? (
           <ContractInDeliveryTab contractInId={item.id} />
         ) : activeTab === 'serials' ? (

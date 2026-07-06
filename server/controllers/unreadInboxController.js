@@ -1,17 +1,21 @@
 import { pool } from '../db.js'
 import { userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
+import { userIsHead } from '../middleware/tenderAccess.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Hộp thư "Chưa đọc": gom MỌI việc có nội dung dòng thời gian chưa đọc với người xem,
 // để xem tập trung một chỗ. Trả về cùng định dạng item như các dashboard khác nên tái
 // dùng được bảng TrackingTable (kèm chấm + nền hổ phách + ghim/nhắc dùng chung).
 //
-// Phạm vi "liên quan" KHỚP badge đỏ toàn trang (xem services/liveCounts.js):
-//   • việc HĐ (contract_task)   → người tạo / được giao / PM của HĐ
-//   • việc phòng (dept_work_task) → trưởng-phó (thấy hết) / người tạo / đang được giao
+// Phạm vi "liên quan" phải KHỚP badge đỏ toàn trang (xem services/liveCounts.js) — nếu
+// lệch thì nền đỏ báo có việc chưa đọc mà hộp thư lại rỗng:
+//   • việc HĐ (contract_task)      → người tạo / được giao / PM của HĐ
+//   • việc phòng (dept_work_task)  → trưởng-phó (thấy hết) / người tạo / đang được giao
+//   • đầu việc đấu thầu (tender_checklist_item) → trưởng phòng (thấy hết) / người tạo /
+//        được giao / người làm thầu gói
 //
-// KHÔNG cache: hộp thư phải tươi tức thì (đọc xong là rời danh sách). Chỉ 2 truy vấn nhẹ
-// theo chỉ mục task_id/created_at nên không cần lớp cache như dashboard tổng hợp.
+// KHÔNG cache: hộp thư phải tươi tức thì (đọc xong là rời danh sách). Chỉ vài truy vấn nhẹ
+// theo chỉ mục item_id/created_at nên không cần lớp cache như dashboard tổng hợp.
 // ──────────────────────────────────────────────────────────────────────────────
 
 const iso = (v) => (v ? String(v).slice(0, 10) : null)
@@ -21,8 +25,11 @@ export async function getUnreadInbox(req, res) {
   const userId = parseInt(req.params.userId)
   if (!userId) return res.status(400).json({ error: 'userId không hợp lệ' })
   try {
-    const isHead = await userIsHeadOrDeputy(userId, req.user?.role)
-    const [{ rows: ct }, { rows: dw }, { rows: trk }] = await Promise.all([
+    const [isHead, isTenderHead] = await Promise.all([
+      userIsHeadOrDeputy(userId, req.user?.role),
+      userIsHead(userId, req.user?.role),
+    ])
+    const [{ rows: ct }, { rows: dw }, { rows: tn }, { rows: trk }] = await Promise.all([
       pool.query(
         `SELECT t.id, t.contract_out_id, co.contract_no, t.title, t.due_date,
                 COUNT(e.id)::int AS unread_count, MAX(e.created_at) AS last_unread_at
@@ -50,6 +57,18 @@ export async function getUnreadInbox(req, res) {
                               WHERE a.task_id = e.task_id AND a.is_active AND a.assignee_id = $1) )
           GROUP BY t.id`, [userId, isHead]),
       pool.query(
+        `SELECT i.id, i.title, i.due_date,
+                COALESCE(NULLIF(tn.package_code, ''), tn.package_name) AS package_label,
+                COUNT(e.id)::int AS unread_count, MAX(e.created_at) AS last_unread_at
+           FROM tender_checklist_entry e
+           JOIN tender_checklist_item i ON i.id = e.item_id
+           JOIN tender tn ON tn.id = i.tender_id AND COALESCE(tn.is_deleted, false) = false
+           LEFT JOIN tender_checklist_read r ON r.item_id = e.item_id AND r.user_id = $1
+          WHERE e.author_id <> $1
+            AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
+            AND ( $2 OR i.created_by = $1 OR i.assignee_id = $1 OR tn.bid_maker_id = $1 )
+          GROUP BY i.id, tn.package_code, tn.package_name`, [userId, isTenderHead]),
+      pool.query(
         'SELECT source_type, source_id, pinned, remind_at FROM pm_dashboard_tracking WHERE user_id = $1', [userId]),
     ])
 
@@ -71,6 +90,12 @@ export async function getUnreadInbox(req, res) {
         contract_id: null, contract_no: null,
         due_date: iso(t.due_date), title: t.title || 'Công việc', kind: 'Công việc',
         sub: 'KT Cơ điện', unread_count: t.unread_count, last_unread_at: t.last_unread_at,
+      })),
+      ...tn.map(t => attach({
+        source_type: 'tender_checklist', source_id: t.id, side: 'Thầu',
+        contract_id: null, contract_no: t.package_label || null,
+        due_date: iso(t.due_date), title: t.title || 'Đầu việc', kind: 'Công việc',
+        sub: 'Đấu thầu', unread_count: t.unread_count, last_unread_at: t.last_unread_at,
       })),
     ]
     // Mới chưa đọc lên đầu (TrackingTable vẫn ưu tiên ghim/nhắc trước, rồi tới thứ tự này).

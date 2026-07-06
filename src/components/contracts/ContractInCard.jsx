@@ -21,8 +21,16 @@ export default function ContractInCard({ item, onOpen }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', minWidth: 0 }}>
           {item.contract_no || '(chưa có số)'}
+          {item.is_shared && (
+            <span
+              title={item.other_contract_nos?.length ? `Cũng nhập cho: ${item.other_contract_nos.join(', ')}` : 'Nhập cho nhiều HĐ bán'}
+              style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#92400e',
+                background: '#fef3c7', padding: '1px 6px', borderRadius: 99, whiteSpace: 'nowrap' }}>
+              Dùng chung
+            </span>
+          )}
         </span>
         <span className={`status-badge ${sc.cls}`} style={{ fontSize: 11, flexShrink: 0 }}>{sc.label}</span>
       </div>

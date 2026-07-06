@@ -140,6 +140,7 @@ export default function ContractInTab({ contractId, initialContractInId, initial
           item={selectedItem}
           suppliers={suppliers}
           initialTab={initialTab}
+          viewContractId={contractId}
           onBack={() => setSelected(null)}
           onUpdate={handleItemUpdated}
           onDelete={handleDelete}
@@ -257,7 +258,17 @@ export default function ContractInTab({ contractId, initialContractInId, initial
                       </svg>
                     </button>
                   </td>
-                  <td style={tdStyle('left', { fontWeight: 600 })}>{c.contract_no || '-'}</td>
+                  <td style={tdStyle('left', { fontWeight: 600 })}>
+                    {c.contract_no || '-'}
+                    {c.is_shared && (
+                      <span
+                        title={c.other_contract_nos?.length ? `Cũng nhập cho: ${c.other_contract_nos.join(', ')}` : 'Nhập cho nhiều HĐ bán'}
+                        style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#92400e',
+                          background: '#fef3c7', padding: '1px 6px', borderRadius: 99, whiteSpace: 'nowrap' }}>
+                        Dùng chung
+                      </span>
+                    )}
+                  </td>
                   <td style={tdStyle('left', { whiteSpace: 'normal', maxWidth: 200 })}>{c.goods_type || '-'}</td>
                   <td style={tdStyle()}>{fmtDate(c.contract_date)}</td>
                   <td style={tdStyle()}>{c.supplier_name || <span style={{ color: '#d1d5db' }}>—</span>}</td>

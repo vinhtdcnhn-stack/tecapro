@@ -46,6 +46,17 @@ export const CONTRACT_IN_GROUP = {
             'Người tạo điền/sửa các trường rồi lưu; giá trị hợp đồng tự tính từ tab "Bảng giá mua".',
           ],
         },
+        {
+          heading: 'HĐ bán được cung cấp (Nhập cho nhiều hợp đồng bán)',
+          items: [
+            'Một hợp đồng nhập có thể cung cấp hàng cho NHIỀU hợp đồng bán khác nhau. Phần "HĐ bán được cung cấp (Nhập cho)" ở cuối tab Thông tin liệt kê các hợp đồng bán mà HĐ nhập này phục vụ.',
+            'Hợp đồng bán "gốc" (nơi tạo ra HĐ nhập, có nhãn "HĐ gốc") luôn nằm trong danh sách và KHÔNG bỏ được.',
+            'Để thêm: gõ số HĐ hoặc tên dự án vào ô tìm rồi chọn — chỉ tìm được các hợp đồng bán bạn có quyền xem. Khi đã thêm, HĐ nhập này sẽ hiện trong danh sách "Hợp đồng nhập" của hợp đồng bán đó (kèm nhãn "Dùng chung").',
+            'Sau khi thêm, khi bạn mở hợp đồng nhập TỪ hợp đồng bán vừa link, cột "Nhập cho" (tab Bảng giá mua) sẽ cho gắn hàng nhập vào hàng bán của chính hợp đồng bán đó.',
+            'KHÔNG bỏ được một hợp đồng bán khỏi danh sách nếu đã có hàng nhập gắn vào Theo dõi nhập hàng của nó — phải bỏ ghép ở cột "Nhập cho" (tab Bảng giá mua) trước.',
+            'Chỉ người tạo hợp đồng nhập (hoặc admin) mới thêm/bớt được hợp đồng bán ở đây.',
+          ],
+        },
       ],
     },
     {
@@ -69,7 +80,8 @@ export const CONTRACT_IN_GROUP = {
           heading: 'Màn hình thể hiện gì?',
           items: [
             'Danh mục hàng mua từ nhà cung cấp: tên hàng, đơn vị, số lượng, đơn giá, thành tiền — tổng là giá trị hợp đồng nhập.',
-            'Cột "Nhập cho": mỗi dòng hàng mua được GẮN vào dòng hàng bán (hoặc "đầu bán") của hợp đồng bán mà nó phục vụ.',
+            'Cột "Nhập cho": mỗi dòng hàng mua được GẮN vào dòng hàng bán (hoặc "đầu bán") của hợp đồng bán mà nó phục vụ. Cột này chỉ hiện/chọn hàng bán của HỢP ĐỒNG BÁN ĐANG MỞ — bạn đứng ở hợp đồng bán nào thì gắn hàng nhập cho hợp đồng bán đó (một HĐ nhập dùng chung khi mở từ hợp đồng bán khác sẽ hiện ghép của hợp đồng bán kia).',
+            'Chặn quá nhập: tổng số lượng đã "nhập cho" (cộng cả các hợp đồng bán khác) không vượt quá SỐ LƯỢNG MUA của dòng — phần còn nhập được hiển thị ngay dưới ô, tự trừ khi bạn gắn thêm.',
           ],
         },
         {

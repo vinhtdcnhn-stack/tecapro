@@ -124,6 +124,7 @@ export const HOME_GROUP = {
           heading: 'Màn hình thể hiện gì?',
           items: [
             'Gom về MỘT CHỖ tất cả các việc có nội dung trao đổi bạn chưa đọc, để không bỏ sót thông tin.',
+            'Bao gồm cả ba loại: công việc hợp đồng, việc của phòng và đầu việc đấu thầu — đúng với các việc đang làm nền toàn trang chuyển đỏ nhấp nháy cảnh báo.',
             'Bấm vào từng dòng để đọc; đọc xong dòng sẽ tự rời khỏi danh sách.',
             'Danh sách trống nghĩa là bạn đã đọc hết — không còn gì tồn đọng.',
           ],

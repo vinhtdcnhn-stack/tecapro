@@ -119,15 +119,20 @@ export async function getPurchaseBOQ(req, res) {
     const rows = await cacheWrap(contractInKey(req.params.contractInId, 'boq'), TAB_TTL, async () => {
       // Kèm TẤT CẢ ghép "Nhập cho" hiện tại (1 dòng nhập có thể gắn nhiều đầu bán) dưới dạng
       // mảng JSON `links` để cột hiển thị sẵn danh sách.
+      // contract_out_id kèm mỗi link để FE lọc "Nhập cho" theo HĐ bán đang xem (context-scoped):
+      // 1 dòng nhập có thể nhập cho hàng bán của nhiều HĐ bán khác nhau.
       const { rows } = await pool.query(
         `SELECT b.*,
                 COALESCE(l.links, '[]'::json) AS links
            FROM contract_in_boq b
            LEFT JOIN LATERAL (
              SELECT json_agg(json_build_object(
-                      'id', id, 'boq_id', boq_id, 'slot_id', slot_id, 'covered_qty', covered_qty
-                    ) ORDER BY id) AS links
-               FROM contract_in_boq_supply_link WHERE contract_in_boq_id = b.id
+                      'id', sl.id, 'boq_id', sl.boq_id, 'slot_id', sl.slot_id,
+                      'covered_qty', sl.covered_qty, 'contract_out_id', ob.contract_out_id
+                    ) ORDER BY sl.id) AS links
+               FROM contract_in_boq_supply_link sl
+               JOIN contract_out_boq ob ON ob.id = sl.boq_id
+              WHERE sl.contract_in_boq_id = b.id
            ) l ON true
           WHERE b.contract_in_id = $1 ORDER BY b.sort_order, b.id`,
         [req.params.contractInId]

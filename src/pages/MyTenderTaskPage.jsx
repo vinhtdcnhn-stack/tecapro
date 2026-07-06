@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { API } from '../config/api'
 import ContractDocumentsTab from '../components/contracts/ContractDocumentsTab'
 import TenderChecklistItemDrawer from '../components/tender/TenderChecklistItemDrawer'
@@ -19,13 +19,15 @@ const STATUSES = ['Chờ xử lý', 'Đang thực hiện', 'Hoàn thành', 'Hủ
 export default function MyTenderTaskPage() {
   const { itemId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState('docs')
-  const [showTimeline, setShowTimeline] = useState(false) // mở drawer dòng thời gian
+  // Mở sẵn drawer dòng thời gian khi vào từ hộp thư "Chưa đọc" (?tl=1) — nội dung chưa đọc nằm ở đó.
+  const [showTimeline, setShowTimeline] = useState(searchParams.get('tl') === '1')
 
   const load = useCallback(async () => {
     setLoading(true)

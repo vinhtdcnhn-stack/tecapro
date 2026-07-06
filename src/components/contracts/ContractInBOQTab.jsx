@@ -13,7 +13,7 @@ import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
 
-export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
+export default function ContractInBOQTab({ contractInId, currency = 'VND', viewContractId }) {
   const [rows, setRows]               = useState([])
   const [loading, setLoading]         = useState(true)
   const [importData, setImportData]   = useState(null)
@@ -26,7 +26,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
   const [dragOverKey, setDragOverKey] = useState(null)
   const excelRef = useRef(null)
 
-  const { targets, reloadTargets, saveLinks } = usePurchaseBOQLink(contractInId)
+  const { targets, reloadTargets, saveLinks } = usePurchaseBOQLink(contractInId, viewContractId)
 
   const toLocalRow = (r) => ({
     ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false,
@@ -441,6 +441,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND' }) {
                 currency={currency}
                 showPrice={showPrice}
                 targets={targets}
+                viewContractId={viewContractId}
                 onSetLinks={setLinks}
                 selected={selected.has(r._key)}
                 onToggleSelect={toggleSelect}

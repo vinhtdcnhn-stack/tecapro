@@ -13,6 +13,7 @@ import {
   bulkDeletePurchaseBOQItems,
 } from '../controllers/contractInBOQController.js'
 import { getSupplyTargets, setLinksForInBoqRow } from '../controllers/supplyLinkController.js'
+import { getTargets, addTarget, removeTarget } from '../controllers/contractInTargetController.js'
 import { ownerOfContractIn, ownerVia, ownerViaBody } from '../middleware/contractAccess.js'
 
 const router = Router()
@@ -34,5 +35,10 @@ router.delete('/purchase-boq/:id',                                      ownerVia
 // Cột "Nhập cho": danh sách hàng bán/đầu nhập để chọn + gán ghép (nhiều đầu bán/dòng) cho 1 dòng.
 router.get('/contract-ins/:contractInId/supply-targets',                getSupplyTargets)
 router.put('/purchase-boq/:id/supply-links',                            ownerVia('inBoq'), setLinksForInBoqRow)
+
+// Tập HĐ bán mà HĐ nhập "nhập cho" (contract_in_target). Đọc: mọi user; ghi: chủ HĐ nhập/admin.
+router.get('/contract-ins/:contractInId/targets',                       getTargets)
+router.post('/contract-ins/:contractInId/targets',                      ownerOfCI, addTarget)
+router.delete('/contract-ins/:contractInId/targets/:contractOutId',     ownerOfCI, removeTarget)
 
 export default router
