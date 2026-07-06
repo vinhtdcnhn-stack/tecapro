@@ -5,7 +5,10 @@ import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import AccSearch, { useReportSearch } from './AccSearch.jsx'
 import './Accounting.css'
+
+const SEARCH_FIELDS = ['customer_code', 'customer_name', 'contract_no', 'description']
 
 const TIER_CLASS = {
   '1-7':  'tier-1',
@@ -47,7 +50,8 @@ export default function OverdueAlertsPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() async: setState sau await
   useEffect(() => { load() }, [load])
 
-  const overdueRows = rows.filter(r => r.days_overdue > 0)
+  const allOverdue = rows.filter(r => r.days_overdue > 0)
+  const { query, setQuery, filtered: overdueRows } = useReportSearch(allOverdue, SEARCH_FIELDS)
   const totalVnd = overdueRows.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
 
   return (
@@ -57,13 +61,14 @@ export default function OverdueAlertsPage() {
           <button className={basis === 'actual' ? 'active' : ''} onClick={() => setBasis('actual')}>Theo tiến độ thực</button>
           <button className={basis === 'plan' ? 'active' : ''} onClick={() => setBasis('plan')}>Theo kế hoạch gốc</button>
         </div>
+        <AccSearch value={query} onChange={setQuery} placeholder="Tìm mã KH, khách hàng, HĐ, nội dung..." />
         <span className="acc-report-total">Tổng nợ quá hạn: <strong>{fmtMoney(totalVnd)} đ</strong> · {overdueRows.length} khoản</span>
       </div>
 
       {loading ? (
         <p className="dash-empty">Đang tải...</p>
       ) : overdueRows.length === 0 ? (
-        <p className="dash-empty">Không có khoản nợ quá hạn. 🎉</p>
+        <p className="dash-empty">{query ? 'Không có khoản nợ nào khớp tìm kiếm.' : 'Không có khoản nợ quá hạn. 🎉'}</p>
       ) : isMobile ? (
         <div className="acc-cards">
           {overdueRows.map((r) => (

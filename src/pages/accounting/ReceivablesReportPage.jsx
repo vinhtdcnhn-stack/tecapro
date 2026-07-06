@@ -6,7 +6,10 @@ import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import AccSearch, { useReportSearch } from './AccSearch.jsx'
 import './Accounting.css'
+
+const SEARCH_FIELDS = ['customer_code', 'customer_name', 'contract_no', 'description']
 
 // Text dán chat: một khoản công nợ phải thu.
 function buildCopyText(r) {
@@ -20,7 +23,8 @@ function buildCopyText(r) {
 export default function ReceivablesReportPage() {
   const [to, setTo]       = useState(todayLocal)
   const [basis, setBasis] = useState('actual')
-  const [rows, setRows]   = useState([])
+  const [allRows, setRows] = useState([])
+  const { query, setQuery, filtered: rows } = useReportSearch(allRows, SEARCH_FIELDS)
   const [loading, setLoading] = useState(true)
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải thu',
     (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
@@ -63,11 +67,12 @@ export default function ReceivablesReportPage() {
           <button className={basis === 'plan' ? 'active' : ''} onClick={() => setBasis('plan')}>Theo kế hoạch gốc</button>
         </div>
         {!isMobile && <button className="acc-export" onClick={onExport} disabled={!rows.length}>⬇ Excel</button>}
+        <AccSearch value={query} onChange={setQuery} placeholder="Tìm mã KH, khách hàng, HĐ, nội dung..." />
         <span className="acc-report-total">Tổng còn nợ: <strong>{fmtMoney(totalVnd)} đ</strong> · {rows.length} khoản</span>
       </div>
 
       {loading ? <p className="dash-empty">Đang tải...</p>
-        : rows.length === 0 ? <p className="dash-empty">Không có công nợ phải thu trong kỳ.</p>
+        : rows.length === 0 ? <p className="dash-empty">{query ? 'Không có khoản nào khớp tìm kiếm.' : 'Không có công nợ phải thu trong kỳ.'}</p>
         : isMobile ? (
         <div className="acc-cards">
           {rows.map((r) => (

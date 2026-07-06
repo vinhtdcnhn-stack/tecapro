@@ -36,6 +36,7 @@ export const ACCOUNTING_GROUP = {
           items: [
             'Chọn "Từ ngày" / "Đến ngày" để xem doanh thu một giai đoạn bất kỳ.',
             'Ba nút bấm nhanh: "Tháng trước", "Tháng hiện tại", "Tháng sau" — tự đặt khoảng ngày theo tháng.',
+            'Ô "Tìm kiếm" lọc nhanh theo số hóa đơn, số HĐ, chủ đầu tư hoặc dự án — gõ tới đâu bảng lọc tới đó, "Tổng doanh thu" cũng cập nhật theo kết quả lọc.',
             'Bấm nút "Excel" để tải bảng đang xem về file Excel.',
             'Nếu hiện "Không có hóa đơn nào trong khoảng ngày đã chọn" — thử nới rộng khoảng ngày.',
           ],
@@ -52,6 +53,7 @@ export const ACCOUNTING_GROUP = {
             'Chỉ liệt kê các khoản thu ĐÃ QUÁ HẠN mà chưa thu đủ — đây là danh sách cần đôn đốc gấp nhất.',
             'Mỗi dòng cho biết: hợp đồng nào, khách nào, số tiền còn thiếu, quá hạn bao nhiêu ngày.',
             'Số ngày quá hạn càng lớn càng cần ưu tiên xử lý; danh sách trống là tốt.',
+            'Ô "Tìm kiếm" lọc nhanh theo mã KH, khách hàng, số HĐ hoặc nội dung khoản nợ.',
           ],
         },
       ],
@@ -66,6 +68,7 @@ export const ACCOUNTING_GROUP = {
             'Toàn bộ các khoản KHÁCH CÒN NỢ MÌNH, cột gồm: Mã KH, Khách hàng, Số HĐ, Ngày HĐ, Nội dung (đợt thu), % theo HĐ, Cần thu, Đã thu, Còn nợ, Tiền tệ, Quy đổi VNĐ, Hạn thu, Số ngày quá hạn, Nhóm nợ.',
             '"% theo HĐ" là tỷ lệ đợt thu trên tổng giá trị hợp đồng; "Nhóm nợ" phân loại theo mức độ quá hạn.',
             'Số tiền tính theo nguyên tệ của hợp đồng; cột "Quy đổi VNĐ" chỉ để tham khảo.',
+            'Ô "Tìm kiếm" lọc nhanh theo mã KH, khách hàng, số HĐ hoặc nội dung đợt thu; "Tổng còn nợ" và số khoản cập nhật theo kết quả lọc.',
             'Bấm nút Excel để xuất bảng; chuột phải một dòng → "Sao chép thông tin" để gửi cho người phụ trách.',
           ],
         },
@@ -80,6 +83,7 @@ export const ACCOUNTING_GROUP = {
           items: [
             'Các khoản MÌNH CÒN NỢ NHÀ CUNG CẤP (từ tab Thanh toán của các hợp đồng nhập), cột gồm: Mã NCC, Nhà cung cấp, Số HĐ nhập, Ngày HĐ, Nội dung, Cần trả, Đã trả, Còn nợ, Tiền tệ, Quy đổi VNĐ, Hạn trả, Số ngày quá hạn, Nhóm nợ.',
             'Dùng để sắp xếp kế hoạch chi: khoản nào đến hạn trả trước, khoản nào đã quá hạn.',
+            'Ô "Tìm kiếm" lọc nhanh theo mã NCC, nhà cung cấp, số HĐ nhập hoặc nội dung.',
           ],
         },
       ],
@@ -93,6 +97,7 @@ export const ACCOUNTING_GROUP = {
           items: [
             'Nhìn tổng thể việc thu tiền theo TỪNG HỢP ĐỒNG, cột gồm: Số HĐ, CĐT, Dự án, Ngày ký, Giá trị HĐ (VNĐ), Đã thu (VNĐ), Còn phải thu (VNĐ), Số ngày chậm, Phân loại.',
             'Trả lời câu hỏi: hợp đồng này đã thu được bao nhiêu phần, còn đọng bao nhiêu, có chậm không.',
+            'Có ô "Tìm kiếm" (theo số HĐ, CĐT, dự án) dùng kèm hai ô lọc "Còn phải thu"; bấm "Xoá lọc" để bỏ hết điều kiện.',
           ],
         },
       ],
@@ -106,6 +111,8 @@ export const ACCOUNTING_GROUP = {
           items: [
             'Gom công nợ theo TỪNG KHÁCH HÀNG, cột gồm: Mã KH, Khách hàng, Tổng HĐ (số hợp đồng), Tổng giá trị (VNĐ), Đã thu (VNĐ), Công nợ còn lại (VNĐ), Tỷ lệ thu.',
             'Cho biết khách nào đang chiếm dụng vốn nhiều nhất; mở rộng từng khách để xem chi tiết theo hợp đồng.',
+            'Ô "Tìm kiếm" lọc theo mã/tên khách hàng, hoặc theo số HĐ / dự án của bất kỳ hợp đồng nào thuộc khách đó.',
+            'Khi từ khóa khớp ở một HỢP ĐỒNG, khách hàng chứa nó tự bung ra và chỉ hiện những hợp đồng khớp; nếu khớp ở tên/mã KH thì giữ nguyên toàn bộ hợp đồng của khách đó.',
           ],
         },
       ],

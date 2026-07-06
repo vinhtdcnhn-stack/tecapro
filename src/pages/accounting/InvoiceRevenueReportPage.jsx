@@ -6,8 +6,10 @@ import { contractPath } from '../../components/common/deepLink'
 import DateInput from '../../components/contracts/DateInput.jsx'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import AccSearch, { useReportSearch } from './AccSearch.jsx'
 import './Accounting.css'
 
+const SEARCH_FIELDS = ['invoice_no', 'contract_no', 'customer_name', 'project_name']
 const startOfYear = () => `${new Date().getFullYear()}-01-01`
 
 const LS_KEY = 'invoiceRevenue.range'
@@ -87,8 +89,9 @@ export default function InvoiceRevenueReportPage() {
     return () => { alive = false }
   }, [from, to])
 
-  const rows = useMemo(() => (data && Array.isArray(data.rows) ? data.rows : []), [data])
-  const total = data ? data.total_vnd : 0
+  const allRows = useMemo(() => (data && Array.isArray(data.rows) ? data.rows : []), [data])
+  const { query, setQuery, filtered: rows } = useReportSearch(allRows, SEARCH_FIELDS)
+  const total = useMemo(() => rows.reduce((s, r) => s + (parseFloat(r.amount_vnd) || 0), 0), [rows])
 
   const onExport = () => exportTable('Doanh-thu-xuat-hoa-don.xlsx', 'Doanh thu HD', [
     { label: 'Số hóa đơn', value: r => r.invoice_no },
@@ -103,7 +106,7 @@ export default function InvoiceRevenueReportPage() {
 
   return (
     <div className="acc-report">
-      <div className="acc-report-toolbar" style={{ alignItems: 'flex-end' }}>
+      <div className="acc-report-toolbar">
         {!isMobile && <button className="acc-export" onClick={onExport} disabled={!rows.length}>⬇ Excel</button>}
         <label className="acc-field">Từ ngày
           <DateInput value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
@@ -114,6 +117,7 @@ export default function InvoiceRevenueReportPage() {
         <button type="button" className="acc-quick-range" onClick={() => shiftMonth(-1)}>Tháng trước</button>
         <button type="button" className="acc-quick-range" onClick={goCurrentMonth}>Tháng hiện tại</button>
         <button type="button" className="acc-quick-range" onClick={() => shiftMonth(1)} disabled={nextDisabled}>Tháng sau</button>
+        <AccSearch value={query} onChange={setQuery} placeholder="Tìm số hóa đơn, HĐ, CĐT, dự án..." />
         <span className="acc-report-total">
           Tổng doanh thu: <strong style={{ color: 'var(--brand)' }}>{fmtMoney(total)} đ</strong>
           {' '}({rows.length} hóa đơn)
@@ -121,7 +125,7 @@ export default function InvoiceRevenueReportPage() {
       </div>
 
       {loading ? <p className="dash-empty">Đang tải...</p>
-        : rows.length === 0 ? <p className="dash-empty">Không có hóa đơn nào trong khoảng ngày đã chọn.</p>
+        : rows.length === 0 ? <p className="dash-empty">{query ? 'Không có hóa đơn nào khớp tìm kiếm.' : 'Không có hóa đơn nào trong khoảng ngày đã chọn.'}</p>
         : isMobile ? (
         <div className="acc-cards">
           {rows.map((r) => (

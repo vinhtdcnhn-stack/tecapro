@@ -6,7 +6,10 @@ import { contractPath } from '../../components/common/deepLink'
 import NumberInput from '../../components/common/NumberInput.jsx'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import AccSearch from './AccSearch.jsx'
 import './Accounting.css'
+
+const SEARCH_FIELDS = ['contract_no', 'customer_name', 'project_name']
 
 const CAT_CLASS = {
   'Đúng hạn': 'cat-ok', 'Từ 0-3 tháng': 'cat-1', 'Từ 3-6 tháng': 'cat-2',
@@ -26,6 +29,7 @@ export default function ProgressCollectionPage() {
   const [loading, setLoading] = useState(true)
   const [minRemaining, setMinRemaining] = useState('')   // lọc: Còn phải thu > minRemaining
   const [maxRemaining, setMaxRemaining] = useState('')   // lọc: Còn phải thu ≤ maxRemaining
+  const [query, setQuery] = useState('')                 // tìm theo số HĐ / CĐT / dự án
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.contract_no || r.project_name || 'Hợp đồng',
     (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
   const goContract = useContractNav()
@@ -35,13 +39,15 @@ export default function ProgressCollectionPage() {
   const filtered = useMemo(() => {
     const min = minRemaining === '' ? null : parseFloat(minRemaining)
     const max = maxRemaining === '' ? null : parseFloat(maxRemaining)
+    const q = query.trim().toLowerCase()
     return rows.filter(r => {
       const v = Number(r.remaining_vnd) || 0
       if (min != null && !Number.isNaN(min) && !(v > min)) return false
       if (max != null && !Number.isNaN(max) && !(v <= max)) return false
+      if (q && !SEARCH_FIELDS.some(f => r[f] != null && String(r[f]).toLowerCase().includes(q))) return false
       return true
     })
-  }, [rows, minRemaining, maxRemaining])
+  }, [rows, minRemaining, maxRemaining, query])
 
   useEffect(() => {
     let alive = true
@@ -60,12 +66,13 @@ export default function ProgressCollectionPage() {
     { label: 'Số ngày chậm', value: r => r.delay_days }, { label: 'Phân loại', value: r => r.category },
   ], filtered)
 
-  const hasFilter = minRemaining !== '' || maxRemaining !== ''
+  const hasFilter = minRemaining !== '' || maxRemaining !== '' || query.trim() !== ''
 
   return (
     <div className="acc-report">
-      <div className="acc-report-toolbar" style={{ alignItems: 'flex-end' }}>
+      <div className="acc-report-toolbar">
         {!isMobile && <button className="acc-export" onClick={onExport} disabled={!filtered.length}>⬇ Excel</button>}
+        <AccSearch value={query} onChange={setQuery} placeholder="Tìm số HĐ, CĐT, dự án..." />
         <label className="acc-field">Còn phải thu &gt;
           <NumberInput integer value={minRemaining} onChange={setMinRemaining} placeholder="0" style={{ width: 130 }} />
         </label>
@@ -74,7 +81,7 @@ export default function ProgressCollectionPage() {
         </label>
         {hasFilter && (
           <button type="button" className="acc-export"
-            onClick={() => { setMinRemaining(''); setMaxRemaining('') }}>Xoá lọc</button>
+            onClick={() => { setMinRemaining(''); setMaxRemaining(''); setQuery('') }}>Xoá lọc</button>
         )}
         <span className="acc-report-total">{filtered.length} hợp đồng{hasFilter ? ` / ${rows.length}` : ''}</span>
       </div>

@@ -24,7 +24,8 @@
 
 /* Toolbar báo cáo */
 .acc-report { min-width: 0; }
-.acc-report-toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+/* flex-end: nút/segment và ô nhập (có nhãn ở trên nên cao hơn) căn thẳng đáy về cùng một hàng */
+.acc-report-toolbar { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
 .acc-field { display: inline-flex; flex-direction: column; gap: 3px; font-size: 11px; color: #6b7280; font-weight: 600; }
 .acc-field input { font-size: 13px; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 7px; }
 .acc-seg { display: inline-flex; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; }

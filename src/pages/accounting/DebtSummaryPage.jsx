@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { apiGet } from '../../lib/api'
 import { fmtMoney, fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import AccSearch from './AccSearch.jsx'
 import './Accounting.css'
 
 const STATUS_CLASS = { 'Quá hạn': 'st-over', 'Trong hạn': 'st-in', 'Đã thanh toán': 'st-paid' }
@@ -33,6 +34,7 @@ export default function DebtSummaryPage() {
   const [totals, setTotals] = useState(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(null)   // customer_id đang mở
+  const [query, setQuery] = useState('')   // tìm theo mã/tên KH hoặc số HĐ/dự án
   const goContract = useContractNav()
   const isMobile = useIsMobile()
   const custCopy = useCopyMenu(buildCustText, (c) => c.customer_name || 'Khách hàng')  // mức KH: không gắn 1 HĐ → không có link
@@ -52,12 +54,34 @@ export default function DebtSummaryPage() {
     return () => { alive = false }
   }, [])
 
+  const q = query.trim().toLowerCase()
+  const custMatches = (c) => [c.customer_code, c.customer_name].some(v => v != null && String(v).toLowerCase().includes(q))
+  const contractMatches = (k) => [k.contract_no, k.project_name].some(v => v != null && String(v).toLowerCase().includes(q))
+
+  // Lọc theo mã/tên KH, hoặc số HĐ / dự án của bất kỳ hợp đồng nào thuộc KH đó.
+  const filteredCusts = useMemo(() => {
+    if (!q) return custs
+    return custs.filter(c => custMatches(c)
+      || contracts.some(k => String(k.customer_id) === String(c.customer_id) && contractMatches(k)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [custs, contracts, q])
+
+  // Hợp đồng hiển thị dưới một KH: không tìm → toàn bộ; khớp ở tên KH → toàn bộ;
+  // khớp qua hợp đồng con → chỉ những hợp đồng khớp.
+  const childrenFor = (c) => {
+    const all = contracts.filter(x => String(x.customer_id) === String(c.customer_id))
+    if (!q || custMatches(c)) return all
+    return all.filter(contractMatches)
+  }
+  // Đang tìm kiếm thì tự bung mọi KH khớp; bình thường theo hàng người dùng bấm mở.
+  const isCustOpen = (c) => (q ? true : open === c.customer_id)
+
   const onExport = () => exportTable('Tong-hop-cong-no-KH.xlsx', 'Theo KH', [
     { label: 'Mã KH', value: r => r.customer_code }, { label: 'Khách hàng', value: r => r.customer_name },
     { label: 'Tổng HĐ', value: r => r.total_contracts }, { label: 'Tổng giá trị (VNĐ)', value: r => Math.round(r.value_vnd) },
     { label: 'Đã thu (VNĐ)', value: r => Math.round(r.paid_vnd) }, { label: 'Công nợ còn lại (VNĐ)', value: r => Math.round(r.outstanding_vnd) },
     { label: 'Tỷ lệ thu', value: r => fmtPct(r.collection_ratio) },
-  ], custs)
+  ], filteredCusts)
 
   if (loading) return <p className="dash-empty">Đang tải...</p>
 
@@ -76,14 +100,15 @@ export default function DebtSummaryPage() {
 
       <div className="acc-report-toolbar">
         <span className="acc-section-title" style={{ margin: 0 }}>Tổng hợp theo khách hàng — bấm để xem hợp đồng</span>
-        {!isMobile && <button className="acc-export" onClick={onExport} disabled={!custs.length}>⬇ Excel</button>}
+        <AccSearch value={query} onChange={setQuery} placeholder="Tìm mã/tên KH, số HĐ, dự án..." />
+        {!isMobile && <button className="acc-export" onClick={onExport} disabled={!filteredCusts.length}>⬇ Excel</button>}
       </div>
 
       {isMobile ? (
         <div className="acc-cards">
-          {custs.map(c => {
-            const isOpen = open === c.customer_id
-            const kids = isOpen ? contracts.filter(x => String(x.customer_id) === String(c.customer_id)) : []
+          {filteredCusts.map(c => {
+            const isOpen = isCustOpen(c)
+            const kids = isOpen ? childrenFor(c) : []
             return (
               <AccCard key={`c${c.customer_id}`}
                 title={`${isOpen ? '▾ ' : '▸ '}${c.customer_name || '—'}`}
@@ -127,9 +152,9 @@ export default function DebtSummaryPage() {
             <th className="num">Đã thu</th><th className="num">Công nợ còn lại</th><th className="num">Tỷ lệ thu</th>
           </tr></thead>
           <tbody>
-            {custs.map(c => {
-              const isOpen = open === c.customer_id
-              const kids = isOpen ? contracts.filter(x => String(x.customer_id) === String(c.customer_id)) : []
+            {filteredCusts.map(c => {
+              const isOpen = isCustOpen(c)
+              const kids = isOpen ? childrenFor(c) : []
               return [
                 <tr key={`c${c.customer_id}`} className="acc-row-click" onClick={() => setOpen(isOpen ? null : c.customer_id)} {...custCopy.getRowProps(c)}>
                   <td>{isOpen ? '▾ ' : '▸ '}{c.customer_code || '—'}</td>
