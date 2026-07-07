@@ -9,9 +9,7 @@ export default function SupplierTable({ suppliers, searchTerm, userRole, onEdit 
       s.code?.toLowerCase().includes(term) ||
       s.name?.toLowerCase().includes(term) ||
       s.tax_code?.toLowerCase().includes(term) ||
-      s.contact_person?.toLowerCase().includes(term) ||
-      s.phone?.toLowerCase().includes(term) ||
-      s.email?.toLowerCase().includes(term)
+      s.address?.toLowerCase().includes(term)
     )
   })
 
@@ -29,9 +27,7 @@ export default function SupplierTable({ suppliers, searchTerm, userRole, onEdit 
         meta={(s) => [
           s.code ? `Mã: ${s.code}` : null,
           s.tax_code ? `MST: ${s.tax_code}` : null,
-          s.contact_person ? `LH: ${s.contact_person}` : null,
-          s.phone ? `☎ ${s.phone}` : null,
-          s.email || null,
+          s.address ? `📍 ${s.address}` : null,
         ]}
       />
     )
@@ -45,9 +41,7 @@ export default function SupplierTable({ suppliers, searchTerm, userRole, onEdit 
             <th>Mã NCC</th>
             <th>Tên nhà cung cấp</th>
             <th>Mã số thuế</th>
-            <th>Người liên hệ</th>
-            <th>Số điện thoại</th>
-            <th>Email</th>
+            <th>Địa chỉ</th>
             <th>Trạng thái</th>
             <th>Hành động</th>
           </tr>
@@ -55,7 +49,7 @@ export default function SupplierTable({ suppliers, searchTerm, userRole, onEdit 
         <tbody>
           {filtered.length === 0 ? (
             <tr>
-              <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+              <td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                 Không tìm thấy kết quả nào phù hợp.
               </td>
             </tr>
@@ -69,9 +63,7 @@ export default function SupplierTable({ suppliers, searchTerm, userRole, onEdit 
               <td>{s.code || '-'}</td>
               <td>{s.name}</td>
               <td>{s.tax_code || '-'}</td>
-              <td>{s.contact_person || '-'}</td>
-              <td>{s.phone || '-'}</td>
-              <td>{s.email || '-'}</td>
+              <td>{s.address || '-'}</td>
               <td>
                 <span style={{ color: s.is_active ? '#28a745' : '#dc3545', fontWeight: 'bold' }}>
                   {s.is_active ? 'Hoạt động' : 'Ngừng hoạt động'}

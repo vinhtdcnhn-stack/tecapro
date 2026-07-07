@@ -34,6 +34,7 @@ export const ADMIN_GROUP = {
             '"Quản lý phòng ban" / "Chức danh": khai báo cơ cấu tổ chức — là căn cứ để phân quyền theo vị trí và phòng ban.',
             '"Quản lý khách hàng": danh bạ chủ đầu tư/khách hàng — nơi các hợp đồng bán và gói thầu chọn ra.',
             '"Quản lý nhà cung cấp": danh bạ NCC — nơi hợp đồng nhập chọn ra.',
+            'Mỗi khách hàng/NCC lưu 4 thông tin: Mã, Tên đơn vị, Mã số thuế và Địa chỉ. Không còn ô Người liên hệ/Điện thoại/Email ở đây (một đơn vị thường có nhiều đầu mối khác nhau) — thông tin liên hệ để trao đổi theo từng hợp đồng/công việc.',
             '"Loại biên bản": các loại biên bản (giao hàng, nghiệm thu...) dùng ở tab "Tiến độ theo biên bản" của hợp đồng.',
             'Quy tắc chung: khai danh mục MỘT LẦN ở đây, mọi nơi khác chỉ chọn từ danh sách — không gõ tay để tránh trùng lặp sai chính tả.',
             'Sửa nhanh: ở mọi bảng danh mục, NHẤN ĐÚP (double click) vào một dòng để mở ngay cửa sổ sửa dòng đó — không cần bấm nút "Sửa".',

@@ -320,7 +320,7 @@ export default function QuantriPage() {
                   <button className="add-btn" onClick={() => setShowAddCustomerModal(true)}>Thêm khách hàng</button>
                 )}
                 <div style={{ maxWidth: '300px' }}>
-                  <input type="text" placeholder="🔍 Tìm kiếm (Tên, Mã, MST, SĐT...)" value={customerSearchTerm} onChange={(e) => setCustomerSearchTerm(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px' }} />
+                  <input type="text" placeholder="🔍 Tìm kiếm (Tên, Mã, MST, Địa chỉ...)" value={customerSearchTerm} onChange={(e) => setCustomerSearchTerm(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px' }} />
                 </div>
               </div>
               <div className="content-scrollable">
@@ -339,7 +339,7 @@ export default function QuantriPage() {
                   <button className="add-btn" onClick={() => setShowAddSupplierModal(true)}>Thêm nhà cung cấp</button>
                 )}
                 <div style={{ maxWidth: '300px' }}>
-                  <input type="text" placeholder="🔍 Tìm kiếm (Tên, Mã, MST, SĐT...)" value={supplierSearchTerm} onChange={e => setSupplierSearchTerm(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px' }} />
+                  <input type="text" placeholder="🔍 Tìm kiếm (Tên, Mã, MST, Địa chỉ...)" value={supplierSearchTerm} onChange={e => setSupplierSearchTerm(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px' }} />
                 </div>
               </div>
               <div className="content-scrollable">

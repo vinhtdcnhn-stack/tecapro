@@ -92,9 +92,6 @@ export async function createCustomer(req, res) {
     name,
     tax_code,
     address,
-    contact_person,
-    phone,
-    email,
     is_active,
     created_by
   } = req.body
@@ -114,13 +111,10 @@ export async function createCustomer(req, res) {
         name,
         tax_code,
         address,
-        contact_person,
-        phone,
-        email,
         is_active,
         created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, code, name
       `,
       [
@@ -128,9 +122,6 @@ export async function createCustomer(req, res) {
         name.trim(),
         tax_code?.trim() || null,
         address?.trim() || null,
-        contact_person?.trim() || null,
-        phone?.trim() || null,
-        email?.trim().toLowerCase() || null,
         is_active !== false,
         created_by || null
       ]
@@ -173,9 +164,6 @@ export async function updateCustomer(req, res) {
     name,
     tax_code,
     address,
-    contact_person,
-    phone,
-    email,
     is_active,
     updated_by
   } = req.body
@@ -196,13 +184,10 @@ export async function updateCustomer(req, res) {
         name = $2,
         tax_code = $3,
         address = $4,
-        contact_person = $5,
-        phone = $6,
-        email = $7,
-        is_active = $8,
-        updated_by = $9,
+        is_active = $5,
+        updated_by = $6,
         updated_at = NOW()
-      WHERE id = $10
+      WHERE id = $7
       RETURNING id, code, name
       `,
       [
@@ -210,9 +195,6 @@ export async function updateCustomer(req, res) {
         name.trim(),
         tax_code?.trim() || null,
         address?.trim() || null,
-        contact_person?.trim() || null,
-        phone?.trim() || null,
-        email?.trim().toLowerCase() || null,
         is_active !== false,
         updated_by || null,
         id

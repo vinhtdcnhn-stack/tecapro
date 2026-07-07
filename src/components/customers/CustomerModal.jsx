@@ -14,9 +14,6 @@ export default function CustomerModal({
     name: '',
     tax_code: '',
     address: '',
-    contact_person: '',
-    phone: '',
-    email: '',
     is_active: true
   })
 
@@ -28,9 +25,6 @@ export default function CustomerModal({
         name: customer.name || '',
         tax_code: customer.tax_code || '',
         address: customer.address || '',
-        contact_person: customer.contact_person || '',
-        phone: customer.phone || '',
-        email: customer.email || '',
         is_active: customer.is_active ?? true
       })
     } else {
@@ -44,9 +38,6 @@ export default function CustomerModal({
       name: '',
       tax_code: '',
       address: '',
-      contact_person: '',
-      phone: '',
-      email: '',
       is_active: true
     })
   }
@@ -119,36 +110,6 @@ export default function CustomerModal({
                 fontFamily: 'inherit',
                 resize: 'vertical'
               }}
-            />
-          </div>
-
-          <div className="field">
-            <label>Người liên hệ</label>
-            <input
-              type="text"
-              value={formData.contact_person}
-              onChange={(e) => updateField('contact_person', e.target.value)}
-              placeholder="Nhập tên người liên hệ"
-            />
-          </div>
-
-          <div className="field">
-            <label>Số điện thoại</label>
-            <input
-              type="text"
-              value={formData.phone}
-              onChange={(e) => updateField('phone', e.target.value)}
-              placeholder="Nhập số điện thoại"
-            />
-          </div>
-
-          <div className="field">
-            <label>Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => updateField('email', e.target.value)}
-              placeholder="Nhập email"
             />
           </div>
 

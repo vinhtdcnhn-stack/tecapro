@@ -5,8 +5,7 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier = null
   const isEdit = !!supplier
 
   const [formData, setFormData] = useState({
-    code: '', name: '', tax_code: '', address: '',
-    contact_person: '', phone: '', email: '', note: '', is_active: true,
+    code: '', name: '', tax_code: '', address: '', note: '', is_active: true,
   })
 
   useEffect(() => {
@@ -17,9 +16,6 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier = null
         name:           supplier.name           || '',
         tax_code:       supplier.tax_code       || '',
         address:        supplier.address        || '',
-        contact_person: supplier.contact_person || '',
-        phone:          supplier.phone          || '',
-        email:          supplier.email          || '',
         note:           supplier.note           || '',
         is_active:      supplier.is_active      ?? true,
       })
@@ -29,7 +25,7 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier = null
   }, [supplier, isOpen])
 
   function resetForm() {
-    setFormData({ code: '', name: '', tax_code: '', address: '', contact_person: '', phone: '', email: '', note: '', is_active: true })
+    setFormData({ code: '', name: '', tax_code: '', address: '', note: '', is_active: true })
   }
 
   function set(field, value) {
@@ -90,36 +86,6 @@ export default function SupplierModal({ isOpen, onClose, onSave, supplier = null
               onChange={e => set('address', e.target.value)}
               placeholder="Nhập địa chỉ"
               style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical' }}
-            />
-          </div>
-
-          <div className="field">
-            <label>Người liên hệ</label>
-            <input
-              type="text"
-              value={formData.contact_person}
-              onChange={e => set('contact_person', e.target.value)}
-              placeholder="Nhập tên người liên hệ"
-            />
-          </div>
-
-          <div className="field">
-            <label>Số điện thoại</label>
-            <input
-              type="text"
-              value={formData.phone}
-              onChange={e => set('phone', e.target.value)}
-              placeholder="Nhập số điện thoại"
-            />
-          </div>
-
-          <div className="field">
-            <label>Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={e => set('email', e.target.value)}
-              placeholder="Nhập email"
             />
           </div>
 

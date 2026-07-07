@@ -41,7 +41,7 @@ export async function checkSupplierCodeExists(req, res) {
 }
 
 export async function createSupplier(req, res) {
-  const { code, name, tax_code, address, contact_person, phone, email, note, is_active, created_by } = req.body
+  const { code, name, tax_code, address, note, is_active, created_by } = req.body
 
   if (!code || !name) {
     return res.status(400).json({ error: 'Mã và tên nhà cung cấp là bắt buộc' })
@@ -49,17 +49,14 @@ export async function createSupplier(req, res) {
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO supplier (code, name, tax_code, address, contact_person, phone, email, note, is_active, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      `INSERT INTO supplier (code, name, tax_code, address, note, is_active, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        RETURNING id, code, name`,
       [
         code.trim().toUpperCase(),
         name.trim(),
         tax_code?.trim() || null,
         address?.trim() || null,
-        contact_person?.trim() || null,
-        phone?.trim() || null,
-        email?.trim().toLowerCase() || null,
         note?.trim() || null,
         is_active !== false,
         created_by || null,
@@ -78,7 +75,7 @@ export async function createSupplier(req, res) {
 
 export async function updateSupplier(req, res) {
   const id = req.params.id
-  const { code, name, tax_code, address, contact_person, phone, email, note, is_active, updated_by } = req.body
+  const { code, name, tax_code, address, note, is_active, updated_by } = req.body
 
   if (!code || !name) {
     return res.status(400).json({ error: 'Mã và tên nhà cung cấp là bắt buộc' })
@@ -88,18 +85,14 @@ export async function updateSupplier(req, res) {
     const { rows } = await pool.query(
       `UPDATE supplier SET
         code = $1, name = $2, tax_code = $3, address = $4,
-        contact_person = $5, phone = $6, email = $7, note = $8,
-        is_active = $9, updated_by = $10, updated_at = NOW()
-       WHERE id = $11
+        note = $5, is_active = $6, updated_by = $7, updated_at = NOW()
+       WHERE id = $8
        RETURNING id, code, name`,
       [
         code.trim().toUpperCase(),
         name.trim(),
         tax_code?.trim() || null,
         address?.trim() || null,
-        contact_person?.trim() || null,
-        phone?.trim() || null,
-        email?.trim().toLowerCase() || null,
         note?.trim() || null,
         is_active !== false,
         updated_by || null,

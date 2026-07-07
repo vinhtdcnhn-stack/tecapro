@@ -9,9 +9,7 @@ export default function CustomerTable({ customers, searchTerm, userRole, onEdit 
       c.name?.toLowerCase().includes(term) ||
       c.code?.toLowerCase().includes(term) ||
       c.tax_code?.toLowerCase().includes(term) ||
-      c.phone?.toLowerCase().includes(term) ||
-      c.email?.toLowerCase().includes(term) ||
-      c.contact_person?.toLowerCase().includes(term)
+      c.address?.toLowerCase().includes(term)
     )
   })
 
@@ -29,9 +27,7 @@ export default function CustomerTable({ customers, searchTerm, userRole, onEdit 
         meta={(c) => [
           c.code ? `Mã: ${c.code}` : null,
           c.tax_code ? `MST: ${c.tax_code}` : null,
-          c.contact_person ? `LH: ${c.contact_person}` : null,
-          c.phone ? `☎ ${c.phone}` : null,
-          c.email || null,
+          c.address ? `📍 ${c.address}` : null,
         ]}
       />
     )
@@ -45,9 +41,7 @@ export default function CustomerTable({ customers, searchTerm, userRole, onEdit 
             <th>Mã khách hàng</th>
             <th>Tên khách hàng</th>
             <th>Mã số thuế</th>
-            <th>Người liên hệ</th>
-            <th>Số điện thoại</th>
-            <th>Email</th>
+            <th>Địa chỉ</th>
             <th>Trạng thái</th>
             <th>Hành động</th>
           </tr>
@@ -55,7 +49,7 @@ export default function CustomerTable({ customers, searchTerm, userRole, onEdit 
         <tbody>
           {filteredCustomers.length === 0 ? (
             <tr>
-              <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+              <td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                 Không tìm thấy kết quả nào phù hợp.
               </td>
             </tr>
@@ -70,9 +64,7 @@ export default function CustomerTable({ customers, searchTerm, userRole, onEdit 
                 <td>{c.code || '-'}</td>
                 <td>{c.name}</td>
                 <td>{c.tax_code || '-'}</td>
-                <td>{c.contact_person || '-'}</td>
-                <td>{c.phone || '-'}</td>
-                <td>{c.email || '-'}</td>
+                <td>{c.address || '-'}</td>
                 <td>
                   <span style={{ 
                     color: c.is_active ? '#28a745' : '#dc3545',
