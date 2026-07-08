@@ -40,6 +40,7 @@
 .inv-order-link { color: #16a34a; }
 .inv-remain { color: #d97706; font-weight: 700; }
 .inv-done { color: #16a34a; }
+.inv-draft-qty { color: #92400e; }
 
 /* Khóa đợt — nút khóa/mở khóa + nhãn trạng thái đã khóa */
 .inv-lock-btn { display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid #e5e7eb; border-radius: 5px; padding: 3px 9px; color: #374151; cursor: pointer; font-size: 12px; font-weight: 500; margin-left: 8px; }

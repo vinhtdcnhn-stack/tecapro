@@ -15,7 +15,7 @@ const num0 = (v) => Math.max(0, parseFloat(v) || 0)
 // Modal tạo/sửa một ĐỢT xuất hóa đơn.
 // Tên hàng / ĐVT / Đơn giá / VAT của mỗi dòng CHỐT CỨNG theo bảng giá hợp đồng:
 // người dùng chỉ chọn mặt hàng (từ bảng giá) và nhập Số lượng.
-export default function InvoiceBatchModal({ contractId, contract, boqItems = [], summary = [], initial, onClose, onSaved }) {
+export default function InvoiceBatchModal({ contractId, contract, boqItems = [], summary = [], invoices = [], initial, onClose, onSaved }) {
   const defCur  = initial?.currency_code || contract?.currency_code || 'VND'
   const defRate = initial?.exchange_rate || contract?.exchange_rate || 1
 
@@ -25,22 +25,26 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
   // Lấy dòng bảng giá cho 1 hàng (ưu tiên boq_id, fallback theo tên).
   const boqOf = (r) => (r.boq_id ? boqById.get(String(r.boq_id)) : boqByName.get(norm(r.item_name))) || null
 
-  // Tồn chưa xuất hóa đơn của 1 mặt hàng (theo bảng giá).
-  // Khi sửa đợt, cộng lại SL của chính đợt này (đã nằm trong qty_invoiced) để không bị trừ thừa.
+  // Tồn có thể xuất cho 1 mặt hàng = SL hợp đồng − SL đã nằm ở CÁC ĐỢT KHÁC.
   const sumByBoq = new Map(summary.map(s => [String(s.boq_id), s]))
   // Đường dẫn nhóm/phần (vd "Phần 1 › Hệ thống UPS") để phân biệt các mặt hàng trùng tên.
   const pathOf = (id) => sumByBoq.get(String(id))?.group_path || ''
   const label = (b) => { const p = pathOf(b.id); return p ? `${b.item_name} — ${p}` : b.item_name }
-  const initialByBoq = new Map()
-  for (const it of (initial?.items || [])) {
-    if (!it.boq_id) continue
-    initialByBoq.set(String(it.boq_id), (initialByBoq.get(String(it.boq_id)) || 0) + num(it.quantity))
+  // SL đã cam kết ở MỌI đợt khác (nháp lẫn đã xuất), TRỪ đợt đang sửa. Đợt nháp chưa bị
+  // trừ trên bảng "Tồn chưa xuất" nên phải tự trừ ở đây để bảng thêm hàng / kiểm tra không
+  // cho tổng các đợt vượt SL hợp đồng (khớp guard ở backend).
+  const othersByBoq = new Map()
+  for (const inv of invoices) {
+    if (initial && String(inv.id) === String(initial.id)) continue
+    for (const it of (inv.items || [])) {
+      if (!it.boq_id) continue
+      othersByBoq.set(String(it.boq_id), (othersByBoq.get(String(it.boq_id)) || 0) + num(it.quantity))
+    }
   }
   const remainOf = (boqId) => {
     const s = sumByBoq.get(String(boqId))
     const contractQty = s ? num(s.qty_contract) : 0
-    const already = (s ? num(s.qty_invoiced) : 0) - (initialByBoq.get(String(boqId)) || 0)
-    return contractQty - already
+    return contractQty - (othersByBoq.get(String(boqId)) || 0)
   }
 
   const [invoiceNo, setInvoiceNo] = useState(initial?.invoice_no || '')
@@ -175,8 +179,8 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
   const totalBefore = rows.reduce((s, r) => s + num(r.quantity) * num(r.unit_price), 0)
   const totalAfter  = rows.reduce((s, r) => s + num(r.quantity) * num(r.unit_price) * (1 + num(r.vat_rate) / 100), 0)
 
-  // Kiểm tra: mọi dòng phải chọn mặt hàng trong bảng giá và SL không vượt tồn chưa xuất.
-  // Khi sửa đợt, cộng lại SL của chính đợt này (đã nằm trong qty_invoiced) để không tính là vượt.
+  // Kiểm tra: mọi dòng phải chọn mặt hàng trong bảng giá và SL không vượt phần còn có thể
+  // xuất = SL hợp đồng − SL đã cam kết ở các đợt khác (nháp + đã xuất, đã trừ đợt đang sửa).
   const validate = (items) => {
     const newQty = new Map()
     const notInCatalog = []
@@ -190,15 +194,12 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
 
     const overflow = []
     for (const [boqId, qty] of newQty) {
-      const s = sumByBoq.get(boqId)
-      const contractQty = s ? num(s.qty_contract) : 0
-      const already = (s ? num(s.qty_invoiced) : 0) - (initialByBoq.get(boqId) || 0)
-      const remain = contractQty - already
+      const remain = remainOf(boqId)
       if (qty > remain + 1e-6)
-        overflow.push(`${boqById.get(boqId)?.item_name || ''}: xuất ${fmt(qty)} / tồn chưa xuất ${fmt(Math.max(0, remain))}`)
+        overflow.push(`${boqById.get(boqId)?.item_name || ''}: xuất ${fmt(qty)} / còn có thể xuất ${fmt(Math.max(0, remain))}`)
     }
     if (overflow.length)
-      return `Số lượng vượt tồn chưa xuất hóa đơn theo bảng giá:\n${overflow.join('\n')}`
+      return `Số lượng vượt SL còn lại theo hợp đồng (đã tính cả các đợt nháp khác):\n${overflow.join('\n')}`
     return null
   }
 
@@ -321,7 +322,7 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
       {showPicker && (
         <Modal isOpen onClose={() => setShowPicker(false)} className="inv-picker-modal" width={720}>
           <div className="modal-header">
-            <h3>Chọn hàng hóa (tồn chưa xuất)</h3>
+            <h3>Chọn hàng hóa (còn có thể xuất)</h3>
             <button className="modal-close" onClick={() => setShowPicker(false)}>×</button>
           </div>
           <div className="modal-body">
@@ -341,7 +342,7 @@ export default function InvoiceBatchModal({ contractId, contract, boqItems = [],
                   <thead><tr>
                     <th className="pk-check"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
                     <th>Tên hàng</th><th>ĐVT</th>
-                    <th className="num">Đơn giá</th><th className="num">VAT%</th><th className="num">Tồn chưa xuất</th>
+                    <th className="num">Đơn giá</th><th className="num">VAT%</th><th className="num">Còn có thể xuất</th>
                   </tr></thead>
                   <tbody>
                     {pickerItems.map(({ b, remain }) => {

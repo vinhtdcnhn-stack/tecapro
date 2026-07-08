@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 export const fmtMoney = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
@@ -23,6 +23,33 @@ export const endOfThisMonth = () => {
   const mm = String(last.getMonth() + 1).padStart(2, '0')
   const dd = String(last.getDate()).padStart(2, '0')
   return `${last.getFullYear()}-${mm}-${dd}`
+}
+
+// Gọi lại `fn` mỗi khi người dùng quay lại tab/cửa sổ (chuyển sang app/tab khác rồi quay
+// lại). Dùng cho các báo cáo kế toán đọc-only để luôn thấy số mới nhất khi người khác vừa
+// sửa dữ liệu, không phải F5 thủ công. Các endpoint báo cáo đều là conditional GET (ETag/
+// 304 — xem reportNotModified ở server) nên lần gọi lại rất nhẹ khi dữ liệu chưa đổi. Nên
+// truyền hàm refetch "im lặng" (không bật cờ loading) để không nhấp nháy "Đang tải...".
+// KHÔNG tự chạy khi mount — useEffect load ban đầu của từng trang đã lo việc đó.
+export function useRefetchOnFocus(fn) {
+  const ref = useRef(fn)
+  useEffect(() => { ref.current = fn })   // giữ tham chiếu hàm mới nhất (ngoài giai đoạn render)
+  useEffect(() => {
+    let last = 0
+    const run = () => {
+      if (document.visibilityState === 'hidden') return   // đang rời tab → bỏ qua
+      const now = Date.now()
+      if (now - last < 500) return   // gộp 'focus' + 'visibilitychange' xảy ra sát nhau
+      last = now
+      ref.current?.()
+    }
+    window.addEventListener('focus', run)
+    document.addEventListener('visibilitychange', run)
+    return () => {
+      window.removeEventListener('focus', run)
+      document.removeEventListener('visibilitychange', run)
+    }
+  }, [])
 }
 
 // Hook điều hướng tới đúng tab trong chi tiết hợp đồng (mở từ một hàng báo cáo kế toán).

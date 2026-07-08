@@ -16,7 +16,7 @@ const dispAmount = (amt, currency) => {
 // Tái dùng handler + helper của ContractGuaranteeTab (truyền qua props).
 export default function GuaranteeMobile({
   rows, set, saveRow, deleteRow, addRow,
-  types, statuses, contractCurrency, pctOf, fmtVND, fmtPct, autoStatus, StatusPill, totalAmt, showAmounts = true,
+  types, statuses, contractCurrency, ratioOf, contractValue = 0, fmtVND, autoStatus, StatusPill, totalAmt, showAmounts = true,
   auditTable = 'contract_guarantee',
 }) {
   const [editingKey, setEditingKey] = useState(null)
@@ -25,7 +25,9 @@ export default function GuaranteeMobile({
   const openAdd = () => setEditingKey(addRow())
   const onSave  = () => { if (editing) saveRow(editing); setEditingKey(null) }
   const onDel   = () => { if (editing) deleteRow(editing); setEditingKey(null) }
-  const pct = editing ? pctOf(editing.amount) : null
+  // Chỉ tab có truyền ratioOf (bảo lãnh HĐ bán) mới hỗ trợ ô % so với GTHĐ; HĐ nhập không có.
+  const supportsPct = typeof ratioOf === 'function'
+  const hdRatio = editing && supportsPct ? (editing.hd_ratio != null ? editing.hd_ratio : ratioOf(editing.amount)) : ''
 
   return (
     <div className="guar-mobile">
@@ -75,8 +77,14 @@ export default function GuaranteeMobile({
                 onChange={v => set(editing._key, 'amount', v)} />
             ) : <span className="recv-masked">•••</span>}
           </Field>
-          {pct !== null && (
-            <div className="mcard-meta">% so với giá trị HĐ: <strong>{fmtPct(pct)}</strong></div>
+          {showAmounts && supportsPct && (
+            <Field label="% so với giá trị HĐ">
+              <input type="number" min="0" step="0.01"
+                placeholder={contractValue > 0 ? '30' : '—'}
+                disabled={!(contractValue > 0)}
+                value={hdRatio === '' || hdRatio == null ? '' : hdRatio}
+                onChange={e => set(editing._key, 'hd_ratio', e.target.value)} />
+            </Field>
           )}
           <Field label="Ngày phát hành">
             <DateInput value={editing.issue_date?.slice(0, 10) || ''} onChange={e => set(editing._key, 'issue_date', e.target.value)} />

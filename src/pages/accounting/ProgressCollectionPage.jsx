@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { apiGet } from '../../lib/api'
-import { fmtMoney, fmtDate, exportTable, useContractNav } from './reportUtils'
+import { fmtMoney, fmtDate, exportTable, useContractNav, useRefetchOnFocus } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import NumberInput from '../../components/common/NumberInput.jsx'
@@ -49,13 +49,18 @@ export default function ProgressCollectionPage() {
     })
   }, [rows, minRemaining, maxRemaining, query])
 
-  useEffect(() => {
-    let alive = true
-    apiGet('/reports/progress-collection', { conditional: true })
-      .then(d => { if (alive) { setRows(Array.isArray(d.rows) ? d.rows : []); setLoading(false) } })
-      .catch(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const d = await apiGet('/reports/progress-collection', { conditional: true })
+      setRows(Array.isArray(d.rows) ? d.rows : [])
+    } catch { /* giữ dữ liệu cũ */ }
+    finally { setLoading(false) }
   }, [])
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load() }, [load])
+  useRefetchOnFocus(() => load(true))   // quay lại tab → làm mới ngầm (người khác vừa sửa số)
 
   const onExport = () => exportTable('Tong-ket-tien-do-thu.xlsx', 'Tien do thu', [
     { label: 'Số HĐ', value: r => r.contract_no }, { label: 'CĐT', value: r => r.customer_name },

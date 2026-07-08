@@ -1,6 +1,6 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useCallback, Fragment } from 'react'
 import { apiGet } from '../../lib/api'
-import { fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
+import { fmtDate, fmtPct, exportTable, useContractNav, useRefetchOnFocus } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
@@ -35,13 +35,18 @@ export default function WarrantyReportPage() {
   const contractCopy = useCopyMenu(buildContractText, (c) => c.contract_no || 'Hợp đồng', warrantyLink)
   const caseCopy = useCopyMenu(buildCaseText, (c) => c.title || c.case_no || 'Yêu cầu BH', warrantyLink)
 
-  useEffect(() => {
-    let alive = true
-    apiGet('/reports/warranty', { conditional: true })
-      .then(d => { if (alive) { setData(d); setLoading(false) } })
-      .catch(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const d = await apiGet('/reports/warranty', { conditional: true })
+      setData(d)
+    } catch { /* giữ dữ liệu cũ */ }
+    finally { setLoading(false) }
   }, [])
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load() }, [load])
+  useRefetchOnFocus(() => load(true))   // quay lại tab → làm mới ngầm (người khác vừa sửa số)
 
   if (loading) return <p className="dash-empty">Đang tải...</p>
   if (!data) return <p className="dash-empty">Không tải được dữ liệu.</p>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiGet } from '../../lib/api'
-import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable, useContractNav } from './reportUtils'
+import { fmtMoney, fmtDate, TIER_CLASS, todayLocal, exportTable, useContractNav, useRefetchOnFocus } from './reportUtils'
 import ReportPeriodField from './ReportPeriodField.jsx'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
@@ -31,8 +31,8 @@ export default function ReceivablesReportPage() {
   const goContract = useContractNav()
   const isMobile = useIsMobile()
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       // Chỉ gửi asOf (≤ hôm nay): chốt số liệu tại ngày báo cáo theo NGÀY (đã thu/quá hạn
       // tính tới ngày đó); giá trị HĐ/lịch thu dùng bản LIVE (đã sửa). Backend tự lấy cận
@@ -45,6 +45,7 @@ export default function ReceivablesReportPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
+  useRefetchOnFocus(() => load(true))   // quay lại tab → làm mới ngầm (người khác vừa sửa số)
 
   const totalVnd = rows.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
 

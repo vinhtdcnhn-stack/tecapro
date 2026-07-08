@@ -78,12 +78,15 @@ export default function ContractGuaranteeTab({ contractId }) {
       .catch(() => {})
   }, [contractId])
 
-  // % giá trị bảo lãnh so với giá trị hợp đồng (sau VAT) — tự tính, chỉ để đối chiếu
+  // % giá trị bảo lãnh so với giá trị hợp đồng (sau VAT) — tự tính, để đối chiếu / hiển thị badge
   const pctOf = (amount) => {
     const a = parseFloat(amount) || 0
     if (!(contractValue > 0) || a === 0) return null
     return (a / contractValue) * 100
   }
+  // Bản dùng cho Ô NHẬP % (làm tròn 4 số; '' khi chưa có giá trị hợp đồng để tính).
+  const ratioOf = (amount) =>
+    contractValue > 0 ? parseFloat((((parseFloat(amount) || 0) / contractValue) * 100).toFixed(4)) : ''
 
   const load = useCallback(async () => {
     try {
@@ -104,7 +107,17 @@ export default function ContractGuaranteeTab({ contractId }) {
   useEffect(() => { load() }, [load])
 
   const set = (key, field, val) =>
-    setRows(prev => prev.map(r => r._key !== key ? r : { ...r, [field]: val, _dirty: true }))
+    setRows(prev => prev.map(r => {
+      if (r._key !== key) return r
+      const updated = { ...r, [field]: val, _dirty: true }
+      // Nhập % so với GTHĐ → tự tính giá trị bảo lãnh (theo giá trị HĐ sau VAT)
+      if (field === 'hd_ratio' && contractValue > 0) {
+        updated.amount = parseFloat((contractValue * (parseFloat(val) || 0) / 100).toFixed(2))
+      }
+      // Nhập giá trị → tự tính ngược % so với GTHĐ
+      if (field === 'amount') updated.hd_ratio = ratioOf(val)
+      return updated
+    }))
 
   const addRow = () => {
     const r = {
@@ -207,7 +220,8 @@ export default function ContractGuaranteeTab({ contractId }) {
           <GuaranteeMobile
             rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
             types={GUARANTEE_TYPES} statuses={STATUSES} contractCurrency={contractCurrency}
-            pctOf={pctOf} fmtVND={fmtVND} fmtPct={fmtPct} autoStatus={autoStatus} showAmounts={showAmounts}
+            pctOf={pctOf} ratioOf={ratioOf} contractValue={contractValue}
+            fmtVND={fmtVND} fmtPct={fmtPct} autoStatus={autoStatus} showAmounts={showAmounts}
             StatusPill={StatusPill} totalAmt={totalAmt}
           />
         ) : (
@@ -218,7 +232,7 @@ export default function ContractGuaranteeTab({ contractId }) {
                 <th className="th-stt">#</th>
                 <th className="th-type">Loại bảo lãnh</th>
                 <th className="th-amount">Giá trị ({contractCurrency})</th>
-                <th className="th-pct" title="Tự tính: giá trị bảo lãnh / giá trị hợp đồng sau VAT">% so với GTHĐ</th>
+                <th className="th-pct" title="Nhập % để tự tính giá trị, hoặc nhập giá trị để tự ra % (so với giá trị HĐ sau VAT)">% so với GTHĐ</th>
                 <th className="th-date">Ngày phát hành</th>
                 <th className="th-date">Ngày hết hạn</th>
                 <th className="th-status">Trạng thái</th>
@@ -236,6 +250,7 @@ export default function ContractGuaranteeTab({ contractId }) {
               ) : rows.map((row, idx) => {
                 const days     = daysUntil(row.expiry_date)
                 const computed = autoStatus(row.expiry_date, row.status)
+                const hdRatio  = row.hd_ratio != null ? row.hd_ratio : ratioOf(row.amount)
                 const rowClass = [
                   row._dirty   ? 'row-dirty'    : '',
                   row._isNew   ? 'row-new'       : '',
@@ -272,10 +287,24 @@ export default function ContractGuaranteeTab({ contractId }) {
                     </td>
 
                     <td className="td-pct">
-                      {pctOf(row.amount) !== null
-                        ? <span className="pct-badge">{fmtPct(pctOf(row.amount))}</span>
-                        : <span className="pct-empty" title={contractValue > 0 ? 'Nhập giá trị bảo lãnh' : 'Chưa có giá trị hợp đồng (bảng giá)'}>—</span>
-                      }
+                      {showAmounts ? (
+                        <div className="pct-input-cell">
+                          <input
+                            type="number" className="pct-input"
+                            value={hdRatio === '' || hdRatio == null ? '' : hdRatio}
+                            min="0" step="0.01"
+                            placeholder={contractValue > 0 ? '30' : '—'}
+                            disabled={!(contractValue > 0)}
+                            title={contractValue > 0 ? 'Nhập % → tự tính giá trị theo giá trị HĐ sau VAT' : 'Chưa có giá trị hợp đồng (bảng giá)'}
+                            onChange={e => set(row._key, 'hd_ratio', e.target.value)}
+                          />
+                          <span className="pct-suffix">%</span>
+                        </div>
+                      ) : (
+                        pctOf(row.amount) !== null
+                          ? <span className="pct-badge">{fmtPct(pctOf(row.amount))}</span>
+                          : <span className="pct-empty">—</span>
+                      )}
                     </td>
 
                     <td>

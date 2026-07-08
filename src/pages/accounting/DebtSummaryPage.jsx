@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { apiGet } from '../../lib/api'
-import { fmtMoney, fmtDate, fmtPct, exportTable, useContractNav } from './reportUtils'
+import { fmtMoney, fmtDate, fmtPct, exportTable, useContractNav, useRefetchOnFocus } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
@@ -41,18 +41,21 @@ export default function DebtSummaryPage() {
   const conCopy = useCopyMenu(buildConText, (k) => k.contract_no || k.project_name || 'Hợp đồng',
     (k) => contractPath(k.contract_out_id, { tab: 'contract-debt' }))
 
-  useEffect(() => {
-    let alive = true
-    Promise.all([
-      apiGet('/reports/debt-by-customer', { conditional: true }).catch(() => null),
-      apiGet('/reports/debt-by-contract', { conditional: true }).catch(() => null),
-    ]).then(([cu, co]) => {
-      if (!alive) return
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const [cu, co] = await Promise.all([
+        apiGet('/reports/debt-by-customer', { conditional: true }).catch(() => null),
+        apiGet('/reports/debt-by-contract', { conditional: true }).catch(() => null),
+      ])
       setCusts(cu?.rows || []); setTotals(cu?.totals || null)
-      setContracts(co?.rows || []); setLoading(false)
-    }).catch(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
+      setContracts(co?.rows || [])
+    } finally { setLoading(false) }
   }, [])
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load() }, [load])
+  useRefetchOnFocus(() => load(true))   // quay lại tab → làm mới ngầm (người khác vừa sửa số)
 
   const q = query.trim().toLowerCase()
   const custMatches = (c) => [c.customer_code, c.customer_name].some(v => v != null && String(v).toLowerCase().includes(q))

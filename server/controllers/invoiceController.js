@@ -30,6 +30,9 @@ const ISSUED_INVOICE_SQL = `i.invoice_date IS NOT NULL AND btrim(coalesce(i.invo
 
 // Kiểm tra danh mục + tồn trước khi lưu một đợt. Mọi dòng phải khớp bảng giá
 // (theo boq_id hoặc tên), và SL lũy kế không được vượt SL hợp đồng của dòng bảng giá.
+// LƯU Ý: guard tồn ở đây tính CẢ đợt nháp lẫn đợt đã xuất (mọi đợt khác đợt đang lưu) —
+// vì cho phép tạo sẵn nhiều đợt nháp, mà đợt nháp chưa bị trừ trên bảng tồn hiển thị,
+// nên phải chặn ở đây để tổng các đợt không vượt SL hợp đồng (tránh xuất thừa).
 // Gán lại boq_id đã khớp vào từng item (để lưu liên kết). Trả về chuỗi lỗi hoặc null.
 async function validateItems(client, contractId, items, excludeInvoiceId = null) {
   const list = (Array.isArray(items) ? items : []).filter(
@@ -77,24 +80,25 @@ async function validateItems(client, contractId, items, excludeInvoiceId = null)
   const params = [contractId]
   let exClause = ''
   if (excludeInvoiceId) { params.push(excludeInvoiceId); exClause = ' AND i.id <> $2' }
+  // Tính SL đã cam kết ở MỌI đợt khác (nháp + đã xuất), trừ đợt đang lưu — không lọc
+  // theo ISSUED để đợt nháp cũng chiếm chỗ, tránh 2 đợt cùng đưa một mặt hàng vượt HĐ.
   const { rows: invRows } = await client.query(
     `SELECT it.boq_id, SUM(it.quantity) AS qty
        FROM contract_out_invoice_item it
        JOIN contract_out_invoice i ON i.id = it.invoice_id
-      WHERE i.contract_out_id = $1 AND it.boq_id IS NOT NULL
-        AND ${ISSUED_INVOICE_SQL}${exClause}
+      WHERE i.contract_out_id = $1 AND it.boq_id IS NOT NULL${exClause}
       GROUP BY it.boq_id`, params)
-  const invoiced = new Map(invRows.map(r => [String(r.boq_id), parseFloat(r.qty) || 0]))
+  const committed = new Map(invRows.map(r => [String(r.boq_id), parseFloat(r.qty) || 0]))
 
   const overflow = []
   for (const [boqId, qty] of newQty) {
     const b = byId.get(boqId)
-    const remain = (parseFloat(b.qty_contract) || 0) - (invoiced.get(boqId) || 0)
+    const remain = (parseFloat(b.qty_contract) || 0) - (committed.get(boqId) || 0)
     if (qty > remain + 1e-6)
-      overflow.push(`${b.item_name} (xuất ${qty}, tồn chưa xuất ${Math.max(0, remain)})`)
+      overflow.push(`${b.item_name} (xuất ${qty}, còn có thể xuất ${Math.max(0, remain)})`)
   }
   if (overflow.length)
-    return `Số lượng vượt tồn chưa xuất hóa đơn theo bảng giá: ${overflow.join('; ')}.`
+    return `Số lượng vượt SL còn lại theo hợp đồng (đã tính cả các đợt nháp khác): ${overflow.join('; ')}.`
   return null
 }
 
@@ -203,16 +207,9 @@ export async function createInvoice(req, res) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    // Mỗi HĐ chỉ được có tối đa 1 đợt nháp (thiếu Số HĐ hoặc Ngày xuất) tại một thời điểm.
-    // Còn đợt nháp thì phải hoàn thiện (điền đủ Số HĐ + Ngày xuất) hoặc xóa trước khi tạo
-    // đợt mới — tránh cùng một mặt hàng bị đưa vào nhiều đợt nháp gây trùng tồn.
-    const { rows: draftRows } = await client.query(
-      `SELECT id FROM contract_out_invoice i
-        WHERE i.contract_out_id = $1 AND NOT (${ISSUED_INVOICE_SQL}) LIMIT 1`, [contractId])
-    if (draftRows.length) {
-      await client.query('ROLLBACK')
-      return res.status(400).json({ error: 'Đang có đợt hóa đơn nháp (chưa đủ Số HĐ + Ngày xuất). Hãy hoàn thiện hoặc xóa đợt nháp đó trước khi tạo đợt mới.' })
-    }
+    // Cho phép tạo sẵn NHIỀU đợt nháp cùng lúc. Không cần chặn theo "một nháp tại một thời
+    // điểm" nữa vì validateItems đã tính SL của mọi đợt khác (nháp + đã xuất) khi kiểm tồn,
+    // nên một mặt hàng không thể bị đưa vượt SL hợp đồng dù nằm rải ở nhiều đợt nháp.
     const vErr = await validateItems(client, contractId, items)
     if (vErr) { await client.query('ROLLBACK'); return res.status(400).json({ error: vErr }) }
     const { rows } = await client.query(

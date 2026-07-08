@@ -119,6 +119,7 @@ export default function TaskDetailDrawer({ taskId, currentUser, canManage, membe
           )}
 
           <dl className="dw-detail-grid">
+            <dt>Người giao</dt><dd>{task.created_by_name || '—'}</dd>
             <dt>Hạn hoàn thành</dt><dd>{fmtDate(task.due_date)}</dd>
           </dl>
 

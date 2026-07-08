@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiGet } from '../../lib/api'
-import { useContractNav } from './reportUtils'
+import { useContractNav, useRefetchOnFocus } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
@@ -38,8 +38,8 @@ export default function OverdueAlertsPage() {
   const goContract = useContractNav()
   const isMobile = useIsMobile()
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const data = await apiGet(`/reports/overdue-receivables?asOf=${asOf}&basis=${basis}`, { conditional: true })
       setRows(Array.isArray(data.rows) ? data.rows : [])
@@ -49,6 +49,7 @@ export default function OverdueAlertsPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load() async: setState sau await
   useEffect(() => { load() }, [load])
+  useRefetchOnFocus(() => load(true))   // quay lại tab → làm mới ngầm (người khác vừa sửa số)
 
   const allOverdue = rows.filter(r => r.days_overdue > 0)
   const { query, setQuery, filtered: overdueRows } = useReportSearch(allOverdue, SEARCH_FIELDS)

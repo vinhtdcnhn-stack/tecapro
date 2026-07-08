@@ -67,11 +67,13 @@ export const CONTRACTS_FINANCE_PAGES = [
         ],
       },
       {
-        heading: 'Đợt nháp và quy tắc "một nháp tại một thời điểm"',
+        heading: 'Đợt nháp — tạo sẵn nhiều đợt cùng lúc',
         items: [
           'Một đợt chỉ được coi là ĐÃ XUẤT khi có ĐỦ cả Số hóa đơn VÀ Ngày xuất. Thiếu một trong hai thì đợt đó là NHÁP.',
-          'Đợt nháp KHÔNG bị trừ vào "Đã xuất" và không tính vào công nợ/doanh thu — số lượng của nó vẫn nằm ở cột "Tồn chưa xuất".',
-          'Khi còn một đợt nháp, nút "+ Thêm đợt xuất hóa đơn" bị khóa: hãy HOÀN THIỆN đợt nháp (điền đủ Số HĐ + Ngày xuất) hoặc XÓA nó trước khi tạo đợt mới. Việc này tránh cùng một mặt hàng bị đưa vào nhiều đợt nháp.',
+          'Đợt nháp KHÔNG bị trừ vào "Đã xuất" và không tính vào công nợ/doanh thu — số lượng của nó vẫn nằm ở cột "Tồn chưa xuất" của bảng tồn.',
+          'Bạn CÓ THỂ tạo sẵn nhiều đợt nháp cùng lúc để chia trước kế hoạch xuất hóa đơn, rồi hoàn thiện (điền Số HĐ + Ngày xuất) dần.',
+          'Để không xuất vượt hợp đồng: khi thêm hàng cho một đợt, cột "Còn có thể xuất" (trong bảng chọn hàng) đã TỰ TRỪ số lượng đang nằm ở các đợt khác — cả đợt nháp lẫn đợt đã xuất. Vượt số này sẽ bị báo lỗi khi lưu.',
+          'Ở bảng "Tồn chưa xuất hóa đơn theo bảng giá", khi có đợt nháp sẽ hiện thêm cột "Đang trong nháp" để bạn biết mỗi mặt hàng đã đưa vào các đợt nháp bao nhiêu (số này chưa bị trừ khỏi "Tồn chưa xuất").',
         ],
       },
     ],
@@ -105,7 +107,7 @@ export const CONTRACTS_FINANCE_PAGES = [
         heading: 'Màn hình thể hiện gì?',
         items: [
           'Theo dõi các thư BẢO LÃNH NGÂN HÀNG của hợp đồng: bảo lãnh thực hiện hợp đồng, bảo lãnh tạm ứng, bảo lãnh bảo hành...',
-          'Mỗi dòng: loại bảo lãnh, ngân hàng phát hành, số tiền, ngày phát hành, ngày HẾT HẠN.',
+          'Mỗi dòng: loại bảo lãnh, giá trị, % so với GTHĐ (giá trị hợp đồng sau VAT), ngày phát hành, ngày HẾT HẠN.',
           'Theo dõi ngày hết hạn để kịp gia hạn hoặc lấy lại bảo lãnh — tránh bị ngân hàng tự động gia hạn tốn phí.',
         ],
       },
@@ -113,6 +115,7 @@ export const CONTRACTS_FINANCE_PAGES = [
         heading: 'Cách thao tác',
         items: [
           'PM/Kế toán bấm thêm, nhập thông tin thư bảo lãnh rồi lưu; hết hiệu lực thì cập nhật trạng thái.',
+          'Ô "Giá trị" và ô "% so với GTHĐ" LIÊN ĐỘNG: nhập % thì tự ra số tiền (theo giá trị hợp đồng sau VAT), nhập số tiền thì tự ra %. Chỉ cần điền một trong hai. (Nếu hợp đồng chưa có giá trị từ bảng giá thì ô % bị mờ, hãy nhập trực tiếp số tiền.)',
         ],
       },
     ],
@@ -141,7 +144,7 @@ export const CONTRACTS_FINANCE_PAGES = [
       {
         heading: 'Trao đổi trong việc',
         items: [
-          'Bấm vào một việc để mở ngăn chi tiết bên phải: có dòng thời gian TRAO ĐỔI — gõ nội dung báo cáo tiến độ, vướng mắc, đính kèm tệp.',
+          'Bấm vào một việc để mở ngăn chi tiết bên phải: xem người thực hiện, người GIAO việc, hạn hoàn thành, và dòng thời gian TRAO ĐỔI — gõ nội dung báo cáo tiến độ, vướng mắc, đính kèm tệp.',
           'Việc có trao đổi mới bạn chưa đọc sẽ tô NỀN HỔ PHÁCH trên các bảng theo dõi (kể cả trang chủ).',
         ],
       },

@@ -22,7 +22,7 @@ export const DEPTWORK_GROUP = {
           heading: 'Cách thao tác',
           items: [
             'Trưởng phòng/Phó phòng thêm việc và giao cho thành viên; thành viên cập nhật trạng thái việc của mình.',
-            'Bấm vào một việc để mở ngăn chi tiết: trao đổi theo dòng thời gian, đính kèm tệp, xem lịch sử.',
+            'Bấm vào một việc để mở ngăn chi tiết: xem người GIAO việc, hạn hoàn thành, người nhận, trao đổi theo dòng thời gian, đính kèm tệp, xem lịch sử.',
             'Việc có trao đổi mới chưa đọc tô nền hổ phách — đọc xong nền trở lại bình thường.',
           ],
         },

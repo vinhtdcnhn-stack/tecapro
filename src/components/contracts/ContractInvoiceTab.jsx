@@ -70,9 +70,18 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
   // (server getInvoiceSummary cũng bỏ qua đợt nháp nên 3 số Tổng/Đã xuất/Tồn luôn khớp).
   const isIssued = (i) => !!i.invoice_date && !!String(i.invoice_no || '').trim()
   const totalInvoiced = invoices.reduce((s, i) => s + (isIssued(i) ? (parseFloat(i.total_after_vat) || 0) : 0), 0)
-  // Còn đợt nháp (thiếu Số HĐ hoặc Ngày xuất) thì không cho tạo đợt mới — buộc hoàn thiện
-  // hoặc xóa đợt nháp trước (khớp guard ở backend). Tránh trùng mặt hàng giữa các đợt nháp.
-  const hasDraft = invoices.some(i => !isIssued(i))
+  // SL đang nằm trong các đợt NHÁP (chưa đủ Số HĐ + Ngày xuất), gom theo boq_id — để hiển
+  // thị cột "Đang trong nháp" ở bảng tồn (đợt nháp không bị trừ vào "Đã xuất"/"Tồn").
+  const draftQtyByBoq = new Map()
+  for (const i of invoices) {
+    if (isIssued(i)) continue
+    for (const it of (i.items || [])) {
+      if (!it.boq_id) continue
+      const k = String(it.boq_id)
+      draftQtyByBoq.set(k, (draftQtyByBoq.get(k) || 0) + (parseFloat(it.quantity) || 0))
+    }
+  }
+  const hasAnyDraftQty = draftQtyByBoq.size > 0
   // Giá trị tồn phải tính SAU VAT để khớp với 2 card kia (Tổng HĐ + Đã xuất đều sau VAT):
   // Tổng HĐ = Đã xuất + Tồn. unit_price là đơn giá trước VAT nên phải nhân (1 + VAT%).
   const remainValue = summary.reduce((s, r) => {
@@ -176,15 +185,11 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
       <div className="inv-section-head">
         <h3>Các đợt xuất hóa đơn</h3>
         <EditGuard perm="co.invoice.manage">
-          <button className="inv-add" onClick={() => setModal({})} disabled={hasDraft}
-            title={hasDraft ? 'Đang có đợt nháp chưa đủ Số HĐ + Ngày xuất. Hãy hoàn thiện hoặc xóa đợt nháp trước khi tạo đợt mới.' : ''}>
+          <button className="inv-add" onClick={() => setModal({})}>
             + Thêm đợt xuất hóa đơn
           </button>
         </EditGuard>
       </div>
-      {hasDraft && (
-        <p className="inv-draft-note">⚠ Đang có đợt hóa đơn nháp (chưa đủ Số HĐ + Ngày xuất). Hãy hoàn thiện hoặc xóa đợt nháp đó trước khi tạo đợt mới.</p>
-      )}
 
       {invoices.length === 0 ? (
         <p className="inv-empty-box">Chưa có đợt xuất hóa đơn nào.</p>
@@ -256,6 +261,9 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
           </label>
         )}
       </div>
+      {hasAnyDraftQty && (
+        <p className="inv-draft-note">ℹ Cột <strong>"Đang trong nháp"</strong> là SL đã đưa vào các đợt nháp (chưa đủ Số HĐ + Ngày xuất). Số này CHƯA bị trừ khỏi "Tồn chưa xuất", nhưng khi thêm hàng cho đợt mới, phần "còn có thể xuất" đã trừ đi các đợt nháp này để không xuất vượt hợp đồng.</p>
+      )}
       {summary.length === 0 ? (
         <p className="inv-empty-box">Hợp đồng chưa có bảng giá.</p>
       ) : (() => {
@@ -266,10 +274,11 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
         return (
         <div className="inv-table-wrap">
           <table className="inv-list">
-            <thead><tr><th className="inv-stt">STT</th><th className="inv-item-name">Mặt hàng</th><th>ĐVT</th><th className="num">SL hợp đồng</th><th className="num">Đã xuất</th><th className="num">Tồn chưa xuất</th></tr></thead>
+            <thead><tr><th className="inv-stt">STT</th><th className="inv-item-name">Mặt hàng</th><th>ĐVT</th><th className="num">SL hợp đồng</th><th className="num">Đã xuất</th>{hasAnyDraftQty && <th className="num">Đang trong nháp</th>}<th className="num">Tồn chưa xuất</th></tr></thead>
             <tbody>
               {rows.map(({ r, stt }) => {
                 const remain = parseFloat(r.qty_remaining) || 0
+                const draftQty = draftQtyByBoq.get(String(r.boq_id)) || 0
                 return (
                   <tr key={r.boq_id}>
                     <td className="inv-stt">{stt}</td>
@@ -279,6 +288,7 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
                     </td><td>{r.unit}</td>
                     <td className="num">{fmt(r.qty_contract)}</td>
                     <td className="num">{fmt(r.qty_invoiced)}</td>
+                    {hasAnyDraftQty && <td className="num inv-draft-qty">{draftQty > 0 ? fmt(draftQty) : '—'}</td>}
                     <td className={`num ${remain > 0 ? 'inv-remain' : 'inv-done'}`}>{fmt(remain)}</td>
                   </tr>
                 )
@@ -291,7 +301,7 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
 
       {modal && (
         <InvoiceBatchModal
-          contractId={contractId} contract={contract} boqItems={catalog} summary={summary}
+          contractId={contractId} contract={contract} boqItems={catalog} summary={summary} invoices={invoices}
           initial={modal.id ? modal : null}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load() }}

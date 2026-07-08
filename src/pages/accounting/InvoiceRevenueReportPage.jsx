@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { apiGet } from '../../lib/api'
-import { fmtMoney, fmtDate, exportTable, useContractNav, todayLocal } from './reportUtils'
+import { fmtMoney, fmtDate, exportTable, useContractNav, todayLocal, useRefetchOnFocus } from './reportUtils'
 import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import DateInput from '../../components/contracts/DateInput.jsx'
@@ -78,16 +78,21 @@ export default function InvoiceRevenueReportPage() {
     try { localStorage.setItem(LS_KEY, JSON.stringify({ from, to })) } catch { /* ignore */ }
   }, [from, to])
 
-  useEffect(() => {
-    let alive = true
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     const qs = new URLSearchParams()
     if (from) qs.set('from', from)
     if (to) qs.set('to', to)
-    apiGet(`/reports/invoice-revenue?${qs.toString()}`, { conditional: true })
-      .then(d => { if (alive) { setData(d); setLoading(false) } })
-      .catch(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
+    try {
+      const d = await apiGet(`/reports/invoice-revenue?${qs.toString()}`, { conditional: true })
+      setData(d)
+    } catch { /* giữ dữ liệu cũ */ }
+    finally { setLoading(false) }
   }, [from, to])
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load() }, [load])
+  useRefetchOnFocus(() => load(true))   // quay lại tab → làm mới ngầm (người khác vừa sửa số)
 
   const allRows = useMemo(() => (data && Array.isArray(data.rows) ? data.rows : []), [data])
   const { query, setQuery, filtered: rows } = useReportSearch(allRows, SEARCH_FIELDS)

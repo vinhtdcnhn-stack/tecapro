@@ -30,6 +30,7 @@ export default function ContractTaskDetailDrawer({
       <div className="task-drawer-body">
         <dl className="task-detail-grid">
           <dt>Người thực hiện</dt><dd>{task.assigned_to_name || 'Chưa assign'}</dd>
+          <dt>Người giao</dt><dd>{task.created_by_name || '—'}</dd>
           <dt>Hạn hoàn thành</dt><dd>{fmtDate(task.due_date)}</dd>
         </dl>
 
