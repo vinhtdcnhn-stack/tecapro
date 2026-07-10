@@ -29,8 +29,12 @@ export default function ContractInPayableTab({ contractInId }) {
     async function loadRef() {
       try {
         const boqData = await apiGet(`/contract-ins/${contractInId}/boq`, { conditional: true })
+        // Tổng BOQ = SUM node GỐC (parent_id IS NULL) để tránh cộng chồng node roll-up
+        // nếu BOQ phân cấp (BOQ nhập hiện phẳng nên bộ lọc là vô hại).
         const boqTotal = Array.isArray(boqData)
-          ? boqData.reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
+          ? boqData
+              .filter((r) => r.parent_id == null)
+              .reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
           : 0
         setContractRef({ boqTotal })
       } catch (e) { console.error('loadRef:', e) }

@@ -46,8 +46,13 @@ export default function ContractReceivableTab({ contractId }) {
         apiGet(`/bb-types`, { conditional: true }),
       ])
 
+      // Tổng BOQ = SUM số tiền các node GỐC (parent_id IS NULL) — khớp cách backend
+      // đồng bộ contract_out.amount_after_vat. Nếu cộng MỌI dòng thì các node group/zone
+      // (đã roll-up con) bị cộng chồng lên con → tổng bị thổi phồng với BOQ phân cấp.
       const boqTotal = Array.isArray(boqData)
-        ? boqData.reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
+        ? boqData
+            .filter((r) => r.parent_id == null)
+            .reduce((s, r) => s + (parseFloat(r.amount_after_vat) || 0), 0)
         : 0
 
       setContractRef({
