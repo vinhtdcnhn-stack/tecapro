@@ -39,18 +39,25 @@ function rowToItem(arr) {
   }
 }
 
+// Nhận diện dòng TIÊU ĐỀ theo nhãn cột. KHÔNG dùng "trống SL/đơn giá" vì dòng PHẦN
+// (zone) cũng trống SL/đơn giá — dùng chuẩn cũ sẽ nuốt mất dòng "Phần 1..." đầu bảng.
+function looksLikeHeader(arr) {
+  const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+  const a = norm(arr[0]), c = norm(arr[2]), d = norm(arr[3]), e = norm(arr[4])
+  const hitName = a === 'stt' || a.includes('danh mục') || a.includes('hạng mục') || a.includes('nội dung')
+  const hitCols = c.includes('đvt') || c.includes('đơn vị') || d.includes('số lượng') || e.includes('đơn giá')
+  return hitName || hitCols
+}
+
 // Đọc buffer Excel → mảng item đã gán cha-con theo tầng. Trả null nếu không có dữ liệu.
 export function parseBOQExcel(buffer) {
   const wb = XLSX.read(buffer, { type: 'buffer' })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
 
-  // Bỏ dòng tiêu đề: nếu dòng dữ liệu đầu không có SL/đơn giá dạng số thì coi là header.
-  let startRow = 1
-  if (raw.length > 1) {
-    const first = raw[1]
-    if (isNaN(parseFloat(first[3])) && isNaN(parseFloat(first[4]))) startRow = 2
-  }
+  // Bỏ các dòng tiêu đề ở đầu (nhận theo nhãn cột), dừng ở dòng dữ liệu thật đầu tiên.
+  let startRow = 0
+  while (startRow < raw.length && looksLikeHeader(raw[startRow])) startRow++
 
   const items = []
   for (let i = startRow; i < raw.length; i++) {
