@@ -50,6 +50,7 @@ export const CONTRACTS_CORE_PAGES = [
           'Cột TRÁI là danh sách mục, chia 2 phần: "I. Hợp đồng bán" (Thông tin hợp đồng, Tài liệu hợp đồng, Bảng giá, Theo dõi nhập hàng, Tiến độ theo biên bản, Công nợ, Quản lý hóa đơn, Bảo hành, Bảo lãnh, Công việc triển khai) và "II. Hợp đồng nhập".',
           'Bấm mục nào thì phần bên phải hiện nội dung mục đó. Phím tắt Ctrl+↓ / Ctrl+↑ chuyển nhanh giữa các mục.',
           'Bạn chỉ thấy các mục mình có quyền xem trong hợp đồng này — danh sách mục của mỗi người có thể khác nhau.',
+          'Rê chuột vào TÊN DỰ ÁN (dòng chữ lớn trên cùng) sẽ hiện bảng gợi ý nhân sự dự án: kinh doanh, PM chính, Presale, kỹ thuật, xuất nhập khẩu, kế toán, người theo dõi — xem nhanh mà không cần mở tab Thông tin hợp đồng. Nhóm nào chưa có người thì không hiện.',
         ],
       },
       {

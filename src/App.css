@@ -1054,6 +1054,85 @@ body.tender-page-alert .brand-logo {
   margin: 0;
 }
 
+/* Rê chuột vào tên dự án → hiện nhân sự dự án (cùng dữ liệu với khối
+   "Thông tin nhân sự" ở tab Thông tin hợp đồng). */
+.contract-title-hint {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+
+.contract-staff-hint {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: max-content;
+  max-width: min(560px, 90vw);
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.contract-title-hint:hover .contract-staff-hint,
+.contract-title-hint:focus-visible .contract-staff-hint {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Mũi tên trỏ lên tên dự án */
+.contract-staff-hint::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-left: -7px;
+  border: 7px solid transparent;
+  border-bottom-color: #e5e7eb;
+}
+
+.contract-staff-hint-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.contract-staff-hint-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.contract-staff-hint-label {
+  flex: 0 0 auto;
+  min-width: 148px;
+  color: #6b7280;
+}
+
+.contract-staff-hint-names {
+  flex: 1 1 auto;
+  color: #14532d;
+  font-weight: 600;
+}
+
 .contract-header-kpi-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
