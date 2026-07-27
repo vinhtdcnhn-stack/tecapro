@@ -6,13 +6,15 @@ import { auditRowAttrs } from '../common/rowAudit'
 // Dòng ZONE (Phần / phân khu): chỉ là dải tiêu đề phân vùng, không số liệu.
 // Hiển thị tên + tổng tiền roll-up của các dòng con; có nút thêm nhóm/dòng con.
 export default function BOQZoneRow({
-  row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, rollupAmt, currency, showPrice = true,
-  canDrop, isDragOver, onDragOver, onDragEnter, onDrop, onDragEnd,
+  row, idx, no, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, rollupAmt, currency, showPrice = true,
+  canDrag, canDrop, isDragging, isDragOver, dropMode = 'into', onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   return (
     <tr
       data-key={row._key}
       {...auditRowAttrs('contract_out_boq', row.id)}
+      draggable={canDrag}
+      onDragStart={canDrag ? (e) => onDragStart(e, row._key) : undefined}
       onDragOver={canDrop ? onDragOver : undefined}
       onDragEnter={canDrop ? () => onDragEnter(row._key) : undefined}
       onDrop={canDrop ? (e) => onDrop(e, row._key) : undefined}
@@ -21,7 +23,8 @@ export default function BOQZoneRow({
         'boq-zone-row',
         row._isNew ? 'row-new' : '', row._dirty ? 'row-dirty' : '',
         row._saving ? 'row-saving' : '', selected ? 'row-selected' : '',
-        isDragOver ? 'row-dropinto' : '',
+        isDragging ? 'row-dragging' : '',
+        isDragOver ? (dropMode === 'into' ? 'row-dropinto' : 'row-dragover') : '',
       ].filter(Boolean).join(' ')}
     >
       <td className="td-select">
@@ -29,7 +32,8 @@ export default function BOQZoneRow({
       </td>
       <td className="td-stt">
         {row._dirty && <span className="dirty-dot" title="Chưa lưu" />}
-        <span className="stt-num">{idx + 1}</span>
+        {canDrag && <span className="drag-handle" title="Kéo để đổi thứ tự (cả dòng con đi theo)">⠿</span>}
+        <span className="stt-num">{no || idx + 1}</span>
       </td>
       <td className="td-name boq-zone-name" colSpan={10} style={{ paddingLeft: 8 + depth * 22 }}>
         <span className="boq-kind-badge boq-badge-zone">PHẦN</span>

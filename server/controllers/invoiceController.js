@@ -140,7 +140,7 @@ export async function getInvoices(req, res) {
     const rows = await cacheWrap(contractKey(req.params.id, 'invoices'), TAB_TTL, async () => {
     const { rows } = await pool.query(`
       SELECT i.id, i.contract_out_id, i.invoice_no, i.invoice_date, i.currency_code, i.exchange_rate, i.note,
-             i.locked, i.locked_at, lu.full_name AS locked_by_name,
+             i.locked, i.locked_at, i.locked_by, lu.full_name AS locked_by_name,
              COALESCE((SELECT SUM(amount_after_vat) FROM contract_out_invoice_item WHERE invoice_id = i.id), 0) AS total_after_vat,
              COALESCE((SELECT json_agg(json_build_object(
                  'id', it.id, 'boq_id', it.boq_id, 'item_name', it.item_name, 'unit', it.unit,
@@ -274,8 +274,9 @@ export async function deleteInvoice(req, res) {
   }
 }
 
-// PATCH /invoices/:id/lock — khóa/mở khóa đợt xuất hóa đơn (PM của HĐ + admin, gác bởi
-// pmVia). Khi locked=true mọi thao tác sửa/xóa đợt bị chặn (blockIfLocked) cho tới khi mở.
+// PATCH /invoices/:id/lock — khóa/mở khóa đợt xuất hóa đơn. Quyền do canToggleInvoiceLock
+// gác: KHÓA = kế toán của dự án (+admin), MỞ KHÓA = đúng người đã khóa (+admin).
+// Khi locked=true mọi thao tác sửa/xóa đợt bị chặn (blockIfLocked) cho tới khi mở.
 export async function setInvoiceLock(req, res) {
   const { id } = req.params
   const locked = !!req.body.locked

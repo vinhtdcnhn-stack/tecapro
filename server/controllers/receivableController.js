@@ -2,6 +2,7 @@ import { pool } from '../db.js'
 import { notifyInfo, pmUserIds, contractLabel, fmtDate } from '../services/notify.js'
 import { cacheWrap } from '../cache.js'
 import { contractKey, contractTabNotModified, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
+import { rejectIfStale } from '../utils/staleGuard.js'
 
 const TAB_TTL = 30 * 60 // 30'
 
@@ -100,6 +101,7 @@ export async function createSchedule(req, res) {
 
 export async function updateSchedule(req, res) {
   try {
+    if (await rejectIfStale(req, res, 'public.contract_receivable')) return
     const { description, currency_code, amount, exchange_rate, due_date, delay_reason,
             due_offset_days, due_base_bb_type_id, due_base_anchor } = req.body
     const currency = currency_code || 'VND'
@@ -202,6 +204,7 @@ export async function createPayment(req, res) {
 
 export async function updatePayment(req, res) {
   try {
+    if (await rejectIfStale(req, res, 'public.contract_receivable_payment')) return
     const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note, schedule_id } = req.body
     const currency = currency_code || 'VND'
     const amtVND   = calcVND(amount, exchange_rate, currency)

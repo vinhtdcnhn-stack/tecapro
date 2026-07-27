@@ -76,6 +76,16 @@ export const CONTRACTS_FINANCE_PAGES = [
           'Ở bảng "Tồn chưa xuất hóa đơn theo bảng giá", khi có đợt nháp sẽ hiện thêm cột "Đang trong nháp" để bạn biết mỗi mặt hàng đã đưa vào các đợt nháp bao nhiêu (số này chưa bị trừ khỏi "Tồn chưa xuất").',
         ],
       },
+      {
+        heading: 'Khóa đợt xuất hóa đơn',
+        items: [
+          'Đợt đã chốt thì bấm nút 🔓 "Khóa" — từ đó KHÔNG ai sửa/xóa đợt đó được nữa (kể cả PM) cho tới khi mở khóa.',
+          'CHỈ KẾ TOÁN CỦA DỰ ÁN mới thấy và bấm được nút Khóa — tức người có tên ở mục "Kế toán" trong tab Thông tin hợp đồng. PM hay người khác không khóa được.',
+          'MỞ KHÓA: chỉ ĐÚNG NGƯỜI đã khóa đợt đó mới mở được, và phải nhập lại mật khẩu để xác nhận. Kế toán khác của cùng dự án cũng không mở hộ được.',
+          'Dòng đợt đã khóa hiện nhãn 🔒 kèm tên người khóa và thời điểm khóa (rê chuột vào nhãn để xem giờ).',
+          'Quản trị viên là ngoại lệ duy nhất: khóa và mở khóa được mọi đợt — dùng khi kế toán nghỉ/chuyển việc.',
+        ],
+      },
     ],
   },
   {

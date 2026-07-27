@@ -34,6 +34,7 @@ import permissionRoutes from './permissionRoutes.js'
 import auditRoutes from './auditRoutes.js'
 import cacheHintRoutes from './cacheHintRoutes.js'
 import { cacheHint } from '../middleware/cacheHint.js'
+import { trackInflight } from '../services/cacheWarmer.js'
 import { listTelegramLogs } from '../controllers/telegramLogController.js'
 import {
   listFeedback, createFeedback, updateFeedback, deleteFeedback,
@@ -46,6 +47,11 @@ import {
 } from '../controllers/adminUploadsBackupController.js'
 
 const router = Router()
+
+// Đếm request API đang xử lý — tín hiệu "server có rảnh không" cho lớp refresh-ahead
+// (cacheWarmer chỉ nạp lại cache ở nền khi không còn request nào đang chạy). Đặt TRƯỚC
+// mọi route để đếm đủ cả request công khai.
+router.use(trackInflight)
 
 // ── Route công khai (không yêu cầu đăng nhập) ──
 router.post('/auth/login', loginLimiter.guard, authController.login)

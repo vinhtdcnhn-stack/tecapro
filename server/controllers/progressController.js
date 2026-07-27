@@ -7,6 +7,7 @@ import {
   invalidateContract, invalidateContractIn, invalidateContractMembers,
   invalidateContractInMembers, invalidateReports, lookupNotModified,
 } from '../services/cacheKeys.js'
+import { rejectIfStale } from '../utils/staleGuard.js'
 
 const BB_TTL = 24 * 60 * 60      // loại biên bản: danh mục ít đổi
 const TAB_TTL = 30 * 60         // tab chi tiết HĐ: 30'
@@ -161,6 +162,7 @@ export async function createProgress(req, res) {
 
 export async function updateProgress(req, res) {
   try {
+    if (await rejectIfStale(req, res, 'public.contract_out_progress')) return
     const { bb_type_id, planned_date, actual_date, reason, penalty_note,
             offset_days, base_bb_type_id, base_anchor,
             hd_offset_days, hd_base_bb_type_id, hd_base_anchor } = req.body
@@ -277,6 +279,7 @@ export async function createProgressIn(req, res) {
 
 export async function updateProgressIn(req, res) {
   try {
+    if (await rejectIfStale(req, res, 'contract_in_progress')) return
     const { bb_type_id, planned_date, actual_date, reason, penalty_note } = req.body
     const { rows } = await pool.query(`
       UPDATE contract_in_progress SET

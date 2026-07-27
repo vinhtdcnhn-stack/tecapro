@@ -121,6 +121,42 @@ Trạng thái: ✅ chưa làm · 🔄 đang làm · ✅ xong
 - Đã kiểm chứng tầng cache (2026-06-27): cacheWrap hit/miss, invalidate lookup, version
   bump cho report, và graceful degradation khi tắt Redis — đều đạt.
 
+## Refresh-ahead — tự nạp lại cache sau khi vô hiệu (2026-07-13)
+
+Vấn đề: invalidate = XÓA key → người đọc kế tiếp luôn ăn miss lạnh, trả giá query DB. Với
+báo cáo/dashboard (query nặng, bị vô hiệu bởi thao tác ghi của NGƯỜI KHÁC) đây là chi phí
+lặp lại suốt ngày.
+
+Lời giải: `server/services/cacheWarmer.js` — worker nền nạp lại key vừa bị vô hiệu, LÚC
+SERVER RẢNH. Không phải sửa call-site nào vì `cacheWrap(key, ttl, loaderFn)` đã cầm đủ
+(khóa, TTL, hàm nạp): mỗi lượt ĐỌC ghi nhớ `key → loader` vào registry RAM; `cacheDel` /
+`bumpVersion` xếp key vào hàng đợi; worker gọi lại chính loader ấy rồi `cacheSet`.
+
+Bốn cơ chế BẮT BUỘC (bỏ cái nào cũng thành phản tác dụng):
+
+| Cơ chế | Vì sao |
+|---|---|
+| Chỉ key **nóng** (đã có người đọc, registry hết hạn 15') | Không nạp thứ chẳng ai xem → không tăng tải DB |
+| **Debounce** 3s | Ghi dồn dập (sửa 10 dòng BOQ) chỉ nạp lại 1 lần |
+| Chỉ chạy khi **rảnh** (`inflight === 0`, ≤3 key/nhịp, chờ >60s thì bỏ) | Không giành DB với người dùng thật; hâm nóng là cơ hội, không phải nghĩa vụ |
+| **Chống đua** bằng bộ đếm `gen` (+ so lại version) | Loader đọc DB xong mới có người ghi → nếu cứ set thì tự đầu độc cache bằng dữ liệu cũ tới hết TTL |
+
+`trackInflight` (mount đầu `routes/index.js`) đếm request đang chạy — **loại trừ `/live/poll`**
+vì long-poll cố tình treo ~45s, tính vào thì `inflight` không bao giờ về 0 và worker chẳng
+bao giờ chạy.
+
+Nhóm dùng version-namespace (`report:*`, `contract-list`, `tender-my`, `approval-form-opts`)
+cũng được hâm nóng: key phải theo **quy ước `<ns>:v<n>:<rest>`** (tiền tố = đúng tên namespace)
+để worker tách ns ra và dựng lại key với version MỚI sau khi bump. Đặt tiền tố lệch tên ns
+thì key đó lặng lẽ không được nạp lại (không sai dữ liệu, chỉ mất tác dụng).
+
+Số liệu (đã nạp / bỏ vì đổi tiếp / bỏ vì máy bận / có người đọc trước) hiện ở dải ♻️ trong
+tab ① của trang **Chẩn đoán hiệu năng** — dùng để ĐO xem lớp này có lợi thật không.
+
+Đã kiểm chứng (2026-07-13, local): key cố định (`lookup:customers`) nạp lại đúng sau
+POST/PUT khi không ai đọc; key có version nạp vào đúng key `v` mới sau `bumpVersion`; ghi
+chen ngang giữa lúc loader chạy → kết quả bị vứt (cache không dính dữ liệu cũ).
+
 ## Cần áp lên VPS
 
 - [ ] Đặt `REDIS_URL` trong `.env` của VPS (Redis đã cài sẵn), restart app.

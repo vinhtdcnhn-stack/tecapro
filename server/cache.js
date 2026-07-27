@@ -1,6 +1,7 @@
 import { createClient } from 'redis'
 import { logger } from './utils/logger.js'
 import { markCacheUsed } from './middleware/cacheHint.js'
+import { noteRead, noteInvalidateKeys, noteInvalidateNs } from './services/cacheWarmer.js'
 
 // Lớp cache Redis cho API đọc. NGUYÊN TẮC CỐT LÕI: Redis là phụ trợ, KHÔNG phải phụ thuộc
 // cứng. Nếu Redis chưa cấu hình / mất kết nối / lỗi, mọi helper ở đây degrade êm về no-op
@@ -87,8 +88,13 @@ export async function cacheSet(key, value, ttlSec) {
 // Xóa một hoặc nhiều key. No-op khi cache tắt / lỗi.
 export async function cacheDel(...keys) {
   if (!ready() || keys.length === 0) return
+  const flat = keys.flat().filter(Boolean)
+  // Báo cho lớp refresh-ahead: key vừa bị vô hiệu → xếp hàng nạp lại ở nền lúc rảnh (chỉ với
+  // key "nóng", tức đã từng có người đọc). Gọi TRƯỚC khi xóa để bộ đếm thế hệ (gen) tăng
+  // sớm, đảm bảo mọi loader đang chạy dở đều biết là kết quả của nó đã cũ.
+  noteInvalidateKeys(flat)
   try {
-    await client.del(keys.flat().filter(Boolean))
+    await client.del(flat)
   } catch (err) {
     if (DEBUG) logger.debug('[cache] DEL lỗi', err.message)
   }
@@ -151,6 +157,9 @@ export async function getCacheStats() {
 // Lỗi Redis chỉ làm mất cache (vẫn chạy loaderFn) — KHÔNG bao giờ chặn loader.
 export async function cacheWrap(key, ttlSec, loaderFn) {
   markCacheUsed() // đánh dấu route hiện tại có dùng lớp cache (cho trang Chẩn đoán hiệu năng)
+  // Ghi nhớ (key → loader) cho lớp refresh-ahead: sau này key bị vô hiệu thì worker nền gọi
+  // lại chính loader này để nạp dữ liệu mới vào cache. Chỉ ghi vào Map trong RAM, không I/O.
+  noteRead(key, ttlSec, loaderFn)
   const cached = await cacheGet(key)
   if (cached !== null) return cached
   const fresh = await loaderFn()
@@ -181,6 +190,9 @@ export async function cacheVersion(ns) {
 // Tăng version của namespace (vô hiệu cả nhóm). No-op khi cache tắt.
 export async function bumpVersion(ns) {
   if (!ready()) return
+  // Refresh-ahead cho cả nhóm: mọi key "nóng" thuộc namespace này (vd từng biến thể tham số
+  // của báo cáo công nợ, danh sách HĐ của từng user) được xếp hàng nạp lại với version MỚI.
+  noteInvalidateNs(ns)
   try {
     await client.incr(`ver:${ns}`)
   } catch (err) {

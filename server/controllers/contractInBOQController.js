@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx'
 import { roundMoney } from '../utils/money.js'
 import { cacheWrap } from '../cache.js'
 import { contractInKey, contractInTabNotModified, invalidateContractIn, invalidateContract } from '../services/cacheKeys.js'
+import { rejectIfStale } from '../utils/staleGuard.js'
 
 const TAB_TTL = 15 * 60 // 15'
 
@@ -222,6 +223,7 @@ export async function insertPurchaseBOQAfter(req, res) {
 // PUT /purchase-boq/:id
 export async function updatePurchaseBOQItem(req, res) {
   try {
+    if (await rejectIfStale(req, res, 'contract_in_boq')) return
     const { item_name, unit, quantity, unit_price, vat_rate, warranty_period } = req.body
     const { rows: cur } = await pool.query(
       `SELECT c.currency_code, b.contract_in_id FROM contract_in_boq b

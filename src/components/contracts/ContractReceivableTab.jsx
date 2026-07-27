@@ -190,6 +190,8 @@ export default function ContractReceivableTab({ contractId }) {
         payRows={pay.rows}
         setPayRows={pay.setRows}
         onRateSynced={handleRateSynced}
+        reloadRows={sched.reload}
+        reloadPayments={pay.reload}
         bbDateMap={bbDateMap}
         baseOptions={baseOptions}
         contractDate={contractDate}

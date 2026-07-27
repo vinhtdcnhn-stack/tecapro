@@ -102,6 +102,15 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
+/* Ghi chú nhỏ cạnh tiêu đề section (vd hướng dẫn gắn đợt TT vào khoản phải trả) */
+.recv-section-hint {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  text-align: right;
+  margin-left: 12px;
+}
+
 .recv-section-title {
   margin: 0;
   font-size: 13px;

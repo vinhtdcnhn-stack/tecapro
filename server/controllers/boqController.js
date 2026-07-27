@@ -6,6 +6,7 @@ import { excelUpload, downloadBOQTemplate } from './boqExcel.js'
 import {
   getContractCurrency, buildRowFields, promoteParentToGroup, invoicedQty, validateSiblingName,
 } from './boqHelpers.js'
+import { rejectIfStale } from '../utils/staleGuard.js'
 import { cacheWrap } from '../cache.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
 import { contractKey, contractTabNotModified, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
@@ -100,12 +101,12 @@ export async function createBOQItem(req, res) {
     const { rows } = await pool.query(`
       INSERT INTO public.contract_out_boq
         (contract_out_id, sort_order, parent_id, row_kind, item_name, hs_code, unit, quantity,
-         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty, hide_amount)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *
     `, [contractId, sortOrder, parent_id || null, kind,
         fields.item_name, fields.hs_code, fields.unit, fields.quantity,
-        fields.price, fields.before, fields.vat_rate, fields.after, fields.warranty_period, fields.item_type, fields.multiply_qty])
+        fields.price, fields.before, fields.vat_rate, fields.after, fields.warranty_period, fields.item_type, fields.multiply_qty, fields.hide_amount])
 
     await promoteParentToGroup(parent_id, pool)
     await recomputeTree(contractId)
@@ -149,12 +150,12 @@ export async function insertBOQAfter(req, res) {
     const { rows } = await pool.query(`
       INSERT INTO public.contract_out_boq
         (contract_out_id, sort_order, parent_id, row_kind, item_name, hs_code, unit, quantity,
-         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty, hide_amount)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *
     `, [contractId, refSort + 1, parentId, kind,
         fields.item_name, fields.hs_code, fields.unit, fields.quantity,
-        fields.price, fields.before, fields.vat_rate, fields.after, fields.warranty_period, fields.item_type, fields.multiply_qty])
+        fields.price, fields.before, fields.vat_rate, fields.after, fields.warranty_period, fields.item_type, fields.multiply_qty, fields.hide_amount])
 
     await promoteParentToGroup(parentId, pool)
     await recomputeTree(contractId)
@@ -170,6 +171,7 @@ export async function insertBOQAfter(req, res) {
 
 export async function updateBOQItem(req, res) {
   try {
+    if (await rejectIfStale(req, res, 'public.contract_out_boq')) return
     const { rows: cur } = await pool.query(
       `SELECT b.row_kind, b.multiply_qty, b.contract_out_id, b.parent_id, c.currency_code FROM public.contract_out_boq b
        JOIN public.contract_out c ON c.id = b.contract_out_id
@@ -228,13 +230,15 @@ export async function updateBOQItem(req, res) {
         item_name = $1, hs_code = $2, unit = $3,
         quantity = $4, unit_price = $5,
         amount_before_vat = $6, vat_rate = $7, amount_after_vat = $8,
-        warranty_period = $9, item_type = $10, row_kind = $11, multiply_qty = $12, updated_at = now()
-      WHERE id = $13
+        warranty_period = $9, item_type = $10, row_kind = $11, multiply_qty = $12,
+        hide_amount = $13, updated_at = now()
+      WHERE id = $14
       RETURNING *
     `, [fields.item_name, fields.hs_code, fields.unit,
         fields.quantity, fields.price,
         fields.before, fields.vat_rate, fields.after,
-        fields.warranty_period, fields.item_type, kind, fields.multiply_qty, req.params.id])
+        fields.warranty_period, fields.item_type, kind, fields.multiply_qty,
+        fields.hide_amount, req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     await recomputeTree(rows[0].contract_out_id)
@@ -385,6 +389,24 @@ export async function reorderBOQ(req, res) {
     }
 
     if (reparented) {
+      // Chặn VÒNG LẶP cha-con (kéo một hệ thống vào chính cây con của nó): đi ngược lên
+      // cây cha, nếu có nhánh nào không kết thúc trong 60 bước nghĩa là đã thành vòng.
+      const { rows: cyc } = await client.query(
+        `WITH RECURSIVE anc(start_id, cur, depth) AS (
+           SELECT id, parent_id, 1 FROM public.contract_out_boq WHERE contract_out_id = $1
+           UNION ALL
+           SELECT a.start_id, b.parent_id, a.depth + 1
+             FROM anc a JOIN public.contract_out_boq b ON b.id = a.cur AND b.contract_out_id = $1
+            WHERE a.cur IS NOT NULL AND a.depth < 60
+         )
+         SELECT 1 FROM anc WHERE depth >= 60 LIMIT 1`,
+        [contractId]
+      )
+      if (cyc.length) {
+        await client.query('ROLLBACK')
+        return res.status(400).json({ error: 'Không thể di chuyển: sẽ tạo vòng lặp cha-con trong bảng giá.' })
+      }
+
       // Chặn trùng tên anh-em do kéo dòng vào phần/nhóm đã có dòng cùng tên.
       const targetParents = [...new Set(items.filter(it => it.parent_id !== undefined).map(it => it.parent_id))]
       for (const pid of targetParents) {

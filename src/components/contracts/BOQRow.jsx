@@ -10,16 +10,19 @@ import { statusMeta } from './supplyCoverageUtils'
 // Một dòng trong bảng giá (BOQ). Phân nhánh theo row_kind: zone / group / leaf.
 // Tách riêng để giữ ContractBOQTab gọn dưới 500 dòng.
 export default function BOQRow({
-  row, idx, depth = 0, rollupAmt, currency, showPrice = true, coverageStatus, onToggleNoImport, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow, onAddChild, onToggleMultiply,
-  canDrag, canDrop, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
+  row, idx, no, depth = 0, rollupAmt, currency, showPrice = true, coverageStatus, onToggleNoImport, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow, onAddChild, onToggleMultiply, onToggleHideAmount,
+  canDrag, canDrop, isDragging, isDragOver, dropMode, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const kind = row.row_kind || 'leaf'
-  // Phần/Nhóm là điểm thả để gom dòng vào (canDrop), nhận thêm các handler kéo-thả.
-  const dropProps = { canDrop, isDragOver, onDragOver, onDragEnter, onDrop, onDragEnd }
+  // Phần/Nhóm vừa KÉO ĐƯỢC (cả cây con đi theo) vừa là điểm thả để gom dòng vào.
+  const dndProps = {
+    canDrag, canDrop, isDragging, isDragOver, dropMode,
+    onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
+  }
   if (kind === 'zone')
-    return <BOQZoneRow {...{ row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, rollupAmt, currency, showPrice, ...dropProps }} />
+    return <BOQZoneRow {...{ row, idx, no, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, rollupAmt, currency, showPrice, ...dndProps }} />
   if (kind === 'group')
-    return <BOQGroupRow {...{ row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, onToggleMultiply, rollupAmt, currency, showPrice, ...dropProps }} />
+    return <BOQGroupRow {...{ row, idx, no, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, onToggleMultiply, onToggleHideAmount, rollupAmt, currency, showPrice, ...dndProps }} />
 
   const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
   const isDiThang = row.item_type === 'di_thang'
@@ -41,7 +44,8 @@ export default function BOQRow({
         isDiThang   ? 'row-di-thang' : '',
         selected    ? 'row-selected' : '',
         isDragging  ? 'row-dragging' : '',
-        isDragOver  ? 'row-dragover' : '',
+        // vạch xanh ở trên/dưới cho biết dòng sẽ được chèn trước hay sau dòng đích
+        isDragOver  ? (dropMode === 'into' ? 'row-dragover-bottom' : 'row-dragover') : '',
       ].filter(Boolean).join(' ')}
     >
       <td className="td-select">
@@ -56,7 +60,8 @@ export default function BOQRow({
       <td className="td-stt">
         {row._dirty && <span className="dirty-dot" title="Chưa lưu" />}
         {canDrag && <span className="drag-handle" title="Kéo để đổi thứ tự">⠿</span>}
-        <span className="stt-num">{idx + 1}</span>
+        {/* Số thứ tự phân cấp (1, 1.1, 1.1.2…); khi đang lọc thì quay về đánh số chạy */}
+        <span className="stt-num">{no || idx + 1}</span>
         {/* Độ phủ nhập: chấm màu (dòng cần nhập) + cờ "không cần nhập" (PM). Chỉ khi đã lưu. */}
         {row.id && (
           row.no_import_needed ? (

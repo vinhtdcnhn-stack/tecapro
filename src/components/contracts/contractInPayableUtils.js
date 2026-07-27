@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
+import { API } from '../../config/api'
+import { withStamp, handledConflict } from './conflict'
 
 // Hằng số & helper dùng chung cho tab "Phải trả / Thanh toán" của hợp đồng nhập.
 
@@ -24,6 +26,36 @@ export function isOverdue(dueDate) {
 
 let _ctr = 0
 export const tmpId = () => `tmp_${++_ctr}`
+
+// Các đợt thanh toán đã gắn vào một khoản phải trả (dòng mới bám theo _payKey vì khoản
+// có thể chưa có id thật khi vừa thêm).
+export const paymentsOf = (payRows, payableRow) => payRows.filter(p =>
+  p._isNew ? p._payableKey === payableRow._key : String(p.payable_id ?? '') === String(payableRow.id)
+)
+
+// Lưu 1 đợt thanh toán (thêm mới hoặc sửa). Dùng chung cho bảng lồng, mục "chưa gắn" và mobile.
+export async function savePaymentRow(row, contractInId, setPayRows, reload) {
+  setPayRows(prev => prev.map(p => p._key === row._key ? { ...p, _saving: true } : p))
+  const body = {
+    payment_date: row.payment_date, currency_code: row.currency_code,
+    amount: row.amount, exchange_rate: row.exchange_rate,
+    payment_ratio: row.payment_ratio, note: row.note,
+    payable_id: row.payable_id ?? null,
+  }
+  try {
+    const url    = row._isNew ? `${API}/contract-ins/${contractInId}/payments` : `${API}/payments/${row.id}`
+    const method = row._isNew ? 'POST' : 'PUT'
+    const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withStamp(body, row)) })
+    const saved  = await res.json()
+    if (await handledConflict(res, saved, reload)) return
+    if (!res.ok) throw new Error(saved.error || 'Save failed')
+    setPayRows(prev => prev.map(p => p._key === row._key
+      ? { ...saved, _key: row._key, _dirty: false, _isNew: false, _saving: false } : p))
+  } catch (e) {
+    alert('Lỗi: ' + e.message)
+    setPayRows(prev => prev.map(p => p._key === row._key ? { ...p, _saving: false } : p))
+  }
+}
 
 // Loader cho bảng inline-edit: fetch URL → map về dạng local row.
 export function useRows(url, toLocal) {

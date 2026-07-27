@@ -25,8 +25,8 @@ export default function ContractBOQTab({ contractId }) {
     search, setSearch, typeFilter, setTypeFilter, isFiltering, visibleRows,
     selected, toggleSelect, allSelected, toggleSelectAll, selectableKeys, selectedCount,
     bulkDelete, bulkDeleting,
-    set, patchRow, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply,
-    dragKey, dragOverKey, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
+    set, patchRow, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply, toggleHideAmount,
+    dragKey, dragOverKey, dragOverMode, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
     excelRef, handleExcelFile, importData, importMode, setImportMode, importSaving, confirmImport, setImportData,
   } = useBOQTab(contractId)
 
@@ -304,6 +304,7 @@ export default function ContractBOQTab({ contractId }) {
           addGroup={addGroup}
           addChild={addChild}
           toggleMultiply={toggleMultiply}
+          toggleHideAmount={toggleHideAmount}
           totals={totals}
         />
       ) : (
@@ -352,11 +353,12 @@ export default function ContractBOQTab({ contractId }) {
               <tr>
                 <td colSpan="13" className="boq-empty">Không có dòng nào khớp bộ lọc.</td>
               </tr>
-            ) : visibleRows.map(({ r, idx, depth }) => (
+            ) : visibleRows.map(({ r, idx, depth, no }) => (
               <BOQRow
                 key={r._key}
                 row={r}
                 idx={idx}
+                no={no}
                 depth={depth}
                 rollupAmt={rollup.get(r._key)}
                 currency={currency}
@@ -371,10 +373,12 @@ export default function ContractBOQTab({ contractId }) {
                 deleteRow={deleteRow}
                 onAddChild={addChild}
                 onToggleMultiply={toggleMultiply}
-                canDrag={canEdit && !locked && !isFiltering && !r._isNew && !!r.id && (r.row_kind || 'leaf') === 'leaf'}
+                onToggleHideAmount={toggleHideAmount}
+                canDrag={canEdit && !locked && !isFiltering && !r._isNew && !!r.id}
                 canDrop={canEdit && !locked && !isFiltering && !r._isNew && !!r.id}
                 isDragging={dragKey === r._key}
                 isDragOver={dragOverKey === r._key}
+                dropMode={dragOverMode}
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
                 onDragEnter={handleDragEnter}

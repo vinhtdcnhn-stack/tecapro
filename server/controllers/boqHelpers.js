@@ -25,7 +25,7 @@ export function buildRowFields(body, kind, currency) {
       item_name: item_name || '', hs_code: hs_code || '', unit: unit || '',
       quantity: parseFloat(quantity) || 0, price, before,
       vat_rate: parseFloat(vat_rate) || 0, after, warranty_period: warranty_period || '', item_type: type,
-      multiply_qty: false,
+      multiply_qty: false, hide_amount: false,
     }
   }
   const isGroup = kind === KIND.GROUP
@@ -34,6 +34,8 @@ export function buildRowFields(body, kind, currency) {
     quantity: isGroup ? (parseFloat(quantity) || 0) : 0, price: 0, before: 0,
     vat_rate: 0, after: 0, warranty_period: warranty_period || '', item_type: type,
     multiply_qty: isGroup ? !!body.multiply_qty : false,
+    // Cờ CHỈ HIỂN THỊ: ẩn số tiền trên chính dòng hệ thống (không đổi cách tính tổng).
+    hide_amount: isGroup ? !!body.hide_amount : false,
   }
 }
 

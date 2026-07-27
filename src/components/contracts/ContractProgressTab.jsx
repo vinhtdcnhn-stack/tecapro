@@ -10,6 +10,7 @@ import useIsMobile from './useIsMobile'
 import ProgressMobile from './ProgressMobile'
 import EditGuard from './EditGuard'
 import { auditRowAttrs } from '../common/rowAudit'
+import { withStamp, handledConflict } from './conflict'
 
 // Badge trạng thái nhỏ đặt ngay dưới ngày trong ô (giống "Thời hạn thu" ở Công nợ).
 function StatusBadgeInline({ st }) {
@@ -105,8 +106,9 @@ export default function ContractProgressTab({ contractId }) {
     try {
       const url    = row._isNew ? `${API}/contracts/${contractId}/progress` : `${API}/progress/${row.id}`
       const method = row._isNew ? 'POST' : 'PUT'
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withStamp(body, row)) })
       const saved  = await res.json()
+      if (await handledConflict(res, saved, load)) return
       if (!res.ok) throw new Error(saved.error || 'Save failed')
       setRows(prev => prev.map(r => r._key === row._key ? { ...toLocal(saved), _key: row._key } : r))
     } catch (e) {

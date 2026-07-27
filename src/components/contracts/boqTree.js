@@ -10,7 +10,9 @@ export const kindOf = (r) => r?.row_kind || ROW_KIND.LEAF
 // Khóa dùng để liên kết cha: ưu tiên id thật (số), fallback _key cho dòng mới.
 const keyForLink = (r) => (r.id != null ? String(r.id) : r._key)
 
-// Dựng thứ tự hiển thị theo cây (DFS) kèm depth. Trả mảng { r, depth }.
+// Dựng thứ tự hiển thị theo cây (DFS) kèm depth + số thứ tự phân cấp. Trả { r, depth, no }.
+// `no` là số dạng chấm theo vị trí trên cây: gốc "1", "2"…; con của 1 là "1.1", "1.2";
+// con của 1.1 là "1.1.1"… (tính lại mỗi lần render, không lưu DB).
 // Sibling giữ nguyên thứ tự trong mảng `rows` (đã sort theo sort_order từ server).
 export function buildTreeOrder(rows) {
   const childrenOf = new Map()
@@ -27,15 +29,40 @@ export function buildTreeOrder(rows) {
   }
   const out = []
   const seen = new Set()
-  const walk = (node, depth) => {
+  const walk = (node, depth, no) => {
     if (seen.has(node._key)) return
     seen.add(node._key)
-    out.push({ r: node, depth })
-    for (const k of childrenOf.get(keyForLink(node)) || []) walk(k, depth + 1)
+    out.push({ r: node, depth, no })
+    let i = 0
+    for (const k of childrenOf.get(keyForLink(node)) || []) walk(k, depth + 1, `${no}.${++i}`)
   }
-  for (const r of roots) walk(r, 0)
+  let rootSeq = 0
+  for (const r of roots) walk(r, 0, String(++rootSeq))
   // An toàn: dòng nào chưa được duyệt (cha lạc) vẫn hiển thị ở cấp 0.
-  for (const r of rows) if (!seen.has(r._key)) out.push({ r, depth: 0 })
+  for (const r of rows) if (!seen.has(r._key)) out.push({ r, depth: 0, no: String(++rootSeq) })
+  return out
+}
+
+// Tập _key của một node + TOÀN BỘ cây con của nó. Dùng khi kéo cả một "Phần"/"Hệ thống"
+// sang chỗ khác (con cháu phải đi theo) và để chặn thả node vào chính cây con của nó.
+export function subtreeKeySet(rows, root) {
+  const childrenOf = new Map()
+  for (const r of rows) {
+    const pid = r.parent_id != null ? String(r.parent_id) : null
+    if (!pid) continue
+    if (!childrenOf.has(pid)) childrenOf.set(pid, [])
+    childrenOf.get(pid).push(r)
+  }
+  const out = new Set([root._key])
+  const stack = [root]
+  while (stack.length) {
+    const node = stack.pop()
+    for (const kid of childrenOf.get(keyForLink(node)) || []) {
+      if (out.has(kid._key)) continue
+      out.add(kid._key)
+      stack.push(kid)
+    }
+  }
   return out
 }
 

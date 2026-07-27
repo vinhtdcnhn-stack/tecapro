@@ -1,6 +1,7 @@
 import { pool } from '../db.js'
 import { snapshotHints, resetHints } from '../middleware/cacheHint.js'
 import { isCacheReady, flushCache } from '../cache.js'
+import { warmerStats } from '../services/cacheWarmer.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -11,11 +12,13 @@ import { verifyUserPassword } from '../auth/verifyPassword.js'
 // ──────────────────────────────────────────────────────────────────────────────
 
 // GET /api/admin/cache-hints?minP95=&minCount=
+// Kèm `warmer`: số liệu lớp refresh-ahead (tự nạp lại cache sau khi vô hiệu, lúc server rảnh)
+// — để admin thấy nó có thật sự làm việc không, thay vì tin cảm tính.
 export async function getCacheHints(req, res) {
   const minP95 = Math.max(1, Number(req.query.minP95) || 80)
   const minCount = Math.max(1, Number(req.query.minCount) || 50)
   const snap = snapshotHints({ minP95, minCount })
-  res.json({ cacheReady: isCacheReady(), ...snap })
+  res.json({ cacheReady: isCacheReady(), warmer: warmerStats(), ...snap })
 }
 
 // POST /api/admin/cache-hints/reset — xóa bộ đếm in-memory, đo lại từ đầu.

@@ -5,6 +5,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { pool } from './db.js'
 import { connectCache } from './cache.js'
+import { startCacheWarmer } from './services/cacheWarmer.js'
 import apiRoutes from './routes/index.js'
 import { requireAuth } from './middleware/auth.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
@@ -131,6 +132,8 @@ app.listen(port, host, () => {
   logger.info(`[server] listening on http://${host}:${port}`)
   // Kết nối Redis cache (tự bỏ qua nếu không cấu hình REDIS_URL — cache TẮT, query thẳng DB).
   connectCache()
+  // Refresh-ahead: nạp lại cache đã bị vô hiệu ở nền, lúc server rảnh (tự no-op khi cache tắt).
+  startCacheWarmer()
   // Đồng bộ danh mục quyền (RBAC) từ permissionCatalog.js + seed bootstrap lần đầu.
   initPermissions()
     .then(r => logger.info(`[permissions] catalog đã đồng bộ${r?.skipped ? '' : ' + bootstrap seed lần đầu'}.`))

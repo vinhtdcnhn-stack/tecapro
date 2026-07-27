@@ -12,6 +12,7 @@ import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
 
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
+import { withStamp, handledConflict } from './conflict'
 
 export default function ContractInBOQTab({ contractInId, currency = 'VND', viewContractId }) {
   const [rows, setRows]               = useState([])
@@ -96,8 +97,9 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND', viewC
         method = 'PUT'
         url = `${API}/purchase-boq/${row.id}`
       }
-      const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withStamp(body, row)) })
       const saved = await res.json()
+      if (await handledConflict(res, saved, load)) return
       if (!res.ok) throw new Error(saved.error || 'Save failed')
       // Giữ lại ghép "Nhập cho" (links) vì response lưu dòng không kèm trường này.
       setRows(prev => prev.map(r => r._key === row._key ? {
@@ -390,7 +392,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND', viewC
       <EditGuard>
       {isMobile ? (
         <BOQMobile
-          rows={visibleRows.map(v => v.r)} currency={currency}
+          items={visibleRows} currency={currency} showPrice={showPrice}
           set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow} totals={totals}
           showHs={false} showType={false}
         />

@@ -8,7 +8,7 @@ import { auditRowAttrs } from '../common/rowAudit'
 // Phiên bản mobile của Bảng giá phân cấp: danh sách thẻ theo cây (thụt lề + nhãn
 // PHẦN/NHÓM), chạm để mở sheet sửa đúng dòng. Lá sửa đủ trường; zone/nhóm sửa tên +
 // (nhóm: ĐVT/SL mô tả). Số tiền nhóm/zone là roll-up (read-only).
-export default function BOQMobile({ items, rollup, currency, set, saveRow, deleteRow, addRow, addZone, addGroup, addChild, toggleMultiply, totals, showHs = true, showType = true, showPrice = true }) {
+export default function BOQMobile({ items, rollup, currency, set, saveRow, deleteRow, addRow, addZone, addGroup, addChild, toggleMultiply, toggleHideAmount, totals, showHs = true, showType = true, showPrice = true }) {
   const [editingKey, setEditingKey] = useState(null)
   const flat = items.map(it => it.r)
   const editing = flat.find(r => r._key === editingKey) || null
@@ -23,12 +23,14 @@ export default function BOQMobile({ items, rollup, currency, set, saveRow, delet
   return (
     <div className="boq-mobile">
       <div className="mcards">
-        {items.map(({ r, idx, depth }) => {
+        {items.map(({ r, idx, depth, no }) => {
           const kind = kindOf(r)
           const roll = rollup?.get(r._key)
           const after = kind === ROW_KIND.LEAF
             ? calcAmounts(r.quantity, r.unit_price, r.vat_rate, currency).after
             : (roll?.after || 0)
+          // Dòng hệ thống bật "ẩn tiền" → không hiện số tiền trên thẻ (tổng vẫn tính đủ)
+          const hidden = kind === ROW_KIND.GROUP && !!r.hide_amount
           return (
             <div
               key={r._key}
@@ -40,8 +42,10 @@ export default function BOQMobile({ items, rollup, currency, set, saveRow, delet
               <div className="mcard-head">
                 {r._dirty && <span className="mcard-dot" title="Chưa lưu" />}
                 {kind !== ROW_KIND.LEAF && <span className={`boq-kind-badge boq-badge-${kind}`}>{kind === ROW_KIND.ZONE ? 'PHẦN' : 'Hệ thống'}</span>}
-                <span className="mcard-title">{idx + 1}. {r.item_name || '(chưa đặt tên)'}</span>
-                <span className="mcard-amount">{showPrice ? fmtNum(after, currency) : '•••'}</span>
+                <span className="mcard-title">{no || idx + 1}. {r.item_name || '(chưa đặt tên)'}</span>
+                <span className="mcard-amount">
+                  {hidden ? <span className="boq-amt-hidden">(ẩn)</span> : showPrice ? fmtNum(after, currency) : '•••'}
+                </span>
               </div>
               {kind === ROW_KIND.LEAF ? (
                 <div className="mcard-meta">
@@ -62,16 +66,25 @@ export default function BOQMobile({ items, rollup, currency, set, saveRow, delet
                       {r.multiply_qty ? `✓ × SL (${r.quantity || 0})` : '× theo SL'}
                     </button>
                   )}
+                  {kind === ROW_KIND.GROUP && toggleHideAmount && (
+                    <button
+                      className={`mcard-subbtn${hidden ? ' mcard-subbtn--on' : ''}`}
+                      onClick={() => toggleHideAmount(r)}
+                    >
+                      {hidden ? '👁 Hiện tiền' : '🚫 Ẩn tiền'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           )
         })}
 
+        {/* Bảng giá mua (HĐ nhập) là bảng phẳng: không truyền addZone/addGroup → ẩn 2 nút này */}
         <div className="mcard-addrow">
           <button className="mcard-add" onClick={openAdd}>+ Thêm dòng</button>
-          <button className="mcard-add" onClick={() => setEditingKey(addZone())}>+ Thêm phần</button>
-          <button className="mcard-add" onClick={() => setEditingKey(addGroup())}>+ Thêm hệ thống</button>
+          {addZone && <button className="mcard-add" onClick={() => setEditingKey(addZone())}>+ Thêm phần</button>}
+          {addGroup && <button className="mcard-add" onClick={() => setEditingKey(addGroup())}>+ Thêm hệ thống</button>}
         </div>
       </div>
 

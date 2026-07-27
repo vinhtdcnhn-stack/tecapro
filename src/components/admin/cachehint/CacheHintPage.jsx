@@ -84,7 +84,10 @@ export default function CacheHintPage() {
       {error && <div style={{ color: '#c00', marginBottom: 10 }}>{error}</div>}
 
       {tab === 'system' && <SystemDashboard />}
-      {tab === 'routes' && <RoutesTable rows={rows} suggestCount={suggestCount} />}
+      {tab === 'routes' && <>
+        <WarmerStrip w={hints?.warmer} cacheReady={hints?.cacheReady} />
+        <RoutesTable rows={rows} suggestCount={suggestCount} />
+      </>}
       {tab === 'queries' && <SlowQueriesTable slow={slow} />}
     </>
   )
@@ -104,6 +107,38 @@ function TabButton({ active, onClick, children }) {
     >
       {children}
     </button>
+  )
+}
+
+// Dải số liệu lớp "tự nạp lại cache" (refresh-ahead): sau khi dữ liệu đổi, cache bị vô hiệu
+// và worker nền nạp lại LÚC SERVER RẢNH, để người đọc kế tiếp không phải chờ query DB.
+// Chỉ để XEM — không có nút bật/tắt (lớp này tự chạy, tự nhường khi máy bận).
+function WarmerStrip({ w, cacheReady }) {
+  if (!cacheReady || !w) return null
+  const items = [
+    ['Key đang theo dõi', w.tracked, 'Số key đang được đọc thường xuyên (đủ "nóng" để đáng nạp lại). Key 15 phút không ai đọc sẽ tự bị bỏ.'],
+    ['Đang chờ nạp', w.queued, 'Key vừa bị vô hiệu do có người sửa dữ liệu, đang xếp hàng chờ server rảnh để nạp lại.'],
+    ['Đã nạp lại', w.warmed, 'Số lần nạp sẵn dữ liệu mới vào cache thành công — mỗi lần là một lượt người dùng KHÔNG phải chờ query DB.'],
+    ['Có người đọc trước', w.skippedFresh, 'Bỏ qua vì đã có người đọc và nạp lại trước worker (không lãng phí query).'],
+    ['Bỏ vì đổi tiếp', w.discarded, 'Đang nạp thì có người sửa tiếp → vứt kết quả cũ, không ghi vào cache (chống dữ liệu cũ lọt vào cache).'],
+    ['Bỏ vì máy bận', w.dropped, 'Chờ quá 1 phút mà server vẫn bận nên bỏ; người đọc kế tiếp tự nạp như bình thường.'],
+  ]
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '0 0 12px', padding: '10px 12px', background: '#f3f7ff', border: '1px solid #dbe6ff', borderRadius: 8 }}>
+      <div style={{ width: '100%', fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>
+        ♻️ Tự nạp lại cache khi rảnh
+        <span style={{ fontWeight: 400, color: '#555' }}> — dữ liệu đổi thì cache bị vô hiệu, hệ thống tự nạp lại ở nền lúc không có ai dùng.</span>
+      </div>
+      {items.map(([label, val, tip]) => (
+        <div key={label} title={tip} style={{ minWidth: 120, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: '6px 10px' }}>
+          <div style={{ fontSize: 11, color: '#666' }}>{label}</div>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>{val ?? 0}</div>
+        </div>
+      ))}
+      {w.lastWarmAt && (
+        <div style={{ alignSelf: 'center', fontSize: 12, color: '#888' }}>Lần nạp gần nhất: {fmtTime(w.lastWarmAt)}</div>
+      )}
+    </div>
   )
 }
 

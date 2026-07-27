@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { stripNum, calcAmounts, tmpId } from './boqUtils'
-import { buildTreeOrder, computeRollup, treeTotals, ROW_KIND } from './boqTree'
+import { buildTreeOrder, computeRollup, treeTotals, subtreeKeySet, ROW_KIND } from './boqTree'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
+import { withStamp, handledConflict } from './conflict'
 
 // ── Helpers thuần (không phụ thuộc state) ─────────────────────────────────────
 
@@ -20,6 +21,7 @@ function toLocalRow(r) {
     row_kind: r.row_kind || ROW_KIND.LEAF,
     parent_id: r.parent_id != null ? r.parent_id : null,
     multiply_qty: !!r.multiply_qty,
+    hide_amount: !!r.hide_amount,
     quantity: stripNum(r.quantity), unit_price: stripNum(r.unit_price), vat_rate: stripNum(r.vat_rate),
   }
 }
@@ -51,6 +53,9 @@ export default function useBOQTab(contractId) {
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [dragKey, setDragKey]     = useState(null)   // _key của dòng đang kéo
   const [dragOverKey, setDragOverKey] = useState(null)
+  // Thả lên PHẦN/HỆ THỐNG: nửa TRÊN = chèn trước nó (cùng cấp), nửa DƯỚI = gom vào làm con.
+  // Nhờ nửa trên mà một hệ thống đang nằm trong hệ thống khác vẫn kéo ra ngoài được.
+  const [dragOverMode, setDragOverMode] = useState('into')
   const excelRef = useRef(null)
 
   // ── Load ─────────────────────────────────────────────────────────────────────
@@ -121,6 +126,7 @@ export default function useBOQTab(contractId) {
       warranty_period:  row.warranty_period,
       item_type:        row.item_type || 'trong_nuoc',
       multiply_qty:     !!row.multiply_qty,
+      hide_amount:      !!row.hide_amount,
     }
 
     try {
@@ -138,9 +144,10 @@ export default function useBOQTab(contractId) {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(withStamp(body, row)),
       })
       const saved = await res.json()
+      if (await handledConflict(res, saved, load)) return
       if (!res.ok) throw new Error(saved.error || 'Save failed')
 
       setRows(prev => prev.map(r =>
@@ -232,6 +239,14 @@ export default function useBOQTab(contractId) {
     if (updated.id) saveRow(updated)
   }
 
+  // Ẩn/hiện số tiền của dòng hệ thống (chỉ hiển thị — tổng hợp đồng KHÔNG đổi).
+  // Lưu ngay như toggleMultiply để trạng thái ẩn dùng chung cho mọi người.
+  const toggleHideAmount = (row) => {
+    const updated = { ...row, hide_amount: !row.hide_amount, _dirty: true }
+    setRows(prev => prev.map(r => r._key === row._key ? updated : r))
+    if (updated.id) saveRow(updated)
+  }
+
   // ── Kéo-thả đổi thứ tự ─────────────────────────────────────────────────────
   // Chỉ cho phép kéo dòng đã lưu khi không lọc (thứ tự hiển thị == thứ tự gốc).
 
@@ -275,17 +290,29 @@ export default function useBOQTab(contractId) {
     if (!dragKey) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    const mode = (e.clientY - rect.top) > rect.height / 2 ? 'into' : 'before'
+    setDragOverMode(prev => prev === mode ? prev : mode)
   }
 
   const handleDragEnter = (key) => {
     if (dragKey && key !== dragKey) setDragOverKey(key)
   }
 
-  const handleDragEnd = () => { setDragKey(null); setDragOverKey(null) }
+  const handleDragEnd = () => { setDragKey(null); setDragOverKey(null); setDragOverMode('into') }
 
   const handleDrop = (e, targetKey) => {
     e.preventDefault()
     if (!dragKey || dragKey === targetKey) { handleDragEnd(); return }
+
+    // Kéo một PHẦN/HỆ THỐNG thì cả cây con đi theo → không được thả vào chính cây con
+    // của nó (sẽ tạo vòng lặp cha-con, mất dòng khỏi cây).
+    const dragged = rows.find(r => r._key === dragKey)
+    if (dragged && subtreeKeySet(rows, dragged).has(targetKey)) {
+      alert('Không thể chuyển một phần/hệ thống vào chính dòng con của nó.')
+      handleDragEnd()
+      return
+    }
 
     // Thả ở nửa dưới của dòng đích → chèn sau, nửa trên → chèn trước
     const rect = e.currentTarget.getBoundingClientRect()
@@ -293,29 +320,35 @@ export default function useBOQTab(contractId) {
 
     let reordered = null
     setRows(prev => {
-      const copy = [...prev]
-      const from = copy.findIndex(r => r._key === dragKey)
-      const tIdx = copy.findIndex(r => r._key === targetKey)
+      const from = prev.findIndex(r => r._key === dragKey)
+      const tIdx = prev.findIndex(r => r._key === targetKey)
       if (from < 0 || tIdx < 0) return prev
-      const target = copy[tIdx]
-      const [moved] = copy.splice(from, 1)
+      const moved = prev[from]
+      const target = prev[tIdx]
+
+      // Nhấc cả khối: dòng đang kéo + toàn bộ con cháu (giữ nguyên thứ tự nội bộ)
+      const blockKeys = subtreeKeySet(prev, moved)
+      const block = prev.filter(r => blockKeys.has(r._key))
+      const rest  = prev.filter(r => !blockKeys.has(r._key))
 
       // Gán cha theo loại dòng đích:
-      //   thả lên PHẦN/NHÓM → trở thành con của nó (chèn ngay sau đầu mục = con đầu tiên)
-      //   thả lên dòng LÁ   → thành anh-em cùng cấp (kế thừa parent_id của dòng đích)
+      //   thả nửa DƯỚI của PHẦN/NHÓM → thành con đầu tiên của nó
+      //   thả nửa TRÊN của PHẦN/NHÓM → thành anh-em, chèn NGAY TRƯỚC nó (lối để kéo ra khỏi nhóm)
+      //   thả lên dòng LÁ            → thành anh-em cùng cấp (kế thừa parent_id của dòng đích)
       const targetKind = target.row_kind || 'leaf'
+      const t = rest.findIndex(r => r._key === targetKey)
       let newParentId, insertAt
       if (targetKind === 'zone' || targetKind === 'group') {
-        newParentId = target.id ?? null
-        insertAt = copy.findIndex(r => r._key === targetKey) + 1
+        newParentId = after ? (target.id ?? null) : (target.parent_id ?? null)
+        insertAt = after ? t + 1 : t
       } else {
         newParentId = target.parent_id ?? null
-        const t = copy.findIndex(r => r._key === targetKey)
         insertAt = after ? t + 1 : t
       }
-      copy.splice(insertAt, 0, { ...moved, parent_id: newParentId })
-      reordered = copy
-      return copy
+      // Chỉ dòng gốc của khối đổi cha; con cháu giữ nguyên parent_id để cây không vỡ.
+      rest.splice(insertAt, 0, { ...moved, parent_id: newParentId }, ...block.slice(1))
+      reordered = rest
+      return rest
     })
     if (reordered) persistOrder(reordered)
     handleDragEnd()
@@ -347,7 +380,7 @@ export default function useBOQTab(contractId) {
           return `${r.item_name || ''} ${r.hs_code || ''}`.toLowerCase().includes(kw)
         })
     }
-    return buildTreeOrder(rows).map((n, idx) => ({ r: n.r, idx, depth: n.depth }))
+    return buildTreeOrder(rows).map((n, idx) => ({ r: n.r, idx, depth: n.depth, no: n.no }))
   }, [rows, search, typeFilter, isFiltering])
 
   // ── Selection ─────────────────────────────────────────────────────────────────
@@ -459,9 +492,9 @@ export default function useBOQTab(contractId) {
     selected, toggleSelect, allSelected, toggleSelectAll, selectableKeys, selectedCount,
     bulkDelete, bulkDeleting,
     // row ops
-    set, patchRow, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply,
+    set, patchRow, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply, toggleHideAmount,
     // drag-reorder
-    dragKey, dragOverKey, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
+    dragKey, dragOverKey, dragOverMode, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
     // excel import
     excelRef, handleExcelFile, importData, importMode, setImportMode, importSaving, confirmImport, setImportData,
   }

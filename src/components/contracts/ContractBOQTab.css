@@ -268,6 +268,7 @@
 /* Kéo-thả đổi thứ tự */
 .boq-table tbody tr.row-dragging { opacity: 0.4; }
 .boq-table tbody tr.row-dragover td { box-shadow: inset 0 2px 0 0 #16a34a; }
+.boq-table tbody tr.row-dragover-bottom td { box-shadow: inset 0 -2px 0 0 #16a34a; }
 .boq-table tbody tr[draggable="true"] { cursor: default; }
 
 /* Thả dòng VÀO phần/nhóm (gom làm con): viền bao quanh + nền nhấn */
@@ -284,7 +285,7 @@
 /* ── Column widths ────────────────────────────────────────────────────────── */
 
 .th-select    { width: 36px; }
-.th-stt       { width: 44px; }
+.th-stt       { width: 62px; }   /* đủ chỗ cho số phân cấp dạng 1.1.1 */
 .th-name      { min-width: 220px; text-align: left !important; }
 .th-hs        { width: 96px; }
 .th-unit      { width: 64px; }
@@ -302,7 +303,7 @@
 
 .boq-table th.th-select, .boq-table td.td-select { position: sticky; left: 0;    }
 .boq-table th.th-stt,    .boq-table td.td-stt    { position: sticky; left: 36px; }
-.boq-table th.th-name,   .boq-table td.td-name   { position: sticky; left: 80px; }
+.boq-table th.th-name,   .boq-table td.td-name   { position: sticky; left: 98px; }
 
 /* Ô thân dính: nền theo dòng + nổi trên ô thường (z-index 1), nhưng dưới header */
 .boq-table tbody td.td-select,
@@ -327,7 +328,7 @@
   font-size: 12px;
   user-select: none;
 }
-.stt-num { display: inline-block; }
+.stt-num { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .drag-handle {
   cursor: grab;
@@ -468,6 +469,12 @@
 .act.mult:hover:not(:disabled) { background: #f1f5f9; }
 .act.mult.active { background: #16a34a; color: #fff; border-color: #16a34a; }
 .act.mult.active:hover:not(:disabled) { background: #15803d; }
+
+/* Nút ẩn/hiện số tiền của dòng hệ thống */
+.act.eye { border: 1px solid #cbd5e1; color: #64748b; }
+.act.eye:hover:not(:disabled) { background: #f1f5f9; }
+.act.eye.off { background: #64748b; color: #fff; border-color: #64748b; }
+.act.eye.off:hover:not(:disabled) { background: #475569; }
 
 .spin { display: inline-block; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -636,6 +643,9 @@
 }
 
 .boq-masked { color: #9ca3af; letter-spacing: 2px; user-select: none; }
+
+/* Số tiền dòng hệ thống đang được ẩn (cờ hide_amount) — khác với "•••" của phân quyền */
+.boq-amt-hidden { color: #94a3b8; font-style: italic; font-weight: 500; user-select: none; }
 
 /* Cột "Nhập cho" (ghép hàng nhập → hàng bán) trong bảng giá mua */
 .th-supply { min-width: 180px; }

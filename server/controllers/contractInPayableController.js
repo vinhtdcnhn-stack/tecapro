@@ -1,6 +1,7 @@
 import { pool } from '../db.js'
 import { cacheWrap } from '../cache.js'
 import { contractInKey, contractInTabNotModified, invalidateContractIn, invalidateContractInMembers, invalidateReports } from '../services/cacheKeys.js'
+import { rejectIfStale } from '../utils/staleGuard.js'
 
 const TAB_TTL = 15 * 60 // 15'
 
@@ -68,6 +69,7 @@ export async function updatePayable(req, res) {
   const { description, payment_method, currency_code, amount, exchange_rate, due_date, delay_reason } = req.body
   const vnd = calcVND(amount, exchange_rate, currency_code)
   try {
+    if (await rejectIfStale(req, res, 'contract_in_payable')) return
     const { rows } = await pool.query(`
       UPDATE contract_in_payable SET
         description=$1, payment_method=$2, currency_code=$3,
@@ -117,16 +119,17 @@ export async function getPayments(req, res) {
 
 export async function createPayment(req, res) {
   const { contractInId } = req.params
-  const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note } = req.body
+  const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note, payable_id } = req.body
   const vnd = calcVND(amount, exchange_rate, currency_code)
   try {
     const { rows } = await pool.query(`
       INSERT INTO contract_in_payment
-        (contract_in_id, payment_date, currency_code, amount, exchange_rate, amount_vnd, payment_ratio, note)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        (contract_in_id, payment_date, currency_code, amount, exchange_rate, amount_vnd, payment_ratio, note, payable_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [contractInId, payment_date||null, currency_code||'VND',
        parseFloat(amount)||0, parseFloat(exchange_rate)||1, vnd,
-       payment_ratio ? parseFloat(payment_ratio) : null, note||null]
+       payment_ratio ? parseFloat(payment_ratio) : null, note||null,
+       payable_id ? parseInt(payable_id, 10) : null]
     )
     invalidatePay(contractInId)
     res.json(rows[0])
@@ -138,17 +141,20 @@ export async function createPayment(req, res) {
 
 export async function updatePayment(req, res) {
   const { id } = req.params
-  const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note } = req.body
+  const { payment_date, currency_code, amount, exchange_rate, payment_ratio, note, payable_id } = req.body
   const vnd = calcVND(amount, exchange_rate, currency_code)
   try {
+    if (await rejectIfStale(req, res, 'contract_in_payment')) return
     const { rows } = await pool.query(`
       UPDATE contract_in_payment SET
         payment_date=$1, currency_code=$2, amount=$3,
-        exchange_rate=$4, amount_vnd=$5, payment_ratio=$6, note=$7, updated_at=NOW()
-      WHERE id=$8 RETURNING *`,
+        exchange_rate=$4, amount_vnd=$5, payment_ratio=$6, note=$7,
+        payable_id=$8, updated_at=NOW()
+      WHERE id=$9 RETURNING *`,
       [payment_date||null, currency_code||'VND',
        parseFloat(amount)||0, parseFloat(exchange_rate)||1, vnd,
-       payment_ratio ? parseFloat(payment_ratio) : null, note||null, id]
+       payment_ratio ? parseFloat(payment_ratio) : null, note||null,
+       payable_id ? parseInt(payable_id, 10) : null, id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
     invalidatePay(rows[0].contract_in_id)

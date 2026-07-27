@@ -150,7 +150,16 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
     } catch { alert('Không thể xóa.') }
   }
 
-  // Khóa/mở khóa đợt — PM của HĐ/admin. Khi khóa, đợt không sửa/xóa được tới khi mở.
+  // Quyền khóa đợt (khớp guard canToggleInvoiceLock ở server):
+  //   • KHÓA    — chỉ kế toán của dự án (danh sách "Kế toán" trong Thông tin hợp đồng)
+  //   • MỞ KHÓA — chỉ đúng người đã khóa đợt đó
+  //   • admin được cả hai (lối thoát khi kế toán nghỉ/đổi người)
+  const isAdmin = Number(currentUser?.role) === 1
+  const isAccountant = (contract?.accounting_member_ids || []).map(String).includes(String(currentUser?.id))
+  const canLock = isAdmin || isAccountant
+  const canUnlock = (inv) => isAdmin || String(inv.locked_by ?? '') === String(currentUser?.id)
+
+  // Khóa/mở khóa đợt. Khi khóa, đợt không sửa/xóa được tới khi mở.
   // MỞ KHÓA cần nhập lại mật khẩu để xác nhận.
   const onToggleLock = async (inv) => {
     let password
@@ -215,13 +224,18 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
                           🔒 Đã khóa{inv.locked_by_name ? ` · ${inv.locked_by_name}` : ''}
                         </span>
                       )}
-                      <EditGuard perm="co.invoice.manage">
-                        {/* Nút khóa/mở khóa — luôn dùng được (để còn mở khóa) */}
+                      {/* Nút khóa/mở khóa nằm NGOÀI EditGuard: quyền riêng, không theo
+                          co.invoice.manage của PM. Khóa = kế toán dự án; mở = người đã khóa. */}
+                      {(inv.locked ? canUnlock(inv) : canLock) && (
                         <button className={`inv-lock-btn${inv.locked ? ' locked' : ''}`} onClick={() => onToggleLock(inv)}
-                          title={inv.locked ? 'Mở khóa đợt' : 'Khóa đợt'}>
+                          title={inv.locked
+                            ? 'Mở khóa đợt (chỉ người đã khóa)'
+                            : 'Khóa đợt (chỉ kế toán của dự án)'}>
                           {inv.locked ? <LockClosedIcon /> : <LockOpenIcon />}
                           {inv.locked ? 'Mở khóa' : 'Khóa'}
                         </button>
+                      )}
+                      <EditGuard perm="co.invoice.manage">
                         {/* Sửa/Xóa — ẩn khi đã khóa */}
                         {!inv.locked && <>
                           <button className="inv-link" onClick={() => setModal(inv)}>Sửa</button>

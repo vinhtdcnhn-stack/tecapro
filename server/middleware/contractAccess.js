@@ -442,6 +442,55 @@ export const blockIfLockedVia = (key, param = 'id', label) => makeLockGuard(req 
 export const blockIfLockedViaBody = (key, label) => makeLockGuard(req => req.body?.ids, LOCK_RESOLVERS[key], label)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// KHÓA/MỞ KHÓA đợt xuất hóa đơn — quyền riêng, KHÔNG dùng co.invoice.manage của PM:
+//   • Khóa   : chỉ KẾ TOÁN của chính dự án đó (contract_out_member.member_role = Accounting).
+//   • Mở khóa: chỉ ĐÚNG NGƯỜI đã khóa đợt đó.
+// Admin (role = 1) vẫn được cả hai — lối thoát khi kế toán nghỉ/đổi người.
+// ─────────────────────────────────────────────────────────────────────────────
+export function canToggleInvoiceLock(param = 'id') {
+  return async function invoiceLockGuard(req, res, next) {
+    try {
+      const id = String(req.params[param] ?? '').trim()
+      if (!ID_RE.test(id)) { res.status(400).json({ error: 'Tham số id không hợp lệ.' }); return }
+
+      const { rows } = await pool.query(
+        `SELECT i.contract_out_id, i.locked, i.locked_by, lu.full_name AS locked_by_name
+           FROM contract_out_invoice i
+           LEFT JOIN app_user lu ON lu.id = i.locked_by
+          WHERE i.id = $1`, [id],
+      )
+      if (!rows.length) { res.status(404).json({ error: 'Không tìm thấy đợt.' }); return }
+      const inv = rows[0]
+      if (Number(req.user?.role) === 1) return next()
+
+      if (req.body?.locked) {
+        // member_role lưu không đồng nhất hoa/thường ('Accounting' | 'ACCOUNTANT') → so bỏ hoa-thường
+        const { rows: acc } = await pool.query(
+          `SELECT 1 FROM contract_out_member
+            WHERE contract_out_id = $1 AND user_id = $2
+              AND upper(member_role) IN ('ACCOUNTING', 'ACCOUNTANT') LIMIT 1`,
+          [inv.contract_out_id, req.user.id],
+        )
+        if (!acc.length) {
+          res.status(403).json({ error: 'Chỉ kế toán của dự án (hoặc quản trị viên) mới được khóa đợt xuất hóa đơn.' })
+          return
+        }
+        return next()
+      }
+
+      // Mở khóa: đúng người đã khóa
+      if (inv.locked && String(inv.locked_by ?? '') !== String(req.user.id)) {
+        res.status(403).json({
+          error: `Đợt này do ${inv.locked_by_name || 'người khác'} khóa — chỉ người đó (hoặc quản trị viên) mới mở khóa được.`,
+        })
+        return
+      }
+      return next()
+    } catch (err) { next(err) }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tài liệu (folder/file) dùng chung cho HĐ bán / HĐ nhập / gói thầu → phân nhánh:
 //   - thuộc HĐ nhập (contract_in_id ≠ null): luật người tạo (created_by) / admin
 //   - thuộc gói thầu (tender_id ≠ null):     luật làm thầu / Trưởng phòng / admin

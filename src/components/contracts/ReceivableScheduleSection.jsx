@@ -8,10 +8,11 @@ import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import ReceivableMobile from './ReceivableMobile'
 import { auditRowAttrs } from '../common/rowAudit'
+import { withStamp, handledConflict } from './conflict'
 
 // ── Schedule section ──────────────────────────────────────────────────────────
 
-export default function ScheduleSection({ rows, setRows, contractId, refTotal, refCurrency, refExRate, payRows, setPayRows, onRateSynced, bbDateMap = {}, baseOptions = [], contractDate = null, showAmounts = true }) {
+export default function ScheduleSection({ rows, setRows, contractId, refTotal, refCurrency, refExRate, payRows, setPayRows, onRateSynced, reloadRows, reloadPayments, bbDateMap = {}, baseOptions = [], contractDate = null, showAmounts = true }) {
   const isMobile = useIsMobile()
   const dueCtx = { bbDateMap, contractDate }
   // % theo HĐ tính trên GIÁ TRỊ GỐC; giữ tới 4 chữ số thập phân để khoản nhỏ trên tổng HĐ lớn vẫn hiện ra.
@@ -79,8 +80,9 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
     try {
       const url    = row._isNew ? `${API}/contracts/${contractId}/receivable` : `${API}/receivable/${row.id}`
       const method = row._isNew ? 'POST' : 'PUT'
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withStamp(body, row)) })
       const saved  = await res.json()
+      if (await handledConflict(res, saved, reloadRows)) return
       if (!res.ok) throw new Error(saved.error || 'Save failed')
       setRows(prev => prev.map(r => r._key === row._key ? { ...saved, _key: row._key, _dirty: false, _isNew: false, _saving: false } : r))
       // Backend đã đồng bộ tỷ giá HĐ theo bản ghi này → tải lại tham chiếu để banner/UI cập nhật
@@ -103,7 +105,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
   // Ctrl+S: lưu tất cả khoản phải thu + đợt tiền về đang sửa
   useCtrlSave(() => {
     rows.filter(r => r._dirty && !r._saving).forEach(saveRow)
-    payRows.filter(p => p._dirty && !p._saving).forEach(p => savePaymentRow(p, contractId, setPayRows))
+    payRows.filter(p => p._dirty && !p._saving).forEach(p => savePaymentRow(p, contractId, setPayRows, reloadPayments))
   })
 
   const totalAmt = rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
@@ -118,7 +120,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
         </div>
         <ReceivableMobile
           rows={rows} set={set} setDueBase={setDueBase} addRow={addRow} saveRow={saveRow} deleteRow={deleteRow}
-          payRows={payRows} setPayRows={setPayRows} contractId={contractId}
+          payRows={payRows} setPayRows={setPayRows} contractId={contractId} reloadPayments={reloadPayments}
           refTotal={refTotal} refCurrency={refCurrency}
           bbDateMap={bbDateMap} baseOptions={baseOptions} contractDate={contractDate}
           ratioOf={ratioOf} totalAmt={totalAmt} totalVND={totalVND} unit={unit} showAmounts={showAmounts}
@@ -253,6 +255,7 @@ export default function ScheduleSection({ rows, setRows, contractId, refTotal, r
                   payRows={payRows}
                   setPayRows={setPayRows}
                   contractId={contractId}
+                  reloadPayments={reloadPayments}
                   colSpan={10}
                   showAmounts={showAmounts}
                 />

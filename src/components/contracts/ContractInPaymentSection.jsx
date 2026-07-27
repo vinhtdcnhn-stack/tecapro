@@ -1,15 +1,19 @@
 import { API } from '../../config/api'
 import DateInput from './DateInput'
-import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import RowActions from './ReceivableRowActions'
 import { PaymentSectionMobile } from './PayableMobile'
-import { CURRENCIES, fmtVND, calcVND, tmpId } from './contractInPayableUtils'
+import { CURRENCIES, fmtVND, calcVND, savePaymentRow } from './contractInPayableUtils'
 import { auditRowAttrs } from '../common/rowAudit'
 
-// ── Thanh toán thực tế cho NCC ────────────────────────────────────────────────
+// ── Đợt thanh toán CHƯA GẮN khoản phải trả nào ────────────────────────────────
+// Từ khi mỗi đợt thanh toán nằm trong một khoản phải trả (giống công nợ HĐ bán), mục này
+// chỉ còn để "cứu" dữ liệu cũ hoặc đợt bị mất liên kết khi xóa khoản: chọn khoản ở cột
+// "Gắn vào khoản" rồi lưu là đợt nhảy vào đúng khoản. Không có nút thêm mới ở đây.
 
-export default function PaymentSection({ rows, setRows, contractInId, totalExpected, showAmounts = true }) {
+export default function PaymentSection({
+  rows, setRows, contractInId, totalExpected, reload, showAmounts = true, payables = [],
+}) {
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r
@@ -27,38 +31,9 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
       return updated
     }))
 
-  const addRow = () => {
-    const r = {
-      id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-      payment_date: new Date().toISOString().slice(0, 10),
-      currency_code: 'VND', amount: '', exchange_rate: 1, amount_vnd: 0, payment_ratio: '', note: '',
-    }
-    setRows(prev => [...prev, r])
-    return r._key
-  }
   const isMobile = useIsMobile()
 
-  const saveRow = async (row) => {
-    setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
-    const body = {
-      payment_date: row.payment_date, currency_code: row.currency_code,
-      amount: row.amount, exchange_rate: row.exchange_rate,
-      payment_ratio: row.payment_ratio, note: row.note,
-    }
-    try {
-      const url    = row._isNew ? `${API}/contract-ins/${contractInId}/payments` : `${API}/payments/${row.id}`
-      const method = row._isNew ? 'POST' : 'PUT'
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const saved  = await res.json()
-      if (!res.ok) throw new Error(saved.error || 'Save failed')
-      setRows(prev => prev.map(r => r._key === row._key
-        ? { ...saved, _key: row._key, _dirty: false, _isNew: false, _saving: false }
-        : r))
-    } catch (e) {
-      alert('Lỗi: ' + e.message)
-      setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: false } : r))
-    }
-  }
+  const saveRow = (row) => savePaymentRow(row, contractInId, setRows, reload)
 
   const deleteRow = async (row) => {
     if (row._isNew) { setRows(prev => prev.filter(r => r._key !== row._key)); return }
@@ -69,25 +44,22 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
     } catch { alert('Không thể xóa.') }
   }
 
-  // Ctrl+S: lưu tất cả dòng đang sửa
-  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
-
   const totalPaidVND = rows.reduce((s, r) => s + calcVND(r.amount, r.exchange_rate, r.currency_code), 0)
 
   return (
     <div className="recv-section">
       <div className="recv-section-header">
-        <h4 className="recv-section-title">Thanh toán thực tế cho NCC</h4>
-        <button className="recv-btn recv-btn-primary" onClick={addRow}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          Thêm đợt TT
-        </button>
+        <h4 className="recv-section-title">Đợt thanh toán chưa gắn khoản</h4>
+        <span className="recv-section-hint">
+          Chọn khoản phải trả tương ứng ở cột <strong>Gắn vào khoản</strong> rồi lưu — đợt sẽ chuyển vào khoản đó ở bảng trên.
+        </span>
       </div>
 
       {isMobile ? (
         <PaymentSectionMobile
-          rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
+          rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow}
           currencies={CURRENCIES} calcVND={calcVND} fmtVND={fmtVND} showAmounts={showAmounts}
+          payables={payables}
         />
       ) : (
       <div className="recv-table-wrapper">
@@ -96,6 +68,7 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
             <tr>
               <th className="th-stt">#</th>
               <th className="th-date">Ngày thanh toán</th>
+              <th className="th-desc">Gắn vào khoản</th>
               <th className="th-cur">Đồng tiền</th>
               <th className="th-num">Giá trị</th>
               <th className="th-rate">Tỷ giá</th>
@@ -106,9 +79,7 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
-              <tr><td colSpan="9" className="recv-empty">Chưa có đợt thanh toán nào. Nhấn <strong>Thêm đợt TT</strong>.</td></tr>
-            ) : rows.map((row, idx) => {
+            {rows.map((row, idx) => {
               const vnd = calcVND(row.amount, row.exchange_rate, row.currency_code)
               return (
                 <tr key={row._key} {...auditRowAttrs('contract_in_payment', row.id)} className={[
@@ -123,6 +94,15 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
                   <td className="td-date">
                     <DateInput value={row.payment_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'payment_date', e.target.value)} />
+                  </td>
+                  <td className="td-desc">
+                    <select value={row.payable_id ?? ''}
+                      onChange={e => set(row._key, 'payable_id', e.target.value === '' ? null : e.target.value)}>
+                      <option value="">— Chưa gắn —</option>
+                      {payables.filter(p => !p._isNew).map(p => (
+                        <option key={p.id} value={p.id}>{p.description || `Khoản #${p.id}`}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="td-cur">
                     <select value={row.currency_code || 'VND'}
@@ -166,7 +146,7 @@ export default function PaymentSection({ rows, setRows, contractInId, totalExpec
           {rows.filter(r => !r._isNew).length > 0 && (
             <tfoot>
               <tr className="totals-row">
-                <td colSpan="5" className="totals-label">TỔNG ĐÃ THANH TOÁN</td>
+                <td colSpan="6" className="totals-label">TỔNG CHƯA GẮN KHOẢN</td>
                 <td className="td-vnd">{showAmounts ? fmtVND(totalPaidVND) : '•••'}</td>
                 <td colSpan="3" />
               </tr>

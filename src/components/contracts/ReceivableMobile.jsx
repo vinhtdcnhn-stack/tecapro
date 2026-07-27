@@ -9,7 +9,7 @@ import { auditRowAttrs } from '../common/rowAudit'
 // sửa khoản + quản lý các đợt tiền về. Tái dùng handler của ScheduleSection.
 export default function ReceivableMobile({
   rows, set, setDueBase, addRow, saveRow, deleteRow,
-  payRows, setPayRows, contractId,
+  payRows, setPayRows, contractId, reloadPayments,
   refTotal, refCurrency, bbDateMap, baseOptions, contractDate,
   ratioOf, totalAmt, totalVND, unit, showAmounts = true,
 }) {
@@ -164,7 +164,7 @@ export default function ReceivableMobile({
                   <div className="recv-pay-actions">
                     <button className="msheet-btn msheet-btn-danger" onClick={() => deletePayment(p)}>Xóa</button>
                     <button className="msheet-btn msheet-btn-primary" disabled={p._saving}
-                      onClick={() => savePaymentRow(p, contractId, setPayRows)}>
+                      onClick={() => savePaymentRow(p, contractId, setPayRows, reloadPayments)}>
                       {p._saving ? '…' : 'Lưu đợt'}
                     </button>
                   </div>

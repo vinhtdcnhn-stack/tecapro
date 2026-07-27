@@ -1,19 +1,29 @@
 import AutoTextarea from '../common/AutoTextarea'
 import { fmtNum } from './boqUtils'
-import { IconSave, IconPlus, IconTrash, IconCheck } from './BOQRowIcons'
+import { IconSave, IconPlus, IconTrash, IconCheck, IconEye, IconEyeOff } from './BOQRowIcons'
 import { auditRowAttrs } from '../common/rowAudit'
+
+// Ô tiền của dòng hệ thống đang bật "ẩn số tiền" (hide_amount)
+const HiddenAmt = () => (
+  <span className="boq-amt-hidden" title="Số tiền đang được ẩn trên dòng hệ thống này">(ẩn)</span>
+)
 
 // Dòng NHÓM tổng hợp (vd "Hệ thống UPS 600kVA"): giữ ĐVT/SL mô tả, nhưng đơn giá &
 // thành tiền là roll-up từ các dòng con (read-only). Có nút thêm nhóm/dòng con.
 export default function BOQGroupRow({
-  row, idx, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, onToggleMultiply, rollupAmt, currency, showPrice = true,
-  canDrop, isDragOver, onDragOver, onDragEnter, onDrop, onDragEnd,
+  row, idx, no, depth, selected, onToggleSelect, set, saveRow, deleteRow, onAddChild, onToggleMultiply, onToggleHideAmount, rollupAmt, currency, showPrice = true,
+  canDrag, canDrop, isDragging, isDragOver, dropMode = 'into', onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const mult = !!row.multiply_qty
+  // hide_amount: chỉ ẩn HIỂN THỊ tiền trên chính dòng hệ thống này (đơn giá roll-up +
+  // thành tiền trước/sau VAT). Dòng con vẫn hiện tiền, tổng hợp đồng vẫn tính đủ.
+  const hidden = !!row.hide_amount
   return (
     <tr
       data-key={row._key}
       {...auditRowAttrs('contract_out_boq', row.id)}
+      draggable={canDrag}
+      onDragStart={canDrag ? (e) => onDragStart(e, row._key) : undefined}
       onDragOver={canDrop ? onDragOver : undefined}
       onDragEnter={canDrop ? () => onDragEnter(row._key) : undefined}
       onDrop={canDrop ? (e) => onDrop(e, row._key) : undefined}
@@ -22,7 +32,8 @@ export default function BOQGroupRow({
         'boq-group-row',
         row._isNew ? 'row-new' : '', row._dirty ? 'row-dirty' : '',
         row._saving ? 'row-saving' : '', selected ? 'row-selected' : '',
-        isDragOver ? 'row-dropinto' : '',
+        isDragging ? 'row-dragging' : '',
+        isDragOver ? (dropMode === 'into' ? 'row-dropinto' : 'row-dragover') : '',
       ].filter(Boolean).join(' ')}
     >
       <td className="td-select">
@@ -30,7 +41,8 @@ export default function BOQGroupRow({
       </td>
       <td className="td-stt">
         {row._dirty && <span className="dirty-dot" title="Chưa lưu" />}
-        <span className="stt-num">{idx + 1}</span>
+        {canDrag && <span className="drag-handle" title="Kéo để đổi thứ tự (cả dòng con đi theo)">⠿</span>}
+        <span className="stt-num">{no || idx + 1}</span>
       </td>
       <td className="td-name" style={{ paddingLeft: 8 + depth * 22 }}>
         <span className="boq-kind-badge boq-badge-group">Hệ thống</span>
@@ -50,11 +62,15 @@ export default function BOQGroupRow({
         <input type="number" value={row.quantity} onChange={e => set(row._key, 'quantity', e.target.value)} placeholder="0" min="0" />
       </td>
       <td className="td-num td-rollup" title={mult ? 'Đơn giá hệ thống = tổng thành tiền các dòng con (1 bộ)' : 'Tổng hợp từ dòng con'}>
-        {!showPrice ? '•••' : (mult ? fmtNum(rollupAmt?.unitBefore || 0, currency) : '—')}
+        {hidden ? <HiddenAmt /> : !showPrice ? '•••' : (mult ? fmtNum(rollupAmt?.unitBefore || 0, currency) : '—')}
       </td>
-      <td className="td-amt computed td-rollup" title={mult ? 'Đã nhân theo số lượng hệ thống' : undefined}>{showPrice ? fmtNum(rollupAmt?.before || 0, currency) : '•••'}</td>
+      <td className="td-amt computed td-rollup" title={mult ? 'Đã nhân theo số lượng hệ thống' : undefined}>
+        {hidden ? <HiddenAmt /> : showPrice ? fmtNum(rollupAmt?.before || 0, currency) : '•••'}
+      </td>
       <td className="td-vat td-rollup">—</td>
-      <td className="td-amt computed td-rollup" title={mult ? 'Đã nhân theo số lượng hệ thống' : undefined}>{showPrice ? fmtNum(rollupAmt?.after || 0, currency) : '•••'}</td>
+      <td className="td-amt computed td-rollup" title={mult ? 'Đã nhân theo số lượng hệ thống' : undefined}>
+        {hidden ? <HiddenAmt /> : showPrice ? fmtNum(rollupAmt?.after || 0, currency) : '•••'}
+      </td>
       <td className="td-warranty">
         <input type="text" value={row.warranty_period} onChange={e => set(row._key, 'warranty_period', e.target.value)} placeholder="—" />
       </td>
@@ -68,6 +84,14 @@ export default function BOQGroupRow({
           )}
           <button className="act insert" onClick={() => onAddChild(row, 'group')} title="Thêm hệ thống con" disabled={!row.id}>
             <IconPlus /><span className="act-label">Thêm hệ thống</span>
+          </button>
+          <button
+            className={`act eye${hidden ? ' off' : ''}`}
+            onClick={() => onToggleHideAmount?.(row)}
+            title={hidden ? 'Số tiền đang ẩn — bấm để hiện lại' : 'Ẩn số tiền (trước/sau VAT) của dòng hệ thống này'}
+            aria-pressed={hidden}
+          >
+            {hidden ? <IconEyeOff /> : <IconEye />}
           </button>
           <button
             className={`act mult${mult ? ' active' : ''}`}

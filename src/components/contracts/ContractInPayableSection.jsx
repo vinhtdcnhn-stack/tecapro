@@ -1,15 +1,23 @@
+import { Fragment } from 'react'
 import { API } from '../../config/api'
 import DateInput from './DateInput'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import RowActions from './ReceivableRowActions'
 import { PayableSectionMobile } from './PayableMobile'
-import { CURRENCIES, PAYMENT_METHODS, fmtVND, calcVND, isOverdue, tmpId } from './contractInPayableUtils'
+import ContractInLinkedPayments from './ContractInLinkedPayments'
+import { CURRENCIES, PAYMENT_METHODS, fmtVND, calcVND, isOverdue, tmpId, savePaymentRow } from './contractInPayableUtils'
 import { auditRowAttrs } from '../common/rowAudit'
+import { withStamp, handledConflict } from './conflict'
 
 // ── Lịch phải trả theo ĐKTT hợp đồng nhập ─────────────────────────────────────
+// Mỗi khoản phải trả kéo theo một hàng con liệt kê các ĐỢT THANH TOÁN đã gắn vào nó
+// (giống công nợ HĐ bán) — đợt thanh toán không còn đứng rời thành bảng riêng.
 
-export default function PayableSection({ rows, setRows, contractInId, showAmounts = true }) {
+export default function PayableSection({
+  rows, setRows, contractInId, reload, showAmounts = true,
+  payRows = [], setPayRows, reloadPayments,
+}) {
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r
@@ -46,8 +54,9 @@ export default function PayableSection({ rows, setRows, contractInId, showAmount
     try {
       const url    = row._isNew ? `${API}/contract-ins/${contractInId}/payables` : `${API}/payables/${row.id}`
       const method = row._isNew ? 'POST' : 'PUT'
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withStamp(body, row)) })
       const saved  = await res.json()
+      if (await handledConflict(res, saved, reload)) return
       if (!res.ok) throw new Error(saved.error || 'Save failed')
       setRows(prev => prev.map(r => r._key === row._key
         ? { ...saved, _key: row._key, _dirty: false, _isNew: false, _saving: false }
@@ -60,15 +69,25 @@ export default function PayableSection({ rows, setRows, contractInId, showAmount
 
   const deleteRow = async (row) => {
     if (row._isNew) { setRows(prev => prev.filter(r => r._key !== row._key)); return }
-    if (!confirm(`Xóa khoản phải trả "${row.description || '(trống)'}"?`)) return
+    // Đợt thanh toán đã gắn KHÔNG bị xóa theo — chỉ mất liên kết, rơi xuống mục "chưa gắn khoản".
+    const linkedCount = payRows.filter(p => !p._isNew && String(p.payable_id ?? '') === String(row.id)).length
+    const warn = linkedCount
+      ? `\n\n${linkedCount} đợt thanh toán đang gắn vào khoản này sẽ KHÔNG bị xóa, chúng chuyển xuống mục "Đợt thanh toán chưa gắn khoản".`
+      : ''
+    if (!confirm(`Xóa khoản phải trả "${row.description || '(trống)'}"?${warn}`)) return
     try {
       await fetch(`${API}/payables/${row.id}`, { method: 'DELETE' })
       setRows(prev => prev.filter(r => r._key !== row._key))
+      if (linkedCount) reloadPayments?.()
     } catch { alert('Không thể xóa.') }
   }
 
-  // Ctrl+S: lưu tất cả dòng đang sửa
-  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
+  // Ctrl+S: lưu tất cả khoản phải trả + đợt thanh toán đang sửa
+  useCtrlSave(() => {
+    rows.filter(r => r._dirty && !r._saving).forEach(saveRow)
+    payRows.filter(p => p._dirty && !p._saving)
+      .forEach(p => savePaymentRow(p, contractInId, setPayRows, reloadPayments))
+  })
 
   const totalVND = rows.reduce((s, r) => s + calcVND(r.amount, r.exchange_rate, r.currency_code), 0)
 
@@ -87,6 +106,7 @@ export default function PayableSection({ rows, setRows, contractInId, showAmount
           rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
           currencies={CURRENCIES} methods={PAYMENT_METHODS} calcVND={calcVND} fmtVND={fmtVND} isOverdue={isOverdue}
           showAmounts={showAmounts}
+          payRows={payRows} setPayRows={setPayRows} contractInId={contractInId} reloadPayments={reloadPayments}
         />
       ) : (
       <div className="recv-table-wrapper">
@@ -112,7 +132,9 @@ export default function PayableSection({ rows, setRows, contractInId, showAmount
               const overdue = isOverdue(row.due_date) && !row._isNew
               const vnd = calcVND(row.amount, row.exchange_rate, row.currency_code)
               return (
-                <tr key={row._key} {...auditRowAttrs('contract_in_payable', row.id)} className={[
+                <Fragment key={row._key}>
+                <tr {...auditRowAttrs('contract_in_payable', row.id)} className={[
+                  'recv-group-top',
                   overdue ? 'row-overdue' : '',
                   row._dirty  ? 'row-dirty'  : '',
                   row._isNew  ? 'row-new'    : '',
@@ -168,6 +190,17 @@ export default function PayableSection({ rows, setRows, contractInId, showAmount
                     <RowActions row={row} onSave={saveRow} onDelete={deleteRow} />
                   </td>
                 </tr>
+                <ContractInLinkedPayments
+                  payableRow={row}
+                  payRows={payRows}
+                  setPayRows={setPayRows}
+                  contractInId={contractInId}
+                  reloadPayments={reloadPayments}
+                  colSpan={10}
+                  showAmounts={showAmounts}
+                />
+                <tr className="recv-group-gap" aria-hidden="true"><td colSpan="10" /></tr>
+                </Fragment>
               )
             })}
           </tbody>

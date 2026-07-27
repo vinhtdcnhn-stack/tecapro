@@ -154,6 +154,20 @@ export const ADMIN_GROUP = {
           ],
         },
         {
+          heading: 'Dải "♻️ Tự nạp lại cache khi rảnh" (tab ① Route đọc theo tải)',
+          items: [
+            'Cache giúp trang mở nhanh vì số liệu được giữ sẵn trong bộ nhớ. Nhưng mỗi khi có người SỬA dữ liệu, phần cache liên quan bị bỏ đi (để không ai thấy số cũ) — người mở trang ngay sau đó phải chờ hệ thống tính lại từ cơ sở dữ liệu.',
+            'Hệ thống nay tự động nạp lại phần cache vừa bị bỏ, chạy ngầm vào lúc KHÔNG có ai đang dùng, nên người mở trang tiếp theo thường đã có sẵn số liệu mới. Bạn không phải bật/tắt gì; các ô ở đây chỉ để XEM.',
+            '"Key đang theo dõi": số loại dữ liệu đang được xem thường xuyên (đủ "nóng" để đáng nạp trước). Loại nào 15 phút không ai xem sẽ tự bị bỏ ra — tránh nạp thừa thứ chẳng ai dùng.',
+            '"Đang chờ nạp": vừa có người sửa dữ liệu, phần cache đó đang xếp hàng đợi máy rảnh để nạp lại.',
+            '"Đã nạp lại": số lần nạp sẵn thành công — mỗi lần tương ứng một lượt người dùng KHÔNG phải ngồi chờ tính lại.',
+            '"Có người đọc trước": có người mở trang trước khi máy kịp nạp ngầm, nên bỏ qua (không tính là hỏng — chỉ là không cần nữa).',
+            '"Bỏ vì đổi tiếp": đang nạp thì có người sửa tiếp, nên kết quả vừa lấy bị vứt đi để tuyệt đối không ghi số cũ vào cache.',
+            '"Bỏ vì máy bận": chờ hơn 1 phút mà máy vẫn liên tục bận nên thôi không nạp ngầm nữa; trang vẫn hiện đúng số liệu, chỉ là người mở đầu tiên phải chờ như trước.',
+            'Các con số này nằm trong bộ nhớ máy chủ và sẽ về 0 mỗi lần khởi động lại phần mềm.',
+          ],
+        },
+        {
           heading: 'Xóa cache',
           items: [
             'Tại thẻ "Hệ thống Cache" (tab Tổng quan hệ thống) có nút 🗑️ Xóa cache. Bấm để xóa sạch toàn bộ cache Redis khi cần buộc mọi màn hình nạp lại số liệu mới nhất từ cơ sở dữ liệu.',

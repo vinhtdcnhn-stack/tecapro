@@ -80,6 +80,7 @@ export const GENERAL_GROUP = {
             'Ô ngày tháng luôn gõ theo dạng ngày/tháng/năm, ví dụ: 04/07/2026.',
             'Ô số tiền tự thêm dấu chấm ngăn cách hàng nghìn khi bạn gõ (gõ 1000000 sẽ hiện 1.000.000).',
             'Số tiền tự làm tròn khi lưu: hợp đồng VND làm tròn về số nguyên, ngoại tệ giữ 2 chữ số thập phân.',
+            'Nếu khi lưu hiện thông báo "Dòng này vừa được người khác sửa...": nghĩa là một đồng nghiệp đã lưu chính dòng đó trong lúc bạn đang nhập. Hệ thống KHÔNG ghi đè bản của họ — bảng tự tải lại số liệu mới nhất, bạn xem lại rồi sửa tiếp nếu vẫn cần (áp dụng ở Bảng giá, Tiến độ, Công nợ của HĐ bán và HĐ nhập).',
           ],
         },
         {

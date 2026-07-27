@@ -56,6 +56,7 @@ export const FIELD_LABELS = {
   quantity: 'Số lượng',
   unit: 'Đơn vị',
   vat_rate: 'Thuế suất VAT',
+  hide_amount: 'Ẩn số tiền (dòng hệ thống)',
   vat_percent: 'Thuế suất VAT',
   currency_code: 'Loại tiền',
   exchange_rate: 'Tỷ giá',

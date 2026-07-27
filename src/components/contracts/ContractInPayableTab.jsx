@@ -42,6 +42,9 @@ export default function ContractInPayableTab({ contractInId }) {
     loadRef()
   }, [contractInId])
 
+  // Đợt thanh toán chưa gắn khoản nào (dữ liệu cũ trước khi có liên kết, hoặc khoản đã bị xóa)
+  const orphanPayments = pay.rows.filter(p => p.payable_id == null)
+
   // Totals
   const totalExpected = sched.rows.reduce((s, r) => s + calcVND(r.amount, r.exchange_rate, r.currency_code), 0)
   const totalPaid     = pay.rows.reduce((s, r) => s + calcVND(r.amount, r.exchange_rate, r.currency_code), 0)
@@ -76,7 +79,7 @@ export default function ContractInPayableTab({ contractInId }) {
 
       {/* ── Khóa nhập/sửa khi không phải PM ── */}
       <EditGuard>
-      {/* ── Section 1: Lịch phải trả ── */}
+      {/* ── Lịch phải trả — mỗi khoản kèm các đợt thanh toán đã gắn vào nó ── */}
       <PayableSection
         rows={sched.rows}
         setRows={sched.setRows}
@@ -84,17 +87,23 @@ export default function ContractInPayableTab({ contractInId }) {
         reload={sched.reload}
         refTotal={contractRef?.boqTotal || 0}
         showAmounts={showAmounts}
+        payRows={pay.rows}
+        setPayRows={pay.setRows}
+        reloadPayments={pay.reload}
       />
 
-      {/* ── Section 2: Thanh toán thực tế ── */}
-      <PaymentSection
-        rows={pay.rows}
-        setRows={pay.setRows}
-        contractInId={contractInId}
-        reload={pay.reload}
-        totalExpected={totalExpected}
-        showAmounts={showAmounts}
-      />
+      {/* ── Đợt thanh toán chưa gắn khoản (dữ liệu cũ / khoản bị xóa) — chỉ hiện khi có ── */}
+      {orphanPayments.length > 0 && (
+        <PaymentSection
+          rows={orphanPayments}
+          setRows={pay.setRows}
+          contractInId={contractInId}
+          reload={pay.reload}
+          totalExpected={totalExpected}
+          showAmounts={showAmounts}
+          payables={sched.rows}
+        />
+      )}
       </EditGuard>
     </div>
   )

@@ -9,6 +9,7 @@ import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
+import { withStamp, handledConflict } from './conflict'
 
 function dateDiff(planned, actual) {
   if (!planned || !actual) return null
@@ -72,8 +73,9 @@ export default function ContractInProgressTab({ contractInId }) {
     try {
       const url    = row._isNew ? `${API}/contract-ins/${contractInId}/progress` : `${API}/progress-in/${row.id}`
       const method = row._isNew ? 'POST' : 'PUT'
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withStamp(body, row)) })
       const saved  = await res.json()
+      if (await handledConflict(res, saved, load)) return
       if (!res.ok) throw new Error(saved.error || 'Save failed')
       setRows(prev => prev.map(r => r._key === row._key ? { ...toLocal(saved), _key: row._key } : r))
     } catch (e) {

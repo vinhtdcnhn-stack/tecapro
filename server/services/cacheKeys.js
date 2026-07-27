@@ -9,6 +9,11 @@ import { DEPT_KT_CO_DIEN, MANAGER_POSITION_IDS } from '../middleware/deptWorkAcc
 // (fire-and-forget, không await chặn response — mô phỏng pattern bumpLive của eventBus).
 
 // ----------------------------- Dựng key -----------------------------
+//
+// QUY ƯỚC BẮT BUỘC cho key CÓ VERSION: `<ns>:v<n>:<phần còn lại>` — tiền tố phải TRÙNG TÊN
+// namespace truyền cho bumpVersion/cacheVersion. Lớp refresh-ahead (services/cacheWarmer.js)
+// tách ns ra từ chính key để dựng lại key sau khi version đổi; đặt tiền tố lệch tên ns thì
+// key đó lặng lẽ KHÔNG được hâm nóng lại (không sai dữ liệu, chỉ mất tác dụng).
 
 // Danh mục global ít đổi: lookup:customers, lookup:suppliers, ...
 export const lookupKey = (name) => `lookup:${name}`
@@ -22,14 +27,14 @@ export const tenderKey = (id, tab) => `t:${id}:${tab}`
 // có HĐ/thành viên đổi (ảnh hưởng danh sách của nhiều người).
 export async function contractListKey(userOrAll) {
   const v = await cacheVersion('contract-list')
-  return `clist:v${v}:${userOrAll}`
+  return `contract-list:v${v}:${userOrAll}`
 }
 
 // "Việc của tôi" (gói thầu phụ trách): per-user theo phân công → version-namespace, bump
 // khi có gói thầu tạo/sửa/đổi phân công/xóa.
 export async function tenderMyKey(userId) {
   const v = await cacheVersion('tender-my')
-  return `t-my:v${v}:${userId}`
+  return `tender-my:v${v}:${userId}`
 }
 export function invalidateTenderMy() {
   return bumpVersion('tender-my')
@@ -53,7 +58,7 @@ export const serialLookupKey = (serial) => `serial-lookup:${String(serial).trim(
 // per-user nên không liệt kê được hết key để xóa → dùng version-namespace, bump khi cấu hình đổi.
 export async function approvalFormOptsKey(userId) {
   const v = await cacheVersion('approval-form-opts')
-  return `approval:form-opts:v${v}:${userId}`
+  return `approval-form-opts:v${v}:${userId}`
 }
 
 // Báo cáo: nhúng version-namespace để vô hiệu cả nhóm bằng 1 lần INCR (xem cache.js).

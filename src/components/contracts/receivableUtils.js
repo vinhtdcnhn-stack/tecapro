@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
+import { withStamp, handledConflict } from './conflict'
 
 // Shared constants, formatters, calculators & data hook for the receivable tab.
 
@@ -91,7 +92,8 @@ export const needsRate = (row) => {
 }
 
 // Lưu 1 đợt tiền về (dùng chung cho nút lưu từng dòng và Ctrl+S lưu hàng loạt).
-export async function savePaymentRow(row, contractId, setPayRows) {
+// `reload` (tùy chọn): hàm tải lại danh sách đợt tiền về, dùng khi bị 409 xung đột.
+export async function savePaymentRow(row, contractId, setPayRows, reload) {
   if (needsRate(row)) { alert(`Nhập tỷ giá cho ${row.currency_code}.`); return }
   setPayRows(prev => prev.map(p => p._key === row._key ? { ...p, _saving: true } : p))
   const body = {
@@ -102,8 +104,9 @@ export async function savePaymentRow(row, contractId, setPayRows) {
   try {
     const url    = row._isNew ? `${API}/contracts/${contractId}/receivable-payments` : `${API}/receivable-payments/${row.id}`
     const method = row._isNew ? 'POST' : 'PUT'
-    const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withStamp(body, row)) })
     const saved  = await res.json()
+    if (await handledConflict(res, saved, reload)) return
     if (!res.ok) throw new Error(saved.error || 'Save failed')
     setPayRows(prev => prev.map(p => p._key === row._key ? { ...saved, _key: row._key, _dirty: false, _isNew: false, _saving: false } : p))
   } catch (e) {

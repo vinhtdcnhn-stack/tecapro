@@ -115,6 +115,8 @@ export const CONTRACTS_CORE_PAGES = [
         items: [
           'Danh mục hàng hóa/thiết bị của hợp đồng, xếp theo 3 CẤP: Phần (khu vực) → Nhóm → Thiết bị.',
           'CHỈ dòng THIẾT BỊ (cấp thấp nhất) có đơn giá và thành tiền; dòng Phần/Nhóm tự cộng dồn từ các dòng con.',
+          'Cột STT đánh số theo CẤP BẬC: dòng ngoài cùng là 1, 2, 3…; các dòng nằm trong dòng 1 là 1.1, 1.2…; nằm trong 1.1 là 1.1.1, 1.1.2… — nhìn số là biết dòng nào thuộc dòng nào.',
+          'Lưu ý: khi đang gõ tìm kiếm hoặc lọc loại hàng, bảng chuyển sang danh sách phẳng nên STT quay về đánh số chạy 1, 2, 3 (xóa bộ lọc là số phân cấp hiện lại).',
           'Tổng của toàn bảng chính là GIÁ TRỊ HỢP ĐỒNG — tự đồng bộ sang tab Thông tin.',
           'Chấm màu đầu dòng thể hiện tình hình nhập hàng cho dòng đó: 🔴 chưa nhập, 🟡 nhập một phần, 🟢 đã đủ (xem tab Theo dõi nhập hàng).',
         ],
@@ -125,8 +127,22 @@ export const CONTRACTS_CORE_PAGES = [
           'Thêm dòng theo thứ tự: tạo Phần trước, rồi Nhóm trong Phần, rồi Thiết bị trong Nhóm (hoặc thêm thiết bị thẳng vào Phần nếu không cần nhóm).',
           'Với mỗi thiết bị nhập: tên hàng, đơn vị, số lượng, đơn giá — thành tiền tự tính.',
           'Nhóm có nút "✓ ×SL": bật lên khi nhóm là MỘT HỆ THỐNG bán theo bộ — thành tiền của nhóm sẽ nhân theo số lượng hệ thống.',
+          'Nhóm/hệ thống còn có nút hình CON MẮT 👁 để ẩn số tiền của chính dòng đó: bấm một lần, ô Đơn giá và Thành tiền trước/sau VAT của dòng hệ thống hiện chữ "(ẩn)"; bấm lại (mắt gạch chéo) để hiện lại.',
+          'Ẩn tiền chỉ là cách TRÌNH BÀY: các dòng con vẫn hiện giá bình thường và tổng giá trị hợp đồng vẫn tính đủ như cũ. Trạng thái ẩn được lưu lại, nên mọi người mở hợp đồng đều thấy giống nhau.',
           'Sửa nhiều dòng rồi nhấn Ctrl+S để lưu tất cả một lượt.',
           'Dòng nào KHÔNG cần mua vào (ví dụ chi phí nhân công) thì tích "không cần nhập" để hệ thống bỏ qua khi tính độ phủ nhập hàng.',
+        ],
+      },
+      {
+        heading: 'Sắp xếp thứ tự (kéo - thả)',
+        items: [
+          'Đưa chuột vào cột STT của một dòng sẽ hiện tay nắm ⠿ — giữ chuột vào đó rồi kéo dòng tới vị trí mới.',
+          'Kéo được CẢ dòng Phần và dòng Hệ thống, không chỉ dòng thiết bị; khi kéo, toàn bộ dòng con/cháu của nó đi theo.',
+          'Thả vào NỬA DƯỚI của một Phần/Hệ thống (viền xanh bao quanh) = đưa vào BÊN TRONG, thành dòng con đầu tiên.',
+          'Thả vào NỬA TRÊN của một Phần/Hệ thống (vạch xanh phía trên) = đặt NGANG HÀNG, chèn ngay trước nó — đây là cách kéo một hệ thống ra khỏi hệ thống đang chứa nó.',
+          'Thả lên một dòng thiết bị = đứng cùng cấp với dòng đó (nửa trên chèn trước, nửa dưới chèn sau).',
+          'Không thả được một Phần/Hệ thống vào chính dòng con của nó (phần mềm sẽ báo và bỏ qua).',
+          'Lưu ý: đang gõ tìm kiếm hoặc lọc loại hàng thì tạm thời không kéo được (thứ tự hiển thị khác thứ tự thật) — xóa bộ lọc rồi kéo.',
         ],
       },
       {
