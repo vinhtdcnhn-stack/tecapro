@@ -23,10 +23,30 @@ function StatCard({ label, value, color, hint }) {
   )
 }
 
+// Không đủ quyền xem báo cáo tài chính: nói thẳng lý do + cách xin cấp quyền, thay vì để
+// từng tab hiện bảng rỗng (người dùng tưởng hệ thống mất dữ liệu).
+function NoAccountingPermission() {
+  return (
+    <div className="acc-no-perm">
+      <h3>Bạn chưa có quyền xem báo cáo tài chính</h3>
+      <p>
+        Bảng điều khiển Kế toán mở được, nhưng dữ liệu số liệu tài chính bị chặn nên mọi tab
+        đều trống. Đây là hạn chế quyền, <strong>không phải mất dữ liệu</strong>.
+      </p>
+      <p>
+        Nhờ quản trị hệ thống vào <strong>Hệ thống → Phân quyền</strong> và cấp quyền
+        <strong> Bảng điều khiển → Kế toán</strong> cho chức danh hoặc phòng ban của bạn. Cấp xong,
+        đăng nhập lại là xem được toàn bộ số liệu.
+      </p>
+    </div>
+  )
+}
+
 // Tổng quan dòng tiền cho kế toán.
-function Overview() {
+function Overview({ denied }) {
   const { data: sum = null, isLoading: loading } = useCashflowSummary()
 
+  if (denied) return <NoAccountingPermission />
   if (loading) return <p className="dash-empty">Đang tải tổng quan dòng tiền...</p>
   if (!sum) return <p className="dash-empty">Không tải được dữ liệu.</p>
 
@@ -57,7 +77,10 @@ const TABS = [
   { key: 'warranty',    label: 'Tình trạng bảo hành' },
 ]
 
-function renderTab(tab) {
+function renderTab(tab, denied) {
+  // Mọi báo cáo trong bảng này đều qua cùng một cửa quyền ở backend (requireAccountant), nên
+  // chỉ cần một lần chặn ở đây thay vì để từng tab tự hiện "không có dữ liệu".
+  if (denied) return <NoAccountingPermission />
   switch (tab) {
     case 'invoice':     return <InvoiceRevenueReportPage />
     case 'overdue':     return <OverdueAlertsPage />
@@ -66,7 +89,7 @@ function renderTab(tab) {
     case 'progress':    return <ProgressCollectionPage />
     case 'debt':        return <DebtSummaryPage />
     case 'warranty':    return <WarrantyReportPage />
-    default:            return <Overview />
+    default:            return <Overview denied={denied} />
   }
 }
 
@@ -75,6 +98,9 @@ const TAB_STORE_KEY = 'accounting_tab'
 // Trang chủ kế toán: hub xem báo cáo (dashboard + sub-nav sang từng báo cáo).
 export default function AccountingDashboard({ user, switcher = null }) {
   const isMobile = useIsMobile()
+  // Dùng chung cache với Overview (cùng queryKey) — chỉ để biết backend có chặn 403 hay không.
+  const { error: sumError } = useCashflowSummary()
+  const denied = sumError?.status === 403
   // Nhớ tab đang xem qua localStorage để khi rời trang (vào HĐ chi tiết) rồi quay lại
   // bằng phím 'z' không bị nhảy về 'Tổng quan'.
   const [tab, setTab] = useState(() => {
@@ -110,7 +136,7 @@ export default function AccountingDashboard({ user, switcher = null }) {
         </div>
       )}
 
-      {renderTab(tab)}
+      {renderTab(tab, denied)}
     </div>
   )
 }

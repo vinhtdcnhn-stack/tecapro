@@ -17,6 +17,14 @@ export const ACCOUNTING_GROUP = {
             'Dữ liệu tổng hợp tự động từ tab Công nợ/Thanh toán của từng hợp đồng — muốn số đúng thì các hợp đồng phải được cập nhật.',
           ],
         },
+        {
+          heading: 'Ai được xem bảng này?',
+          items: [
+            'Người được cấp quyền "Bảng điều khiển → Kế toán" ở trang Hệ thống → Phân quyền (cấp theo chức danh hoặc theo phòng ban). Cấp quyền này là xem được LUÔN toàn bộ số liệu của cả 8 tab — không phải cấp thêm gì nữa.',
+            'Ngoài ra vẫn xem được nếu: là quản trị hệ thống; thuộc "Ban Kế Toán" hoặc "Ban Giám Đốc"; giữ chức danh Giám đốc / Phó giám đốc; hoặc là thành viên vai trò "Kế toán" của ít nhất một hợp đồng bán.',
+            'Nếu vào bảng mà hiện khung vàng "Bạn chưa có quyền xem báo cáo tài chính" thì là do chưa được cấp quyền — KHÔNG phải mất dữ liệu. Nhờ quản trị cấp quyền ở trang Phân quyền rồi đăng nhập lại.',
+          ],
+        },
       ],
     },
     {
@@ -38,7 +46,10 @@ export const ACCOUNTING_GROUP = {
             'Ba nút bấm nhanh: "Tháng trước", "Tháng hiện tại", "Tháng sau" — tự đặt khoảng ngày theo tháng.',
             'Ô "Tìm kiếm" lọc nhanh theo số hóa đơn, số HĐ, chủ đầu tư hoặc dự án — gõ tới đâu bảng lọc tới đó, "Tổng doanh thu" cũng cập nhật theo kết quả lọc.',
             'Bấm nút "Excel" để tải bảng đang xem về file Excel.',
+            'Máy nhớ khoảng ngày bạn chọn cho lần sau. Nếu bạn để mặc định "đến hôm nay" thì lần mở sau ô "Đến ngày" tự nhảy sang ngày hiện tại; còn nếu bạn tự gõ một mốc cụ thể thì máy giữ nguyên mốc đó.',
+            'Khi ô "Đến ngày" nhỏ hơn hôm nay, thanh công cụ hiện dòng vàng "⚠ Chỉ tính tới ..." — nghĩa là hóa đơn xuất sau ngày đó CHƯA được tính. Bấm nút "Tới hôm nay" cạnh đó để xem đầy đủ.',
             'Nếu hiện "Không có hóa đơn nào trong khoảng ngày đã chọn" — thử nới rộng khoảng ngày.',
+            'Hóa đơn NHÁP (chưa điền ngày xuất) không xuất hiện ở báo cáo này; phải điền "Ngày xuất" ở tab hóa đơn của hợp đồng thì mới được tính vào doanh thu.',
           ],
         },
       ],

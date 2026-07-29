@@ -16,6 +16,13 @@ const LS_KEY = 'invoiceRevenue.range'
 const loadRange = () => {
   try { return JSON.parse(localStorage.getItem(LS_KEY)) || {} } catch { return {} }
 }
+// "Đến ngày" mặc định là HÔM NAY. Nếu chỉ lưu nguyên chuỗi ngày thì lần sau mở lại nó vẫn là
+// "hôm nay của lần trước" → hóa đơn xuất sau ngày đó lặng lẽ biến mất khỏi báo cáo. Ta lưu kèm
+// savedAt (ngày lúc lưu): to == savedAt nghĩa là người dùng đang để mặc định "tới hôm nay" →
+// trượt theo ngày thật; khác nhau nghĩa là họ CHỌN tay một mốc cụ thể → giữ nguyên.
+// (Bản lưu cũ không có savedAt → coi như mặc định, lấy hôm nay.)
+const initialTo = (saved) => (saved.savedAt && saved.to && saved.to !== saved.savedAt)
+  ? saved.to : todayLocal()
 
 const pad = (n) => String(n).padStart(2, '0')
 const ymd = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`
@@ -46,7 +53,7 @@ function buildCopyText(r) {
 export default function InvoiceRevenueReportPage() {
   const saved = loadRange()
   const [from, setFrom] = useState(saved.from || startOfYear())
-  const [to, setTo] = useState(saved.to || todayLocal())
+  const [to, setTo] = useState(() => initialTo(saved))
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.invoice_no || r.contract_no || 'Hóa đơn',
@@ -75,7 +82,7 @@ export default function InvoiceRevenueReportPage() {
   }, [from])
 
   useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify({ from, to })) } catch { /* ignore */ }
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ from, to, savedAt: todayLocal() })) } catch { /* ignore */ }
   }, [from, to])
 
   const load = useCallback(async (silent = false) => {
@@ -93,6 +100,10 @@ export default function InvoiceRevenueReportPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
   useRefetchOnFocus(() => load(true))   // quay lại tab → làm mới ngầm (người khác vừa sửa số)
+
+  // Khoảng đang xem kết thúc TRƯỚC hôm nay → nhắc rõ là báo cáo chưa gồm hóa đơn mới nhất
+  // (tránh hiểu nhầm "xuất hóa đơn rồi mà không thấy trên báo cáo").
+  const staleTo = !!to && to < todayLocal()
 
   const allRows = useMemo(() => (data && Array.isArray(data.rows) ? data.rows : []), [data])
   const { query, setQuery, filtered: rows } = useReportSearch(allRows, SEARCH_FIELDS)
@@ -123,6 +134,12 @@ export default function InvoiceRevenueReportPage() {
         <button type="button" className="acc-quick-range" onClick={goCurrentMonth}>Tháng hiện tại</button>
         <button type="button" className="acc-quick-range" onClick={() => shiftMonth(1)} disabled={nextDisabled}>Tháng sau</button>
         <AccSearch value={query} onChange={setQuery} placeholder="Tìm số hóa đơn, HĐ, CĐT, dự án..." />
+        {staleTo && (
+          <span className="acc-range-warn" title="Khoảng ngày đang chọn kết thúc trước hôm nay">
+            ⚠ Chỉ tính tới {fmtDate(to)} — hóa đơn xuất sau ngày này chưa được tính.
+            {' '}<button type="button" className="acc-quick-range" onClick={() => setTo(todayLocal())}>Tới hôm nay</button>
+          </span>
+        )}
         <span className="acc-report-total">
           Tổng doanh thu: <strong style={{ color: 'var(--brand)' }}>{fmtMoney(total)} đ</strong>
           {' '}({rows.length} hóa đơn)

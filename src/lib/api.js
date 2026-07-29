@@ -21,7 +21,13 @@ export async function apiGet(path, { conditional = false } = {}) {
 
   const res = await fetch(url, opts)
   if (res.status === 304 && prev) return prev.body  // chưa đổi → dùng lại bản đã cache
-  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
+  if (!res.ok) {
+    // Gắn kèm mã HTTP để nơi gọi phân biệt được "không có quyền" (403) với "không có dữ liệu"
+    // — nếu nuốt lỗi rồi hiện bảng rỗng, người dùng tưởng hệ thống mất dữ liệu.
+    const err = new Error(`GET ${path} → ${res.status}`)
+    err.status = res.status
+    throw err
+  }
 
   const body = await res.json()
   if (conditional) {

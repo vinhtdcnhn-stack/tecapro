@@ -15,7 +15,9 @@ export const queryClient = new QueryClient({
       staleTime: 60_000,
       gcTime: 30 * 60_000,
       refetchOnWindowFocus: true,
-      retry: 1,
+      // Lỗi 4xx (401/403/404...) là do quyền/đường dẫn — thử lại cũng vẫn hỏng, chỉ làm UI
+      // chậm hiện thông báo. Chỉ thử lại 1 lần với lỗi mạng / 5xx.
+      retry: (count, err) => (err?.status >= 400 && err?.status < 500) ? false : count < 1,
     },
   },
 })
