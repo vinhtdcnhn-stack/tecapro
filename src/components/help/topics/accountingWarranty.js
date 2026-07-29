@@ -37,7 +37,7 @@ export const ACCOUNTING_GROUP = {
             'Danh sách hóa đơn đã xuất trong KHOẢNG NGÀY đang chọn, với các cột: Số hóa đơn, Ngày xuất, Số HĐ, Trước VAT, CĐT (chủ đầu tư), Dự án, Giá trị (nguyên tệ), Quy đổi VNĐ.',
             'Cột "Trước VAT" là tổng tiền hàng của hóa đơn khi CHƯA cộng thuế GTGT; hai cột giá trị ở cuối là số ĐÃ có VAT. Lấy cột cuối trừ cột "Trước VAT" ra đúng phần thuế.',
             'Cột "Trước VAT" và "Giá trị (nguyên tệ)" hiện theo loại tiền của hóa đơn (hợp đồng USD thì ra USD); cột "Quy đổi VNĐ" đã nhân tỷ giá.',
-            'Góc phải hiện "Trước VAT" và "Tổng doanh thu" (đã có VAT) — cả hai đều quy VNĐ để cộng được các hóa đơn khác loại tiền, kèm số lượng hóa đơn.',
+            'Góc phải hiện hai tổng: "Tổng trước VAT" (chưa thuế) và "Tổng sau VAT" (đã có thuế) — cả hai đều quy VNĐ để cộng được các hóa đơn khác loại tiền, kèm số lượng hóa đơn.',
             'Hóa đơn lấy từ tab "Quản lý hóa đơn" của từng hợp đồng bán.',
           ],
         },
@@ -46,7 +46,7 @@ export const ACCOUNTING_GROUP = {
           items: [
             'Chọn "Từ ngày" / "Đến ngày" để xem doanh thu một giai đoạn bất kỳ.',
             'Ba nút bấm nhanh: "Tháng trước", "Tháng hiện tại", "Tháng sau" — tự đặt khoảng ngày theo tháng.',
-            'Ô "Tìm kiếm" lọc nhanh theo số hóa đơn, số HĐ, chủ đầu tư hoặc dự án — gõ tới đâu bảng lọc tới đó, "Tổng doanh thu" cũng cập nhật theo kết quả lọc.',
+            'Ô "Tìm kiếm" lọc nhanh theo số hóa đơn, số HĐ, chủ đầu tư hoặc dự án — gõ tới đâu bảng lọc tới đó, hai tổng "Tổng trước VAT" / "Tổng sau VAT" cũng cập nhật theo kết quả lọc.',
             'Bấm nút "Excel" để tải bảng đang xem về file Excel.',
             'Máy nhớ khoảng ngày bạn chọn cho lần sau. Nếu bạn để mặc định "đến hôm nay" thì lần mở sau ô "Đến ngày" tự nhảy sang ngày hiện tại; còn nếu bạn tự gõ một mốc cụ thể thì máy giữ nguyên mốc đó.',
             'Khi ô "Đến ngày" nhỏ hơn hôm nay, thanh công cụ hiện dòng vàng "⚠ Chỉ tính tới ..." — nghĩa là hóa đơn xuất sau ngày đó CHƯA được tính. Bấm nút "Tới hôm nay" cạnh đó để xem đầy đủ.',

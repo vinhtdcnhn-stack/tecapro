@@ -147,8 +147,8 @@ export default function InvoiceRevenueReportPage() {
           </span>
         )}
         <span className="acc-report-total">
-          Trước VAT: <strong>{fmtMoney(totalBeforeVat)} đ</strong>
-          {' · '}Tổng doanh thu: <strong style={{ color: 'var(--brand)' }}>{fmtMoney(total)} đ</strong>
+          Tổng trước VAT: <strong>{fmtMoney(totalBeforeVat)} đ</strong>
+          {' · '}Tổng sau VAT: <strong style={{ color: 'var(--brand)' }}>{fmtMoney(total)} đ</strong>
           {' '}({rows.length} hóa đơn)
         </span>
       </div>
