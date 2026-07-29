@@ -34,8 +34,10 @@ export const ACCOUNTING_GROUP = {
         {
           heading: 'Màn hình thể hiện gì?',
           items: [
-            'Danh sách hóa đơn đã xuất trong KHOẢNG NGÀY đang chọn, với các cột: Số hóa đơn, Ngày xuất, Số HĐ, CĐT (chủ đầu tư), Dự án, Loại tiền, Giá trị (nguyên tệ), Quy đổi VNĐ.',
-            'Góc phải hiện "Tổng doanh thu" = tổng giá trị các hóa đơn trong khoảng ngày (kèm số lượng hóa đơn).',
+            'Danh sách hóa đơn đã xuất trong KHOẢNG NGÀY đang chọn, với các cột: Số hóa đơn, Ngày xuất, Số HĐ, Trước VAT, CĐT (chủ đầu tư), Dự án, Giá trị (nguyên tệ), Quy đổi VNĐ.',
+            'Cột "Trước VAT" là tổng tiền hàng của hóa đơn khi CHƯA cộng thuế GTGT; hai cột giá trị ở cuối là số ĐÃ có VAT. Lấy cột cuối trừ cột "Trước VAT" ra đúng phần thuế.',
+            'Cột "Trước VAT" và "Giá trị (nguyên tệ)" hiện theo loại tiền của hóa đơn (hợp đồng USD thì ra USD); cột "Quy đổi VNĐ" đã nhân tỷ giá.',
+            'Góc phải hiện "Trước VAT" và "Tổng doanh thu" (đã có VAT) — cả hai đều quy VNĐ để cộng được các hóa đơn khác loại tiền, kèm số lượng hóa đơn.',
             'Hóa đơn lấy từ tab "Quản lý hóa đơn" của từng hợp đồng bán.',
           ],
         },

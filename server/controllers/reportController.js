@@ -144,7 +144,10 @@ export async function getInvoiceRevenue(req, res) {
                cu.name AS customer_name,
                SUM(it.amount_after_vat) AS amount_native,
                SUM(CASE WHEN i.currency_code = 'VND' THEN it.amount_after_vat
-                        ELSE it.amount_after_vat * COALESCE(i.exchange_rate, 1) END) AS amount_vnd
+                        ELSE it.amount_after_vat * COALESCE(i.exchange_rate, 1) END) AS amount_vnd,
+               SUM(it.amount_before_vat) AS before_vat_native,
+               SUM(CASE WHEN i.currency_code = 'VND' THEN it.amount_before_vat
+                        ELSE it.amount_before_vat * COALESCE(i.exchange_rate, 1) END) AS before_vat_vnd
           FROM contract_out_invoice i
           JOIN contract_out_invoice_item it ON it.invoice_id = i.id
           JOIN contract_out co ON co.id = i.contract_out_id
@@ -165,9 +168,13 @@ export async function getInvoiceRevenue(req, res) {
         currency_code: r.currency_code,
         amount_native: parseFloat(r.amount_native) || 0,
         amount_vnd: parseFloat(r.amount_vnd) || 0,
+        // Trước VAT: nguyên tệ để hiện trên bảng, quy VNĐ để cộng tổng (nhiều loại tiền).
+        before_vat_native: parseFloat(r.before_vat_native) || 0,
+        before_vat_vnd: parseFloat(r.before_vat_vnd) || 0,
       }))
       const total_vnd = list.reduce((s, r) => s + r.amount_vnd, 0)
-      return { from, to, total_vnd, count: list.length, rows: list }
+      const total_before_vat_vnd = list.reduce((s, r) => s + r.before_vat_vnd, 0)
+      return { from, to, total_vnd, total_before_vat_vnd, count: list.length, rows: list }
     })
 
     res.json(payload)

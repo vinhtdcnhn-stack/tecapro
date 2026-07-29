@@ -46,6 +46,7 @@ function buildCopyText(r) {
   const crumbs = [r.contract_no ? `HĐ ${r.contract_no}` : null, r.project_name, r.customer_name].filter(Boolean)
   return `🧾 HĐ ${r.invoice_no || '(chưa số)'} — ${crumbs.join(' › ')}: ${fmtMoney(r.amount_vnd)} đ`
     + `${r.currency_code && r.currency_code !== 'VND' ? ` (${fmtMoney(r.amount_native)} ${r.currency_code})` : ''}`
+    + ` (trước VAT ${fmtMoney(r.before_vat_vnd)} đ)`
     + `, ngày ${fmtDate(r.invoice_date)}`
 }
 
@@ -108,11 +109,16 @@ export default function InvoiceRevenueReportPage() {
   const allRows = useMemo(() => (data && Array.isArray(data.rows) ? data.rows : []), [data])
   const { query, setQuery, filtered: rows } = useReportSearch(allRows, SEARCH_FIELDS)
   const total = useMemo(() => rows.reduce((s, r) => s + (parseFloat(r.amount_vnd) || 0), 0), [rows])
+  // Tổng trước VAT cộng theo bản QUY VNĐ — các hóa đơn có thể khác loại tiền, cộng nguyên tệ
+  // với nhau là sai (xem quy ước nguyên tệ trong CLAUDE.md).
+  const totalBeforeVat = useMemo(
+    () => rows.reduce((s, r) => s + (parseFloat(r.before_vat_vnd) || 0), 0), [rows])
 
   const onExport = () => exportTable('Doanh-thu-xuat-hoa-don.xlsx', 'Doanh thu HD', [
     { label: 'Số hóa đơn', value: r => r.invoice_no },
     { label: 'Ngày xuất', value: r => fmtDate(r.invoice_date) },
     { label: 'Số HĐ', value: r => r.contract_no },
+    { label: 'Giá trị trước VAT (nguyên tệ)', value: r => Math.round((r.before_vat_native || 0) * 100) / 100 },
     { label: 'CĐT', value: r => r.customer_name },
     { label: 'Dự án', value: r => r.project_name },
     { label: 'Loại tiền', value: r => r.currency_code },
@@ -141,7 +147,8 @@ export default function InvoiceRevenueReportPage() {
           </span>
         )}
         <span className="acc-report-total">
-          Tổng doanh thu: <strong style={{ color: 'var(--brand)' }}>{fmtMoney(total)} đ</strong>
+          Trước VAT: <strong>{fmtMoney(totalBeforeVat)} đ</strong>
+          {' · '}Tổng doanh thu: <strong style={{ color: 'var(--brand)' }}>{fmtMoney(total)} đ</strong>
           {' '}({rows.length} hóa đơn)
         </span>
       </div>
@@ -160,6 +167,8 @@ export default function InvoiceRevenueReportPage() {
               rows={[
                 ['Ngày xuất', fmtDate(r.invoice_date)],
                 ['Số HĐ', r.contract_no],
+                ['Trước VAT', r.currency_code && r.currency_code !== 'VND'
+                  ? `${fmtMoney(r.before_vat_native)} ${r.currency_code}` : `${fmtMoney(r.before_vat_native)} đ`],
                 ['Dự án', r.project_name],
                 ['Giá trị', r.currency_code && r.currency_code !== 'VND'
                   ? `${fmtMoney(r.amount_native)} ${r.currency_code}` : `${fmtMoney(r.amount_vnd)} đ`],
@@ -170,7 +179,9 @@ export default function InvoiceRevenueReportPage() {
         <div className="acc-table-wrap">
           <table className="acc-table">
             <thead><tr>
-              <th>STT</th><th>Số hóa đơn</th><th>Ngày xuất</th><th>Số HĐ</th><th>CĐT</th><th>Dự án</th>
+              <th>STT</th><th>Số hóa đơn</th><th>Ngày xuất</th><th>Số HĐ</th>
+              <th className="num">Trước VAT</th>
+              <th>CĐT</th><th>Dự án</th>
               <th className="num">Giá trị (nguyên tệ)</th><th className="num">Quy đổi VNĐ</th>
             </tr></thead>
             <tbody>
@@ -181,6 +192,8 @@ export default function InvoiceRevenueReportPage() {
                   <td className="mono">{r.invoice_no || '—'}</td>
                   <td>{fmtDate(r.invoice_date)}</td>
                   <td className="mono">{r.contract_no || '—'}</td>
+                  <td className="num">{r.currency_code && r.currency_code !== 'VND'
+                    ? `${fmtMoney(r.before_vat_native)} ${r.currency_code}` : fmtMoney(r.before_vat_native)}</td>
                   <td>{r.customer_name || '—'}</td>
                   <td>{r.project_name || '—'}</td>
                   <td className="num">{r.currency_code && r.currency_code !== 'VND'
@@ -191,7 +204,7 @@ export default function InvoiceRevenueReportPage() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={7} className="num"><strong>Tổng cộng</strong></td>
+                <td colSpan={8} className="num"><strong>Tổng cộng</strong></td>
                 <td className="num"><strong>{fmtMoney(total)}</strong></td>
               </tr>
             </tfoot>
