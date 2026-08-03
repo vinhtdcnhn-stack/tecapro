@@ -67,7 +67,10 @@ export const HOME_GROUP = {
         {
           heading: 'Bộ lọc thời gian',
           items: [
-            'Lọc theo KHOẢNG NĂM KÝ hợp đồng (ví dụ 2024–2026): số liệu chỉ tính các hợp đồng ký trong khoảng đó. Lựa chọn này được nhớ cho lần sau.',
+            'Nút 📅 bên phải lọc theo KHOẢNG NGÀY KÝ hợp đồng: bấm vào rồi nhập "Từ ngày" và "Đến ngày" theo dạng dd/mm/yyyy (hoặc bấm nút 📅 nhỏ trong ô để chọn trên lịch). Số liệu chỉ tính các hợp đồng ký trong khoảng đó.',
+            'Bên dưới 2 ô ngày có các nút bấm nhanh: "Tháng này", "Quý này", "Từ đầu năm", "Năm 2026", "Năm 2025", "Toàn bộ" (bỏ giới hạn thời gian) — bấm 1 cái là điền sẵn khoảng ngày tương ứng.',
+            'Có thể để trống một đầu: chỉ điền "Từ ngày" = tính từ ngày đó tới nay; chỉ điền "Đến ngày" = tính tất cả cho tới ngày đó. Nút "Mặc định (3 năm gần nhất)" đưa về khoảng ban đầu.',
+            'Khoảng thời gian bạn chọn được nhớ cho lần sau (kể cả khi tải lại trang).',
             '"Xem tại thời điểm" (as-of): chọn một ngày trong quá khứ để xem số liệu tính đến ngày đó — dùng để so sánh trước/sau. Lựa chọn này KHÔNG lưu, tải lại trang sẽ về hiện tại.',
           ],
         },

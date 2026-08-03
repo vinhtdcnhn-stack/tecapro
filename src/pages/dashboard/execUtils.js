@@ -21,21 +21,32 @@ export const fmtCompact = (n) => {
 // Số tiền đầy đủ kèm "đ" — dùng cho tooltip.
 export const fmtFull = (n) => `${fmtMoney(n)} đ`
 
-// ── Khoảng thời gian (theo năm ký HĐ) cho dashboard điều hành — lưu localStorage ──
+// ── Khoảng thời gian (theo NGÀY ký HĐ) cho dashboard điều hành — lưu localStorage ──
+// Khoảng là { from, to } dạng ISO 'yyyy-mm-dd'; để trống 1 đầu = không giới hạn đầu đó.
 const DASH_RANGE_KEY = 'execDashRange'
 
-// Ngầm định: năm hiện tại và 2 năm trước (vd 2024–2026).
+const isIso = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''))
+
+// Ngầm định: từ 01/01 của 2 năm trước đến 31/12 năm hiện tại (vd 01/01/2024 – 31/12/2026).
 export function defaultDashRange() {
   const y = new Date().getFullYear()
-  return { fromYear: y - 2, toYear: y }
+  return { from: `${y - 2}-01-01`, to: `${y}-12-31` }
 }
 
 // Đọc khoảng đã lưu (lọc giá trị hợp lệ), trả về ngầm định nếu chưa có/hỏng.
+// Vẫn hiểu dữ liệu cũ dạng { fromYear, toYear } (quy đổi sang ngày đầu/cuối năm).
 export function loadDashRange() {
   try {
     const raw = JSON.parse(localStorage.getItem(DASH_RANGE_KEY))
+    if (raw && (isIso(raw.from) || isIso(raw.to))) {
+      const from = isIso(raw.from) ? raw.from : ''
+      const to = isIso(raw.to) ? raw.to : ''
+      if (!from || !to || from <= to) return { from, to }
+    }
     const f = Number(raw?.fromYear), t = Number(raw?.toYear)
-    if (Number.isInteger(f) && Number.isInteger(t) && f <= t) return { fromYear: f, toYear: t }
+    if (Number.isInteger(f) && Number.isInteger(t) && f <= t) {
+      return { from: `${f}-01-01`, to: `${t}-12-31` }
+    }
   } catch { /* hỏng → ngầm định */ }
   return defaultDashRange()
 }
@@ -44,22 +55,23 @@ export function saveDashRange(range) {
   try { localStorage.setItem(DASH_RANGE_KEY, JSON.stringify(range)) } catch { /* bỏ qua */ }
 }
 
-// Gộp khoảng năm + asOf thành query string cho API báo cáo.
-// vd ?from=2024-01-01&to=2026-12-31&asOf=2025-06-30 (asOf = null → bỏ).
-export function dashQuery({ fromYear, toYear } = {}, asOf = null) {
+// Gộp khoảng ngày + asOf thành query string cho API báo cáo.
+// vd ?from=2024-01-01&to=2026-12-31&asOf=2025-06-30 (giá trị rỗng → bỏ).
+export function dashQuery({ from, to } = {}, asOf = null) {
   const parts = []
-  if (fromYear && toYear) parts.push(`from=${fromYear}-01-01`, `to=${toYear}-12-31`)
+  if (from) parts.push(`from=${from}`)
+  if (to) parts.push(`to=${to}`)
   if (asOf) parts.push(`asOf=${asOf}`)
   return parts.join('&')
 }
 
-// Lọc HĐ theo năm ký trong khoảng + (tùy chọn) chỉ giữ HĐ ký tới ngày asOf.
-export function filterByRange(contracts = [], { fromYear, toYear } = {}, asOf = null) {
+// Lọc HĐ theo ngày ký trong khoảng + (tùy chọn) chỉ giữ HĐ ký tới ngày asOf.
+export function filterByRange(contracts = [], { from, to } = {}, asOf = null) {
   return contracts.filter(c => {
     if (!c.contract_date) return false
     const d = String(c.contract_date).slice(0, 10)
-    const y = Number(d.slice(0, 4))
-    if (fromYear && toYear && (y < fromYear || y > toYear)) return false
+    if (from && d < from) return false
+    if (to && d > to) return false
     if (asOf && d > asOf) return false
     return true
   })
