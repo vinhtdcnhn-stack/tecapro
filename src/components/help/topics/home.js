@@ -65,6 +65,16 @@ export const HOME_GROUP = {
           ],
         },
         {
+          heading: 'Bấm vào ô số để xem chi tiết',
+          items: [
+            'Bấm vào một ô số bất kỳ, màn hình chi tiết của ô đó sẽ bung ra.',
+            'Riêng ô "Tổng giá trị hợp đồng": phía trên là các thẻ gom theo trạng thái hợp đồng, phía dưới là bảng danh sách hợp đồng gồm các cột: STT, Số HĐ, Ngày ký, CĐT (chủ đầu tư), Giá trị trước VAT, Giá trị sau VAT, Dự án, PM (người quản lý dự án).',
+            'Hai cột giá trị hiển thị số đã QUY ĐỔI VNĐ; nếu hợp đồng ký bằng ngoại tệ, đưa chuột vào ô tiền sẽ hiện thêm số nguyên tệ (ví dụ USD).',
+            'Bảng xếp theo giá trị sau VAT từ cao xuống thấp. Bấm vào một dòng để mở thẳng hợp đồng đó.',
+            'Bấm chuột phải (hoặc ấn giữ trên điện thoại) vào một dòng để "Sao chép thông tin" dán vào chat.',
+          ],
+        },
+        {
           heading: 'Bộ lọc thời gian',
           items: [
             'Nút 📅 bên phải lọc theo KHOẢNG NGÀY KÝ hợp đồng: bấm vào rồi nhập "Từ ngày" và "Đến ngày" theo dạng dd/mm/yyyy (hoặc bấm nút 📅 nhỏ trong ô để chọn trên lịch). Số liệu chỉ tính các hợp đồng ký trong khoảng đó.',

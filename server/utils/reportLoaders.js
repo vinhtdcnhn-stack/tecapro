@@ -75,12 +75,22 @@ export async function loadContracts(db = pool, { from, to, asOf } = {}) {
   if (from) { params.push(from); cond.push(`c.contract_date >= $${params.length}`) }
   if (to)   { params.push(to);   cond.push(`c.contract_date <= $${params.length}`) }
   if (asOf) { params.push(asOf); cond.push(`c.contract_date <= $${params.length}`) }
+  // pm_name: PM chính (member_role='PM', is_primary) có role_rank nhỏ nhất — cùng cách lấy
+  // với danh sách hợp đồng (contractController) để tên PM hiển thị nhất quán 2 nơi.
   const { rows } = await db.query(`
     SELECT c.id, c.contract_no, c.project_name, c.tender_name, c.contract_date,
-           c.currency_code, c.exchange_rate, c.amount_after_vat,
-           c.customer_id, cu.code AS customer_code, cu.name AS customer_name
+           c.currency_code, c.exchange_rate, c.amount_before_vat, c.amount_after_vat,
+           c.customer_id, cu.code AS customer_code, cu.name AS customer_name,
+           au.full_name AS pm_name
       FROM contract_out c
       LEFT JOIN customer cu ON cu.id = c.customer_id
+      LEFT JOIN (
+        SELECT com.contract_out_id, com.user_id,
+               ROW_NUMBER() OVER (PARTITION BY com.contract_out_id ORDER BY com.role_rank ASC) AS rn
+          FROM contract_out_member com
+         WHERE com.member_role = 'PM' AND com.is_primary = true
+      ) pm ON pm.contract_out_id = c.id AND pm.rn = 1
+      LEFT JOIN app_user au ON au.id = pm.user_id
      WHERE ${cond.join(' AND ')}
      ORDER BY c.id`, params)
   return rows

@@ -237,6 +237,7 @@ async function computeContractDebt(range = {}) {
     const pays = payByContract.get(k) || []
     const paidVnd = pays.reduce((s, p) => s + (parseFloat(p.amount_vnd) || 0), 0)
     const valueVnd = toVnd(c.amount_after_vat, c.exchange_rate, c.currency_code)
+    const valueBeforeVnd = toVnd(c.amount_before_vat, c.exchange_rate, c.currency_code)
     const invoicedVnd = invoicedByContract.get(String(c.id)) ?? 0
     const outstanding = Math.max(0, a.schedVnd - paidVnd)
     const lastOverdue = (outstanding > 0 && a.lastDue) ? Math.max(0, diffDays(a.lastDue, today)) : 0
@@ -245,6 +246,12 @@ async function computeContractDebt(range = {}) {
       contract_out_id: c.id, contract_no: c.contract_no,
       customer_id: c.customer_id, customer_code: c.customer_code, customer_name: c.customer_name,
       project_name: c.project_name, contract_date: iso(c.contract_date),
+      pm_name: c.pm_name || null,
+      // Giá trị gốc (nguyên tệ) + bản quy đổi VNĐ: bảng chi tiết dashboard hiển thị VNĐ,
+      // giữ nguyên tệ để chú thích khi HĐ không phải VND.
+      currency_code: c.currency_code, exchange_rate: c.exchange_rate,
+      amount_before_vat: c.amount_before_vat, amount_after_vat: c.amount_after_vat,
+      value_before_vnd: valueBeforeVnd,
       value_vnd: valueVnd, invoiced_vnd: invoicedVnd, paid_vnd: paidVnd,
       outstanding_vnd: outstanding, last_due: a.lastDue,
       days_overdue: lastOverdue, status,
