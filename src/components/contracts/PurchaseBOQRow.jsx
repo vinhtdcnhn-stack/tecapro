@@ -4,9 +4,13 @@ import { auditRowAttrs } from '../common/rowAudit'
 import PurchaseSupplyLinks from './PurchaseSupplyLinks'
 
 // Một dòng trong bảng giá mua (purchase BOQ). Tách riêng để giữ ContractInBOQTab gọn dưới 500 dòng.
+//
+// `rowLocked`: khóa MỌI ô của dòng TRỪ cột "Nhập cho". Dùng cho PM của HĐ bán đang xem — họ
+// không sở hữu HĐ nhập nên không sửa được hàng/giá, nhưng vẫn tự ghép hàng cho dự án mình.
+// Không dùng EditGuard (fieldset[disabled] ở cha sẽ khóa luôn cột "Nhập cho", không mở lại được).
 export default function PurchaseBOQRow({
   row, idx, currency, showPrice = true, targets = [], viewContractId, onSetLinks, selected, onToggleSelect,
-  set, saveRow, insertAfter, deleteRow,
+  set, saveRow, insertAfter, deleteRow, rowLocked = false,
   canDrag, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
@@ -34,7 +38,7 @@ export default function PurchaseBOQRow({
           type="checkbox"
           checked={selected}
           onChange={() => onToggleSelect(row._key)}
-          disabled={row._isNew}
+          disabled={row._isNew || rowLocked}
           title="Chọn dòng"
         />
       </td>
@@ -46,26 +50,26 @@ export default function PurchaseBOQRow({
       </td>
 
       <td className="td-name">
-        <input type="text" value={row.item_name}
+        <input type="text" value={row.item_name} disabled={rowLocked}
           onChange={e => set(row._key, 'item_name', e.target.value)}
           placeholder="Nhập tên hàng hóa..." />
       </td>
 
       <td className="td-unit">
-        <input type="text" value={row.unit}
+        <input type="text" value={row.unit} disabled={rowLocked}
           onChange={e => set(row._key, 'unit', e.target.value)}
           placeholder="Bộ" />
       </td>
 
       <td className="td-num">
-        <input type="number" value={row.quantity}
+        <input type="number" value={row.quantity} disabled={rowLocked}
           onChange={e => set(row._key, 'quantity', e.target.value)}
           placeholder="0" min="0" />
       </td>
 
       <td className="td-num">
         {showPrice ? (
-          <NumberInput value={row.unit_price}
+          <NumberInput value={row.unit_price} disabled={rowLocked}
             onChange={v => set(row._key, 'unit_price', v)}
             placeholder="0" />
         ) : <span className="boq-masked">•••</span>}
@@ -74,7 +78,7 @@ export default function PurchaseBOQRow({
       <td className="td-amt computed">{showPrice ? fmtNum(before, currency) : '•••'}</td>
 
       <td className="td-vat">
-        <input type="number" value={row.vat_rate}
+        <input type="number" value={row.vat_rate} disabled={rowLocked}
           onChange={e => set(row._key, 'vat_rate', e.target.value)}
           placeholder="10" min="0" max="100" />
       </td>
@@ -82,7 +86,7 @@ export default function PurchaseBOQRow({
       <td className="td-amt computed">{showPrice ? fmtNum(after, currency) : '•••'}</td>
 
       <td className="td-warranty">
-        <input type="text" value={row.warranty_period}
+        <input type="text" value={row.warranty_period} disabled={rowLocked}
           onChange={e => set(row._key, 'warranty_period', e.target.value)}
           placeholder="12 tháng" />
       </td>
@@ -109,10 +113,10 @@ export default function PurchaseBOQRow({
             </button>
           )}
           <button className="act insert" onClick={() => insertAfter(row)}
-            title="Thêm dòng bên dưới" disabled={row._isNew && !row.id}>
+            title="Thêm dòng bên dưới" disabled={rowLocked || (row._isNew && !row.id)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
           </button>
-          <button className="act delete" onClick={() => deleteRow(row)} title="Xóa dòng">
+          <button className="act delete" onClick={() => deleteRow(row)} title="Xóa dòng" disabled={rowLocked}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
           </button>
         </div>

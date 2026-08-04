@@ -51,10 +51,11 @@ export const CONTRACT_IN_GROUP = {
           items: [
             'Một hợp đồng nhập có thể cung cấp hàng cho NHIỀU hợp đồng bán khác nhau. Phần "HĐ bán được cung cấp (Nhập cho)" ở cuối tab Thông tin liệt kê các hợp đồng bán mà HĐ nhập này phục vụ.',
             'Hợp đồng bán "gốc" (nơi tạo ra HĐ nhập, có nhãn "HĐ gốc") luôn nằm trong danh sách và KHÔNG bỏ được.',
-            'Để thêm: gõ số HĐ hoặc tên dự án vào ô tìm rồi chọn — chỉ tìm được các hợp đồng bán bạn có quyền xem. Khi đã thêm, HĐ nhập này sẽ hiện trong danh sách "Hợp đồng nhập" của hợp đồng bán đó (kèm nhãn "Dùng chung").',
+            'Để thêm: gõ số HĐ, tên dự án hoặc tên khách hàng vào ô tìm rồi chọn. Ô này tìm được MỌI hợp đồng bán trong hệ thống — kể cả hợp đồng bạn không phải thành viên — vì một hợp đồng nhập thường mua hàng phục vụ dự án của người khác. Khi đã thêm, HĐ nhập này sẽ hiện trong danh sách "Hợp đồng nhập" của hợp đồng bán đó (kèm nhãn "Dùng chung").',
+            'Thêm hoặc bỏ một hợp đồng bán sẽ gửi thông báo Telegram cho PM của hợp đồng bán đó, để họ biết dự án của mình đang được cung cấp hàng từ hợp đồng nhập nào.',
             'Sau khi thêm, khi bạn mở hợp đồng nhập TỪ hợp đồng bán vừa link, cột "Nhập cho" (tab Bảng giá mua) sẽ cho gắn hàng nhập vào hàng bán của chính hợp đồng bán đó.',
             'KHÔNG bỏ được một hợp đồng bán khỏi danh sách nếu đã có hàng nhập gắn vào Theo dõi nhập hàng của nó — phải bỏ ghép ở cột "Nhập cho" (tab Bảng giá mua) trước.',
-            'Chỉ người tạo hợp đồng nhập (hoặc admin) mới thêm/bớt được hợp đồng bán ở đây.',
+            'Ai được thêm/bớt: người TẠO hợp đồng nhập, PM của hợp đồng bán GỐC (hợp đồng có nhãn "HĐ gốc"), hoặc admin. Không thuộc ba nhóm này thì ô tìm không hiện và nút ✕ bị mờ.',
           ],
         },
       ],
@@ -89,6 +90,7 @@ export const CONTRACT_IN_GROUP = {
           items: [
             'Người tạo thêm từng dòng hàng, nhập số lượng + đơn giá; Ctrl+S lưu nhiều dòng một lượt.',
             'Ở cột "Nhập cho", chọn đúng dòng hàng bán tương ứng — nhờ đó tab "Theo dõi nhập hàng" bên hợp đồng bán biết hàng đã được mua (chấm màu 🔴/🟡/🟢).',
+            'AI ĐƯỢC GHÉP: người tạo hợp đồng nhập, admin, và PM CỦA HỢP ĐỒNG BÁN ĐANG XEM. Nếu bạn là PM của hợp đồng bán mà hợp đồng nhập lại do người khác tạo: mở hợp đồng bán CỦA BẠN → tab "Hợp đồng nhập" → chọn hợp đồng nhập dùng chung → tab "Bảng giá mua". Lúc đó các ô tên hàng, số lượng, đơn giá đều mờ (không sửa được vì không phải hợp đồng của bạn), riêng cột "Nhập cho" vẫn dùng bình thường — bạn tự ghép hàng cho dự án của mình.',
             'Một dòng hàng bán có thể nhận hàng từ nhiều hợp đồng nhập khác nhau.',
             'Trên điện thoại, bảng chuyển thành danh sách thẻ: chạm vào một thẻ để mở ô sửa dòng đó (tên hàng, ĐVT, số lượng, đơn giá, VAT, bảo hành). Riêng cột "Nhập cho" phải làm trên máy tính.',
           ],

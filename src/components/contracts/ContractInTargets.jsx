@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
-import EditGuard from './EditGuard'
-import { useContractPerm } from '../../context/ContractPermContext'
 
 // Tập HĐ bán mà HĐ nhập này "nhập cho" (contract_in_target). 1 HĐ nhập có thể cung cấp hàng
 // cho nhiều HĐ bán; danh sách này quyết định cột "Nhập cho" (bảng giá mua) chọn được hàng bán
 // của những HĐ bán nào. HĐ bán gốc (home) luôn có mặt, không xóa được. HĐ bán đã có hàng gắn
 // vào Theo dõi nhập hàng cũng không xóa được (phải bỏ ghép ở tab Bảng giá mua trước).
+//
+// Quyền sửa KHÔNG lấy từ ContractPermContext (canEdit ở đây = người tạo HĐ nhập) mà lấy cờ
+// can_manage do server trả: người tạo HĐ nhập HOẶC PM của HĐ bán gốc HOẶC admin. Ô tìm cũng
+// dùng endpoint riêng liệt kê MỌI HĐ bán, vì HĐ nhập thường phục vụ dự án của PM khác.
 export default function ContractInTargets({ item }) {
-  const { canEdit } = useContractPerm()
   const [targets, setTargets] = useState([])
-  const [contracts, setContracts] = useState([])   // danh sách HĐ bán để chọn (theo quyền)
+  const [canManage, setCanManage] = useState(false)
+  const [contracts, setContracts] = useState([])   // HĐ bán để chọn (toàn hệ thống, trừ đã link)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -20,20 +22,21 @@ export default function ContractInTargets({ item }) {
   const loadTargets = useCallback(async () => {
     try {
       const data = await apiGet(`/contract-ins/${item.id}/targets`)
-      setTargets(Array.isArray(data) ? data : [])
+      setTargets(Array.isArray(data?.items) ? data.items : [])
+      setCanManage(!!data?.can_manage)
     } catch (e) { console.error('load targets:', e) }
   }, [item.id])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- loadTargets là async: setState sau await, không phải cascade đồng bộ
   useEffect(() => { loadTargets() }, [loadTargets])
 
-  // Danh sách HĐ bán cho ô tìm — chỉ nạp khi user có quyền sửa (mới cần thêm).
+  // Danh sách HĐ bán cho ô tìm — chỉ nạp khi user được sửa (mới cần thêm).
   useEffect(() => {
-    if (!canEdit) return
-    apiGet('/contracts', { conditional: true })
+    if (!canManage) return
+    apiGet(`/contract-ins/${item.id}/target-candidates`)
       .then(d => setContracts(Array.isArray(d) ? d : []))
       .catch(() => setContracts([]))
-  }, [canEdit])
+  }, [canManage, item.id])
 
   // Đóng dropdown khi click ra ngoài.
   useEffect(() => {
@@ -46,9 +49,10 @@ export default function ContractInTargets({ item }) {
   const matches = useMemo(() => {
     const t = query.trim().toLowerCase()
     if (!t) return []
+    const hit = (v) => v?.toLowerCase().includes(t)
     return contracts
       .filter(c => !linkedIds.has(String(c.id)))
-      .filter(c => c.contract_no?.toLowerCase().includes(t) || c.project_name?.toLowerCase().includes(t))
+      .filter(c => hit(c.contract_no) || hit(c.project_name) || hit(c.customer_name))
       .slice(0, 20)
   }, [query, contracts, linkedIds])
 
@@ -85,14 +89,17 @@ export default function ContractInTargets({ item }) {
       <p style={{ fontSize: 12, color: '#9ca3af', margin: '0 0 14px' }}>
         Hợp đồng nhập này cung cấp hàng cho các HĐ bán dưới đây. Cột “Nhập cho” ở tab Bảng giá mua
         sẽ chọn được hàng bán của mọi HĐ bán trong danh sách.
+        {canManage && ' Bạn tìm được mọi HĐ bán trong hệ thống; PM của HĐ bán được thêm sẽ nhận thông báo.'}
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
         {targets.map(t => {
-          const locked = t.is_home || t.has_links
+          const locked = !canManage || t.is_home || t.has_links
           const reason = t.is_home
             ? 'HĐ bán gốc — không thể bỏ liên kết'
-            : (t.has_links ? 'Đã có hàng gắn vào Theo dõi nhập hàng — bỏ ghép ở tab Bảng giá mua trước' : 'Bỏ liên kết')
+            : t.has_links ? 'Đã có hàng gắn vào Theo dõi nhập hàng — bỏ ghép ở tab Bảng giá mua trước'
+            : !canManage ? 'Chỉ người tạo HĐ nhập, PM của HĐ bán gốc hoặc admin mới sửa được'
+            : 'Bỏ liên kết'
           return (
             <div key={t.contract_out_id} style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
@@ -112,15 +119,13 @@ export default function ContractInTargets({ item }) {
                   </div>
                 )}
               </div>
-              <EditGuard>
-                <button type="button" title={reason} disabled={locked}
-                  onClick={() => removeTarget(t)}
-                  style={{
-                    border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600,
-                    cursor: locked ? 'not-allowed' : 'pointer',
-                    background: locked ? '#f3f4f6' : '#fee2e2', color: locked ? '#9ca3af' : '#b91c1c',
-                  }}>✕</button>
-              </EditGuard>
+              <button type="button" title={reason} disabled={locked}
+                onClick={() => removeTarget(t)}
+                style={{
+                  border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600,
+                  cursor: locked ? 'not-allowed' : 'pointer',
+                  background: locked ? '#f3f4f6' : '#fee2e2', color: locked ? '#9ca3af' : '#b91c1c',
+                }}>✕</button>
             </div>
           )
         })}
@@ -129,10 +134,10 @@ export default function ContractInTargets({ item }) {
         )}
       </div>
 
-      <EditGuard>
+      {canManage && (
         <div ref={boxRef} style={{ position: 'relative', maxWidth: 420 }}>
           <input type="text" value={query} disabled={busy}
-            placeholder="🔍 Thêm HĐ bán: gõ số HĐ hoặc tên dự án..."
+            placeholder="🔍 Thêm HĐ bán: gõ số HĐ, tên dự án hoặc khách hàng..."
             onChange={e => { setQuery(e.target.value); setOpen(true) }}
             onFocus={() => setOpen(true)}
             style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13 }} />
@@ -151,12 +156,13 @@ export default function ContractInTargets({ item }) {
                   onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                   <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{c.contract_no || '(chưa có số)'}</div>
                   {c.project_name && <div style={{ fontSize: 12, color: '#6b7280' }}>{c.project_name}</div>}
+                  {c.customer_name && <div style={{ fontSize: 11, color: '#9ca3af' }}>{c.customer_name}</div>}
                 </div>
               ))}
             </div>
           )}
         </div>
-      </EditGuard>
+      )}
     </div>
   )
 }

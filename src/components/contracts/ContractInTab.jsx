@@ -135,7 +135,10 @@ export default function ContractInTab({ contractId, initialContractInId, initial
     // (không phải chủ) vẫn theo perms lớp B từ provider ngoài (lọc tab + che số tiền).
     const perms = canEditThis ? undefined : outerPerms
     return (
-      <ContractPermProvider canEdit={canEditThis} canEditSerial={canEditThis || isTechnicalMember} perms={perms}>
+      <ContractPermProvider canEdit={canEditThis} canEditSerial={canEditThis || isTechnicalMember}
+        // Cột "Nhập cho": PM của HĐ BÁN đang xem tự ghép hàng cho dự án mình, dù HĐ nhập do
+        // người khác tạo (khớp guard canLinkSupplyForContractOut ở server).
+        canLinkSupply={canEditThis || isPmMember} perms={perms}>
         <ContractInDetail
           item={selectedItem}
           suppliers={suppliers}

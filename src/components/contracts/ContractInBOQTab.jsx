@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, Fragment } from 'react'
 import './ContractBOQTab.css'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
@@ -204,8 +204,13 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND', viewC
 
   const isMobile = useIsMobile()
   const canEdit = useCanEdit()
-  const { canSection } = useContractPerm()
+  const { canSection, canLinkSupply } = useContractPerm()
   const showPrice = canSection('ci.pricing.unit_price')
+
+  // PM của HĐ bán đang xem nhưng KHÔNG phải chủ HĐ nhập: chỉ mở cột "Nhập cho", khóa phần còn
+  // lại theo từng ô. Mobile không có cột này nên vẫn khóa cả bảng bằng EditGuard như cũ.
+  const lockRows = !canEdit && canLinkSupply && !isMobile
+  const RowsWrap = lockRows ? Fragment : EditGuard
 
   // Ctrl+S: lưu tất cả dòng đang sửa
   useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
@@ -388,8 +393,11 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND', viewC
         )}
       </div>
 
-      {/* ── Table (desktop) / Cards (mobile) ── Khóa nhập/xóa khi không phải PM */}
-      <EditGuard>
+      {/* ── Table (desktop) / Cards (mobile) ── Khóa nhập/xóa khi không phải PM.
+          Trường hợp lockRows (PM của HĐ bán đang xem, KHÔNG phải chủ HĐ nhập): không bọc
+          EditGuard, vì fieldset[disabled] không cho mở lại control con — thay vào đó khóa
+          từng ô bằng prop rowLocked, chừa cột "Nhập cho" cho họ tự ghép hàng. */}
+      <RowsWrap>
       {isMobile ? (
         <BOQMobile
           items={visibleRows} currency={currency} showPrice={showPrice}
@@ -406,7 +414,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND', viewC
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleSelectAll}
-                  disabled={selectableKeys.length === 0}
+                  disabled={selectableKeys.length === 0 || lockRows}
                   title="Chọn tất cả"
                 />
               </th>
@@ -445,6 +453,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND', viewC
                 targets={targets}
                 viewContractId={viewContractId}
                 onSetLinks={setLinks}
+                rowLocked={lockRows}
                 selected={selected.has(r._key)}
                 onToggleSelect={toggleSelect}
                 set={set}
@@ -476,7 +485,7 @@ export default function ContractInBOQTab({ contractInId, currency = 'VND', viewC
         </table>
       </div>
       )}
-      </EditGuard>
+      </RowsWrap>
 
       {/* ── Import modal ── */}
       {importData && (

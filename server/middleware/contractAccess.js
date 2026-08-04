@@ -1,6 +1,16 @@
 import { pool } from '../db.js'
 import { userIsHead } from './tenderAccess.js'
 import { loadPositionContractPerms } from '../auth/permissions.js'
+import { ID_RE, toIdList, makeGuard, isPmOfContract, countMemberRole } from './guardUtils.js'
+
+// Phân quyền phía HỢP ĐỒNG NHẬP (theo người tạo) nằm ở ./contractInAccess.js — re-export ở
+// đây để routes cũ giữ nguyên đường import.
+export {
+  ownerOfContractIn, ownerVia, ownerViaBody, ownerOrTechVia, ownerOrTechViaBody,
+  canCreateContractIn, canManageContractInTargets, canLinkSupplyForContractOut,
+  requireTargetsManager,
+} from './contractInAccess.js'
+export { isPmOfContract } from './guardUtils.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phân quyền ghi theo hợp đồng:
@@ -16,8 +26,6 @@ import { loadPositionContractPerms } from '../auth/permissions.js'
 //
 // Với upload, đặt guard TRƯỚC multer để request không có quyền không ghi file ra đĩa.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const ID_RE = /^\d+$/
 
 // Mỗi câu SQL nhận $1 = mảng id con, trả về các contract_out_id tương ứng.
 // CHỈ tài nguyên phía HĐ bán (contract_out). Tài nguyên phía HĐ nhập (contract_in)
@@ -46,60 +54,6 @@ const RESOLVERS = {
                        JOIN warranty_case wc ON wc.id = a.case_id WHERE a.id = ANY($1::bigint[])`,
 }
 
-// Chuẩn hóa input thành mảng id dạng chuỗi số; trả null nếu có phần tử không hợp lệ.
-function toIdList(raw) {
-  const arr = Array.isArray(raw) ? raw : [raw]
-  if (!arr.length) return null
-  const out = []
-  for (const v of arr) {
-    const s = String(v ?? '').trim()
-    if (!ID_RE.test(s)) return null
-    out.push(s)
-  }
-  return out
-}
-
-// roles = các member_role được phép ghi (mặc định chỉ 'PM'). Admin luôn toàn quyền.
-function makeGuard(pick, resolverSql, roles = ['PM']) {
-  const roleLabel = roles.includes('Technical') ? 'PM/Kỹ thuật của hợp đồng' : 'PM của hợp đồng'
-  return async function pmGuard(req, res, next) {
-    try {
-      if (Number(req.user?.role) === 1) return next() // admin: toàn quyền
-
-      const ids = toIdList(pick(req))
-      if (!ids) {
-        res.status(400).json({ error: 'Tham số id không hợp lệ.' })
-        return
-      }
-
-      let contractIds = ids
-      if (resolverSql) {
-        const { rows } = await pool.query(resolverSql, [ids])
-        contractIds = rows.map(r => r.contract_out_id).filter(v => v != null).map(String)
-        if (!contractIds.length) {
-          res.status(404).json({ error: 'Không tìm thấy dữ liệu.' })
-          return
-        }
-      }
-
-      // User phải có 1 trong các vai trò cho phép ở TẤT CẢ hợp đồng liên quan
-      // (bulk có thể chạm nhiều HĐ).
-      const distinct = [...new Set(contractIds)]
-      const { rows: m } = await pool.query(
-        `SELECT COUNT(DISTINCT contract_out_id)::int AS n
-           FROM contract_out_member
-          WHERE user_id = $1 AND member_role = ANY($2) AND contract_out_id = ANY($3::bigint[])`,
-        [req.user.id, roles, distinct],
-      )
-      if (m[0].n === distinct.length) return next()
-
-      res.status(403).json({ error: `Chỉ ${roleLabel} (hoặc admin) mới được sửa đổi dữ liệu này.` })
-    } catch (err) {
-      next(err)
-    }
-  }
-}
-
 // URL chứa thẳng id hợp đồng bán
 export const pmFromParam = (param = 'contractId') => makeGuard(req => req.params[param], null)
 
@@ -114,15 +68,6 @@ export const pmViaBody = (key) => makeGuard(req => req.body?.ids, RESOLVERS[key]
 // Việc gốc (parent_task_id NULL) vẫn chỉ PM/admin. Việc con: PM/admin HOẶC người được
 // giao việc con đó HOẶC người được giao việc CHA của nó.
 // ─────────────────────────────────────────────────────────────────────────────
-
-export async function isPmOfContract(userId, contractId) {
-  const { rows } = await pool.query(
-    `SELECT 1 FROM contract_out_member
-      WHERE user_id = $1 AND member_role = 'PM' AND contract_out_id = $2 LIMIT 1`,
-    [userId, contractId],
-  )
-  return rows.length > 0
-}
 
 // POST /contracts/:id/tasks — tạo việc (hoặc việc con nếu body.parent_task_id).
 export function canCreateTask(param = 'id') {
@@ -296,111 +241,6 @@ export const contractPermFromParam = (permKey, param = 'contractId') => makeCont
 export const contractPermVia = (permKey, key, param = 'id') => makeContractPermGuard(req => req.params[param], RESOLVERS[key], permKey)
 export const contractPermViaBody = (permKey, key) => makeContractPermGuard(req => req.body?.ids, RESOLVERS[key], permKey)
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Phân quyền theo NGƯỜI TẠO cho HỢP ĐỒNG NHẬP (contract_in).
-// HĐ nhập thuộc sở hữu của người tạo (contract_in.created_by): chỉ người tạo HOẶC
-// admin mới được GHI/SỬA/XOÁ HĐ nhập và mọi tài nguyên con. PM của HĐ bán cha KHÔNG
-// còn quyền chéo (trừ HĐ nhập do chính họ tạo / dữ liệu cũ đã backfill về PM chính).
-// Riêng các thao tác SERIAL còn cho phép Kỹ thuật (Technical) của HĐ bán cha.
-//
-// TẠO HĐ nhập: thành viên PM HOẶC ImportExport của HĐ bán cha (hoặc admin).
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Mỗi câu nhận $1 = mảng id con; trả { created_by, contract_out_id } của HĐ nhập sở hữu.
-const CI_RESOLVERS = {
-  self:           `SELECT created_by, contract_out_id FROM contract_in WHERE id = ANY($1::bigint[])`,
-  inBoq:          `SELECT ci.created_by, ci.contract_out_id FROM contract_in_boq b
-                     JOIN contract_in ci ON ci.id = b.contract_in_id WHERE b.id = ANY($1::bigint[])`,
-  supplyLink:     `SELECT ci.created_by, ci.contract_out_id FROM contract_in_boq_supply_link l
-                     JOIN contract_in_boq b ON b.id = l.contract_in_boq_id
-                     JOIN contract_in ci ON ci.id = b.contract_in_id WHERE l.id = ANY($1::bigint[])`,
-  progressIn:     `SELECT ci.created_by, ci.contract_out_id FROM contract_in_progress p
-                     JOIN contract_in ci ON ci.id = p.contract_in_id WHERE p.id = ANY($1::bigint[])`,
-  delivery:       `SELECT ci.created_by, ci.contract_out_id FROM contract_in_delivery d
-                     JOIN contract_in ci ON ci.id = d.contract_in_id WHERE d.id = ANY($1::bigint[])`,
-  deliveryItem:   `SELECT ci.created_by, ci.contract_out_id FROM contract_in_delivery_item it
-                     JOIN contract_in_delivery d ON d.id = it.delivery_id
-                     JOIN contract_in ci ON ci.id = d.contract_in_id WHERE it.id = ANY($1::bigint[])`,
-  deliverySerial: `SELECT ci.created_by, ci.contract_out_id FROM contract_in_delivery_serial s
-                     JOIN contract_in_delivery_item it ON it.id = s.delivery_item_id
-                     JOIN contract_in_delivery d ON d.id = it.delivery_id
-                     JOIN contract_in ci ON ci.id = d.contract_in_id WHERE s.id = ANY($1::bigint[])`,
-  payable:        `SELECT ci.created_by, ci.contract_out_id FROM contract_in_payable p
-                     JOIN contract_in ci ON ci.id = p.contract_in_id WHERE p.id = ANY($1::bigint[])`,
-  payment:        `SELECT ci.created_by, ci.contract_out_id FROM contract_in_payment p
-                     JOIN contract_in ci ON ci.id = p.contract_in_id WHERE p.id = ANY($1::bigint[])`,
-  supplierWarranty: `SELECT ci.created_by, ci.contract_out_id FROM contract_in_supplier_warranty w
-                       JOIN contract_in ci ON ci.id = w.contract_in_id WHERE w.id = ANY($1::bigint[])`,
-  warrantyClaim:  `SELECT ci.created_by, ci.contract_out_id FROM contract_in_warranty_claim c
-                     JOIN contract_in ci ON ci.id = c.contract_in_id WHERE c.id = ANY($1::bigint[])`,
-  inGuarantee:    `SELECT ci.created_by, ci.contract_out_id FROM contract_in_guarantee g
-                     JOIN contract_in ci ON ci.id = g.contract_in_id WHERE g.id = ANY($1::bigint[])`,
-  customs:        `SELECT ci.created_by, ci.contract_out_id FROM contract_in_customs c
-                     JOIN contract_in ci ON ci.id = c.contract_in_id WHERE c.id = ANY($1::bigint[])`,
-  logistics:      `SELECT ci.created_by, ci.contract_out_id FROM contract_in_logistics l
-                     JOIN contract_in ci ON ci.id = l.contract_in_id WHERE l.id = ANY($1::bigint[])`,
-  logisticsUpdate: `SELECT ci.created_by, ci.contract_out_id FROM contract_in_logistics_update u
-                      JOIN contract_in_logistics l ON l.id = u.logistics_id
-                      JOIN contract_in ci ON ci.id = l.contract_in_id WHERE u.id = ANY($1::bigint[])`,
-}
-
-// Đếm số HĐ bán mà user giữ vai trò `role` trong tập contract_out_id cho trước.
-async function countMemberRole(userId, role, contractIds) {
-  const { rows } = await pool.query(
-    `SELECT COUNT(DISTINCT contract_out_id)::int AS n FROM contract_out_member
-      WHERE user_id = $1 AND member_role = $2 AND contract_out_id = ANY($3::bigint[])`,
-    [userId, role, contractIds],
-  )
-  return rows[0].n
-}
-
-// allowTech=true: ngoài người tạo, Kỹ thuật của HĐ bán cha cũng được (dùng cho serial).
-function makeOwnerGuard(pick, resolverSql, { allowTech = false } = {}) {
-  return async function ownerGuard(req, res, next) {
-    try {
-      if (Number(req.user?.role) === 1) return next() // admin: toàn quyền
-
-      const ids = toIdList(pick(req))
-      if (!ids) {
-        res.status(400).json({ error: 'Tham số id không hợp lệ.' })
-        return
-      }
-
-      const { rows } = await pool.query(resolverSql, [ids])
-      if (!rows.length) {
-        res.status(404).json({ error: 'Không tìm thấy dữ liệu.' })
-        return
-      }
-
-      const me = String(req.user.id)
-      // Người tạo của TẤT CẢ HĐ nhập liên quan (bulk có thể chạm nhiều HĐ).
-      if (rows.every(r => r.created_by != null && String(r.created_by) === me)) return next()
-
-      if (allowTech) {
-        const contractIds = [...new Set(rows.map(r => r.contract_out_id).filter(v => v != null).map(String))]
-        if (contractIds.length && await countMemberRole(req.user.id, 'Technical', contractIds) === contractIds.length) {
-          return next()
-        }
-      }
-
-      res.status(403).json({ error: 'Chỉ người tạo hợp đồng nhập (hoặc admin) mới được sửa đổi dữ liệu này.' })
-    } catch (err) {
-      next(err)
-    }
-  }
-}
-
-// PUT/DELETE chính HĐ nhập, hoặc POST tạo tài nguyên con dưới :contractInId
-export const ownerOfContractIn = (param = 'contractInId') => makeOwnerGuard(req => req.params[param], CI_RESOLVERS.self)
-// PUT/DELETE tài nguyên con HĐ nhập (id con → JOIN về contract_in.created_by)
-export const ownerVia = (key, param = 'id') => makeOwnerGuard(req => req.params[param], CI_RESOLVERS[key])
-export const ownerViaBody = (key) => makeOwnerGuard(req => req.body?.ids, CI_RESOLVERS[key])
-// Biến thể serial: người tạo HOẶC Kỹ thuật của HĐ bán cha
-export const ownerOrTechVia = (key, param = 'id') => makeOwnerGuard(req => req.params[param], CI_RESOLVERS[key], { allowTech: true })
-export const ownerOrTechViaBody = (key) => makeOwnerGuard(req => req.body?.ids, CI_RESOLVERS[key], { allowTech: true })
-
-// Tạo HĐ nhập: URL chứa thẳng id HĐ bán; cho PM hoặc ImportExport của HĐ bán (hoặc admin).
-export const canCreateContractIn = makeGuard(req => req.params.id, null, ['PM', 'ImportExport'])
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KHÓA đợt nhận hàng: khi contract_in_delivery.locked = true thì CHẶN mọi thao tác
