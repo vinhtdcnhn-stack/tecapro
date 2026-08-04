@@ -31,6 +31,19 @@ export function statusModalClass(s) {
   return s === 'Chờ xử lý' ? 'selected-waiting' : s === 'Đang thực hiện' ? 'selected-doing' : s === 'Hoàn thành' ? 'selected-done' : 'selected-cancel'
 }
 
+// Chú thích cho dấu ⏳ "chờ xác nhận": ai đã báo hoàn thành, lúc nào, và (nếu từng bị trả
+// lại) lý do chưa đạt gần nhất.
+export function awaitTitle(task) {
+  const who = task.completion_requested_by_name || 'Người thực hiện'
+  const when = task.completion_requested_at
+    ? new Date(task.completion_requested_at).toLocaleString('vi-VN')
+    : ''
+  const past = Number(task.completion_reject_count) > 0
+    ? `\nĐã bị trả lại ${task.completion_reject_count} lần. Lý do gần nhất: ${task.completion_reject_reason || '—'}`
+    : ''
+  return `${who} đã báo hoàn thành${when ? ` lúc ${when}` : ''} — chờ người giao việc xác nhận.${past}`
+}
+
 export function initials(name) {
   if (!name) return '?'
   return name.split(' ').filter(Boolean).slice(-2).map(w => w[0]).join('').toUpperCase()

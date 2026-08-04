@@ -152,6 +152,19 @@ export const CONTRACTS_FINANCE_PAGES = [
         ],
       },
       {
+        heading: 'Báo hoàn thành và xác nhận kết quả',
+        items: [
+          'NGƯỜI ĐƯỢC GIAO: làm xong thì tự mở ô "Trạng thái" ở dòng việc của mình và chọn "Hoàn thành" — không cần chờ ai đổi hộ.',
+          'Ngay sau đó việc hiện thêm dấu ⏳ "chờ xác nhận": nghĩa là đã báo xong nhưng người giao việc chưa kiểm tra. Đưa chuột vào dấu ⏳ để xem ai báo, báo lúc nào.',
+          'NGƯỜI GIAO VIỆC (và PM của hợp đồng, quản trị viên) nhìn thấy 2 nút nhỏ ngay cạnh dấu ⏳: ✔ để xác nhận, ✘ để báo chưa đạt. Cũng có thể bấm vào việc để mở ngăn chi tiết rồi bấm nút "✔ Xác nhận hoàn thành" / "✘ Chưa đạt" cho dễ nhìn.',
+          'Bấm ✔ Xác nhận: việc được chốt hoàn thành, hệ thống ghi lại ai xác nhận và lúc nào, đồng thời mở khóa các việc phải chờ việc này xong.',
+          'Bấm ✘ Chưa đạt: BẮT BUỘC gõ lý do (nêu rõ còn thiếu gì). Việc quay lại "Đang thực hiện", lý do được ghi vào DÒNG THỜI GIAN trao đổi của việc và người thực hiện nhận thông báo Telegram kèm nội dung.',
+          'Việc từng bị trả lại sẽ hiện dòng đỏ "Bị trả lại N lần — lý do gần nhất..." trong ngăn chi tiết, để người thực hiện biết phải xử lý gì.',
+          'Nếu bạn vừa là người giao vừa là người làm (tự giao việc cho mình), chọn "Hoàn thành" là chốt luôn, không phải qua bước xác nhận.',
+          'Việc CÓ VIỆC CON không đổi trạng thái bằng tay được (hiện khóa 🔒) — nó tự tính theo các việc con.',
+        ],
+      },
+      {
         heading: 'Trao đổi trong việc',
         items: [
           'Bấm vào một việc để mở ngăn chi tiết bên phải: xem người thực hiện, người GIAO việc, hạn hoàn thành, và dòng thời gian TRAO ĐỔI — gõ nội dung báo cáo tiến độ, vướng mắc, đính kèm tệp.',

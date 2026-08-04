@@ -4,8 +4,9 @@ import { API } from '../../config/api'
 import useIsMobile from '../contracts/useIsMobile'
 import DeptWorkTaskModal from './DeptWorkTaskModal'
 import TaskDetailDrawer from './TaskDetailDrawer'
+import TaskRejectDialog from '../contracts/TaskRejectDialog'
 import {
-  fmtDate, statusClass, priorityClass, isOverdue, assigneesSummary,
+  fmtDate, statusClass, priorityClass, isOverdue, assigneesSummary, awaitTitle,
   ENTRY_TYPE_LABEL, ENTRY_TYPE_CLASS,
 } from './deptWorkUtils'
 
@@ -38,6 +39,7 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editTask, setEditTask] = useState(null)
   const [detailId, setDetailId] = useState(null)
+  const [rejectTask, setRejectTask] = useState(null)  // ≠ null = đang nhập lý do "chưa đạt"
 
   const load = useCallback(async () => {
     try { setTasks(await fetch(`${API}/dept-work/tasks`).then(r => r.json())) }
@@ -65,9 +67,14 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
 
   const visible = tasks.filter(t => filter === 'all' || t.status === filter)
 
-  // Được đổi trạng thái nếu là head/deputy/admin HOẶC là nhóm trưởng của việc.
+  // Đổi trạng thái: head/deputy/admin, NGƯỜI ĐƯỢC GIAO (cả nhóm, không riêng nhóm trưởng)
+  // hoặc người giao việc — khớp guard isTaskLeadOrHead ở backend.
   const canChangeStatus = (t) =>
-    canManage || t.assignees?.some(a => a.is_lead && a.assignee_id === currentUser?.id)
+    canManage
+    || Number(t.created_by) === Number(currentUser?.id)
+    || t.assignees?.some(a => Number(a.assignee_id) === Number(currentUser?.id))
+  // Xác nhận / trả lại kết quả: người giao việc + trưởng/phó phòng + admin.
+  const canConfirm = (t) => canManage || Number(t.created_by) === Number(currentUser?.id)
 
   // Trả về việc đã lưu (có id) để modal tải tệp đính kèm đang chờ; null nếu lỗi.
   async function handleSave(payload) {
@@ -101,6 +108,32 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
     } catch { alert('Có lỗi xảy ra.') }
   }
 
+  // Xác nhận kết quả người thực hiện báo lên (chốt hoàn thành).
+  async function handleConfirmDone(t) {
+    try {
+      const res = await fetch(`${API}/dept-work/tasks/${t.id}/completion/confirm`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || 'Xác nhận thất bại'); return }
+      setTasks(prev => prev.map(x => x.id === t.id ? data : x))
+    } catch { alert('Có lỗi xảy ra.') }
+  }
+
+  // Trả lại kèm lý do (bắt buộc) → việc về "Đang thực hiện", lý do vào dòng thời gian.
+  async function handleRejectDone(reason) {
+    const t = rejectTask
+    if (!t) return false
+    try {
+      const res = await fetch(`${API}/dept-work/tasks/${t.id}/completion/reject`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+      })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || 'Không gửi được'); return false }
+      setTasks(prev => prev.map(x => x.id === t.id ? data : x))
+      setRejectTask(null)
+      return true
+    } catch { alert('Có lỗi xảy ra.'); return false }
+  }
+
   const openCreate = () => { setEditTask(null); setModalOpen(true) }
   const openEdit = (t) => { setEditTask(t); setModalOpen(true) }
   const openDetail = (t) => setDetailId(t.id)
@@ -114,14 +147,31 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
   }, [])
 
   function StatusCell({ t }) {
-    if (canChangeStatus(t)) {
-      return (
-        <select className={`dw-status-select ${statusClass(t.status)}`} value={t.status} onChange={e => handleStatus(t, e.target.value)}>
-          {STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-      )
-    }
-    return <span className={`dw-badge ${statusClass(t.status)}`}>{t.status}</span>
+    return (
+      <div className="dw-status-cell">
+        {canChangeStatus(t) ? (
+          <select className={`dw-status-select ${statusClass(t.status)}`} value={t.status} onChange={e => handleStatus(t, e.target.value)}>
+            {STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        ) : (
+          <span className={`dw-badge ${statusClass(t.status)}`}>{t.status}</span>
+        )}
+        {/* Đã báo hoàn thành, chờ người giao việc chốt */}
+        {t.completion_pending && (
+          <span className="dw-await-wrap">
+            <span className="dw-await-mark" title={awaitTitle(t)}>⏳ chờ xác nhận</span>
+            {canConfirm(t) && (
+              <>
+                <button type="button" className="dw-await-btn ok" title="Xác nhận đã hoàn thành"
+                  onClick={() => handleConfirmDone(t)}>✔</button>
+                <button type="button" className="dw-await-btn no" title="Chưa đạt — yêu cầu làm lại"
+                  onClick={() => setRejectTask(t)}>✘</button>
+              </>
+            )}
+          </span>
+        )}
+      </div>
+    )
   }
 
   if (loading) return <p className="dash-empty">Đang tải công việc...</p>
@@ -159,6 +209,8 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
                   {t.title}
                 </span>
                 <span className={`dw-badge ${statusClass(t.status)}`}>{t.status}</span>
+                {/* Mobile: chỉ hiện dấu chờ; thao tác xác nhận làm trong khung chi tiết */}
+                {t.completion_pending && <span className="dw-await-mark" title={awaitTitle(t)}>⏳</span>}
               </div>
               <div className="dw-card-meta">
                 {t.origin === 'customer' && <span className="dw-badge dw-badge-cust">KH</span>}
@@ -219,10 +271,20 @@ export default function TaskBoard({ currentUser, members, teams, canManage }) {
           currentUser={currentUser}
           canManage={canManage}
           members={members}
+          onConfirmDone={handleConfirmDone}
+          onRejectDone={(t) => { setDetailId(null); setRejectTask(t) }}
           onClose={() => { setDetailId(null); load() }}
           onEdit={(t) => { setDetailId(null); openEdit(t) }}
           onChanged={load}
           onRead={handleTaskRead}
+        />
+      )}
+
+      {rejectTask && (
+        <TaskRejectDialog
+          task={rejectTask}
+          onConfirm={handleRejectDone}
+          onClose={() => setRejectTask(null)}
         />
       )}
 

@@ -9,8 +9,10 @@ import TaskModal from './TaskModal'
 import TaskGantt from './TaskGantt'
 import TaskContextMenu from './TaskContextMenu'
 import TaskTransferDialog from './TaskTransferDialog'
+import TaskRejectDialog from './TaskRejectDialog'
 import ContractTaskDetailDrawer from './ContractTaskDetailDrawer'
 import EditGuard from './EditGuard'
+import { useTaskCompletion } from './useTaskCompletion'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -150,6 +152,14 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
     const p = byId.get(String(task.parent_task_id))
     return !!(p && Number(p.assigned_to) === uid)            // assignee của việc cha
   }
+  // Đổi TRẠNG THÁI rộng hơn sửa việc (khớp backend canChangeTaskStatus): người được giao
+  // tự cập nhật được việc của mình, kể cả việc gốc.
+  const canChangeStatusRow = (task) => {
+    if (canWriteRow(task)) return true
+    return Number(task.assigned_to) === uid || Number(task.created_by) === uid
+  }
+  // Xác nhận / trả lại kết quả: người GIAO việc, PM của HĐ, admin (khớp canConfirmTaskCompletion).
+  const canConfirmRow = (task) => canEdit || Number(task.created_by) === uid
   // Sắp xếp 1 việc trong nhóm anh-em: PM/admin (mọi việc) hoặc assignee của VIỆC CHA.
   const canReorderRow = (task) => {
     if (canEdit) return true
@@ -218,32 +228,14 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
     } catch { alert('Không thể xóa.') }
   }
 
-  async function handleStatusChange(task, newStatus) {
-    try {
-      const res = await fetch(`${API}/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title:         task.title,
-          description:   task.description,
-          department_id: task.department_id,
-          assigned_to:   task.assigned_to,
-          priority:      task.priority,
-          start_date:    task.start_date,
-          due_date:      task.due_date,
-          status:        newStatus,
-          note:          task.note,
-          dependencies:  task.dependencies || [],
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setTasks(prev => prev.map(t => t.id === task.id ? data : t))
-      // Đổi trạng thái có thể: (a) mở khóa việc phụ thuộc; (b) tự hoàn thành/mở lại việc
-      // cha theo cây con → tải lại để hiển thị trạng thái mới của toàn cây.
-      load()
-    } catch (e) { alert('Lỗi: ' + e.message) }
-  }
+  // Đổi trạng thái + xác nhận/trả lại kết quả (endpoint riêng, xem useTaskCompletion).
+  const {
+    rejectTask, setRejectTask, changeStatus: handleStatusChange,
+    confirmCompletion: handleConfirmDone, rejectCompletion: handleRejectDone,
+  } = useTaskCompletion({
+    onChanged: (data) => setTasks(prev => prev.map(t => t.id === data.id ? data : t)),
+    reload: load,
+  })
 
   function toggleCollapse(key) {
     setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
@@ -340,12 +332,22 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           onClose={() => setTransferTask(null)}
         />
       )}
+      {rejectTask && (
+        <TaskRejectDialog
+          task={rejectTask}
+          onConfirm={handleRejectDone}
+          onClose={() => setRejectTask(null)}
+        />
+      )}
       {detailTask && (
         <ContractTaskDetailDrawer
           task={detailTask}
           currentUser={currentUser}
           canManage={canEdit}
           canWrite={canWriteRow(detailTask)}
+          canConfirm={canConfirmRow(detailTask)}
+          onConfirmDone={handleConfirmDone}
+          onRejectDone={setRejectTask}
           onEdit={(t) => { setDetailTaskId(null); openEdit(t) }}
           onClose={() => setDetailTaskId(null)}
           onChanged={load}
@@ -442,11 +444,15 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
           onToggleTask={toggleTask}
           highlightId={highlightId}
           canWriteRow={canWriteRow}
+          canStatusRow={canChangeStatusRow}
+          canConfirmRow={canConfirmRow}
           canAddSub={canAddSub}
           canReorderRow={canReorderRow}
           onEdit={openEdit}
           onDelete={handleDelete}
           onStatusChange={handleStatusChange}
+          onConfirmDone={handleConfirmDone}
+          onRejectDone={setRejectTask}
           onAddSub={openAddSub}
           onReorder={handleReorder}
           onTaskContextMenu={openTaskCtxMenu}

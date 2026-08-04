@@ -26,6 +26,17 @@ export const DEPTWORK_GROUP = {
             'Việc có trao đổi mới chưa đọc tô nền hổ phách — đọc xong nền trở lại bình thường.',
           ],
         },
+        {
+          heading: 'Báo hoàn thành và xác nhận kết quả',
+          items: [
+            'NGƯỜI ĐƯỢC GIAO (mọi người trong nhóm nhận việc, không riêng nhóm trưởng): làm xong thì chọn "Hoàn thành" ở ô trạng thái của dòng việc.',
+            'Việc sẽ hiện thêm dấu ⏳ "chờ xác nhận" — đã báo xong nhưng người giao việc chưa kiểm tra. Đưa chuột vào dấu ⏳ để xem ai báo, lúc nào.',
+            'NGƯỜI GIAO VIỆC (và Trưởng/Phó phòng, quản trị viên) thấy 2 nút cạnh dấu ⏳: ✔ xác nhận hoàn thành, ✘ chưa đạt. Trên điện thoại thì bấm vào việc để mở ngăn chi tiết rồi bấm nút ở đó.',
+            'Bấm ✘ Chưa đạt thì BẮT BUỘC gõ lý do: việc quay lại "Đang thực hiện", lý do được ghi vào dòng thời gian trao đổi của việc và người thực hiện nhận thông báo Telegram kèm nội dung.',
+            'Việc từng bị trả lại hiện dòng đỏ "Bị trả lại N lần — lý do gần nhất..." trong ngăn chi tiết.',
+            'Người tự giao việc cho mình, hoặc Trưởng/Phó phòng đổi trạng thái, thì chọn "Hoàn thành" là chốt luôn — không qua bước xác nhận.',
+          ],
+        },
       ],
     },
     {

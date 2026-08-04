@@ -11,7 +11,10 @@ const fmtSize = (b) => !b ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 102
 
 // Ngăn xem chi tiết việc: thông tin, người nhận (★ nhóm trưởng + trạng thái nhận), đính kèm.
 // Desktop = drawer phải; mobile = toàn màn hình (CSS).
-export default function TaskDetailDrawer({ taskId, currentUser, canManage, members = [], onClose, onEdit, onChanged, onRead }) {
+export default function TaskDetailDrawer({
+  taskId, currentUser, canManage, members = [],
+  onConfirmDone, onRejectDone, onClose, onEdit, onChanged, onRead,
+}) {
   const [task, setTask] = useState(null)
   const [atts, setAtts] = useState([])
   const [uploading, setUploading] = useState(false)
@@ -38,6 +41,8 @@ export default function TaskDetailDrawer({ taskId, currentUser, canManage, membe
   const myAsg = task?.assignees?.find(a => a.assignee_id === currentUser?.id)
   // Được upload nếu là head/deputy/admin hoặc người đang được giao việc.
   const canUpload = canManage || !!myAsg
+  // Xác nhận / trả lại kết quả: trưởng-phó phòng, admin, hoặc chính người giao việc.
+  const canConfirm = canManage || Number(task?.created_by) === Number(currentUser?.id)
 
   async function postAction(path, body) {
     try {
@@ -122,6 +127,35 @@ export default function TaskDetailDrawer({ taskId, currentUser, canManage, membe
             <dt>Người giao</dt><dd>{task.created_by_name || '—'}</dd>
             <dt>Hạn hoàn thành</dt><dd>{fmtDate(task.due_date)}</dd>
           </dl>
+
+          {/* Đã báo hoàn thành, chờ người giao việc (hoặc trưởng/phó phòng) chốt */}
+          {task.completion_pending && (
+            <div className="task-await-panel">
+              <div className="task-await-panel-text">
+                ⏳ <strong>{task.completion_requested_by_name || 'Người thực hiện'}</strong> đã báo hoàn thành
+                {task.completion_requested_at ? ` lúc ${new Date(task.completion_requested_at).toLocaleString('vi-VN')}` : ''}.
+                {canConfirm
+                  ? ' Bạn hãy kiểm tra rồi xác nhận, hoặc trả lại kèm lý do.'
+                  : ' Đang chờ người giao việc xác nhận.'}
+              </div>
+              {canConfirm && (
+                <div className="task-await-panel-actions">
+                  <button type="button" className="task-await-panel-btn ok"
+                    onClick={async () => { await onConfirmDone?.(task); load(); onChanged?.() }}>
+                    ✔ Xác nhận hoàn thành
+                  </button>
+                  <button type="button" className="task-await-panel-btn no" onClick={() => onRejectDone?.(task)}>
+                    ✘ Chưa đạt
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {!task.completion_pending && Number(task.completion_reject_count) > 0 && task.completion_reject_reason && (
+            <div className="task-reject-note">
+              ❌ Bị trả lại {task.completion_reject_count} lần. Lý do gần nhất: <strong>{task.completion_reject_reason}</strong>
+            </div>
+          )}
 
           {task.description && <Section title="Mô tả"><p className="dw-pre"><Linkify text={task.description} onNavigate={onClose} /></p></Section>}
 

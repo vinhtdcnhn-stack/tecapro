@@ -3,6 +3,8 @@ import { getTasks, createTask, updateTask, deleteTask, reorderTasks, transferTas
 import { getAttachments, uploadAttachment, deleteAttachment, upload } from '../controllers/taskAttachmentController.js'
 import { getEntries, addEntry, deleteEntry, getUnreadCount, addEntryImage, uploadEntryImage } from '../controllers/taskEntryController.js'
 import { pmVia, canCreateTask, canWriteTask, canReorderTasks, canTransferTask } from '../middleware/contractAccess.js'
+import { changeTaskStatus, confirmCompletion, rejectCompletion } from '../controllers/taskStatusController.js'
+import { canChangeTaskStatus, canConfirmTaskCompletion } from '../middleware/taskAccess.js'
 
 const router = Router()
 
@@ -14,6 +16,13 @@ router.put('/tasks/:id',            canWriteTask('id'), updateTask)
 router.put('/tasks/:id/transfer',   canTransferTask('id'), transferTask)
 router.get('/tasks/:id/assignment-log', getAssignmentLog)
 router.delete('/tasks/:id',         canWriteTask('id'), deleteTask)
+
+// Đổi TRẠNG THÁI: rộng hơn sửa việc — người được giao (kể cả việc gốc) tự cập nhật được.
+// Chọn "Hoàn thành" mà không có quyền xác nhận → việc vào diện CHỜ XÁC NHẬN.
+router.patch('/tasks/:id/status',              canChangeTaskStatus('id'), changeTaskStatus)
+// Người giao việc (hoặc PM/admin) chốt kết quả; trả lại BẮT BUỘC kèm lý do.
+router.post('/tasks/:id/completion/confirm',   canConfirmTaskCompletion('id'), confirmCompletion)
+router.post('/tasks/:id/completion/reject',    canConfirmTaskCompletion('id'), rejectCompletion)
 
 router.get('/tasks/:taskId/attachments',        getAttachments)
 // Guard trước multer để request không có quyền không ghi file ra đĩa

@@ -5,11 +5,10 @@ import { fileURLToPath } from 'url'
 import { pool } from '../db.js'
 import { isPmOfContract } from '../middleware/contractAccess.js'
 import { safeUploadFilter, UPLOAD_LIMITS, discardUploadedFile } from '../middleware/uploadFilter.js'
-import { notifyAction, notifyInfo, contractLabel, pmUserIds } from '../services/notify.js'
 import { contractTaskUnread } from '../services/liveCounts.js'
-import { bumpLive } from '../services/eventBus.js'
 import { invalidateUserDashboards, invalidateDashboardsForContractTask } from '../services/cacheKeys.js'
 import { canDeleteEntry, ENTRY_DELETE_DENIED } from '../utils/entryDelete.js'
+import { insertTaskEntry, announceTaskEntry, markTaskRead as markRead, TYPE_LABEL } from '../services/taskEntryPost.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
@@ -29,7 +28,6 @@ const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
 // ──────────────────────────────────────────────────────────────────────────────
 
 const ENTRY_TYPES = new Set(['report', 'directive', 'decision', 'discussion'])
-const TYPE_LABEL = { report: 'Báo cáo', directive: 'Chỉ đạo', decision: 'Quyết định', discussion: 'Trao đổi' }
 
 // ── Ảnh đính kèm cho mục dòng thời gian (chỉ ảnh) ─────────────────────────────
 const imgStorage = multer.diskStorage({
@@ -104,16 +102,6 @@ function canPost(type, r) {
   return r.isManager || r.isCreator || r.isAssignee // discussion
 }
 
-// Ghi mốc đã đọc cho viewer ở một việc (để tắt chấm chưa đọc).
-async function markRead(taskId, userId) {
-  await pool.query(
-    `INSERT INTO contract_task_read (task_id, user_id, last_read_at)
-     VALUES ($1, $2, now())
-     ON CONFLICT (task_id, user_id) DO UPDATE SET last_read_at = now()`,
-    [taskId, userId],
-  )
-}
-
 // GET /tasks/:taskId/entries — danh sách + tự ghi mốc đã đọc.
 export async function getEntries(req, res) {
   const taskId = parseInt(req.params.taskId)
@@ -168,42 +156,15 @@ export async function addEntry(req, res) {
       return res.status(403).json({ error: `Bạn không có quyền đăng mục "${TYPE_LABEL[type]}" cho việc này.` })
     }
 
-    const { rows } = await pool.query(
-      `INSERT INTO contract_task_entry (task_id, entry_type, content, author_id)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, task_id, entry_type, content, author_id, created_at, updated_at`,
-      [taskId, type, content, req.user.id],
-    )
-    const entry = rows[0]
-    const me = await pool.query('SELECT full_name FROM app_user WHERE id = $1', [req.user.id])
-    const actor = me.rows[0]?.full_name || null
-    entry.author_name = actor
-    entry.images = []
+    const entry = await insertTaskEntry({ taskId, type, content, authorId: req.user.id })
     res.status(201).json(entry)
 
-    // Đánh thức các long-poll đang treo: có mục mới → số "chưa đọc" của người liên quan đổi.
-    bumpLive('contract-task')
-    // Có mục mới → dòng việc chuyển nền hổ phách: làm mới dashboard của người liên quan.
-    invalidateDashboardsForContractTask(taskId)
-
-    // Tác giả coi như đã đọc (không tự báo với mình).
-    markRead(taskId, req.user.id).catch(e => console.error('contractTask markRead:', e))
-
-    // Báo người liên quan (trừ tác giả): người tạo + người được giao + PM của HĐ.
-    const t = await pool.query('SELECT title FROM contract_task WHERE id = $1', [taskId])
-    const title = t.rows[0]?.title || 'công việc'
-    const related = [...new Set([
-      rel.createdBy,
-      rel.assignedTo,
-      ...await pmUserIds(rel.contractId),
-    ])].map(Number).filter(uid => uid && uid !== Number(req.user.id))
-    if (related.length) {
-      const label = await contractLabel(rel.contractId)
-      const msg = `${actor || 'Ai đó'} · ${TYPE_LABEL[type]} ở công việc:\n${title} (HĐ ${label})\n${content}`
-      // Báo cáo/chỉ đạo/quyết định cần nắm & xử lý → notifyAction; trao đổi → notifyInfo.
-      if (type === 'discussion') notifyInfo(related, msg)
-      else notifyAction(related, msg)
-    }
+    // Hậu kỳ (không chặn response): đánh thức long-poll, làm mới dashboard người liên quan,
+    // ghi mốc đã đọc cho tác giả và báo Telegram cho người liên quan.
+    announceTaskEntry({
+      taskId, type, content, authorId: req.user.id, authorName: entry.author_name,
+      contractId: rel.contractId, createdBy: rel.createdBy, assignedTo: rel.assignedTo,
+    })
   } catch (err) {
     console.error('contractTask addEntry:', err)
     res.status(500).json({ error: 'Không thể gửi nội dung.' })

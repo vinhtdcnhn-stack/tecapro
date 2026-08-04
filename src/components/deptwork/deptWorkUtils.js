@@ -1,7 +1,7 @@
 // Helper/hằng số dùng chung cho module Quản lý công việc — KT Cơ điện.
 // Tái dùng tối đa từ task hợp đồng để đồng bộ nhãn/màu trạng thái & ưu tiên.
 export {
-  PRIORITIES, STATUSES, fmtDate, daysUntil, isOverdue, isWarning,
+  PRIORITIES, STATUSES, fmtDate, daysUntil, isOverdue, isWarning, awaitTitle,
   priorityClass, statusClass, statusModalClass, initials,
 } from '../contracts/taskUtils'
 

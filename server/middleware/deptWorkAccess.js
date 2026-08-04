@@ -75,7 +75,9 @@ export async function isHeadOrDeputy(req, res, next) {
   } catch (err) { next(err) }
 }
 
-// Nhóm trưởng của việc HOẶC trưởng/phó phòng. Gác đổi trạng thái việc.
+// Đổi TRẠNG THÁI việc: người ĐANG ĐƯỢC GIAO (mọi người trong nhóm, không chỉ nhóm
+// trưởng), NGƯỜI GIAO việc, trưởng/phó phòng hoặc admin. Người được giao chỉ tự báo
+// "Hoàn thành" → việc vào diện CHỜ XÁC NHẬN (deptWorkStatusController áp luật đó).
 export function isTaskLeadOrHead(param = 'id') {
   return async (req, res, next) => {
     try {
@@ -84,12 +86,17 @@ export function isTaskLeadOrHead(param = 'id') {
       if (!taskId) return res.status(400).json({ error: 'Tham số id không hợp lệ.' })
       if (await queryIsHeadOrDeputy(req.user.id)) return next()
       const { rows } = await pool.query(
-        `SELECT 1 FROM dept_work_assignment
-          WHERE task_id = $1 AND assignee_id = $2 AND is_active AND is_lead LIMIT 1`,
+        `SELECT 1
+           FROM dept_work_task t
+          WHERE t.id = $1
+            AND ( t.created_by = $2
+                  OR EXISTS (SELECT 1 FROM dept_work_assignment a
+                              WHERE a.task_id = t.id AND a.assignee_id = $2 AND a.is_active) )
+          LIMIT 1`,
         [taskId, req.user.id],
       )
       if (rows.length) return next()
-      FORBIDDEN(res, 'Chỉ nhóm trưởng của việc (hoặc trưởng/phó phòng) mới được đổi trạng thái.')
+      FORBIDDEN(res, 'Chỉ người được giao, người giao việc hoặc trưởng/phó phòng mới được đổi trạng thái.')
     } catch (err) { next(err) }
   }
 }

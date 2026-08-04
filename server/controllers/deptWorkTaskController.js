@@ -5,6 +5,7 @@ import { pool } from '../db.js'
 import { DEPT_KT_CO_DIEN, userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
 import { userName, assigneeIds } from '../services/deptWorkNotify.js'
 import { notifyAction, notifyInfo } from '../services/notify.js'
+import { BASE_SELECT } from './deptWorkSelect.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const TASK_UPLOAD_ROOT = path.resolve(__dirname, '..', 'uploads', 'dept-work-tasks')
@@ -18,40 +19,6 @@ const TASK_UPLOAD_ROOT = path.resolve(__dirname, '..', 'uploads', 'dept-work-tas
 const STATUSES = new Set(['Chờ xử lý', 'Đang thực hiện', 'Hoàn thành', 'Hủy'])
 const PRIORITIES = new Set(['Thấp', 'Bình thường', 'Cao', 'Khẩn'])
 
-const BASE_SELECT = `
-  SELECT
-    t.id, t.department_id, t.team_id, tm.name AS team_name, tm.code AS team_code,
-    t.title, t.description, t.instructions, t.priority, t.due_date, t.status,
-    t.created_by, cb.full_name AS created_by_name, t.completed_at,
-    t.origin, t.customer_name, t.customer_contact,
-    t.escalated, t.escalated_by, eb.full_name AS escalated_by_name,
-    t.escalated_at, t.escalation_note, t.created_at, t.updated_at,
-    (SELECT COUNT(*) FROM dept_work_task_attachment a WHERE a.task_id = t.id)::int AS attachment_count,
-    (
-      SELECT json_build_object(
-        'entry_type', le.entry_type, 'content', le.content,
-        'author_name', lau.full_name, 'created_at', le.created_at
-      )
-      FROM dept_work_entry le
-      LEFT JOIN app_user lau ON lau.id = le.author_id
-      WHERE le.task_id = t.id AND le.entry_type IN ('directive', 'decision')
-      ORDER BY le.created_at DESC, le.id DESC
-      LIMIT 1
-    ) AS latest_directive,
-    COALESCE((
-      SELECT json_agg(json_build_object(
-        'id', asg.id, 'assignee_id', asg.assignee_id, 'assignee_name', au.full_name,
-        'is_lead', asg.is_lead, 'accept_state', asg.accept_state,
-        'instructions', asg.instructions, 'handoff_from', asg.handoff_from
-      ) ORDER BY asg.is_lead DESC, au.full_name)
-      FROM dept_work_assignment asg JOIN app_user au ON au.id = asg.assignee_id
-      WHERE asg.task_id = t.id AND asg.is_active
-    ), '[]') AS assignees
-  FROM dept_work_task t
-  LEFT JOIN dept_work_team tm ON tm.id = t.team_id
-  LEFT JOIN app_user cb ON cb.id = t.created_by
-  LEFT JOIN app_user eb ON eb.id = t.escalated_by
-`
 
 // Gắn unread_count (số mục dòng thời gian chưa đọc) cho viewer vào từng việc.
 // Chỉ tính cho việc viewer "liên quan" (người tạo / đang được giao / trưởng phó),
@@ -235,42 +202,6 @@ export async function updateTask(req, res) {
   } catch (err) {
     console.error('deptWork updateTask:', err)
     res.status(500).json({ error: 'Không thể cập nhật công việc.' })
-  }
-}
-
-// Đổi trạng thái — chỉ nhóm trưởng/head (gác ở route bằng isTaskLeadOrHead).
-export async function updateTaskStatus(req, res) {
-  const id = parseInt(req.params.id)
-  const status = req.body?.status
-  if (!STATUSES.has(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' })
-  try {
-    const prev = await pool.query('SELECT status, title, created_by FROM dept_work_task WHERE id = $1', [id])
-    if (!prev.rows.length) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
-    const { status: oldStatus, title, created_by: createdBy } = prev.rows[0]
-
-    const { rows } = await pool.query(
-      `UPDATE dept_work_task SET
-         status = $1,
-         completed_at = CASE WHEN $1::varchar = 'Hoàn thành' THEN COALESCE(completed_at, now()) ELSE NULL END,
-         updated_at = now()
-       WHERE id = $2 RETURNING id`,
-      [status, id],
-    )
-    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy công việc.' })
-    const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
-    res.json(full.rows[0])
-
-    // Báo người được giao + người tạo (trừ người đổi) khi trạng thái thực sự thay đổi.
-    if (oldStatus !== status) {
-      const recipients = [...await assigneeIds(id), createdBy].filter(uid => uid && uid !== req.user.id)
-      if (recipients.length) {
-        const actor = await userName(req.user.id)
-        notifyInfo(recipients, `${actor} đổi trạng thái công việc:\n${title}\n${oldStatus} → ${status}`)
-      }
-    }
-  } catch (err) {
-    console.error('deptWork updateTaskStatus:', err)
-    res.status(500).json({ error: 'Không thể đổi trạng thái.' })
   }
 }
 

@@ -37,14 +37,20 @@ export async function cascadeCompletion(client, startId) {
       const shouldComplete = open === 0 && done > 0
       if (shouldComplete && node.status !== 'Hoàn thành') {
         await client.query(
-          "UPDATE contract_task SET status = 'Hoàn thành', completed_at = NOW(), updated_at = NOW() WHERE id = $1",
+          // Cha tự hoàn thành theo con → không phải "chờ xác nhận" (không do người nào báo).
+          `UPDATE contract_task SET status = 'Hoàn thành', completed_at = NOW(),
+                  completion_pending = false, completion_requested_by = NULL, completion_requested_at = NULL,
+                  updated_at = NOW() WHERE id = $1`,
           [cur],
         )
         changed.push({ ...node, status: 'Hoàn thành' })
         nodeChanged = true
       } else if (!shouldComplete && node.status === 'Hoàn thành') {
         await client.query(
-          "UPDATE contract_task SET status = 'Đang thực hiện', completed_at = NULL, updated_at = NOW() WHERE id = $1",
+          `UPDATE contract_task SET status = 'Đang thực hiện', completed_at = NULL,
+                  completion_pending = false, completion_requested_by = NULL, completion_requested_at = NULL,
+                  completion_approved_by = NULL, completion_approved_at = NULL,
+                  updated_at = NOW() WHERE id = $1`,
           [cur],
         )
         changed.push({ ...node, status: 'Đang thực hiện' })

@@ -79,6 +79,16 @@ export async function contractLabel(contractId) {
   }
 }
 
+// Tên người dùng để xưng trong thông báo ("X đã xác nhận..."). '' nếu không tra được.
+export async function userFullName(userId) {
+  try {
+    const { rows } = await pool.query('SELECT full_name FROM app_user WHERE id = $1', [userId])
+    return rows[0]?.full_name || ''
+  } catch {
+    return ''
+  }
+}
+
 // Id các PM (chủ trì + đồng PM) của một hợp đồng.
 export async function pmUserIds(contractId) {
   try {

@@ -1,3 +1,4 @@
+import './ContractTaskDetail.css'
 import Modal from '../common/Modal'
 import ContractTaskTimeline from './ContractTaskTimeline'
 import Linkify from '../common/Linkify'
@@ -11,14 +12,17 @@ const fileHref = (p) => `${API.replace('/api', '')}${p}`
 // Khung chi tiết việc HĐ (drawer phải; mobile full-screen qua CSS). Nhận task object
 // truyền thẳng từ state của tab (danh sách đã có đủ field + attachments). Gồm thông tin,
 // đính kèm, dòng thời gian trao đổi và nút "Sửa công việc".
-//   canManage = PM/admin của HĐ (quyết định loại mục được đăng ở dòng thời gian)
-//   canWrite  = quyền sửa dòng việc này (hiện nút "Sửa công việc")
+//   canManage  = PM/admin của HĐ (quyết định loại mục được đăng ở dòng thời gian)
+//   canWrite   = quyền sửa dòng việc này (hiện nút "Sửa công việc")
+//   canConfirm = quyền xác nhận kết quả (người giao việc / PM / admin)
 export default function ContractTaskDetailDrawer({
-  task, currentUser, canManage, canWrite, onEdit, onClose, onChanged, onRead,
+  task, currentUser, canManage, canWrite, canConfirm,
+  onConfirmDone, onRejectDone, onEdit, onClose, onChanged, onRead,
 }) {
   if (!task) return null
 
   const atts = Array.isArray(task.attachments) ? task.attachments : []
+  const rejectCount = Number(task.completion_reject_count) || 0
 
   return (
     <Modal onClose={onClose} overlayClassName="task-drawer-overlay" contentClassName="task-drawer-panel" labelledBy="task-drawer-title">
@@ -33,6 +37,35 @@ export default function ContractTaskDetailDrawer({
           <dt>Người giao</dt><dd>{task.created_by_name || '—'}</dd>
           <dt>Hạn hoàn thành</dt><dd>{fmtDate(task.due_date)}</dd>
         </dl>
+
+        {/* Đã báo hoàn thành, chờ người giao việc chốt */}
+        {task.completion_pending && (
+          <div className="task-await-panel">
+            <div className="task-await-panel-text">
+              ⏳ <strong>{task.completion_requested_by_name || 'Người thực hiện'}</strong> đã báo hoàn thành
+              {task.completion_requested_at ? ` lúc ${new Date(task.completion_requested_at).toLocaleString('vi-VN')}` : ''}.
+              {canConfirm
+                ? ' Bạn hãy kiểm tra rồi xác nhận, hoặc trả lại kèm lý do.'
+                : ' Đang chờ người giao việc xác nhận.'}
+            </div>
+            {canConfirm && (
+              <div className="task-await-panel-actions">
+                <button type="button" className="task-await-panel-btn ok" onClick={() => onConfirmDone?.(task)}>
+                  ✔ Xác nhận hoàn thành
+                </button>
+                <button type="button" className="task-await-panel-btn no" onClick={() => { onClose?.(); onRejectDone?.(task) }}>
+                  ✘ Chưa đạt
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Lý do bị trả lại gần nhất (khi việc đang làm lại) */}
+        {!task.completion_pending && rejectCount > 0 && task.completion_reject_reason && (
+          <div className="task-reject-note">
+            ❌ Bị trả lại {rejectCount} lần. Lý do gần nhất: <strong>{task.completion_reject_reason}</strong>
+          </div>
+        )}
 
         {task.description && (
           <Section title="Mô tả"><p className="task-pre"><Linkify text={task.description} onNavigate={onClose} /></p></Section>

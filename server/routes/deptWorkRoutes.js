@@ -7,8 +7,11 @@ import {
   getTeams, getMembers,
 } from '../controllers/deptWorkTeamController.js'
 import {
-  getTasks, getTask, createTask, updateTask, updateTaskStatus, deleteTask,
+  getTasks, getTask, createTask, updateTask, deleteTask,
 } from '../controllers/deptWorkTaskController.js'
+import {
+  updateTaskStatus, confirmCompletion, rejectCompletion,
+} from '../controllers/deptWorkStatusController.js'
 import {
   upload, getAttachments, uploadAttachment, deleteAttachment,
 } from '../controllers/deptWorkTaskAttachmentController.js'
@@ -37,6 +40,9 @@ router.get('/dept-work/tasks/:id', isDeptMember, getTask)
 router.post('/dept-work/tasks', isDeptMember, createTask)
 router.put('/dept-work/tasks/:id', isHeadOrDeputy, updateTask)
 router.put('/dept-work/tasks/:id/status', isTaskLeadOrHead('id'), updateTaskStatus)
+// Xác nhận / trả lại kết quả: người giao việc + trưởng/phó phòng + admin (gác trong controller).
+router.post('/dept-work/tasks/:id/completion/confirm', isDeptMember, confirmCompletion)
+router.post('/dept-work/tasks/:id/completion/reject',  isDeptMember, rejectCompletion)
 router.delete('/dept-work/tasks/:id', isHeadOrDeputy, deleteTask)
 
 // Đính kèm tệp cho việc (guard ĐẶT TRƯỚC multer để request không có quyền không ghi file ra đĩa).

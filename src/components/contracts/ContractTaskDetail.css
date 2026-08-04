@@ -1,0 +1,152 @@
+/* Khung CHI TIẾT công việc hợp đồng (drawer phải) + dòng thời gian trao đổi + dòng việc
+   bấm được. Tách khỏi ContractTaskTab.css theo quy ước tệp ≤ 500 dòng; nạp trong
+   ContractTaskDetailDrawer.jsx (được tab import tĩnh nên style luôn có sẵn). */
+
+/* ── Cả dòng việc bấm được để mở khung chi tiết (như thẻ việc bên phòng) ────── */
+.task-row--clickable { cursor: pointer; }
+.task-row--clickable:hover { background: #f8fafc; }
+
+/* ── Tên việc bấm được (mở khung chi tiết) + chấm chưa đọc ─────────────────── */
+.task-title--link {
+  border: none; background: none; padding: 0; margin: 0; font: inherit;
+  color: inherit; text-align: left; cursor: pointer;
+}
+.task-title--link:hover { color: #15803d; text-decoration: underline; }
+.tgantt-tasklabel-link {
+  border: none; background: none; padding: 0; font: inherit; color: inherit;
+  cursor: pointer; text-align: left;
+}
+.tgantt-tasklabel-link:hover { color: #15803d; text-decoration: underline; }
+.task-unread-dot {
+  display: inline-block; width: 8px; height: 8px; margin-left: 6px;
+  border-radius: 50%; background: #dc2626; flex-shrink: 0;
+  animation: task-unread-pulse 1.2s ease-in-out infinite;
+}
+@keyframes task-unread-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ── Khung chi tiết việc (drawer phải; mobile full-screen) ─────────────────── */
+.task-drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  display: flex; justify-content: flex-end; z-index: 1000;
+}
+.task-drawer-panel {
+  width: 560px; max-width: 95vw; height: 100%;
+  background: #fff; display: flex; flex-direction: column;
+  box-shadow: -8px 0 28px rgba(0,0,0,0.18);
+}
+.task-drawer-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid #eef0f2;
+}
+.task-drawer-header h3 { margin: 0; font-size: 18px; color: #111827; }
+.task-drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px; min-height: 0; }
+.task-drawer-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 12px 20px; border-top: 1px solid #eef0f2;
+}
+
+.task-detail-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.task-detail-chip {
+  padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: #eef2f7; color: #475569;
+}
+.task-detail-grid { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; margin: 0 0 8px; font-size: 14px; }
+.task-detail-grid dt { color: #6b7280; }
+.task-detail-grid dd { margin: 0; color: #111827; }
+
+.task-detail-section { margin-top: 16px; }
+.task-detail-title { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.03em; }
+.task-pre { white-space: pre-wrap; margin: 0; font-size: 14px; color: #1f2937; }
+.task-detail-empty { color: #9ca3af; font-size: 13px; margin: 0; }
+
+.task-detail-att-list { display: flex; flex-direction: column; gap: 6px; }
+.task-detail-att-name {
+  color: #1d4ed8; text-decoration: none; font-size: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.task-detail-att-name:hover { text-decoration: underline; }
+
+/* ── Dòng thời gian trao đổi ───────────────────────────────────────────────── */
+.task-tl-list { display: flex; flex-direction: column; gap: 10px; }
+.task-tl-item {
+  border: 1px solid #e5e7eb; border-left: 3px solid #cbd5e1;
+  background: #fff; border-radius: 10px; padding: 10px 12px;
+}
+.task-tl-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 12px; color: #6b7280; margin-bottom: 6px;
+}
+.task-tl-author { font-weight: 600; color: #374151; }
+.task-tl-time { color: #9ca3af; }
+.task-tl-del {
+  margin-left: auto; border: none; background: none; color: #9ca3af;
+  cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px;
+}
+.task-tl-del:hover { color: #dc2626; }
+.task-tl-content { margin: 0; font-size: 14px; }
+.task-tl-tag { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.task-et-report     { background: #dbeafe; color: #1d4ed8; }
+.task-et-directive  { background: #fef3c7; color: #b45309; }
+.task-et-decision   { background: #ede9fe; color: #6d28d9; }
+.task-et-discussion { background: #f1f5f9; color: #475569; }
+.task-tl-item:has(.task-et-report)    { border-left-color: #2563eb; }
+.task-tl-item:has(.task-et-directive) { border-left-color: #d97706; }
+.task-tl-item:has(.task-et-decision)  { border-left-color: #7c3aed; }
+
+.task-tl-add { margin-top: 10px; }
+.task-tl-type {
+  border: 1px solid #d1d5db; border-radius: 8px; padding: 6px 8px; font: inherit;
+  font-size: 14px; margin-bottom: 8px; background: #fff;
+}
+/* Ô soạn gộp: ảnh xem trước nằm NGAY TRONG khung nhập như Telegram/WhatsApp */
+.task-tl-box {
+  border: 1px solid #d1d5db; border-radius: 8px; background: #fff;
+  padding: 6px; display: flex; flex-direction: column; gap: 6px;
+}
+.task-tl-box:focus-within { border-color: var(--brand, #16a34a); box-shadow: 0 0 0 2px rgba(22, 163, 74, .15); }
+.task-tl-box textarea {
+  width: 100%; min-height: 64px; box-sizing: border-box;
+  border: none; outline: none; padding: 4px; font: inherit; font-size: 14px; resize: vertical;
+  background: transparent;
+}
+.task-tl-add-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 8px; }
+.task-tl-img-btn {
+  margin-right: auto; border: 1px solid #d1d5db; background: #fff; border-radius: 8px;
+  padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; color: #374151;
+}
+.task-tl-img-btn:hover { background: #f9fafb; }
+
+/* Ảnh trong mục dòng thời gian: hiện đủ, giữ đúng tỉ lệ; bấm để phóng to */
+.task-tl-imgs { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 8px; }
+.task-tl-imgs img {
+  max-width: 300px; max-height: 260px; width: auto; height: auto; object-fit: contain;
+  border-radius: 8px; border: 1px solid #e5e7eb; cursor: zoom-in; background: #f3f4f6;
+}
+
+/* Xem trước ảnh sắp gửi — nằm trong khung nhập, giữ đúng tỉ lệ (không cắt vuông) */
+.task-tl-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 2px 2px 0; }
+.task-tl-preview-item { position: relative; }
+.task-tl-preview-item img {
+  max-width: 260px; max-height: 220px; width: auto; height: auto; object-fit: contain;
+  border-radius: 8px; border: 1px solid #e5e7eb; display: block;
+}
+.task-tl-preview-item button {
+  position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
+  border: none; background: #ef4444; color: #fff; cursor: pointer; font-weight: 700; line-height: 1;
+}
+
+/* Lightbox phóng to ảnh */
+.task-tl-lightbox {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .8); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; cursor: zoom-out;
+}
+.task-tl-lightbox img { max-width: 92vw; max-height: 92vh; border-radius: 6px; }
+.task-tl-add-btn {
+  margin-top: 10px; display: inline-block; cursor: pointer;
+  color: var(--brand, #16a34a); font-weight: 600; font-size: 14px;
+  border: none; background: none; padding: 0;
+}
+
+@media (max-width: 768px) {
+  .task-drawer-panel { width: 100%; max-width: 100%; }
+}

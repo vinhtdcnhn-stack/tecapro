@@ -2,45 +2,8 @@ import { pool } from '../db.js'
 import { notifyAction, notifyInfo, contractLabel, fmtDate } from '../services/notify.js'
 import { activateReadyTasks } from '../services/taskAutoStart.js'
 import { cascadeCompletion, notifyCascade } from '../services/taskCascade.js'
-
-const BASE_SELECT = `
-  SELECT
-    t.id,
-    t.contract_out_id,
-    t.title,
-    t.description,
-    t.department_id,
-    d.name  AS department_name,
-    t.assigned_to,
-    u.full_name AS assigned_to_name,
-    t.created_by,
-    cb.full_name AS created_by_name,
-    t.priority,
-    t.start_date,
-    t.due_date,
-    t.duration_days,
-    t.status,
-    t.note,
-    t.completed_at,
-    t.sort_order,
-    t.parent_task_id,
-    t.parent_start_offset,
-    (SELECT COUNT(*) FROM contract_task c WHERE c.parent_task_id = t.id)::int AS child_count,
-    t.created_at,
-    t.updated_at,
-    (SELECT COUNT(*) FROM contract_task_attachment WHERE task_id = t.id)::int AS attachment_count,
-    (SELECT json_agg(json_build_object('id', a.id, 'file_name', a.file_name, 'file_path', a.file_path) ORDER BY a.created_at)
-     FROM contract_task_attachment a WHERE a.task_id = t.id) AS attachments,
-    COALESCE((SELECT json_agg(json_build_object(
-        'id', dep.id, 'dep_type', dep.dep_type,
-        'dep_task_id', dep.dep_task_id, 'dep_progress_id', dep.dep_progress_id,
-        'offset_days', dep.offset_days) ORDER BY dep.id)
-     FROM contract_task_dependency dep WHERE dep.task_id = t.id), '[]') AS dependencies
-  FROM contract_task t
-  LEFT JOIN department d  ON d.id  = t.department_id
-  LEFT JOIN app_user   u  ON u.id  = t.assigned_to
-  LEFT JOIN app_user   cb ON cb.id = t.created_by
-`
+import { BASE_SELECT } from './taskSelect.js'
+import { taskRolesOf } from '../middleware/taskAccess.js'
 
 // Ghi 1 dòng nhật ký giao/chuyển việc. Gọi trong cùng transaction (client) khi tạo việc
 // có người thực hiện hoặc khi đổi người thực hiện. action: 'assign' (giao lần đầu) |
@@ -222,6 +185,12 @@ export async function updateTask(req, res) {
     return res.status(400).json({ error: 'Tên công việc không được để trống' })
   }
 
+  // Đặt "Hoàn thành" ngay trong form sửa: nếu người sửa KHÔNG có quyền xác nhận kết quả
+  // (vd người được giao việc con) thì việc chỉ vào diện CHỜ XÁC NHẬN — cùng luật với
+  // taskStatusController, để không có đường vòng qua màn hình sửa.
+  const roles = await taskRolesOf(id, req.user)
+  const pendingApproval = (status || 'Chờ xử lý') === 'Hoàn thành' && !!roles && !roles.canConfirm
+
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -265,6 +234,12 @@ export async function updateTask(req, res) {
         note            = $10,
         completed_at    = CASE WHEN $9::varchar = 'Hoàn thành'
                                THEN COALESCE($11::date, completed_at, NOW()) ELSE NULL END,
+        -- Cờ chờ xác nhận: bật khi người sửa không có quyền chốt; tắt ở mọi trạng thái khác.
+        completion_pending      = $14,
+        completion_requested_by = CASE WHEN $14 THEN $15::int ELSE NULL END,
+        completion_requested_at = CASE WHEN $14 THEN NOW() ELSE NULL END,
+        completion_approved_by  = CASE WHEN $9::varchar = 'Hoàn thành' AND NOT $14 THEN $15::int ELSE NULL END,
+        completion_approved_at  = CASE WHEN $9::varchar = 'Hoàn thành' AND NOT $14 THEN NOW() ELSE NULL END,
         -- Chỉ neo theo việc cha khi bản thân là việc con (parent_task_id không đổi ở update).
         parent_start_offset = CASE WHEN parent_task_id IS NULL THEN NULL ELSE $13::int END,
         updated_at      = NOW()
@@ -283,6 +258,8 @@ export async function updateTask(req, res) {
         completed_at  || null,
         id,
         parent_start_offset != null ? parseInt(parent_start_offset, 10) || 0 : null,
+        pendingApproval,
+        req.user?.id || null,
       ]
     )
     // Đổi người thực hiện qua màn sửa → ghi nhật ký chuyển việc (kèm lý do nếu có).
@@ -326,10 +303,15 @@ export async function updateTask(req, res) {
         notifyAction([newAssignee], `Bạn được giao công việc: "${title.trim()}" — HĐ ${label}${han}`)
       }
 
-      // Đổi trạng thái → báo người tạo việc (thông tin). Không báo nếu chính họ đổi.
+      // Đổi trạng thái → báo người tạo việc. Nếu đang CHỜ XÁC NHẬN thì đây là việc cần họ
+      // xử lý (bấm xác nhận / trả lại) → notifyAction; ngược lại chỉ là tin nắm.
       const creator = Number(old.created_by) || null
       if (newStatus !== old.status && creator && creator !== actor) {
-        notifyInfo([creator], `Công việc "${title.trim()}" (HĐ ${label}) đã chuyển sang trạng thái: ${newStatus}`)
+        if (pendingApproval) {
+          notifyAction([creator], `Công việc "${title.trim()}" (HĐ ${label}) đã được báo HOÀN THÀNH — cần bạn xác nhận.`)
+        } else {
+          notifyInfo([creator], `Công việc "${title.trim()}" (HĐ ${label}) đã chuyển sang trạng thái: ${newStatus}`)
+        }
       }
     }
   } catch (err) {

@@ -4,7 +4,7 @@ import { useLongPress } from './useLongPress'
 import AssigneeHistoryTooltip from './AssigneeHistoryTooltip'
 import { auditRowAttrs } from '../common/rowAudit'
 import {
-  STATUSES, fmtDate, daysUntil, isOverdue, isWarning,
+  STATUSES, fmtDate, daysUntil, isOverdue, isWarning, awaitTitle,
   priorityClass, statusClass, initials, flattenTree, reorderIds,
 } from './taskUtils'
 
@@ -12,8 +12,9 @@ import {
 
 export default function DeptGroup({
   group, flat = false, childrenByParent, visible, collapsed, onToggle,
-  collapsedTask, onToggleTask, highlightId, canWriteRow, canAddSub, canReorderRow,
-  onEdit, onDelete, onStatusChange, onAddSub, onReorder, onTaskContextMenu, onOpenDetail,
+  collapsedTask, onToggleTask, highlightId, canWriteRow, canStatusRow, canConfirmRow, canAddSub, canReorderRow,
+  onEdit, onDelete, onStatusChange, onConfirmDone, onRejectDone, onAddSub, onReorder,
+  onTaskContextMenu, onOpenDetail,
 }) {
   const [dragId, setDragId] = useState(null)
   const [overId, setOverId] = useState(null)
@@ -75,7 +76,8 @@ export default function DeptGroup({
                 <th style={{ width: 100 }}>Ưu tiên</th>
                 <th style={{ width: 160 }}>Người thực hiện</th>
                 <th style={{ width: 140 }}>Thời hạn</th>
-                <th style={{ width: 130 }}>Trạng thái</th>
+                {/* Rộng hơn một chút để "⏳ chờ xác nhận" + 2 nút ✔/✘ nằm gọn 1 dòng */}
+                <th style={{ width: 175 }}>Trạng thái</th>
                 <th style={{ width: 110 }}></th>
               </tr>
             </thead>
@@ -91,6 +93,8 @@ export default function DeptGroup({
                   onToggle={() => onToggleTask(task.id)}
                   highlight={String(task.id) === String(highlightId)}
                   canWrite={canWriteRow(task)}
+                  canStatus={canStatusRow ? canStatusRow(task) : canWriteRow(task)}
+                  canConfirm={canConfirmRow ? canConfirmRow(task) : false}
                   canAddSub={canAddSub(task)}
                   canReorder={canReorderRow(task)}
                   dragging={dragId === task.id}
@@ -103,6 +107,8 @@ export default function DeptGroup({
                   onDelete={() => onDelete(task)}
                   onAddSub={() => onAddSub(task)}
                   onStatusChange={onStatusChange}
+                  onConfirmDone={onConfirmDone}
+                  onRejectDone={onRejectDone}
                   onContextMenu={(e) => onTaskContextMenu?.(task, e)}
                   onOpenDetail={() => onOpenDetail?.(task)}
                 />
@@ -118,7 +124,8 @@ export default function DeptGroup({
 // ── Task row ─────────────────────────────────────────────────────────────────
 
 function TaskRow({
-  idx, task, depth, hasChildren, collapsed, onToggle, highlight, canWrite, canAddSub, onEdit, onDelete, onAddSub, onStatusChange,
+  idx, task, depth, hasChildren, collapsed, onToggle, highlight, canWrite, canStatus, canConfirm,
+  canAddSub, onEdit, onDelete, onAddSub, onStatusChange, onConfirmDone, onRejectDone,
   canReorder, dragging, dragOver, onDragStart, onDragEnd, onDragOver, onDrop, onContextMenu, onOpenDetail,
 }) {
   const overdue  = isOverdue(task)
@@ -248,15 +255,31 @@ function TaskRow({
             {task.status} 🔒
           </span>
         ) : (
-          <select
-            value={task.status}
-            onChange={e => onStatusChange(task, e.target.value)}
-            disabled={!canWrite}
-            className={`status-badge-task ${statusClass(task.status)}`}
-            style={{ border: 'none', cursor: canWrite ? 'pointer' : 'default', background: 'transparent', fontWeight: 600, fontSize: 11, padding: '3px 8px' }}
-          >
-            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <div className="task-status-cell">
+            <select
+              value={task.status}
+              onChange={e => onStatusChange(task, e.target.value)}
+              disabled={!canStatus}
+              className={`status-badge-task ${statusClass(task.status)}`}
+              style={{ border: 'none', cursor: canStatus ? 'pointer' : 'default', background: 'transparent', fontWeight: 600, fontSize: 11, padding: '3px 8px' }}
+            >
+              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            {/* Đã báo hoàn thành nhưng người giao việc chưa chốt → ⏳ + 2 nút cho người xác nhận */}
+            {task.completion_pending && (
+              <span className="task-await-wrap">
+                <span className="task-await-mark" title={awaitTitle(task)}>⏳ chờ duyệt</span>
+                {canConfirm && (
+                  <span className="task-await-btns">
+                    <button type="button" className="task-await-btn ok" title="Xác nhận đã hoàn thành"
+                      onClick={() => onConfirmDone?.(task)}>✔</button>
+                    <button type="button" className="task-await-btn no" title="Chưa đạt — yêu cầu làm lại"
+                      onClick={() => onRejectDone?.(task)}>✘</button>
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
         )}
       </td>
 
