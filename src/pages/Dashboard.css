@@ -340,6 +340,36 @@
 .exec-row { cursor: pointer; }
 .exec-row:hover td { background: #eef5ef !important; }
 
+/* Bảng chi tiết: ghim 2 cột đầu (STT, Số HĐ) khi kéo ngang. Ô ghim phải có nền đục,
+   nếu không nội dung các cột phía sau sẽ chạy xuyên qua khi cuộn. */
+.exec-sticky2 th.stick-1, .exec-sticky2 td.stick-1 { position: sticky; left: 0; z-index: 2; }
+.exec-sticky2 th.stick-2, .exec-sticky2 td.stick-2 {
+  position: sticky; left: 52px; z-index: 2;
+  box-shadow: 1px 0 0 #e5e7eb;  /* vạch ngăn với phần cuộn */
+}
+.exec-sticky2 th.stick-1 { width: 52px; min-width: 52px; }
+.exec-sticky2 td.stick-1, .exec-sticky2 td.stick-2 { background: #fff; }
+/* Ô tiêu đề vừa dính trái vừa dính trên → phải nổi trên các ô dính 1 chiều */
+.exec-sticky2 th.stick-1, .exec-sticky2 th.stick-2 { background: #f9fafb; z-index: 3; }
+/* Nền hover của dòng (.exec-row:hover td) đã có !important nên vẫn đè được nền đục ở trên. */
+
+/* Thanh phân trang của bảng chi tiết */
+.exec-pager {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 0.6rem; margin-top: 0.75rem;
+}
+.exec-pager-info { font-size: 0.8rem; color: #6b7280; }
+.exec-pager-btns { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
+.exec-pager-btn {
+  min-width: 32px; padding: 0.3rem 0.6rem;
+  border: 1px solid #e5e7eb; border-radius: 8px; background: #fff;
+  font-size: 0.8rem; font-weight: 600; color: #374151; cursor: pointer;
+}
+.exec-pager-btn:hover:not(:disabled) { background: #f3f4f6; }
+.exec-pager-btn:disabled { opacity: 0.45; cursor: default; }
+.exec-pager-btn.is-active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.exec-pager-gap { padding: 0 0.15rem; color: #9ca3af; font-size: 0.8rem; }
+
 /* Biểu đồ cột (CSS thuần) đà ký HĐ */
 .exec-bars {
   display: flex; align-items: flex-end; gap: 0.5rem;

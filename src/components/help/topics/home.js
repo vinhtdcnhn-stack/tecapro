@@ -71,6 +71,8 @@ export const HOME_GROUP = {
             'Riêng ô "Tổng giá trị hợp đồng": phía trên là các thẻ gom theo trạng thái hợp đồng, phía dưới là bảng danh sách hợp đồng gồm các cột: STT, Số HĐ, Ngày ký, CĐT (chủ đầu tư), Giá trị trước VAT, Giá trị sau VAT, Dự án, PM (người quản lý dự án).',
             'Hai cột giá trị hiển thị số đã QUY ĐỔI VNĐ; nếu hợp đồng ký bằng ngoại tệ, đưa chuột vào ô tiền sẽ hiện thêm số nguyên tệ (ví dụ USD).',
             'Bảng xếp theo giá trị sau VAT từ cao xuống thấp. Bấm vào một dòng để mở thẳng hợp đồng đó.',
+            'Bảng chia trang 15 hợp đồng/trang: dùng nút "‹ Trước", "Sau ›" hoặc bấm thẳng vào số trang ở dưới bảng. Dòng chữ bên trái cho biết đang xem từ dòng nào đến dòng nào trong tổng số.',
+            'Nếu màn hình hẹp, kéo thanh cuộn ngang dưới bảng để xem các cột bên phải — 2 cột "STT" và "Số HĐ" luôn đứng yên bên trái để bạn biết đang xem hợp đồng nào.',
             'Bấm chuột phải (hoặc ấn giữ trên điện thoại) vào một dòng để "Sao chép thông tin" dán vào chat.',
           ],
         },
