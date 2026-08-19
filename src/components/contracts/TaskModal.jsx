@@ -4,6 +4,7 @@ import { API } from '../../config/api'
 import Modal from '../common/Modal'
 import { PRIORITIES, STATUSES, statusModalClass, resolveTaskStart, dayPart, fmtDate, addDaysISO, todayISO } from './taskUtils'
 import DateInput from './DateInput'
+import { selectableUsers, userLabel } from '../../lib/userStatus'
 
 // ── Task modal (create / edit) ────────────────────────────────────────────────
 
@@ -116,10 +117,14 @@ export default function TaskModal({ task, parentTask = null, departments, users,
     }
   }, [isEdit, task?.id])
 
-  // Filter users by selected department
-  const deptUsers = form.department_id
-    ? users.filter(u => String(u.department_id) === String(form.department_id))
-    : users
+  // Lọc theo phòng ban đang chọn; bỏ người đã nghỉ việc, trừ người đang được giao việc này
+  // (giữ lại để ô chọn không trống và không vô tình xóa mất người phụ trách cũ khi lưu).
+  const deptUsers = selectableUsers(
+    form.department_id
+      ? users.filter(u => String(u.department_id) === String(form.department_id))
+      : users,
+    form.assigned_to,
+  )
 
   // Đang SỬA và người thực hiện đã đổi so với ban đầu → cần ghi lý do (như nút Chuyển việc).
   const assigneeChanged = isEdit && canEditAssignee
@@ -279,7 +284,7 @@ export default function TaskModal({ task, parentTask = null, departments, users,
                   >
                     <option value="">-- Chưa assign --</option>
                     {deptUsers.map(u => (
-                      <option key={u.id} value={u.id}>{u.full_name}</option>
+                      <option key={u.id} value={u.id}>{userLabel(u)}</option>
                     ))}
                   </select>
                   {form.department_id && deptUsers.length === 0 && (

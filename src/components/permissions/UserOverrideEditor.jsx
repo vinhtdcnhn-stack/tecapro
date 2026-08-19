@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { groupPerms, fetchUserOverrides, saveUserOverrides } from './permissionApi'
+import { selectableUsers, userLabel } from '../../lib/userStatus'
 
 // Ghi đè quyền theo từng người dùng: allow (thêm) / deny (thu hồi, thắng allow).
 // Quyền không tick gì = kế thừa từ position. Bao gồm quyền toàn cục (global) LẪN quyền
@@ -44,7 +45,7 @@ export default function UserOverrideEditor({ globalPerms, contractPerms = [], us
       <div style={{ marginBottom: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <select value={userId} onChange={e => pickUser(e.target.value)} style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1' }}>
           <option value="">— Chọn người dùng —</option>
-          {users.map(u => <option key={u.id} value={u.id}>{u.full_name} {u.email ? `(${u.email})` : ''}</option>)}
+          {selectableUsers(users, userId).map(u => <option key={u.id} value={u.id}>{userLabel(u)} {u.email ? `(${u.email})` : ''}</option>)}
         </select>
         {userId && <button className="add-btn" disabled={saving} onClick={save}>{saving ? 'Đang lưu…' : 'Lưu ghi đè'}</button>}
         {msg && <span style={{ color: msg === 'Đã lưu.' ? '#16a34a' : '#dc2626' }}>{msg}</span>}

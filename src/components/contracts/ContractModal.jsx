@@ -4,6 +4,7 @@ import Modal from '../common/Modal'
 import MultiSelect from '../common/MultiSelect'
 import CustomerSelect from '../common/CustomerSelect'
 import DateInput from './DateInput'
+import { selectableUsers, userLabel } from '../../lib/userStatus'
 
 export default function ContractModal({ 
   isOpen, 
@@ -397,7 +398,7 @@ export default function ContractModal({
               <div className="form-group full-width">
                 <label>PM chính</label>
                 <MultiSelect
-                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  options={selectableUsers(users, formData.pm_team).map(u => ({ value: u.id, label: userLabel(u) }))}
                   selectedValues={formData.pm_team}
                   onChange={(selected) => setFormData(prev => ({ ...prev, pm_team: selected }))}
                   placeholder="Chọn PM (người đầu tiên là PM chính)..."
@@ -410,7 +411,7 @@ export default function ContractModal({
               <div className="form-group full-width">
                 <label>Nhân viên kinh doanh (Sale)</label>
                 <MultiSelect
-                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  options={selectableUsers(users, formData.sale_team).map(u => ({ value: u.id, label: userLabel(u) }))}
                   selectedValues={formData.sale_team}
                   onChange={(selected) => handleMultiSelectChange('sale_team', selected)}
                   placeholder="Chọn nhân viên kinh doanh..."
@@ -423,7 +424,7 @@ export default function ContractModal({
               <div className="form-group full-width">
                 <label>Presale</label>
                 <MultiSelect
-                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  options={selectableUsers(users, formData.presale_team).map(u => ({ value: u.id, label: userLabel(u) }))}
                   selectedValues={formData.presale_team}
                   onChange={(selected) => handleMultiSelectChange('presale_team', selected)}
                   placeholder="Chọn presale..."
@@ -436,7 +437,7 @@ export default function ContractModal({
               <div className="form-group full-width">
                 <label>Kỹ thuật triển khai</label>
                 <MultiSelect
-                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  options={selectableUsers(users, formData.technical_team).map(u => ({ value: u.id, label: userLabel(u) }))}
                   selectedValues={formData.technical_team}
                   onChange={(selected) => handleMultiSelectChange('technical_team', selected)}
                   placeholder="Chọn kỹ thuật..."
@@ -449,7 +450,7 @@ export default function ContractModal({
               <div className="form-group full-width">
                 <label>Xuất nhập khẩu</label>
                 <MultiSelect
-                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  options={selectableUsers(users, formData.import_export_team).map(u => ({ value: u.id, label: userLabel(u) }))}
                   selectedValues={formData.import_export_team}
                   onChange={(selected) => handleMultiSelectChange('import_export_team', selected)}
                   placeholder="Chọn nhân sự xuất nhập khẩu..."
@@ -462,7 +463,7 @@ export default function ContractModal({
               <div className="form-group full-width">
                 <label>Kế toán</label>
                 <MultiSelect
-                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  options={selectableUsers(users, formData.accounting_team).map(u => ({ value: u.id, label: userLabel(u) }))}
                   selectedValues={formData.accounting_team}
                   onChange={(selected) => handleMultiSelectChange('accounting_team', selected)}
                   placeholder="Chọn kế toán..."
@@ -475,7 +476,7 @@ export default function ContractModal({
               <div className="form-group full-width">
                 <label>Người theo dõi</label>
                 <MultiSelect
-                  options={users.map(u => ({ value: u.id, label: u.full_name }))}
+                  options={selectableUsers(users, formData.followers).map(u => ({ value: u.id, label: userLabel(u) }))}
                   selectedValues={formData.followers}
                   onChange={(selected) => handleMultiSelectChange('followers', selected)}
                   placeholder="Chọn người theo dõi..."

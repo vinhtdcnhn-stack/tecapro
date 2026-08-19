@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import Modal from '../common/Modal'
+import { isUserActive } from '../../lib/userStatus'
 
 // ── Hộp thoại "Chuyển việc" ──────────────────────────────────────────────────────
 // Người được giao (hoặc PM/admin, người tạo) chọn người khác để CHUYỂN việc cho họ.
@@ -19,13 +20,13 @@ export default function TaskTransferDialog({ task, departments = [], users = [],
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
 
-  // Người nhận: lọc theo phòng ban đã chọn; bỏ chính người đang chuyển và người đang
-  // thực hiện hiện tại (chuyển cho họ là vô nghĩa).
+  // Người nhận: lọc theo phòng ban đã chọn; bỏ chính người đang chuyển, người đang
+  // thực hiện hiện tại (chuyển cho họ là vô nghĩa) và người đã nghỉ việc.
   const candidates = useMemo(() => {
     const uid = Number(currentUser?.id)
     const cur = Number(task?.assigned_to)
     return users.filter(u =>
-      Number(u.id) !== uid && Number(u.id) !== cur &&
+      Number(u.id) !== uid && Number(u.id) !== cur && isUserActive(u) &&
       (!deptId || String(u.department_id) === String(deptId))
     )
   }, [users, deptId, currentUser, task])

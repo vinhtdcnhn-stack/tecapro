@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Modal from '../common/Modal'
 import DateInput from '../contracts/DateInput'
 import { API } from '../../config/api'
+import { selectableUsers, userLabel } from '../../lib/userStatus'
 
 // Tạo / sửa một đầu việc trong checklist. Phòng ban + người phụ trách lấy từ HR.
 export default function ChecklistItemModal({ tenderId, item, parentId, onClose, onSaved }) {
@@ -34,10 +35,14 @@ export default function ChecklistItemModal({ tenderId, item, parentId, onClose, 
     })
   }
 
-  // Chỉ hiện nhân sự thuộc phòng ban đã chọn (chưa chọn phòng ban thì hiện tất cả).
-  const assigneeOptions = form.department_id
-    ? users.filter(u => String(u.department_id) === String(form.department_id))
-    : users
+  // Chỉ hiện nhân sự thuộc phòng ban đã chọn (chưa chọn phòng ban thì hiện tất cả); bỏ người
+  // đã nghỉ việc, trừ người đang phụ trách đầu việc này.
+  const assigneeOptions = selectableUsers(
+    form.department_id
+      ? users.filter(u => String(u.department_id) === String(form.department_id))
+      : users,
+    form.assignee_id,
+  )
 
   async function handleSave() {
     if (!form.title.trim()) { setErr('Tên đầu việc không được để trống.'); return }
@@ -82,7 +87,7 @@ export default function ChecklistItemModal({ tenderId, item, parentId, onClose, 
           <label className="field"><span>Người phụ trách</span>
             <select value={form.assignee_id} onChange={set('assignee_id')}>
               <option value="">—</option>
-              {assigneeOptions.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              {assigneeOptions.map(u => <option key={u.id} value={u.id}>{userLabel(u)}</option>)}
             </select></label>
           <label className="field"><span>Hạn</span>
             <DateInput value={form.due_date} onChange={set('due_date')} /></label>

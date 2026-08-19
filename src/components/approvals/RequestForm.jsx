@@ -3,6 +3,7 @@ import { API } from '../../config/api'
 import Modal from '../common/Modal'
 import MultiSelect from '../common/MultiSelect'
 import DynamicFields from './DynamicFields'
+import { isUserActive } from '../../lib/userStatus'
 
 // Tạo mới hoặc sửa đơn nháp. Khi tạo: chọn loại đơn → render trường động.
 // onDone(action) gọi sau khi lưu/gửi thành công để cha refresh ('saved' | 'submitted').
@@ -20,7 +21,8 @@ export default function RequestForm({ existing, onClose, onDone }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const userOptions = users.map(u => ({
+  // Chọn người DUYỆT là việc sắp tới → không đưa người đã nghỉ việc vào danh sách.
+  const userOptions = users.filter(isUserActive).map(u => ({
     value: String(u.id), label: u.full_name || u.email || `#${u.id}`, search: u.email || '', hint: u.email || '',
   }))
 

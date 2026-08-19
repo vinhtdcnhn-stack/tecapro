@@ -68,6 +68,8 @@ export default function QuantriPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
+  // Mặc định chỉ xem nhân sự ĐANG LÀM VIỆC; người đã nghỉ vẫn tra được khi cần (không xóa).
+  const [statusFilter, setStatusFilter] = useState('active')
   const [customerSearchTerm, setCustomerSearchTerm] = useState('')
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('')
 
@@ -122,7 +124,7 @@ export default function QuantriPage() {
       const data   = await res.json()
       if (!res.ok) { alert(data.error || (isEdit ? 'Cập nhật thất bại!' : 'Thêm mới thất bại!')); return }
       alert(isEdit ? 'Cập nhật thành công!' : 'Thêm mới thành công!')
-      invalidate(qk.users)
+      invalidate(qk.users); invalidate(qk.managers)
       setShowAddModal(false); setShowEditModal(false); setEditingUserId(null)
     } catch { alert('Có lỗi xảy ra.') }
   }
@@ -235,6 +237,15 @@ export default function QuantriPage() {
                     <option value="admin">Admin</option>
                     <option value="user">User</option>
                   </select>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px', minWidth: '160px' }}
+                  >
+                    <option value="active">Đang làm việc</option>
+                    <option value="inactive">Đã nghỉ việc</option>
+                    <option value="">Tất cả trạng thái</option>
+                  </select>
                   <div style={{ maxWidth: '300px' }}>
                     <input
                       type="text"
@@ -246,7 +257,7 @@ export default function QuantriPage() {
                   </div>
                 </div>
               </div>
-              <UserTable users={users} searchTerm={searchTerm} departmentFilter={departmentFilter} roleFilter={roleFilter} userRole={canManage ? 1 : 0} onEdit={(u) => { setEditingUserId(u.id); setShowEditModal(true) }} />
+              <UserTable users={users} searchTerm={searchTerm} departmentFilter={departmentFilter} roleFilter={roleFilter} statusFilter={statusFilter} userRole={canManage ? 1 : 0} onEdit={(u) => { setEditingUserId(u.id); setShowEditModal(true) }} />
               <UserModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleSaveUser} departments={departments} positions={positions} managers={managers} checkEmailExists={checkEmailExists} checkUsernameExists={checkUsernameExists} checkEmployeeCodeExists={checkEmployeeCodeExists} />
               <UserModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setEditingUserId(null) }} onSave={handleSaveUser} user={users.find(u => u.id === editingUserId)} departments={departments} positions={positions} managers={managers} checkEmailExists={checkEmailExists} checkUsernameExists={checkUsernameExists} checkEmployeeCodeExists={checkEmployeeCodeExists} />
             </>

@@ -13,13 +13,26 @@ export const ADMIN_GROUP = {
         {
           heading: 'Màn hình thể hiện gì & cách dùng',
           items: [
-            'Danh sách tài khoản: họ tên, email, phòng ban, chức danh, vai trò (quản trị hay thường).',
+            'Danh sách tài khoản: họ tên, email, phòng ban, chức danh, vai trò (quản trị hay thường) và TRẠNG THÁI làm việc.',
             'Thêm người mới: bấm thêm, nhập họ tên + email + mật khẩu ban đầu, gán phòng ban và chức danh.',
             'Sửa nhanh: NHẤN ĐÚP (double click) vào một dòng để mở ngay cửa sổ sửa người đó — không cần bấm nút "Sửa".',
             'Một người có thể giữ NHIỀU chức danh cùng lúc (ví dụ vừa Trưởng phòng vừa PM).',
             'Một người có thể thuộc NHIỀU ban: chọn "Phòng ban" là phòng CHÍNH, rồi tích thêm ở ô "Ban kiêm nhiệm" nếu người đó còn thuộc ban khác. Trong danh sách người dùng, cột "Phòng ban" hiện phòng chính kèm chú thích "+ kiêm nhiệm ...".',
             'Ban kiêm nhiệm CHỈ dùng để CẤP QUYỀN: người đó nhận thêm các quyền được cấp trực tiếp cho ban kia. LƯU Ý: nếu là Trưởng/Phó ban thì chỉ kế thừa quyền thành viên của PHÒNG CHÍNH — các ban kiêm nhiệm KHÔNG kế thừa quyền thành viên. Riêng các module theo phòng (Công việc phòng, Dashboard phòng, Đấu thầu) vẫn tính theo phòng CHÍNH.',
             'Muốn người dùng nhận thông báo Telegram: điền mã Telegram (chat id) vào hồ sơ của họ.',
+          ],
+        },
+        {
+          heading: 'Nhân sự NGHỈ VIỆC — chuyển trạng thái, KHÔNG xóa tài khoản',
+          items: [
+            'Khi một người nghỉ việc, TUYỆT ĐỐI không xóa tài khoản của họ: tên họ đang gắn với rất nhiều dữ liệu quá khứ (hợp đồng, công việc, biên bản, nhật ký thay đổi...). Xóa đi là mất dấu vết, không tra lại được ai đã làm việc gì.',
+            'Cách làm đúng: mở cửa sổ sửa người đó (bấm "Sửa" hoặc nhấn đúp vào dòng) → ô "Trạng thái làm việc" → chọn "Đã nghỉ việc (ngừng hoạt động)" → bấm "Cập nhật". Phần mềm sẽ hỏi lại một lần cho chắc.',
+            'Sau khi chuyển sang "Đã nghỉ việc": người đó bị ĐĂNG XUẤT NGAY (kể cả đang mở máy) và không đăng nhập lại được nữa — nếu cố đăng nhập sẽ báo "Tài khoản đã ngừng hoạt động".',
+            'Họ cũng KHÔNG còn hiện ra trong các ô chọn người khi giao việc mới, thêm thành viên hợp đồng, chọn người duyệt, chọn quản lý trực tiếp...',
+            'Nhưng toàn bộ dữ liệu cũ vẫn nguyên vẹn: các hợp đồng/công việc họ đang được gán vẫn hiện tên họ, kèm chú thích "(đã nghỉ)" để bạn biết mà chuyển việc cho người khác.',
+            'Bộ lọc trạng thái ở đầu danh sách mặc định là "Đang làm việc" — muốn xem lại người đã nghỉ thì đổi sang "Đã nghỉ việc" hoặc "Tất cả trạng thái". Dòng người đã nghỉ hiện mờ và có nhãn đỏ "Đã nghỉ việc".',
+            'Nếu người đó quay lại làm việc: chỉ cần mở sửa và chọn lại "Đang làm việc" — tài khoản dùng bình thường như cũ (mật khẩu cũ vẫn dùng được).',
+            'Bạn KHÔNG thể tự chuyển tài khoản của CHÍNH MÌNH sang "Đã nghỉ việc" (để tránh tự khóa mình ra ngoài) — hãy nhờ một quản trị viên khác làm.',
           ],
         },
       ],

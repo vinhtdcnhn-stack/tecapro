@@ -27,7 +27,8 @@ function readToken(req) {
 // Bắt buộc đã đăng nhập. Gắn req.user = { id, role } lấy từ token đã xác thực.
 // Đối chiếu DB mỗi request: role lấy giá trị MỚI NHẤT (đổi quyền có hiệu lực ngay,
 // không chờ token hết hạn), token_version phải khớp claim `tv` (đổi mật khẩu bump
-// version → mọi token cũ bị từ chối). Token cũ chưa có `tv` được coi là 0.
+// version → mọi token cũ bị từ chối). Token cũ chưa có `tv` được coi là 0. Tài khoản bị
+// khóa (is_active = false) cũng bị chặn ngay tại đây, không chờ token hết hạn.
 export async function requireAuth(req, res, next) {
   const payload = verifyToken(readToken(req))
   if (!payload) {
@@ -37,7 +38,7 @@ export async function requireAuth(req, res, next) {
   let rows
   try {
     ({ rows } = await pool.query(
-      'SELECT role, token_version FROM app_user WHERE id = $1',
+      'SELECT role, token_version, is_active FROM app_user WHERE id = $1',
       [payload.uid],
     ))
   } catch (err) {
@@ -49,6 +50,12 @@ export async function requireAuth(req, res, next) {
   const user = rows[0]
   if (!user || Number(payload.tv ?? 0) !== Number(user.token_version)) {
     res.status(401).json({ error: 'Phiên không còn hiệu lực. Vui lòng đăng nhập lại.' })
+    return
+  }
+  // Nhân sự đã nghỉ việc (is_active = false): KHÔNG xóa tài khoản (dữ liệu quá khứ vẫn phải
+  // truy được), nhưng phiên đang mở phải rụng ngay ở request kế tiếp.
+  if (user.is_active === false) {
+    res.status(401).json({ error: 'Tài khoản đã ngừng hoạt động. Vui lòng liên hệ quản trị viên.' })
     return
   }
   req.user = { id: payload.uid, role: user.role }

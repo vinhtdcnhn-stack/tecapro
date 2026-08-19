@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Modal from '../common/Modal'
 import { API_BASE } from '../../config/api'
+import { selectableUsers, userLabel } from '../../lib/userStatus'
 
 export default function UserModal({
   isOpen, 
@@ -28,7 +29,8 @@ export default function UserModal({
     position_ids: [],
     manager_id: '',
     role: '2',
-    telegram_chat_id: ''
+    telegram_chat_id: '',
+    is_active: true
   })
 
   const [errors, setErrors] = useState({
@@ -85,7 +87,8 @@ export default function UserModal({
         position_ids: Array.isArray(user.positions) ? user.positions.map(p => p.id) : [],
         manager_id: user.manager_id || '',
         role: String(user.role),
-        telegram_chat_id: user.telegram_chat_id || ''
+        telegram_chat_id: user.telegram_chat_id || '',
+        is_active: user.is_active !== false
       })
       setErrors({ email: '', username: '', employee_code: '' })
     } else {
@@ -106,7 +109,8 @@ export default function UserModal({
       position_ids: [],
       manager_id: '',
       role: '2',
-      telegram_chat_id: ''
+      telegram_chat_id: '',
+      is_active: true
     })
     setErrors({ email: '', username: '', employee_code: '' })
   }
@@ -149,6 +153,16 @@ export default function UserModal({
         alert(`Vui lòng nhập ${field === 'username' ? 'tên đăng nhập' : field === 'email' ? 'email' : 'mật khẩu'}!`)
         return
       }
+    }
+
+    if (isEdit && user?.is_active !== false && formData.is_active === false) {
+      const ok = window.confirm(
+        `Chuyển "${formData.full_name || formData.username}" sang ĐÃ NGHỈ VIỆC?\n\n`
+        + '• Tài khoản sẽ bị đăng xuất ngay và không đăng nhập lại được.\n'
+        + '• Không còn hiện trong các ô chọn người để giao việc mới.\n'
+        + '• Dữ liệu cũ vẫn giữ nguyên — có thể bật lại bất cứ lúc nào.'
+      )
+      if (!ok) return
     }
 
     await onSave(formData, isEdit)
@@ -232,8 +246,8 @@ export default function UserModal({
               onChange={(e) => updateField('manager_id', e.target.value)}
             >
               <option value="">Chọn quản lý</option>
-              {managers.map(m => (
-                <option key={m.id} value={m.id}>{m.full_name}</option>
+              {selectableUsers(managers, formData.manager_id).map(m => (
+                <option key={m.id} value={m.id}>{userLabel(m)}</option>
               ))}
             </select>
           </div>
@@ -305,6 +319,22 @@ export default function UserModal({
               <option value="1">Admin</option>
               <option value="2">User</option>
             </select>
+          </div>
+
+          <div className="field">
+            <label>Trạng thái làm việc</label>
+            <select
+              value={formData.is_active ? 'active' : 'inactive'}
+              onChange={(e) => updateField('is_active', e.target.value === 'active')}
+            >
+              <option value="active">Đang làm việc</option>
+              <option value="inactive">Đã nghỉ việc (ngừng hoạt động)</option>
+            </select>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#6b7280' }}>
+              Nhân sự nghỉ việc hãy chuyển sang <b>Đã nghỉ việc</b> thay vì xóa tài khoản: người
+              đó không đăng nhập được nữa và không hiện ra khi giao việc mới, nhưng toàn bộ dữ
+              liệu cũ (hợp đồng, công việc, biên bản…) vẫn giữ nguyên tên họ.
+            </p>
           </div>
 
           <div className="field">

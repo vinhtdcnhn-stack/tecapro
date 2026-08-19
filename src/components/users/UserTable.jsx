@@ -1,9 +1,13 @@
 import useIsMobile from '../contracts/useIsMobile'
 import MobileCardList from '../common/MobileCardList'
+import { isUserActive } from '../../lib/userStatus'
 
-export default function UserTable({ users, searchTerm, departmentFilter, roleFilter, userRole, onEdit }) {
+export default function UserTable({ users, searchTerm, departmentFilter, roleFilter, statusFilter, userRole, onEdit }) {
   const isMobile = useIsMobile()
   const filteredUsers = users.filter(u => {
+    // statusFilter: '' = tất cả | 'active' = đang làm việc | 'inactive' = đã nghỉ việc
+    if (statusFilter === 'active' && !isUserActive(u)) return false
+    if (statusFilter === 'inactive' && isUserActive(u)) return false
     if (departmentFilter) {
       // Khớp cả phòng CHÍNH lẫn ban KIÊM NHIỆM — lọc "Ban X" ra cả người kiêm nhiệm Ban X.
       const inPrimary = String(u.department_id) === String(departmentFilter)
@@ -42,6 +46,7 @@ export default function UserTable({ users, searchTerm, departmentFilter, roleFil
           Number(u.role) === 1
             ? { text: 'Admin', cls: 'is-admin' }
             : { text: 'User', cls: 'is-muted' },
+          ...(isUserActive(u) ? [] : [{ text: 'Đã nghỉ việc', cls: 'is-muted' }]),
         ]}
         meta={(u) => [
           `${u.department_name || '-'}${extraDeptText(u)}`,
@@ -63,6 +68,7 @@ export default function UserTable({ users, searchTerm, departmentFilter, roleFil
             <th>Số điện thoại</th>
             <th>Telegram ID</th>
             <th>Vai trò</th>
+            <th>Trạng thái</th>
             <th>Quản lý trực tiếp</th>
             <th>Hành động</th>
           </tr>
@@ -70,7 +76,7 @@ export default function UserTable({ users, searchTerm, departmentFilter, roleFil
         <tbody>
           {filteredUsers.length === 0 ? (
             <tr>
-              <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+              <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                 Không tìm thấy kết quả nào phù hợp.
               </td>
             </tr>
@@ -79,7 +85,12 @@ export default function UserTable({ users, searchTerm, departmentFilter, roleFil
               <tr
                 key={u.id}
                 onDoubleClick={userRole == 1 ? () => onEdit(u) : undefined}
-                style={userRole == 1 ? { cursor: 'pointer' } : undefined}
+                // Người đã nghỉ vẫn nằm trong danh sách (dữ liệu cũ tham chiếu tới họ) nhưng
+                // làm mờ để không lẫn với nhân sự đang làm việc.
+                style={{
+                  ...(userRole == 1 ? { cursor: 'pointer' } : null),
+                  ...(isUserActive(u) ? null : { opacity: 0.55, background: '#f9fafb' }),
+                }}
                 title={userRole == 1 ? 'Nhấn đúp để sửa' : undefined}
               >
                 <td>{u.full_name}</td>
@@ -97,6 +108,15 @@ export default function UserTable({ users, searchTerm, departmentFilter, roleFil
                 <td>{u.phone || '-'}</td>
                 <td>{u.telegram_chat_id || '-'}</td>
                 <td>{Number(u.role) === 1 ? 'Admin' : 'User'}</td>
+                <td>
+                  {isUserActive(u) ? (
+                    <span style={{ color: '#047857' }}>Đang làm việc</span>
+                  ) : (
+                    <span style={{ color: '#b91c1c', fontWeight: 600 }} title="Không đăng nhập được, không hiện khi giao việc mới">
+                      Đã nghỉ việc
+                    </span>
+                  )}
+                </td>
                 <td>{u.manager_name || '-'}</td>
                 <td>
                   {userRole == 1 && (

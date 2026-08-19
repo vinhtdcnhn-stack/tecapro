@@ -5,6 +5,7 @@ import NumberInput from '../common/NumberInput'
 import CustomerSelect from '../common/CustomerSelect'
 import { API } from '../../config/api'
 import { FIELDS, RESULTS, CURRENCIES, BID_STATUSES } from './tenderUtils'
+import { selectableUsers, userLabel } from '../../lib/userStatus'
 
 // Form tạo / sửa gói thầu (16 trường của bảng theo dõi). Trưởng phòng (isHead) phân
 // công Người làm thầu & AM ngay tại form này; thành viên thường không thấy 2 trường đó.
@@ -137,14 +138,14 @@ export default function TenderModal({ tender, members = [], isHead = false, onCl
             <label className="field"><span>Người làm thầu</span>
               <select value={bidMaker} onChange={e => setBidMaker(e.target.value)}>
                 <option value="">— Chưa giao —</option>
-                {bidList.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                {selectableUsers(bidList, bidMaker).map(u => <option key={u.id} value={u.id}>{userLabel(u)}</option>)}
               </select></label>
           )}
           {isHead && (
             <label className="field"><span>AM phụ trách</span>
               <select value={am} onChange={e => setAm(e.target.value)}>
                 <option value="">— Không —</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                {selectableUsers(users, am).map(u => <option key={u.id} value={u.id}>{userLabel(u)}</option>)}
               </select></label>
           )}
           <label className="field"><span>Trạng thái</span>

@@ -2,6 +2,7 @@ import { Field } from '../contracts/MobileEditSheet'
 import DateInput from '../contracts/DateInput'
 import NumberInput from '../common/NumberInput'
 import { curLabel } from './approvalUtils'
+import { selectableUsers, userLabel } from '../../lib/userStatus'
 
 // Render các trường của đơn theo định nghĩa form (chế độ nhập liệu).
 // values: object keyed theo field_key. onChange(field_key, value).
@@ -112,7 +113,7 @@ function renderControl(f, v, set, users, fileCtx) {
       return (
         <select className="ab-input" value={v || ''} onChange={e => set(e.target.value)}>
           <option value="">— Chọn nhân viên —</option>
-          {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name || u.email}</option>)}
+          {selectableUsers(users, v).map(u => <option key={u.id} value={String(u.id)}>{userLabel(u, u.email)}</option>)}
         </select>
       )
     case 'file':

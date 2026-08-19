@@ -45,7 +45,7 @@ export async function getUserOptions(req, res) {
     if (await lookupNotModified(req, res, 'approval-users')) return
     const rows = await cacheWrap(lookupKey('approval-users'), FORMS_TTL, async () => {
       const { rows } = await pool.query(
-        `SELECT id, full_name, email FROM app_user ORDER BY full_name, id`
+        `SELECT id, full_name, email, is_active FROM app_user ORDER BY full_name, id`
       )
       return rows
     })
