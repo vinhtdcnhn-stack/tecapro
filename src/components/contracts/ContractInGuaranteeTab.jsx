@@ -11,6 +11,7 @@ import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
+import { daysUntil } from '../../lib/dateOnly'
 
 // Bảo lãnh HĐ mua luôn tính bằng VNĐ: bỏ phần thập phân, giữ phân cách hàng nghìn.
 const dispAmount = (amt) => {
@@ -33,11 +34,6 @@ const fmtVND  = (n) => { const num = parseFloat(n) || 0; return new Intl.NumberF
 
 let _ctr = 0
 const tmpId = () => `tmp_${++_ctr}`
-
-function daysUntil(dateStr) {
-  if (!dateStr) return null
-  return Math.ceil((new Date(dateStr) - new Date(new Date().toDateString())) / 86400000)
-}
 
 function autoStatus(expiry_date, manualStatus) {
   if (manualStatus === 'Đã hoàn trả') return manualStatus

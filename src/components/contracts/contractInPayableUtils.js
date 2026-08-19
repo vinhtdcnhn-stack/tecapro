@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
 import { withStamp, handledConflict } from './conflict'
+import { daysUntil, daysBetween } from '../../lib/dateOnly'
 
 // Hằng số & helper dùng chung cho tab "Phải trả / Thanh toán" của hợp đồng nhập.
 
@@ -19,9 +20,37 @@ export function calcVND(amount, rate, currency) {
   return currency === 'VND' ? a : a * r
 }
 
-export function isOverdue(dueDate) {
-  if (!dueDate) return false
-  return new Date(dueDate) < new Date(new Date().toDateString())
+// Trạng thái + màu của một KHOẢN PHẢI TRẢ, dựa vào tiến độ trả thực tế & thời hạn.
+// Đối xứng với receivableStatus của công nợ HĐ bán:
+//  - Còn thiếu <= 0 (đã trả đủ): so thời hạn trả với NGÀY TRẢ gần nhất (trả sau hạn → trễ).
+//  - Còn thiếu  > 0 (chưa đủ):   so thời hạn trả với NGÀY HIỆN TẠI.
+// So sánh trên GIÁ TRỊ GỐC (nguyên tệ của khoản), không dựa vào quy đổi VNĐ.
+export function payableStatus(row, linkedPayments = []) {
+  const dueAmt = parseFloat(row.amount) || 0
+  if (dueAmt <= 0) return null
+
+  const paid     = linkedPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+  const shortage = dueAmt - paid
+  const dueStr   = row.due_date || null
+  const left     = dueStr ? daysUntil(dueStr) : null   // âm = đã qua hạn
+
+  if (shortage <= 0) {
+    const dates  = linkedPayments.map(p => p.payment_date).filter(Boolean).sort()
+    const latest = dates.length ? dates[dates.length - 1] : null
+    const late   = (dueStr && latest) ? daysBetween(dueStr, latest) : 0
+    if (late > 0)
+      return { key: 'paid-late', label: `Đã trả đủ · trễ ${late} ngày`, color: 'amber' }
+    return { key: 'paid', label: 'Đã trả đủ', color: 'green' }
+  }
+
+  if (left !== null && left < 0) {
+    const days = -left
+    return paid > 0
+      ? { key: 'overdue-partial', label: `Quá hạn ${days} ngày · trả một phần`, color: 'red' }
+      : { key: 'overdue', label: `Quá hạn ${days} ngày`, color: 'red' }
+  }
+  if (paid > 0) return { key: 'partial', label: 'Đang trả', color: 'blue' }
+  return { key: 'pending', label: 'Chưa đến hạn', color: 'gray' }
 }
 
 let _ctr = 0

@@ -1,14 +1,14 @@
 // Shared constants & helpers for the task tab and its sub-components.
+import { daysUntil } from '../../lib/dateOnly'
 
 export const PRIORITIES = ['Thấp', 'Bình thường', 'Cao', 'Khẩn']
 export const STATUSES   = ['Chờ xử lý', 'Đang thực hiện', 'Hoàn thành', 'Hủy']
 
 export const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 
-export function daysUntil(dateStr) {
-  if (!dateStr) return null
-  return Math.ceil((new Date(dateStr) - new Date(new Date().toDateString())) / 86400000)
-}
+// daysUntil/todayISO dùng bản chung ở lib/dateOnly (tính theo ngày lịch máy, không lệch
+// múi giờ như new Date('yyyy-mm-dd') — vốn được hiểu là nửa đêm UTC).
+export { daysUntil, todayISO } from '../../lib/dateOnly'
 
 export function isOverdue(task) {
   if (!task.due_date || task.status === 'Hoàn thành' || task.status === 'Hủy') return false
@@ -222,8 +222,6 @@ export function diffDays(aISO, bISO) {
   const [by, bm, bd] = bISO.slice(0, 10).split('-').map(Number)
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000)
 }
-
-export const todayISO = () => addDaysISO(new Date().toISOString().slice(0, 10), 0)
 
 // Ngày "hoàn thành" của một bước trước (để bước sau tính ngày bắt đầu):
 // việc đã Hoàn thành → completed_at (thực tế); ngược lại → due_date (dự kiến).

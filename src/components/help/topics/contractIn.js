@@ -149,6 +149,17 @@ export const CONTRACT_IN_GROUP = {
           ],
         },
         {
+          heading: 'Nhãn trạng thái dưới ô "Thời hạn trả"',
+          items: [
+            'Nhãn được tính theo SỐ TIỀN ĐÃ TRẢ THỰC TẾ của chính khoản đó, không chỉ nhìn ngày hạn.',
+            '"Chưa đến hạn" (xám): chưa trả đồng nào và vẫn còn trong hạn.',
+            '"Đang trả" (xanh dương): đã trả một phần, vẫn còn trong hạn.',
+            '"Quá hạn N ngày" (đỏ): quá ngày hạn mà vẫn còn thiếu tiền — kèm chữ "trả một phần" nếu đã trả được một ít. Lúc này ô "Nguyên nhân trượt" viền đỏ nhắc nhập lý do.',
+            '"Đã trả đủ" (xanh lá): tổng các đợt thanh toán đã bằng hoặc vượt giá trị khoản — khoản này KHÔNG còn bị coi là quá hạn nữa, dù ngày hạn đã trôi qua.',
+            '"Đã trả đủ · trễ N ngày" (vàng): đã trả đủ nhưng đợt trả cuối cùng rơi sau ngày hạn — ghi nhận là trả chậm để theo dõi, không phải nợ.',
+          ],
+        },
+        {
           heading: 'Cách thao tác',
           items: [
             'Bước 1 — Thêm khoản: bấm "Thêm khoản" ở góc phải, nhập mô tả điều kiện thanh toán (VD "30% tạm ứng khi ký"), phương thức, đồng tiền, giá trị, hạn trả, rồi lưu dòng.',

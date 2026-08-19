@@ -1,9 +1,12 @@
 // Helpers dùng chung cho bảng theo dõi mốc/công việc (PMDashboard & AssigneeDashboard).
+import { todayISO } from '../lib/dateOnly'
 
 // Chỉ hiển thị mốc đến hạn trong vòng N ngày tới (mốc quá hạn vẫn luôn hiện)
 export const WINDOW_DAYS = 30
 
-export const todayISO = () => new Date(new Date().toDateString()).toISOString().slice(0, 10)
+// todayISO lấy từ lib/dateOnly: bản cũ đi qua toISOString() nên ở múi giờ VN trả về
+// NGÀY HÔM QUA, làm mọi mốc trên bảng theo dõi trễ mất một ngày.
+export { todayISO } from '../lib/dateOnly'
 export const addDays = (isoDate, n) => { const d = new Date(isoDate); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
 export const daysBetween = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000) // a - b
 export const fmtVnd = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(parseFloat(n) || 0))

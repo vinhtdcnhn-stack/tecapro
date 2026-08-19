@@ -1,4 +1,5 @@
 // Shared constants, formatters & style helpers for the supplier-warranty tab.
+import { daysUntil } from '../../lib/dateOnly'
 
 export const CLAIM_STATUSES = ['Tiếp nhận', 'Đang xử lý', 'Đã giải quyết', 'Từ chối']
 
@@ -19,7 +20,7 @@ export function claimStatusStyle(s) {
 
 export function warrantyExpiry(row) {
   if (!row.warranty_end) return null
-  const daysLeft = Math.ceil((new Date(row.warranty_end) - new Date()) / 86400000)
+  const daysLeft = daysUntil(row.warranty_end)
   if (daysLeft < 0)   return { label: 'Hết hạn', bg: '#fee2e2', color: '#b91c1c' }
   if (daysLeft <= 30) return { label: `Còn ${daysLeft} ngày`, bg: '#fef9c3', color: '#a16207' }
   return { label: `Còn ${daysLeft} ngày`, bg: '#dcfce7', color: '#15803d' }

@@ -1,4 +1,5 @@
 // Shared constants & helpers for the warranty tab and its sub-components.
+import { daysUntil } from '../../lib/dateOnly'
 
 export const CASE_STATUSES   = ['Tiếp nhận', 'Đang xử lý', 'Chờ phụ kiện', 'Hoàn thành', 'Đóng']
 export const PRIORITIES      = ['Thấp', 'Bình thường', 'Cao', 'Khẩn']
@@ -33,7 +34,7 @@ export function toISODate(val) {
 
 export function warrantyStatus(to) {
   if (!to) return { label: 'Không xác định', cls: 'wty-badge--none' }
-  const days = Math.ceil((new Date(to) - new Date(new Date().toDateString())) / 86400000)
+  const days = daysUntil(to)
   if (days < 0)  return { label: 'Hết bảo hành', cls: 'wty-badge--expired' }
   if (days <= 30) return { label: `Còn ${days} ngày`, cls: 'wty-badge--expiring' }
   return { label: 'Còn bảo hành', cls: 'wty-badge--active' }
@@ -60,7 +61,7 @@ export function flattenSerials(equipment) {
 
 // Thống kê theo TỪNG serial; thiết bị không có serial tính là 1 đơn vị theo hạn của thiết bị.
 export function warrantyCounts(equipment) {
-  const today = new Date(new Date().toDateString())
+
   const tos = []
   for (const eq of equipment) {
     const serials = eq.serials || []
@@ -70,7 +71,7 @@ export function warrantyCounts(equipment) {
   let expiring = 0, expired = 0
   for (const to of tos) {
     if (!to) continue
-    const days = Math.ceil((new Date(to) - today) / 86400000)
+    const days = daysUntil(to)
     if (days < 0) expired++
     else if (days <= 30) expiring++
   }

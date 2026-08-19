@@ -119,6 +119,9 @@ export const CONTRACTS_FINANCE_PAGES = [
           'Theo dõi các thư BẢO LÃNH NGÂN HÀNG của hợp đồng: bảo lãnh thực hiện hợp đồng, bảo lãnh tạm ứng, bảo lãnh bảo hành...',
           'Mỗi dòng: loại bảo lãnh, giá trị, % so với GTHĐ (giá trị hợp đồng sau VAT), ngày phát hành, ngày HẾT HẠN.',
           'Theo dõi ngày hết hạn để kịp gia hạn hoặc lấy lại bảo lãnh — tránh bị ngân hàng tự động gia hạn tốn phí.',
+          'Nhãn màu bên cạnh ô trạng thái là TỰ TÍNH theo ngày hết hạn, không phải ô trạng thái bạn chọn: "Còn hiệu lực" (còn trên 30 ngày), "Sắp hết hạn" (còn 30 ngày trở xuống, kèm dòng "Còn N ngày"), "Đã hết hạn" (đã qua ngày hết hạn, kèm "Quá hạn N ngày"). Riêng thư đã chọn "Đã hoàn trả" thì giữ nguyên, không tính theo ngày nữa.',
+          'Ngày hết hạn tính theo NGÀY LỊCH: đúng ngày hết hạn vẫn là "Sắp hết hạn · Còn 0 ngày", sang ngày hôm sau mới chuyển thành "Đã hết hạn".',
+          '4 ô thống kê phía trên (Còn hiệu lực / Sắp hết hạn / Đã hết hạn) đếm theo chính nhãn tự tính này nên luôn khớp với các dòng bên dưới.',
         ],
       },
       {

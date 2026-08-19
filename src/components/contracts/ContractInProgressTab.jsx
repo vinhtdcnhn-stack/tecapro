@@ -10,6 +10,7 @@ import { auditRowAttrs } from '../common/rowAudit'
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
 import { withStamp, handledConflict } from './conflict'
+import { todayISO } from '../../lib/dateOnly'
 
 function dateDiff(planned, actual) {
   if (!planned || !actual) return null
@@ -19,7 +20,7 @@ function dateDiff(planned, actual) {
 function getStatusInfo(planned, actual) {
   if (!actual) {
     if (!planned) return { type: 'unknown', label: '—' }
-    const daysLeft = dateDiff(new Date().toISOString().slice(0,10), planned)
+    const daysLeft = dateDiff(todayISO(), planned)
     if (daysLeft < 0) return { type: 'overdue', label: `Quá hạn ${Math.abs(daysLeft)} ngày` }
     return { type: 'pending', label: 'Chưa hoàn thành' }
   }

@@ -3,14 +3,14 @@ import { API } from '../../config/api'
 import DateInput, { isoToDisplay } from './DateInput'
 import MobileEditSheet, { Field } from './MobileEditSheet'
 import { auditRowAttrs } from '../common/rowAudit'
-import { tmpId, paymentsOf, savePaymentRow } from './contractInPayableUtils'
+import { tmpId, paymentsOf, payableStatus, savePaymentRow } from './contractInPayableUtils'
 
 // Mobile cho tab Phải trả (HĐ nhập): thẻ từng khoản phải trả, chạm để mở sheet sửa khoản
 // + quản lý các ĐỢT THANH TOÁN của chính khoản đó. Section "chưa gắn khoản" dùng
 // PaymentSectionMobile bên dưới. Tái dùng set/saveRow/deleteRow/addRow của từng section.
 
 export function PayableSectionMobile({
-  rows, set, saveRow, deleteRow, addRow, currencies, methods, calcVND, fmtVND, isOverdue, showAmounts = true,
+  rows, set, saveRow, deleteRow, addRow, currencies, methods, calcVND, fmtVND, showAmounts = true,
   payRows = [], setPayRows, contractInId, reloadPayments,
 }) {
   const [key, setKey] = useState(null)
@@ -51,8 +51,8 @@ export function PayableSectionMobile({
     <div className="mcards">
       {rows.map((row, i) => {
         const cur = row.currency_code || 'VND'
-        const overdue = isOverdue(row.due_date) && !row._isNew
         const linked = paymentsOf(payRows, row)
+        const status = row._isNew ? null : payableStatus(row, linked)
         return (
           <div key={row._key} {...auditRowAttrs('contract_in_payable', row.id)} className={`mcard ${row._dirty ? 'mcard--dirty' : ''}`} onClick={() => setKey(row._key)}>
             <div className="mcard-head">
@@ -62,7 +62,7 @@ export function PayableSectionMobile({
             </div>
             <div className="mcard-meta">
               <span>Hạn trả: {isoToDisplay(row.due_date?.slice(0, 10)) || '—'}</span>
-              {overdue && <span style={{ color: '#b91c1c', fontWeight: 700 }}>Quá hạn</span>}
+              {status && <span className={`recv-status recv-status--${status.color}`}>{status.label}</span>}
               <span>Đã trả {linked.length} đợt</span>
             </div>
           </div>

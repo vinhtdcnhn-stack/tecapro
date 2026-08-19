@@ -6,7 +6,7 @@ import useIsMobile from './useIsMobile'
 import RowActions from './ReceivableRowActions'
 import { PayableSectionMobile } from './PayableMobile'
 import ContractInLinkedPayments from './ContractInLinkedPayments'
-import { CURRENCIES, PAYMENT_METHODS, fmtVND, calcVND, isOverdue, tmpId, savePaymentRow } from './contractInPayableUtils'
+import { CURRENCIES, PAYMENT_METHODS, fmtVND, calcVND, payableStatus, paymentsOf, tmpId, savePaymentRow } from './contractInPayableUtils'
 import { auditRowAttrs } from '../common/rowAudit'
 import { withStamp, handledConflict } from './conflict'
 
@@ -104,7 +104,7 @@ export default function PayableSection({
       {isMobile ? (
         <PayableSectionMobile
           rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
-          currencies={CURRENCIES} methods={PAYMENT_METHODS} calcVND={calcVND} fmtVND={fmtVND} isOverdue={isOverdue}
+          currencies={CURRENCIES} methods={PAYMENT_METHODS} calcVND={calcVND} fmtVND={fmtVND}
           showAmounts={showAmounts}
           payRows={payRows} setPayRows={setPayRows} contractInId={contractInId} reloadPayments={reloadPayments}
         />
@@ -129,7 +129,10 @@ export default function PayableSection({
             {rows.length === 0 ? (
               <tr><td colSpan="10" className="recv-empty">Chưa có khoản phải trả nào. Nhấn <strong>Thêm khoản</strong>.</td></tr>
             ) : rows.map((row, idx) => {
-              const overdue = isOverdue(row.due_date) && !row._isNew
+              // Quá hạn tính theo TIẾN ĐỘ TRẢ THỰC TẾ: khoản đã trả đủ thì không còn quá hạn,
+              // chỉ đánh dấu "trễ" nếu ngày trả cuối cùng vượt thời hạn.
+              const status  = row._isNew ? null : payableStatus(row, paymentsOf(payRows, row))
+              const overdue = status?.color === 'red'
               const vnd = calcVND(row.amount, row.exchange_rate, row.currency_code)
               return (
                 <Fragment key={row._key}>
@@ -178,12 +181,12 @@ export default function PayableSection({
                   <td className="td-date">
                     <DateInput value={row.due_date?.slice(0, 10) || ''}
                       onChange={e => set(row._key, 'due_date', e.target.value)} />
-                    {overdue && <span className="overdue-tag">Quá hạn</span>}
+                    {status && <span className={`recv-status recv-status--${status.color}`}>{status.label}</span>}
                   </td>
                   <td className="td-reason">
                     <input type="text" value={row.delay_reason || ''}
                       placeholder={overdue ? 'Nhập nguyên nhân...' : ''}
-                      className={overdue && !row.delay_reason && !row._isNew ? 'input-warn' : ''}
+                      className={overdue && !row.delay_reason ? 'input-warn' : ''}
                       onChange={e => set(row._key, 'delay_reason', e.target.value)} />
                   </td>
                   <td className="td-act">

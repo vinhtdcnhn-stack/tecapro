@@ -1,4 +1,5 @@
 // Helpers cho tab Tiến độ theo biên bản (contract progress).
+import { todayISO } from '../../lib/dateOnly'
 
 export function dateDiff(planned, actual) {
   if (!planned || !actual) return null
@@ -9,7 +10,7 @@ export function dateDiff(planned, actual) {
 export function getStatusInfo(planned, actual) {
   if (!actual) {
     if (!planned) return { type: 'unknown', label: '—' }
-    const daysLeft = dateDiff(new Date().toISOString().slice(0, 10), planned)
+    const daysLeft = dateDiff(todayISO(), planned)
     if (daysLeft < 0) return { type: 'overdue', label: `Quá hạn ${Math.abs(daysLeft)} ngày` }
     return { type: 'pending', label: 'Chưa hoàn thành' }
   }
@@ -130,7 +131,7 @@ export function computeForecasts(rows, contractDate = null, plannedMap = null) {
 // Trường hợp quá hạn đã do cột Trạng thái xử lý → ở đây chỉ nhắc khi gần tới hạn.
 export function forecastHint(forecast) {
   if (!forecast) return null
-  const days = dateDiff(new Date().toISOString().slice(0, 10), forecast) // forecast - hôm nay
+  const days = dateDiff(todayISO(), forecast) // forecast - hôm nay
   if (days >= 0 && days <= 5) return { type: 'soon', label: `Cần giục: còn ${days} ngày` }
   return null
 }

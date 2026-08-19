@@ -11,6 +11,7 @@ import { auditRowAttrs } from '../common/rowAudit'
 
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
+import { daysUntil } from '../../lib/dateOnly'
 
 // Giá trị hiển thị trong ô nhập: bỏ số 0 thập phân thừa; tiền VND làm tròn về số nguyên.
 const dispAmount = (amt, currency) => {
@@ -36,12 +37,6 @@ const fmtPct  = (n) => (parseFloat(n) || 0).toLocaleString('vi-VN', { minimumFra
 
 let _ctr = 0
 const tmpId = () => `tmp_${++_ctr}`
-
-function daysUntil(dateStr) {
-  if (!dateStr) return null
-  const diff = new Date(dateStr) - new Date(new Date().toDateString())
-  return Math.ceil(diff / 86400000)
-}
 
 function autoStatus(expiry_date, manualStatus) {
   if (manualStatus === 'Đã hoàn trả') return manualStatus
@@ -169,11 +164,13 @@ export default function ContractGuaranteeTab({ contractId }) {
   // Ctrl+S: lưu tất cả dòng đang sửa
   useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
 
-  // Summary stats
-  const active   = rows.filter(r => !r._isNew && r.status === 'Còn hiệu lực').length
-  const expiring = rows.filter(r => !r._isNew && r.status === 'Sắp hết hạn').length
-  const expired  = rows.filter(r => !r._isNew && r.status === 'Đã hết hạn').length
-  const totalAmt = rows.filter(r => !r._isNew).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+  // Summary stats — đếm theo trạng thái TỰ TÍNH từ ngày hết hạn (giống nhãn trên từng
+  // dòng và giống tab bảo lãnh HĐ nhập), không theo ô trạng thái nhập tay đã cũ.
+  const saved    = rows.filter(r => !r._isNew)
+  const active   = saved.filter(r => autoStatus(r.expiry_date, r.status) === 'Còn hiệu lực').length
+  const expiring = saved.filter(r => autoStatus(r.expiry_date, r.status) === 'Sắp hết hạn').length
+  const expired  = saved.filter(r => autoStatus(r.expiry_date, r.status) === 'Đã hết hạn').length
+  const totalAmt = saved.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
 
   if (loading) return <div className="guar-loading">Đang tải...</div>
 
@@ -184,7 +181,7 @@ export default function ContractGuaranteeTab({ contractId }) {
         <div className="guar-card guar-card--blue">
           <div className="guar-card-label">Tổng giá trị bảo lãnh</div>
           <div className="guar-card-value">{showAmounts ? fmtVND(totalAmt) : '•••'} <span style={{fontSize:13,fontWeight:400}}>{contractCurrency}</span></div>
-          <div className="guar-card-sub">{rows.filter(r => !r._isNew).length} bảo lãnh</div>
+          <div className="guar-card-sub">{saved.length} bảo lãnh</div>
         </div>
         <div className="guar-card guar-card--green">
           <div className="guar-card-label">Còn hiệu lực</div>

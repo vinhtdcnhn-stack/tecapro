@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { API } from '../../config/api'
 import { withStamp, handledConflict } from './conflict'
+import { daysUntil, daysBetween, isPast } from '../../lib/dateOnly'
 
 // Shared constants, formatters, calculators & data hook for the receivable tab.
 
@@ -17,10 +18,7 @@ export function calcVND(amount, rate, currency) {
   return currency === 'VND' ? a : a * r
 }
 
-export function isOverdue(dueDate) {
-  if (!dueDate) return false
-  return new Date(dueDate) < new Date(new Date().toDateString())
-}
+export const isOverdue = (dueDate) => isPast(dueDate)
 
 const addDays = (isoDate, n) => {
   const d = new Date(isoDate)
@@ -58,20 +56,19 @@ export function receivableStatus(row, linkedPayments = [], effectiveDue = undefi
   const received = linkedPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
   const shortage = schedAmt - received
   const dueStr   = effectiveDue !== undefined ? effectiveDue : row.due_date
-  const due      = dueStr ? new Date(dueStr.slice(0, 10)) : null
-  const today    = new Date(new Date().toDateString())
-  const daysBetween = (a, b) => Math.round((a - b) / 86400000)
+  const left     = dueStr ? daysUntil(dueStr) : null   // âm = đã qua hạn
 
   if (shortage <= 0) {
     const dates  = linkedPayments.map(p => p.payment_date).filter(Boolean).sort()
-    const latest = dates.length ? new Date(dates[dates.length - 1].slice(0, 10)) : null
-    if (due && latest && latest > due)
-      return { key: 'paid-late', label: `Đã thu đủ · trễ ${daysBetween(latest, due)} ngày`, color: 'amber' }
+    const latest = dates.length ? dates[dates.length - 1] : null
+    const late   = (dueStr && latest) ? daysBetween(dueStr, latest) : 0
+    if (late > 0)
+      return { key: 'paid-late', label: `Đã thu đủ · trễ ${late} ngày`, color: 'amber' }
     return { key: 'paid', label: 'Đã thu đủ', color: 'green' }
   }
 
-  if (due && due < today) {
-    const days = daysBetween(today, due)
+  if (left !== null && left < 0) {
+    const days = -left
     return received > 0
       ? { key: 'overdue-partial', label: `Quá hạn ${days} ngày · thu một phần`, color: 'red' }
       : { key: 'overdue', label: `Quá hạn ${days} ngày`, color: 'red' }
