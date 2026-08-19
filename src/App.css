@@ -815,6 +815,25 @@ body.tender-page-alert .brand-logo {
 
   box-shadow:
     0 10px 30px rgba(0,0,0,0.2);
+
+  /* Form dài hơn màn hình: giới hạn chiều cao và cho phần THÂN tự cuộn, để
+     tiêu đề và nhất là nút Lưu/Hủy ở chân modal luôn nhìn thấy được. */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+}
+
+/* Tiêu đề + chân modal giữ nguyên cỡ; mọi phần còn lại (thân) là vùng cuộn.
+   Dùng :not() thay vì chỉ .modal-body vì một số modal đặt thân trong class riêng
+   (changepw-body, pos-mem-body…) hoặc bọc trong <form>. */
+.modal > .modal-header,
+.modal > .modal-footer {
+  flex: 0 0 auto;
+}
+
+.modal > *:not(.modal-header):not(.modal-footer) {
+  min-height: 0;
+  overflow-y: auto;
 }
 .modal-header {
   display: flex;
@@ -1730,8 +1749,7 @@ body.tender-page-alert .brand-logo {
   .modal {
     width: 96% !important;
     max-width: 96%;
-    max-height: 90vh;
-    overflow-y: auto;
+    max-height: 92vh;
     padding: 16px;
   }
   .modal-body {
