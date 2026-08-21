@@ -264,6 +264,11 @@
 }
 .task-transfer-hint { margin-top: 6px; font-size: 12px; color: #15803d; font-weight: 400; }
 .task-transfer-modal { max-width: 520px; }
+/* Báo trước: người nhận sẽ được tự thêm vào danh sách Kỹ thuật của hợp đồng. */
+.task-transfer-auto-tech {
+  margin-bottom: 12px; padding: 8px 12px; border-radius: 8px;
+  background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 12.5px;
+}
 
 /* ── Modal ─────────────────────────────────────────────────────────────── */
 .task-modal-overlay {

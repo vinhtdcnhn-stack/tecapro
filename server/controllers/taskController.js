@@ -4,6 +4,9 @@ import { activateReadyTasks } from '../services/taskAutoStart.js'
 import { cascadeCompletion, notifyCascade } from '../services/taskCascade.js'
 import { BASE_SELECT } from './taskSelect.js'
 import { taskRolesOf } from '../middleware/taskAccess.js'
+import { autoAddTechnicalMember } from '../services/autoTechnicalMember.js'
+import { MEMBER_ROLE_VN } from './contractMemberController.js'
+import { invalidateContract, invalidateContractList, invalidateUserDashboards } from '../services/cacheKeys.js'
 
 // Ghi 1 dòng nhật ký giao/chuyển việc. Gọi trong cùng transaction (client) khi tạo việc
 // có người thực hiện hoặc khi đổi người thực hiện. action: 'assign' (giao lần đầu) |
@@ -418,18 +421,35 @@ export async function transferTask(req, res) {
       taskId: id, fromUserId: fromUser, toUserId: toUser,
       action: fromUser ? 'transfer' : 'assign', actorId: req.user?.id, note,
     })
+
+    // Trưởng/Phó ban Dự án & CGCN / Kỹ thuật chuyển việc cho người của 2 ban đó →
+    // tự bổ sung họ vào danh sách Kỹ thuật của HĐ nếu chưa có (xem autoTechnicalMember.js).
+    const addedTech = await autoAddTechnicalMember(client, {
+      contractId: old.contract_out_id, actorId: req.user?.id, toUserId: toUser,
+    })
     await client.query('COMMIT')
+
+    // Danh sách thành viên đổi → tab Thông tin HĐ, danh sách HĐ (theo quyền) và
+    // dashboard của người vừa được thêm đều cần làm mới.
+    if (addedTech) {
+      invalidateContract(old.contract_out_id, 'info')
+      invalidateContractList()
+      invalidateUserDashboards(toUser)
+    }
 
     // Việc vừa chuyển có thể đã tới ngày bắt đầu → tự kích hoạt; bỏ qua nếu lỗi.
     try { await activateReadyTasks([id]) } catch (e) { console.error('activateReadyTasks(transfer):', e) }
 
     const full = await pool.query(`${BASE_SELECT} WHERE t.id = $1`, [id])
-    res.json(full.rows[0])
+    res.json({ ...full.rows[0], added_to_technical: addedTech })
 
     // Báo người được giao mới (việc cần xử lý 🔔). Không tự báo khi tự nhận.
     if (toUser !== req.user?.id) {
       const label = await contractLabel(old.contract_out_id)
       notifyAction([toUser], `Bạn được chuyển công việc: "${old.title}" — HĐ ${label}`)
+      if (addedTech) {
+        notifyInfo([toUser], `Bạn được thêm vào hợp đồng ${label} với vai trò: ${MEMBER_ROLE_VN.Technical}`)
+      }
     }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {})

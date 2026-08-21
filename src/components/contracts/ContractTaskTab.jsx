@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import './ContractTaskTab.css'
 
 import { API } from '../../config/api'
+import { qk } from '../../lib/queries'
 import { isOverdue, groupByDept, groupByAssignee, buildTaskTree, visibleTaskIds, buildTaskCopyText, copyToClipboard, transferredParentIds } from './taskUtils'
 import { useCanEdit } from '../../context/ContractPermContext'
 import DeptGroup from './TaskDeptGroup'
@@ -36,6 +38,7 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   const [highlightId, setHighlightId] = useState(null)  // id việc cần làm nổi bật khi đến từ đường dẫn
   const jumpedFor = useRef(null)  // id đã nhảy tới (tránh nhảy lặp lại mỗi lần render)
   const canEdit = useCanEdit()
+  const queryClient = useQueryClient()
 
   // ── Load data ───────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -261,10 +264,13 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to, department_id: department_id ?? null, note }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Lỗi chuyển việc')
-      setTasks(prev => prev.map(t => t.id === task.id ? data : t))
+      const { added_to_technical: addedTech, ...updated } = await res.json()
+      if (!res.ok) throw new Error(updated.error || 'Lỗi chuyển việc')
+      setTasks(prev => prev.map(t => t.id === task.id ? updated : t))
       setTransferTask(null)
+      // Trưởng/Phó ban KT chuyển việc → backend tự thêm người nhận vào danh sách Kỹ
+      // thuật của HĐ; nạp lại thông tin HĐ để tab Thông tin hiện đúng thành viên.
+      if (addedTech) queryClient.invalidateQueries({ queryKey: qk.contract(contractId) })
       return true
     } catch (e) {
       alert('Lỗi: ' + e.message)

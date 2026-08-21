@@ -152,6 +152,7 @@ export const CONTRACTS_FINANCE_PAGES = [
           'Việc tự chuyển "Chờ" → "Đang thực hiện" khi tới ngày bắt đầu hoặc khi bước trước hoàn thành; người thực hiện nhận thông báo Telegram.',
           'Người được giao việc cũng được tạo VIỆC CON bên trong việc của mình để tự chia nhỏ.',
           '"Chuyển việc" đổi người thực hiện; mọi lần chuyển được ghi nhật ký — di chuột vào tên người thực hiện để xem lịch sử chuyển.',
+          'TỰ THÊM VÀO DANH SÁCH KỸ THUẬT: khi Trưởng ban / Phó ban của Ban Dự án và chuyển giao công nghệ hoặc Ban Kỹ thuật chuyển việc cho một người của hai ban này, người đó được tự động thêm vào danh sách "Kỹ thuật" của hợp đồng (nếu chưa có) — không phải vào tab Thông tin hợp đồng thêm tay. Hộp thoại chuyển việc sẽ báo trước khi điều này xảy ra, và người nhận được thông báo Telegram là đã vào hợp đồng với vai trò Kỹ thuật.',
         ],
       },
       {

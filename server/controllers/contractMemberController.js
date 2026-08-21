@@ -7,6 +7,12 @@ const TEAM_ROLES = [
   { key: 'followers',          role: 'Follower',     rank: 7 },
 ]
 
+// Thứ hạng (role_rank) tra theo member_role — cho các chỗ chèn LẺ một thành viên ngoài
+// luồng sync cả danh sách (vd: tự thêm Kỹ thuật khi chuyển việc). Cùng nguồn TEAM_ROLES.
+export const MEMBER_ROLE_RANK = Object.fromEntries(
+  [['PM', 1], ...TEAM_ROLES.map(({ role, rank }) => [role, rank])],
+)
+
 /**
  * Dựng danh sách thành viên MONG MUỐN từ payload (chưa ghi DB).
  * Trả về [{ user_id, member_role, is_primary, role_rank }] đã khử trùng lặp theo

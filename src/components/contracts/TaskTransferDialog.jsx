@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 
 import Modal from '../common/Modal'
 import { isUserActive } from '../../lib/userStatus'
+import { isTechDeptHead, isTechDeptStaff } from '../../lib/departments'
 
 // ── Hộp thoại "Chuyển việc" ──────────────────────────────────────────────────────
 // Người được giao (hoặc PM/admin, người tạo) chọn người khác để CHUYỂN việc cho họ.
@@ -30,6 +31,13 @@ export default function TaskTransferDialog({ task, departments = [], users = [],
       (!deptId || String(u.department_id) === String(deptId))
     )
   }, [users, deptId, currentUser, task])
+
+  // Người chuyển là Trưởng/Phó ban Dự án & CGCN hoặc Kỹ thuật, và người nhận thuộc một
+  // trong hai ban đó → backend sẽ tự thêm họ vào danh sách Kỹ thuật của hợp đồng.
+  const autoTechHint = useMemo(() => {
+    if (!assignTo || !isTechDeptHead(currentUser)) return false
+    return isTechDeptStaff(users.find(u => String(u.id) === String(assignTo)))
+  }, [assignTo, users, currentUser])
 
   function changeDept(val) {
     setDeptId(val)
@@ -99,6 +107,13 @@ export default function TaskTransferDialog({ task, departments = [], users = [],
             {error && <span className="task-form-error">{error}</span>}
           </div>
         </div>
+
+        {autoTechHint && (
+          <div className="task-transfer-auto-tech">
+            Người nhận thuộc Ban Dự án và chuyển giao công nghệ / Ban Kỹ thuật — nếu chưa
+            có trong <strong>danh sách Kỹ thuật</strong> của hợp đồng thì sẽ được tự động thêm vào.
+          </div>
+        )}
 
         <div className="task-form-group">
           <label>Lý do chuyển (tùy chọn)</label>

@@ -80,6 +80,7 @@ export const CONTRACTS_CORE_PAGES = [
           'Bảng thành viên gắn từng người vào vai trò: Nhân viên kinh doanh, PM chính, Presale, Kỹ thuật triển khai, Xuất nhập khẩu, Kế toán, Người theo dõi.',
           'Vai trò quyết định quyền: PM chính được sửa mọi tab; Xuất nhập khẩu được tạo hợp đồng nhập; Kỹ thuật được nhập serial...',
           'PM bấm nút thêm thành viên, chọn người + vai trò, rồi lưu. Một người có thể giữ nhiều vai trò.',
+          'Danh sách "Kỹ thuật triển khai" còn được bổ sung TỰ ĐỘNG: khi Trưởng/Phó ban của Ban Dự án và chuyển giao công nghệ hoặc Ban Kỹ thuật dùng "Chuyển việc" ở tab Công việc triển khai để giao việc cho một người của hai ban này, người đó tự vào danh sách Kỹ thuật (nếu chưa có). Muốn bỏ ra thì sửa bảng thành viên như bình thường.',
         ],
       },
     ],

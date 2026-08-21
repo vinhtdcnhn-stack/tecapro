@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { HEAD_POSITION_IDS } from '../auth/positionIds.js'
+import { DEPT_DU_AN_CGCN } from '../auth/departmentIds.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phân quyền cho module Quản lý công việc — Ban KT Cơ điện (department id 7).
@@ -11,7 +12,9 @@ import { HEAD_POSITION_IDS } from '../auth/positionIds.js'
 // Toàn bộ phần "bên trong" này HARDCODE — không qua RBAC.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const DEPT_KT_CO_DIEN = 7
+// Tên cũ của ban (nay là "Ban Dự án và chuyển giao công nghệ") — giữ nguyên tên biến
+// vì đã dùng ở nhiều nơi; ID lấy từ nguồn chung auth/departmentIds.js.
+export const DEPT_KT_CO_DIEN = DEPT_DU_AN_CGCN
 
 // Chức danh được coi là quản lý phòng việc: Trưởng ban / Phó ban — cùng nguồn
 // HEAD_POSITION_IDS (auth/positionIds.js) với kế thừa TP/PP trong permissions.js.
