@@ -37,6 +37,7 @@ export const HOME_GROUP = {
             'Tiêu đề "Bảng theo dõi tiến độ dự án" — tổng hợp các MỐC THỜI HẠN (deadline) trong các hợp đồng bạn làm PM.',
             'Các ô số phía trên: "Mốc quá hạn" (màu đỏ — hạn đã qua mà chưa xong) và "Sắp đến hạn ≤7 ngày" (còn 0–7 ngày nữa là tới hạn).',
             'Bảng "Mốc thời hạn cần theo dõi" phía dưới liệt kê từng mốc: thuộc hợp đồng nào, việc gì, hạn ngày nào.',
+            'Mốc CÔNG NỢ chỉ hiện khi khoản đó CÒN THIẾU TIỀN — cả phải thu (hợp đồng bán) lẫn phải trả nhà cung cấp (hợp đồng nhập). Trả/thu đủ một đợt là đợt đó tự biến mất khỏi bảng, dòng phụ ghi rõ số còn lại. Nếu một khoản đã trả đủ mà vẫn thấy báo quá hạn, kiểm tra xem đợt thanh toán đã được gắn vào đúng khoản phải trả chưa (tab Thanh toán của hợp đồng nhập).',
           ],
         },
         {

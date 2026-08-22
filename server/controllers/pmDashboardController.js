@@ -239,7 +239,11 @@ export async function getPMDashboard(req, res) {
              LEFT JOIN contract_bb_type t ON t.id = p.bb_type_id
             WHERE p.contract_in_id = ANY($1) AND p.actual_date IS NULL AND p.planned_date IS NOT NULL`, [inIds]),
         pool.query(
-          'SELECT id, contract_in_id, description, due_date, amount, currency_code FROM contract_in_payable WHERE contract_in_id = ANY($1) AND due_date IS NOT NULL', [inIds]),
+          `SELECT p.id, p.contract_in_id, p.description, p.due_date, p.amount, p.currency_code,
+                  COALESCE((SELECT SUM(amount) FROM contract_in_payment pm
+                             WHERE pm.payable_id = p.id), 0) AS paid
+             FROM contract_in_payable p
+            WHERE p.contract_in_id = ANY($1) AND p.due_date IS NOT NULL`, [inIds]),
         pool.query(
           'SELECT contract_in_id, SUM(amount) AS total FROM contract_in_payable WHERE contract_in_id = ANY($1) GROUP BY contract_in_id', [inIds]),
         pool.query(
@@ -269,17 +273,22 @@ export async function getPMDashboard(req, res) {
         title: [p.bb_code, p.bb_name].filter(Boolean).join(' – ') || 'Biên bản nhập',
       }))
 
-      // Công nợ phải trả NCC — due_date; bỏ HĐ đã trả đủ (tính theo tổng HĐ nhập)
+      // Công nợ phải trả NCC — due_date; chỉ khoản CÒN THIẾU. Từ migration 103 mỗi đợt
+      // thanh toán gắn vào đúng khoản phải trả (payable_id) nên trừ theo TỪNG KHOẢN, giống
+      // phía phải thu. Vẫn giữ thêm chốt chặn ở mức cả HĐ nhập cho dữ liệu cũ có đợt thanh
+      // toán chưa gắn khoản (payable_id NULL) — nếu không sẽ báo quá hạn cả khoản đã trả.
       const totalPay = new Map(paySum.map(r => [String(r.contract_in_id), parseFloat(r.total) || 0]))
       const paidPay  = new Map(paidSum.map(r => [String(r.contract_in_id), parseFloat(r.paid) || 0]))
       payRows.forEach(r => {
         const k = String(r.contract_in_id)
-        if ((totalPay.get(k) || 0) > 0 && (paidPay.get(k) || 0) >= (totalPay.get(k) || 0)) return // đã trả đủ
+        if ((totalPay.get(k) || 0) > 0 && (paidPay.get(k) || 0) >= (totalPay.get(k) || 0)) return // cả HĐ đã trả đủ
+        const shortage = (parseFloat(r.amount) || 0) - (parseFloat(r.paid) || 0)
+        if (shortage <= 0) return // khoản này đã trả đủ
         pushIn({
           source_type: 'in_payable', source_id: r.id, contract_in_id: r.contract_in_id,
           due_date: r.due_date, kind: 'Phải trả',
           title: r.description || 'Đợt phải trả NCC',
-          sub: `Phải trả ${fmtMoney(r.amount, r.currency_code)} ${r.currency_code || 'VND'}`,
+          sub: `Còn phải trả ${fmtMoney(shortage, r.currency_code)} ${r.currency_code || 'VND'}`,
         })
       })
 
