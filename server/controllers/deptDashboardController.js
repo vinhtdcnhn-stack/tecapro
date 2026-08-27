@@ -2,7 +2,7 @@ import { pool } from '../db.js'
 import { MANAGER_POSITION_IDS } from '../middleware/deptWorkAccess.js'
 import { cacheWrap } from '../cache.js'
 import { deptDashKey } from '../services/cacheKeys.js'
-import { attachUnread } from './pmDashboardController.js'
+import { attachUnread, pendingInfo } from './dashboardItems.js'
 
 // Dashboard phòng tổng hợp việc của cả phòng — invalidation chính xác theo head phức tạp;
 // dùng TTL ngắn để giới hạn độ trễ khi việc của thành viên đổi (badge real-time vẫn riêng).
@@ -70,23 +70,32 @@ export async function getDeptWorkDashboard(req, res) {
       { rows: tcRows },
       { rows: trk },
     ] = await Promise.all([
+      // Giữ lại việc đã báo hoàn thành nhưng CHƯA duyệt (completion_pending): trạng thái
+      // của nó đã là 'Hoàn thành' nhưng trưởng/phó phòng vẫn cần thấy để còn vào chốt.
       pool.query(
         `SELECT t.id, t.contract_out_id, co.contract_no, t.title, t.due_date,
-                t.parent_task_id, u.full_name AS assignee_name
+                t.parent_task_id, u.full_name AS assignee_name,
+                t.completion_pending, t.completion_requested_at,
+                ru.full_name AS completion_requested_by_name
            FROM contract_task t
            JOIN contract_out co ON co.id = t.contract_out_id AND COALESCE(co.is_deleted, false) = false
            JOIN app_user u ON u.id = t.assigned_to
+           LEFT JOIN app_user ru ON ru.id = t.completion_requested_by
           WHERE t.assigned_to = ANY($1) AND t.due_date IS NOT NULL
-            AND t.status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')`,
+            AND (t.status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')
+                 OR t.completion_pending)`,
         [memberIds]),
       pool.query(
-        `SELECT t.id, t.title, t.due_date, u.full_name AS assignee_name
+        `SELECT t.id, t.title, t.due_date, u.full_name AS assignee_name,
+                t.completion_pending, t.completion_requested_at,
+                ru.full_name AS completion_requested_by_name
            FROM dept_work_task t
            JOIN dept_work_assignment a
              ON a.task_id = t.id AND a.is_active AND a.accept_state <> 'rejected'
             AND a.assignee_id = ANY($1)
            JOIN app_user u ON u.id = a.assignee_id
-          WHERE t.status NOT IN ('Hoàn thành', 'Hủy')`,
+           LEFT JOIN app_user ru ON ru.id = t.completion_requested_by
+          WHERE t.status NOT IN ('Hoàn thành', 'Hủy') OR t.completion_pending`,
         [memberIds]),
       pool.query(
         `SELECT i.id, i.title, i.due_date, tn.package_name, u.full_name AS assignee_name
@@ -114,17 +123,21 @@ export async function getDeptWorkDashboard(req, res) {
     const ctGroups = new Map()
     ctRows.forEach(t => {
       const key = `${t.contract_out_id}|${t.title || ''}|${iso(t.due_date)}`
-      if (!ctGroups.has(key)) ctGroups.set(key, { rep: t, names: [] })
+      if (!ctGroups.has(key)) ctGroups.set(key, { rep: t, names: [], pending: null })
       const g = ctGroups.get(key)
       g.names.push(t.assignee_name)
       if (Number(t.id) < Number(g.rep.id)) g.rep = t
+      // Dòng gộp coi là "chờ duyệt" nếu BẤT KỲ bản sao nào đang chờ (bản đại diện có thể
+      // là bản chưa báo xong).
+      if (!g.pending) g.pending = pendingInfo(t)
     })
-    for (const { rep, names } of ctGroups.values()) {
+    for (const { rep, names, pending } of ctGroups.values()) {
       items.push(attach({
         source_type: 'task', source_id: rep.id, side: 'Bán',
         contract_id: rep.contract_out_id, contract_no: rep.contract_no,
         due_date: iso(rep.due_date), title: rep.title || 'Công việc', kind: 'Công việc',
         assignees: joinNames(names), sub: `👤 ${joinNames(names)}`,
+        ...pending,
       }))
     }
 
@@ -140,6 +153,7 @@ export async function getDeptWorkDashboard(req, res) {
         contract_id: null, contract_no: null,
         due_date: iso(rep.due_date), title: rep.title || 'Công việc', kind: 'Công việc',
         assignees: joinNames(names), sub: `👤 ${joinNames(names)}`,
+        ...pendingInfo(rep),
       }))
     }
 

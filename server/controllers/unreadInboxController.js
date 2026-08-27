@@ -1,6 +1,7 @@
 import { pool } from '../db.js'
 import { userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
 import { userIsHead } from '../middleware/tenderAccess.js'
+import { pendingInfo } from './dashboardItems.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Hộp thư "Chưa đọc": gom MỌI việc có nội dung dòng thời gian chưa đọc với người xem,
@@ -32,10 +33,13 @@ export async function getUnreadInbox(req, res) {
     const [{ rows: ct }, { rows: dw }, { rows: tn }, { rows: trk }] = await Promise.all([
       pool.query(
         `SELECT t.id, t.contract_out_id, co.contract_no, t.title, t.due_date,
+                t.completion_pending, t.completion_requested_at,
+                ru.full_name AS completion_requested_by_name,
                 COUNT(e.id)::int AS unread_count, MAX(e.created_at) AS last_unread_at
            FROM contract_task_entry e
            JOIN contract_task t ON t.id = e.task_id
            JOIN contract_out co ON co.id = t.contract_out_id AND COALESCE(co.is_deleted, false) = false
+           LEFT JOIN app_user ru ON ru.id = t.completion_requested_by
            LEFT JOIN contract_task_read r ON r.task_id = e.task_id AND r.user_id = $1
           WHERE e.author_id <> $1
             AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
@@ -43,19 +47,22 @@ export async function getUnreadInbox(req, res) {
                   OR EXISTS (SELECT 1 FROM contract_out_member m
                               WHERE m.contract_out_id = t.contract_out_id
                                 AND m.member_role = 'PM' AND m.user_id = $1) )
-          GROUP BY t.id, co.contract_no`, [userId]),
+          GROUP BY t.id, co.contract_no, ru.full_name`, [userId]),
       pool.query(
         `SELECT t.id, t.title, t.due_date,
+                t.completion_pending, t.completion_requested_at,
+                ru.full_name AS completion_requested_by_name,
                 COUNT(e.id)::int AS unread_count, MAX(e.created_at) AS last_unread_at
            FROM dept_work_entry e
            JOIN dept_work_task t ON t.id = e.task_id
+           LEFT JOIN app_user ru ON ru.id = t.completion_requested_by
            LEFT JOIN dept_work_task_read r ON r.task_id = e.task_id AND r.user_id = $1
           WHERE e.author_id <> $1
             AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
             AND ( $2 OR t.created_by = $1
                   OR EXISTS (SELECT 1 FROM dept_work_assignment a
                               WHERE a.task_id = e.task_id AND a.is_active AND a.assignee_id = $1) )
-          GROUP BY t.id`, [userId, isHead]),
+          GROUP BY t.id, ru.full_name`, [userId, isHead]),
       pool.query(
         `SELECT i.id, i.title, i.due_date,
                 COALESCE(NULLIF(tn.package_code, ''), tn.package_name) AS package_label,
@@ -84,12 +91,14 @@ export async function getUnreadInbox(req, res) {
         contract_id: t.contract_out_id, contract_no: t.contract_no,
         due_date: iso(t.due_date), title: t.title || 'Công việc', kind: 'Công việc',
         sub: 'Hạn hoàn thành', unread_count: t.unread_count, last_unread_at: t.last_unread_at,
+        ...pendingInfo(t),
       })),
       ...dw.map(t => attach({
         source_type: 'dept_work_task', source_id: t.id, side: 'Phòng',
         contract_id: null, contract_no: null,
         due_date: iso(t.due_date), title: t.title || 'Công việc', kind: 'Công việc',
         sub: 'KT Cơ điện', unread_count: t.unread_count, last_unread_at: t.last_unread_at,
+        ...pendingInfo(t),
       })),
       ...tn.map(t => attach({
         source_type: 'tender_checklist', source_id: t.id, side: 'Thầu',

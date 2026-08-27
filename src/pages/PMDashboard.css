@@ -104,6 +104,15 @@
 .pm-item-meta { margin-top: 3px; font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
 .pm-sub { color: #6b7280; }
 
+/* Đã báo hoàn thành nhưng người giao việc chưa duyệt (completion_pending) — việc vẫn nằm
+   trên bảng theo dõi kèm dấu này để người duyệt biết mà vào chốt. */
+.pm-await-mark {
+  display: inline-block; padding: 1px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; white-space: nowrap; cursor: help;
+  color: #b45309; background: #fef3c7; border: 1px solid #fcd34d;
+}
+.pm-await-note { color: #b45309; font-weight: 600; }
+
 .pm-kind {
   display: inline-block; padding: 1px 8px; border-radius: 999px;
   font-size: 10px; font-weight: 700; white-space: nowrap;

@@ -4,6 +4,7 @@ import { activateReadyTasks } from '../services/taskAutoStart.js'
 import { cascadeCompletion, notifyCascade } from '../services/taskCascade.js'
 import { postTaskEntry } from '../services/taskEntryPost.js'
 import { BASE_SELECT } from './taskSelect.js'
+import { invalidateDashboardsForContractTask } from '../services/cacheKeys.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRẠNG THÁI + XÁC NHẬN HOÀN THÀNH của công việc hợp đồng.
@@ -91,6 +92,9 @@ export async function changeTaskStatus(req, res) {
        WHERE id = $4`,
       [status, pending, req.user.id, id])
     await respondTask(res, id)
+    // Trạng thái/cờ chờ duyệt đổi → dòng việc trên các dashboard theo dõi đổi theo
+    // (việc chờ duyệt vẫn nằm lại bảng kèm dấu ⏳) → làm mới cache dashboard liên quan.
+    invalidateDashboardsForContractTask(id)
 
     if (cascaded.length) notifyCascade(cascaded)
     // Vừa xong 1 bước → mở khóa các việc phụ thuộc đã đủ điều kiện.
@@ -139,6 +143,8 @@ export async function confirmCompletion(req, res) {
        WHERE id = $2`,
       [req.user.id, id])
     await respondTask(res, id)
+    // Chốt/trả lại → dòng việc rời hoặc quay lại bảng theo dõi → làm mới cache dashboard.
+    invalidateDashboardsForContractTask(id)
 
     if (cascaded.length) notifyCascade(cascaded)
     try { await activateReadyTasks() } catch (e) { console.error('activateReadyTasks:', e) }
@@ -190,6 +196,8 @@ export async function rejectCompletion(req, res) {
        WHERE id = $3`,
       [reason, count, id])
     await respondTask(res, id)
+    // Chốt/trả lại → dòng việc rời hoặc quay lại bảng theo dõi → làm mới cache dashboard.
+    invalidateDashboardsForContractTask(id)
 
     if (cascaded.length) notifyCascade(cascaded)
 

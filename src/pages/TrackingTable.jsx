@@ -2,12 +2,19 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DateInput, { isoToDisplay } from '../components/contracts/DateInput'
 import TaskContextMenu from '../components/contracts/TaskContextMenu'
-import { copyToClipboard } from '../components/contracts/taskUtils'
+import { copyToClipboard, awaitTitle } from '../components/contracts/taskUtils'
 import { absUrl } from '../components/common/deepLink'
 import { useRowLongPress } from '../components/contracts/useLongPress'
 import {
   WINDOW_DAYS, todayISO, daysBetween, effRemind, KIND_META, targetUrl, dueInfo,
 } from './trackingUtils'
+
+// Mốc thời gian báo hoàn thành là timestamp (không phải cột DATE) → đổi sang giờ máy
+// người xem rồi lấy phần ngày, tránh lệch 1 ngày như khi cắt chuỗi ISO theo giờ UTC.
+const fmtStamp = (ts) => {
+  const d = new Date(ts)
+  return isNaN(d) ? '' : d.toLocaleDateString('vi-VN')
+}
 
 // Đoạn text "đường dẫn" để dán vào chat hỏi tình trạng mốc/việc. Kèm dòng 🔗 (nếu mốc gắn
 // được vị trí) để người nhận dán vào ô tra cứu trên thanh tiêu đề và nhảy thẳng tới đó.
@@ -19,7 +26,10 @@ function buildItemCopyText(it) {
   crumbs.push(it.title)
   const di = dueInfo(it.due_date)
   const due = it.due_date ? ` — Hạn: ${isoToDisplay(it.due_date)} (${di.label})` : ''
-  const text = `📌 ${crumbs.join(' › ')}${due}`
+  const await_ = it.completion_pending
+    ? `\n⏳ ${it.completion_requested_by_name || 'Người thực hiện'} đã báo hoàn thành — chờ duyệt`
+    : ''
+  const text = `📌 ${crumbs.join(' › ')}${due}${await_}`
   const path = targetUrl(it)
   return path ? `${text}\n🔗 ${absUrl(path)}` : text
 }
@@ -182,11 +192,23 @@ export default function TrackingTable({
                         ) : (
                           <span className="pm-item-title">{it.title}</span>
                         )}
+                        {it.completion_pending && (
+                          <span className="pm-await-mark" title={awaitTitle(it)}>⏳ chờ duyệt</span>
+                        )}
                         {it.unread_count > 0 && <span className="pm-unread-dot" title={`${it.unread_count} nội dung chưa đọc`} />}
                       </div>
                       <div className="pm-item-meta">
                         <span className={`pm-due ${dueCls}`}>{isoToDisplay(it.due_date) || '—'} · {di.label}</span>
                         {it.sub && <span className="pm-sub">· {it.sub}</span>}
+                        {/* Ghi rõ ai đã báo xong ngay trên dòng (tooltip không dùng được
+                            trên điện thoại) để người duyệt biết mà vào chốt. */}
+                        {it.completion_pending && (
+                          <span className="pm-await-note">
+                            · {it.completion_requested_by_name || 'Người thực hiện'} đã báo hoàn thành
+                            {it.completion_requested_at ? ` ${fmtStamp(it.completion_requested_at)}` : ''}
+                            {' '}— chờ duyệt
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="pm-col-actions">

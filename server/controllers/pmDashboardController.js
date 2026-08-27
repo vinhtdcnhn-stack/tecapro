@@ -2,6 +2,7 @@ import { pool } from '../db.js'
 import { computeForecasts } from '../utils/progressForecast.js'
 import { cacheWrap } from '../cache.js'
 import { pmDashKey, assignedTasksKey, invalidateUserDashboards } from '../services/cacheKeys.js'
+import { attachUnread, pendingInfo } from './dashboardItems.js'
 
 const DASH_TTL = 5 * 60 // 5' — tổng hợp nặng; chấp nhận unread trễ tối đa 5' (badge real-time riêng)
 
@@ -13,37 +14,6 @@ function fmtMoney(n, cur = 'VND') {
   const num = parseFloat(n) || 0
   if (cur === 'VND') return new Intl.NumberFormat('vi-VN').format(Math.round(num))
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(num)
-}
-
-// Gắn unread_count cho công việc HĐ ('task'), việc phòng ('dept_work_task') và đầu việc
-// đấu thầu ('tender_checklist') — để dashboard tô nền hổ phách dòng việc khi có nội dung
-// dòng thời gian chưa đọc (song song chấm chưa đọc trong tab). Sửa items tại chỗ.
-export async function attachUnread(items, userId) {
-  const taskIds = items.filter(i => i.source_type === 'task').map(i => i.source_id)
-  const dwIds   = items.filter(i => i.source_type === 'dept_work_task').map(i => i.source_id)
-  const tnIds   = items.filter(i => i.source_type === 'tender_checklist').map(i => i.source_id)
-  // entryTbl/readTbl gắn với cột khóa `col` (task_id với HĐ/phòng, item_id với đấu thầu).
-  const countUnread = (entryTbl, readTbl, col, ids) =>
-    ids.length
-      ? pool.query(
-          `SELECT e.${col} AS k, COUNT(*)::int AS c
-             FROM ${entryTbl} e
-             LEFT JOIN ${readTbl} r ON r.${col} = e.${col} AND r.user_id = $1
-            WHERE e.author_id <> $1 AND e.${col} = ANY($2)
-              AND e.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz)
-            GROUP BY e.${col}`, [userId, ids])
-          .then(r => new Map(r.rows.map(x => [String(x.k), x.c])))
-      : Promise.resolve(new Map())
-  const [ctMap, dwMap, tnMap] = await Promise.all([
-    countUnread('contract_task_entry', 'contract_task_read', 'task_id', taskIds),
-    countUnread('dept_work_entry', 'dept_work_task_read', 'task_id', dwIds),
-    countUnread('tender_checklist_entry', 'tender_checklist_read', 'item_id', tnIds),
-  ])
-  items.forEach(i => {
-    if (i.source_type === 'task') i.unread_count = ctMap.get(String(i.source_id)) || 0
-    else if (i.source_type === 'dept_work_task') i.unread_count = dwMap.get(String(i.source_id)) || 0
-    else if (i.source_type === 'tender_checklist') i.unread_count = tnMap.get(String(i.source_id)) || 0
-  })
 }
 
 // GET /api/pm/:userId/dashboard
@@ -96,14 +66,21 @@ export async function getPMDashboard(req, res) {
            FROM contract_guarantee
           WHERE contract_out_id = ANY($1) AND expiry_date IS NOT NULL
             AND COALESCE(status, '') <> 'Đã hoàn trả'`, [ids]),
+      // Việc đã báo hoàn thành nhưng CHƯA được duyệt (completion_pending) mang trạng thái
+      // 'Hoàn thành' → phải giữ lại trên bảng theo dõi (kèm dấu ⏳) để người duyệt còn biết
+      // mà vào chốt, thay vì biến mất khỏi dashboard.
       pool.query(
         `SELECT t.id, t.contract_out_id, t.title, t.due_date,
                 t.assigned_to, t.created_by, t.parent_task_id,
-                u.full_name AS assigned_to_name
+                t.completion_pending, t.completion_requested_at,
+                u.full_name AS assigned_to_name,
+                ru.full_name AS completion_requested_by_name
            FROM contract_task t
            LEFT JOIN app_user u ON u.id = t.assigned_to
+           LEFT JOIN app_user ru ON ru.id = t.completion_requested_by
           WHERE t.contract_out_id = ANY($1) AND t.due_date IS NOT NULL
-            AND t.status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')`, [ids]),
+            AND (t.status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')
+                 OR t.completion_pending)`, [ids]),
       pool.query(
         'SELECT id, contract_no, contract_out_id, contract_date FROM contract_in WHERE contract_out_id = ANY($1)', [ids]),
     ])
@@ -201,6 +178,7 @@ export async function getPMDashboard(req, res) {
           contract_no: c?.contract_no, due_date: iso(t.due_date),
           title: t.title || 'Công việc', kind: 'Công việc',
           sub: givenAway(t) ? `Đã giao: ${t.assigned_to_name || '—'}` : 'Hạn hoàn thành',
+          ...pendingInfo(t),
         }))
       })
     }
@@ -379,13 +357,17 @@ export async function getAssignedTasks(req, res) {
     const payload = await cacheWrap(assignedTasksKey(userId), DASH_TTL, async () => {
     const { rows } = await pool.query(
       `SELECT t.id, t.title, t.due_date, t.contract_out_id, co.contract_no,
+              t.completion_pending, t.completion_requested_at,
+              ru.full_name AS completion_requested_by_name,
               tr.pinned, tr.remind_at
          FROM contract_task t
          JOIN contract_out co ON co.id = t.contract_out_id
+         LEFT JOIN app_user ru ON ru.id = t.completion_requested_by
          LEFT JOIN pm_dashboard_tracking tr
                 ON tr.user_id = $1 AND tr.source_type = 'task' AND tr.source_id = t.id
         WHERE t.assigned_to = $1
-          AND t.status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')
+          AND (t.status NOT IN ('Hoàn thành', 'Completed', 'Đã hủy', 'Cancelled')
+               OR t.completion_pending)
           AND COALESCE(co.is_deleted, false) = false`, [userId])
 
     const items = rows.map(t => ({
@@ -395,17 +377,21 @@ export async function getAssignedTasks(req, res) {
       title: t.title || 'Công việc', sub: 'Hạn hoàn thành', kind: 'Công việc',
       pinned: t.pinned || false,
       remind_at: t.remind_at ? iso(t.remind_at) : null,
+      ...pendingInfo(t),
     }))
 
     // Việc của module KT Cơ điện được giao trực tiếp cho user (không gắn hợp đồng).
     const dw = await pool.query(
-      `SELECT t.id, t.title, t.due_date, tr.pinned, tr.remind_at
+      `SELECT t.id, t.title, t.due_date, t.completion_pending, t.completion_requested_at,
+              ru.full_name AS completion_requested_by_name,
+              tr.pinned, tr.remind_at
          FROM dept_work_task t
          JOIN dept_work_assignment a
            ON a.task_id = t.id AND a.is_active AND a.assignee_id = $1 AND a.accept_state <> 'rejected'
+         LEFT JOIN app_user ru ON ru.id = t.completion_requested_by
          LEFT JOIN pm_dashboard_tracking tr
            ON tr.user_id = $1 AND tr.source_type = 'dept_work_task' AND tr.source_id = t.id
-        WHERE t.status NOT IN ('Hoàn thành', 'Hủy')`, [userId])
+        WHERE t.status NOT IN ('Hoàn thành', 'Hủy') OR t.completion_pending`, [userId])
     const dwItems = dw.rows.map(t => ({
       source_type: 'dept_work_task', source_id: t.id, side: 'Phòng',
       contract_id: null, contract_no: null,
@@ -413,6 +399,7 @@ export async function getAssignedTasks(req, res) {
       title: t.title || 'Công việc', sub: 'KT Cơ điện', kind: 'Công việc',
       pinned: t.pinned || false,
       remind_at: t.remind_at ? iso(t.remind_at) : null,
+      ...pendingInfo(t),
     }))
 
     // Đầu việc checklist đấu thầu giao trực tiếp cho user. Người được giao có thể không

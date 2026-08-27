@@ -4,6 +4,7 @@ import { userName, assigneeIds, headIds } from '../services/deptWorkNotify.js'
 import { postDeptWorkEntry } from '../services/deptWorkEntryPost.js'
 import { userIsHeadOrDeputy } from '../middleware/deptWorkAccess.js'
 import { BASE_SELECT } from './deptWorkSelect.js'
+import { invalidateDashboardsForDeptWorkTask } from '../services/cacheKeys.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRẠNG THÁI + XÁC NHẬN HOÀN THÀNH của việc phòng — cùng luật với công việc hợp đồng
@@ -77,6 +78,8 @@ export async function updateTaskStatus(req, res) {
       [status, pending, req.user.id, id],
     )
     await respondTask(res, id)
+    // Trạng thái/cờ chờ duyệt đổi → dòng việc trên dashboard theo dõi đổi theo.
+    invalidateDashboardsForDeptWorkTask(id)
 
     if (status === task.status && !pending) return
     const actor = await userName(req.user.id)
@@ -122,6 +125,8 @@ export async function confirmCompletion(req, res) {
       [req.user.id, id],
     )
     await respondTask(res, id)
+    // Chốt/trả lại → dòng việc rời hoặc quay lại bảng theo dõi → làm mới cache dashboard.
+    invalidateDashboardsForDeptWorkTask(id)
 
     // Báo NGƯỜI THỰC HIỆN (những người đang được giao + người đã bấm báo hoàn thành):
     // kết quả đã được duyệt. Họ đã nhận tin riêng nên bỏ qua ở thông báo của mục dòng thời gian.
@@ -167,6 +172,8 @@ export async function rejectCompletion(req, res) {
       [reason, count, id],
     )
     await respondTask(res, id)
+    // Chốt/trả lại → dòng việc rời hoặc quay lại bảng theo dõi → làm mới cache dashboard.
+    invalidateDashboardsForDeptWorkTask(id)
 
     // Báo NGƯỜI THỰC HIỆN: việc bị trả lại, cần làm tiếp → notifyAction (🔔) kèm lý do.
     const doers = await doerIds(id, rel.task, req.user.id)
