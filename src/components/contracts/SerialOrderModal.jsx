@@ -54,8 +54,13 @@ export default function SerialOrderModal({ contractInId, onClose, onSent }) {
       <div style={{ background: '#fff', borderRadius: 12, width: 460, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', padding: 20 }}
         onClick={e => e.stopPropagation()}>
         <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#111827' }}>Gửi lệnh nhập serial</h3>
-        <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#6b7280' }}>
+        <p style={{ margin: '0 0 12px', fontSize: 12.5, color: '#6b7280' }}>
           Tạo một công việc giao cho Kỹ thuật nhập serial cho hàng đã nhận, kèm thông báo Telegram.
+          Mô tả việc tự chèn ĐƯỜNG DẪN bấm thẳng tới tab "Quản lý Serial" của hợp đồng nhập này.
+        </p>
+        <p style={{ margin: '0 0 16px', padding: '8px 10px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 7, fontSize: 12.5, color: '#0c4a6e' }}>
+          Người nhận sẽ được thêm vào danh sách <strong>Kỹ thuật</strong> của hợp đồng bán (nếu chưa có)
+          — không có vai trò này thì họ mở ra sẽ không nhập được serial.
         </p>
 
         <div style={{ marginBottom: 14 }}>

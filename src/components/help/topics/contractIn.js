@@ -132,7 +132,9 @@ export const CONTRACT_IN_GROUP = {
           items: [
             'Dùng khi hàng đã về nhưng serial chưa được nhập: bấm "📤 Gửi lệnh nhập serial" ở góc phải, chọn người của Ban Dự án & chuyển giao công nghệ / Ban Kỹ thuật, đặt hạn hoàn thành (mặc định 3 ngày) và ghi chú thêm nếu cần, rồi bấm "Gửi lệnh".',
             'Hệ thống tự tạo MỘT CÔNG VIỆC ở tab "Công việc triển khai" của hợp đồng BÁN mẹ, giao cho người được chọn, kèm mô tả liệt kê các đợt nhận và số serial đã có.',
-            'Người nhận có Telegram sẽ nhận ngay thông báo 🔔 "Lệnh nhập serial" kèm hạn và ghi chú.',
+            'CHỈ ĐƯỜNG SẴN: mô tả việc tự chèn một đường dẫn dạng "/qlda/..." — người nhận mở việc ra bấm thẳng vào đó là nhảy đúng tab "Quản lý Serial" của hợp đồng nhập cần điền, không phải mò. Bên dưới còn ghi đường đi bằng lời (hợp đồng bán → "Thông tin hợp đồng nhập" → chọn HĐ → tab "Quản lý Serial") phòng khi cần chỉ lại cho người khác.',
+            'TỰ TRAO QUYỀN: người nhận lệnh được thêm luôn vào danh sách "Kỹ thuật" của hợp đồng bán (nếu chưa có) — không có vai trò này thì họ mở tab Quản lý Serial ra cũng không nhập được. Hộp thoại gửi lệnh có báo trước điều này. Muốn bỏ ra thì sửa bảng thành viên ở tab Thông tin hợp đồng của hợp đồng bán.',
+            'Người nhận có Telegram sẽ nhận ngay thông báo 🔔 "Lệnh nhập serial" kèm hạn, ghi chú và chỗ cần vào nhập.',
             'Người nhận báo cáo kết quả ngay trong việc đó: mở việc → "Dòng thời gian", chọn loại "Báo cáo", gõ nội dung và đính kèm ảnh hoặc FILE (biên bản kiểm tra hàng, ảnh tem serial...).',
             'Chỉ người tạo hợp đồng nhập (hoặc admin) mới gửi được lệnh này.',
           ],
