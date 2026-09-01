@@ -2,6 +2,7 @@ import { fmtNum, calcAmounts } from './boqUtils'
 import NumberInput from '../common/NumberInput'
 import { auditRowAttrs } from '../common/rowAudit'
 import PurchaseSupplyLinks from './PurchaseSupplyLinks'
+import { WarrantyInputCell, WarrantyRangeCell } from './BOQWarrantyCells'
 
 // Một dòng trong bảng giá mua (purchase BOQ). Tách riêng để giữ ContractInBOQTab gọn dưới 500 dòng.
 //
@@ -11,6 +12,7 @@ import PurchaseSupplyLinks from './PurchaseSupplyLinks'
 export default function PurchaseBOQRow({
   row, idx, currency, showPrice = true, targets = [], viewContractId, onSetLinks, selected, onToggleSelect,
   set, saveRow, insertAfter, deleteRow, rowLocked = false,
+  bbList = [], bbById, warrantyDefault,
   canDrag, isDragging, isDragOver, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const { before, after } = calcAmounts(row.quantity, row.unit_price, row.vat_rate, currency)
@@ -85,11 +87,8 @@ export default function PurchaseBOQRow({
 
       <td className="td-amt computed">{showPrice ? fmtNum(after, currency) : '•••'}</td>
 
-      <td className="td-warranty">
-        <input type="text" value={row.warranty_period} disabled={rowLocked}
-          onChange={e => set(row._key, 'warranty_period', e.target.value)}
-          placeholder="12 tháng" />
-      </td>
+      <WarrantyInputCell row={row} set={set} bbList={bbList} fallback={warrantyDefault} disabled={rowLocked} />
+      <WarrantyRangeCell row={row} bbById={bbById} fallback={warrantyDefault} />
 
       <td className="td-supply">
         <PurchaseSupplyLinks

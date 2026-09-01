@@ -35,7 +35,7 @@ export default function BOQZoneRow({
         {canDrag && <span className="drag-handle" title="Kéo để đổi thứ tự (cả dòng con đi theo)">⠿</span>}
         <span className="stt-num">{no || idx + 1}</span>
       </td>
-      <td className="td-name boq-zone-name" colSpan={10} style={{ paddingLeft: 8 + depth * 22 }}>
+      <td className="td-name boq-zone-name" colSpan={11} style={{ paddingLeft: 8 + depth * 22 }}>
         <span className="boq-kind-badge boq-badge-zone">PHẦN</span>
         <AutoTextarea
           value={row.item_name}

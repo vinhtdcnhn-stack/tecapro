@@ -245,6 +245,9 @@ export async function updateTask(req, res) {
         completion_approved_at  = CASE WHEN $9::varchar = 'Hoàn thành' AND NOT $14 THEN NOW() ELSE NULL END,
         -- Chỉ neo theo việc cha khi bản thân là việc con (parent_task_id không đổi ở update).
         parent_start_offset = CASE WHEN parent_task_id IS NULL THEN NULL ELSE $13::int END,
+        -- Đổi hạn → xóa dấu "đã nhắc còn 7 ngày" để hạn mới được nhắc lại đúng một lần.
+        due_soon_notified_at = CASE WHEN due_date IS DISTINCT FROM $7::date
+                                    THEN NULL ELSE due_soon_notified_at END,
         updated_at      = NOW()
        WHERE id = $12`,
       [

@@ -10,15 +10,25 @@ export const CONTRACTS_FINANCE_PAGES = [
         heading: 'Màn hình thể hiện gì?',
         items: [
           'Ghi nhận các BIÊN BẢN đã ký với khách hàng trong quá trình thực hiện: biên bản giao hàng, nghiệm thu, bàn giao đưa vào sử dụng, thanh lý...',
-          'Mỗi dòng gồm: loại biên bản, số biên bản, ngày ký, ghi chú — thể hiện hợp đồng đã đi đến bước nào.',
+          'Mỗi dòng gồm: loại biên bản, "Ngày theo HĐ", "Ngày dự kiến", ngày thực tế đã ký, nguyên nhân chậm trễ và "Ghi chú" — thể hiện hợp đồng đã đi đến bước nào.',
+          'Cột cuối tên là "Ghi chú" (trước đây gọi là "Biên bản phạt") — ghi tự do bất cứ điều gì cần lưu ý về biên bản đó, không bắt buộc phải là chuyện phạt.',
           'Danh mục "loại biên bản" do quản trị viên khai báo ở menu Hệ thống; nếu thiếu loại cần dùng, báo quản trị viên thêm.',
         ],
       },
       {
         heading: 'Cách thêm biên bản',
         items: [
-          'PM bấm nút thêm, chọn loại biên bản, nhập số và ngày ký, rồi lưu.',
+          'PM bấm nút thêm, chọn loại biên bản, điền 2 cột ngày, ngày thực tế khi đã ký, rồi lưu (hoặc Ctrl+S để lưu tất cả dòng đang sửa).',
           'Bản scan của biên bản nên tải lên tab "Tài liệu hợp đồng" để tra cứu sau này.',
+        ],
+      },
+      {
+        heading: 'Hai cột ngày và công thức tính tự động',
+        items: [
+          'Cột "Ngày theo HĐ" = hạn cam kết trong hợp đồng. Ô chọn bên trái quyết định cách lấy ngày: "Nhập ngày" là tự gõ; "Ngày ký HĐ" là ngày ký hợp đồng cộng thêm số ngày; hoặc chọn mã một biên bản khác để tính từ NGÀY THEO HĐ của biên bản đó.',
+          'Cột "Ngày dự kiến" = dự báo theo thực tế. Ô chọn bên trái: "BB trước" (mặc định, tính từ ngày THỰC TẾ của biên bản liền trên), "Ngày ký HĐ", hoặc mã một biên bản khác — rồi nhập số ngày.',
+          'Khác nhau ở chỗ: "Ngày theo HĐ" tính theo hạn giấy tờ, còn "Ngày dự kiến" tính theo ngày THỰC TẾ đã ký của mốc gốc, nên mốc gốc chưa ký thì ô này còn trống.',
+          'Tab "Tiến độ theo BB" bên hợp đồng NHẬP nay dùng đúng cách tính này — chỉ khác mốc "Ngày ký HĐ" là ngày ký của hợp đồng nhập.',
         ],
       },
     ],
@@ -172,7 +182,21 @@ export const CONTRACTS_FINANCE_PAGES = [
         heading: 'Trao đổi trong việc',
         items: [
           'Bấm vào một việc để mở ngăn chi tiết bên phải: xem người thực hiện, người GIAO việc, hạn hoàn thành, và dòng thời gian TRAO ĐỔI — gõ nội dung báo cáo tiến độ, vướng mắc, đính kèm tệp.',
+          'ĐÍNH KÈM TỆP: bấm "📎 Thêm tệp / ảnh" trong ô soạn để chọn ẢNH hoặc TÀI LIỆU (PDF, Word, Excel, file nén...). Ảnh vẫn dán thẳng được bằng Ctrl+V vào ô nội dung.',
+          'Ảnh hiện thu nhỏ ngay trong dòng thời gian (bấm để phóng to); tài liệu hiện thành liên kết 📎 kèm tên và dung lượng — bấm để mở hoặc tải về. Dùng cách này khi Kỹ thuật phản hồi kết quả nhận / kiểm tra hàng bằng file.',
+          'Trên điện thoại có 3 nút: 📷 chụp ảnh, 🖼️ chọn ảnh, 📎 chọn tài liệu.',
+          'Không cần gõ chữ nếu chỉ muốn gửi tệp — cứ chọn tệp rồi bấm Gửi.',
           'Việc có trao đổi mới bạn chưa đọc sẽ tô NỀN HỔ PHÁCH trên các bảng theo dõi (kể cả trang chủ).',
+        ],
+      },
+      {
+        heading: 'Nhắc hạn qua Telegram',
+        items: [
+          'CÒN 7 NGÀY TỚI HẠN: người thực hiện nhận MỘT thông báo 🔔 "Công việc sắp tới hạn (còn ≤ 7 ngày)" — chỉ nhắc ĐÚNG MỘT LẦN cho mỗi việc, không lặp lại mỗi ngày.',
+          'Nếu sau đó hạn hoàn thành được sửa sang ngày khác thì việc được nhắc lại một lần nữa cho hạn mới.',
+          'ĐẾN HẠN / QUÁ HẠN: vẫn nhắc hằng ngày như trước cho tới khi việc chuyển sang "Hoàn thành".',
+          'Việc đã "Hoàn thành" hoặc chưa có người thực hiện thì không nhắc. Ai chưa khai Telegram trong hồ sơ cá nhân sẽ không nhận được tin.',
+          'Giờ nhắc: 08:15 và 13:45 (giờ Việt Nam), thứ Hai đến thứ Sáu.',
         ],
       },
       {

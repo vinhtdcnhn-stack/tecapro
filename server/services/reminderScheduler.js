@@ -3,6 +3,8 @@ import { notifyAction, fmtDate } from './notify.js'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Nhắc hạn hàng ngày qua Telegram (chạy trong tiến trình Express, không thêm thư viện):
+//   • Công việc hợp đồng còn 7 ngày tới hạn → nhắc người phụ trách ĐÚNG MỘT LẦN
+//     (đánh dấu ở contract_task.due_soon_notified_at; đổi hạn thì được nhắc lại).
 //   • Công việc hợp đồng đến hạn / quá hạn  → nhắc người phụ trách.
 //   • Công nợ phải thu đến hạn / quá hạn     → nhắc PM hợp đồng (nếu còn nợ).
 // Cả hai đều là việc CẦN xử lý → dùng notifyAction (🔔 in đậm).
@@ -43,6 +45,45 @@ async function remindDueTasks() {
   }
   for (const [userId, lines] of byUser) {
     notifyAction([userId], `Bạn có công việc cần xử lý:\n${lines.join('\n')}`)
+  }
+}
+
+// Công việc hợp đồng SẮP tới hạn (còn ≤ 7 ngày, chưa tới hạn) → nhắc người phụ trách
+// ĐÚNG MỘT LẦN. Dấu "đã nhắc" nằm ở due_soon_notified_at, đặt ngay sau khi gom tin nên
+// máy chủ có tắt vài ngày thì việc vẫn được nhắc một lần khi bật lại (không bỏ sót,
+// cũng không nhắc lại). Đổi hạn → cột này được xóa ở updateTask → nhắc lại cho hạn mới.
+const DUE_SOON_DAYS = 7
+
+async function remindTasksDueSoon() {
+  const { rows } = await pool.query(
+    `SELECT t.id, t.title, t.assigned_to, t.due_date, c.contract_no, c.project_name
+       FROM contract_task t
+       JOIN contract_out c ON c.id = t.contract_out_id
+      WHERE t.assigned_to IS NOT NULL
+        AND t.due_date IS NOT NULL
+        AND t.status <> 'Hoàn thành'
+        AND t.due_soon_notified_at IS NULL
+        AND t.due_date > CURRENT_DATE
+        AND t.due_date <= CURRENT_DATE + $1::int`,
+    [DUE_SOON_DAYS],
+  )
+  if (!rows.length) return
+
+  const byUser = new Map()
+  for (const r of rows) {
+    const label = r.contract_no || r.project_name || `#${r.id}`
+    pushLine(byUser, Number(r.assigned_to), `• "${r.title}" (HĐ ${label}) — hạn ${fmtDate(r.due_date)}`)
+  }
+
+  // Đánh dấu đã nhắc TRƯỚC khi gửi: gửi Telegram là fire-and-forget, nếu đánh dấu sau
+  // mà tiến trình chết giữa chừng thì lượt sau sẽ nhắc lại (sai yêu cầu "một lần duy nhất").
+  await pool.query(
+    'UPDATE contract_task SET due_soon_notified_at = NOW() WHERE id = ANY($1::int[])',
+    [rows.map(r => Number(r.id))],
+  )
+
+  for (const [userId, lines] of byUser) {
+    notifyAction([userId], `Công việc sắp tới hạn (còn ≤ ${DUE_SOON_DAYS} ngày):\n${lines.join('\n')}`)
   }
 }
 
@@ -112,6 +153,7 @@ async function remindTenderDeadlines() {
 
 // Chạy 1 lượt quét nhắc hạn (có thể gọi thủ công để test).
 export async function runDailyReminders() {
+  try { await remindTasksDueSoon() } catch (err) { console.error('remindTasksDueSoon:', err) }
   try { await remindDueTasks() } catch (err) { console.error('remindDueTasks:', err) }
   try { await remindDueReceivables() } catch (err) { console.error('remindDueReceivables:', err) }
   try { await remindTenderDeadlines() } catch (err) { console.error('remindTenderDeadlines:', err) }

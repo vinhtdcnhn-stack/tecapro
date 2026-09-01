@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { stripNum, calcAmounts, tmpId } from './boqUtils'
-import { buildTreeOrder, computeRollup, treeTotals, subtreeKeySet, ROW_KIND } from './boqTree'
+import { buildTreeOrder, computeRollup, treeTotals, ROW_KIND } from './boqTree'
+import useBOQDrag from './useBOQDrag'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import { API } from '../../config/api'
 import { apiGet } from '../../lib/api'
 import { withStamp, handledConflict } from './conflict'
+import useBienBanOptions, { useBienBanMap } from './useBienBanOptions'
 
 // ── Helpers thuần (không phụ thuộc state) ─────────────────────────────────────
 
@@ -33,6 +35,8 @@ function emptyRow({ insertAfterRefId = null, parentId = null, rowKind = ROW_KIND
     parent_id: parentId, row_kind: rowKind,
     item_name: '', hs_code: '', unit: '',
     quantity: '', unit_price: '', vat_rate: '', warranty_period: '',
+    // Mốc bảo hành để trống ⇒ dòng mới kế thừa mặc định của cả bảng giá.
+    warranty_bb_id: null, warranty_months: null,
     item_type: 'trong_nuoc',
   }
 }
@@ -43,6 +47,8 @@ export default function useBOQTab(contractId) {
   const [rows, setRows]           = useState([])
   const [currency, setCurrency]   = useState('VND')
   const [lock, setLock]           = useState({ locked: false, byName: null, at: null })
+  // Mốc bảo hành mặc định của cả bảng giá (contract_out.boq_warranty_*)
+  const [warrantyDefault, setWarrantyDefault] = useState({ bbId: null, months: null })
   const [loading, setLoading]     = useState(true)
   const [importData, setImportData] = useState(null)  // { items, total }
   const [importMode, setImportMode] = useState('append')
@@ -51,11 +57,6 @@ export default function useBOQTab(contractId) {
   const [typeFilter, setTypeFilter] = useState('all') // 'all' | 'trong_nuoc' | 'di_thang'
   const [selected, setSelected]   = useState(() => new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const [dragKey, setDragKey]     = useState(null)   // _key của dòng đang kéo
-  const [dragOverKey, setDragOverKey] = useState(null)
-  // Thả lên PHẦN/HỆ THỐNG: nửa TRÊN = chèn trước nó (cùng cấp), nửa DƯỚI = gom vào làm con.
-  // Nhờ nửa trên mà một hệ thống đang nằm trong hệ thống khác vẫn kéo ra ngoài được.
-  const [dragOverMode, setDragOverMode] = useState('into')
   const excelRef = useRef(null)
 
   // ── Load ─────────────────────────────────────────────────────────────────────
@@ -68,6 +69,10 @@ export default function useBOQTab(contractId) {
       ])
       setCurrency(cData?.currency_code || 'VND')
       setLock({ locked: !!cData?.boq_locked, byName: cData?.boq_locked_by_name || null, at: cData?.boq_locked_at || null })
+      setWarrantyDefault({
+        bbId: cData?.boq_warranty_bb_id ?? null,
+        months: cData?.boq_warranty_months ?? null,
+      })
       setRows(data.map(r => toLocalRow(r)))
       setSelected(new Set())
     } catch (e) {
@@ -124,6 +129,8 @@ export default function useBOQTab(contractId) {
       vat_rate:         row.vat_rate,
       amount_after_vat: after,
       warranty_period:  row.warranty_period,
+      warranty_bb_id:   row.warranty_bb_id ?? null,
+      warranty_months:  row.warranty_months ?? null,
       item_type:        row.item_type || 'trong_nuoc',
       multiply_qty:     !!row.multiply_qty,
       hide_amount:      !!row.hide_amount,
@@ -247,112 +254,8 @@ export default function useBOQTab(contractId) {
     if (updated.id) saveRow(updated)
   }
 
-  // ── Kéo-thả đổi thứ tự ─────────────────────────────────────────────────────
-  // Chỉ cho phép kéo dòng đã lưu khi không lọc (thứ tự hiển thị == thứ tự gốc).
-
-  // Gửi cả parent_id để server vừa đổi thứ tự vừa gán lại cha (kéo dòng vào phần/nhóm).
-  const persistOrder = async (orderedRows) => {
-    const items = orderedRows
-      .filter(r => !r._isNew && r.id)
-      .map(r => ({ id: r.id, parent_id: r.parent_id ?? null }))
-    if (!items.length) return
-    try {
-      const res = await fetch(`${API}/contracts/${contractId}/boq/reorder`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
-      })
-      if (!res.ok) {
-        // VD: kéo dòng vào nhóm đã có tên trùng → server từ chối, khôi phục lại cấu trúc cũ.
-        const data = await res.json().catch(() => ({}))
-        alert(data.error || 'Không thể sắp xếp lại bảng giá.')
-        load()
-      }
-    } catch (e) {
-      console.error('reorder BOQ:', e)
-      load()  // khôi phục thứ tự + cấu trúc từ server nếu lỗi
-    }
-  }
-
-  const handleDragStart = (e, key) => {
-    // Không bắt đầu kéo khi thao tác trong ô nhập liệu
-    const tag = e.target.tagName
-    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON') {
-      e.preventDefault()
-      return
-    }
-    setDragKey(key)
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', key)  // Firefox cần dữ liệu để khởi động kéo
-  }
-
-  const handleDragOver = (e) => {
-    if (!dragKey) return
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    const rect = e.currentTarget.getBoundingClientRect()
-    const mode = (e.clientY - rect.top) > rect.height / 2 ? 'into' : 'before'
-    setDragOverMode(prev => prev === mode ? prev : mode)
-  }
-
-  const handleDragEnter = (key) => {
-    if (dragKey && key !== dragKey) setDragOverKey(key)
-  }
-
-  const handleDragEnd = () => { setDragKey(null); setDragOverKey(null); setDragOverMode('into') }
-
-  const handleDrop = (e, targetKey) => {
-    e.preventDefault()
-    if (!dragKey || dragKey === targetKey) { handleDragEnd(); return }
-
-    // Kéo một PHẦN/HỆ THỐNG thì cả cây con đi theo → không được thả vào chính cây con
-    // của nó (sẽ tạo vòng lặp cha-con, mất dòng khỏi cây).
-    const dragged = rows.find(r => r._key === dragKey)
-    if (dragged && subtreeKeySet(rows, dragged).has(targetKey)) {
-      alert('Không thể chuyển một phần/hệ thống vào chính dòng con của nó.')
-      handleDragEnd()
-      return
-    }
-
-    // Thả ở nửa dưới của dòng đích → chèn sau, nửa trên → chèn trước
-    const rect = e.currentTarget.getBoundingClientRect()
-    const after = (e.clientY - rect.top) > rect.height / 2
-
-    let reordered = null
-    setRows(prev => {
-      const from = prev.findIndex(r => r._key === dragKey)
-      const tIdx = prev.findIndex(r => r._key === targetKey)
-      if (from < 0 || tIdx < 0) return prev
-      const moved = prev[from]
-      const target = prev[tIdx]
-
-      // Nhấc cả khối: dòng đang kéo + toàn bộ con cháu (giữ nguyên thứ tự nội bộ)
-      const blockKeys = subtreeKeySet(prev, moved)
-      const block = prev.filter(r => blockKeys.has(r._key))
-      const rest  = prev.filter(r => !blockKeys.has(r._key))
-
-      // Gán cha theo loại dòng đích:
-      //   thả nửa DƯỚI của PHẦN/NHÓM → thành con đầu tiên của nó
-      //   thả nửa TRÊN của PHẦN/NHÓM → thành anh-em, chèn NGAY TRƯỚC nó (lối để kéo ra khỏi nhóm)
-      //   thả lên dòng LÁ            → thành anh-em cùng cấp (kế thừa parent_id của dòng đích)
-      const targetKind = target.row_kind || 'leaf'
-      const t = rest.findIndex(r => r._key === targetKey)
-      let newParentId, insertAt
-      if (targetKind === 'zone' || targetKind === 'group') {
-        newParentId = after ? (target.id ?? null) : (target.parent_id ?? null)
-        insertAt = after ? t + 1 : t
-      } else {
-        newParentId = target.parent_id ?? null
-        insertAt = after ? t + 1 : t
-      }
-      // Chỉ dòng gốc của khối đổi cha; con cháu giữ nguyên parent_id để cây không vỡ.
-      rest.splice(insertAt, 0, { ...moved, parent_id: newParentId }, ...block.slice(1))
-      reordered = rest
-      return rest
-    })
-    if (reordered) persistOrder(reordered)
-    handleDragEnd()
-  }
+  // Kéo-thả sắp xếp lại cây bảng giá (state + handler ở useBOQDrag)
+  const drag = useBOQDrag({ contractId, rows, setRows, load })
 
   const isMobile = useIsMobile()
 
@@ -481,11 +384,29 @@ export default function useBOQTab(contractId) {
     locked: !!row?.boq_locked, byName: row?.boq_locked_by_name || null, at: row?.boq_locked_at || null,
   })
 
+  // ── Mốc bảo hành ────────────────────────────────────────────────────────────
+  // Biên bản của chính HĐ bán (tab Tiến độ biên bản) → nguồn ngày bắt đầu bảo hành.
+  const bbList = useBienBanOptions(contractId, 'out')
+  const bbById = useBienBanMap(bbList)
+
+  const saveWarrantyDefault = async ({ bbId, months }) => {
+    const res = await fetch(`${API}/contracts/${contractId}/boq-warranty-default`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ warranty_bb_id: bbId, warranty_months: months }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Không lưu được mốc bảo hành mặc định.')
+    setWarrantyDefault({ bbId: data.boq_warranty_bb_id ?? null, months: data.boq_warranty_months ?? null })
+  }
+
   return {
     // data
     rows, currency, loading, totals, isMobile, rollup,
     // khóa bảng giá
     lock, applyLock,
+    // mốc bảo hành (biên bản + số tháng)
+    bbList, bbById, warrantyDefault, saveWarrantyDefault,
     // filter
     search, setSearch, typeFilter, setTypeFilter, isFiltering, visibleRows,
     // selection
@@ -494,7 +415,7 @@ export default function useBOQTab(contractId) {
     // row ops
     set, patchRow, saveRow, deleteRow, insertAfter, addRow, addZone, addGroup, addChild, toggleMultiply, toggleHideAmount,
     // drag-reorder
-    dragKey, dragOverKey, dragOverMode, handleDragStart, handleDragOver, handleDragEnter, handleDrop, handleDragEnd,
+    ...drag,
     // excel import
     excelRef, handleExcelFile, importData, importMode, setImportMode, importSaving, confirmImport, setImportData,
   }

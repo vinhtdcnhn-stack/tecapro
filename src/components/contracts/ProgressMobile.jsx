@@ -121,7 +121,7 @@ export default function ProgressMobile({
           <Field label="Nguyên nhân chậm trễ">
             <input value={editing.reason || ''} placeholder="(nếu có)" onChange={e => set(editing._key, 'reason', e.target.value)} />
           </Field>
-          <Field label="Biên bản phạt">
+          <Field label="Ghi chú">
             <input value={editing.penalty_note || ''} placeholder="(nếu có)" onChange={e => set(editing._key, 'penalty_note', e.target.value)} />
           </Field>
         </MobileEditSheet>

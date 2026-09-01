@@ -6,6 +6,7 @@ import { apiGet } from '../../lib/api'
 import { fmtDate, fmtNum } from './deliveryUtils'
 import DeliveryCard from './DeliveryCard'
 import BatchModal from './DeliveryBatchModal'
+import SerialOrderModal from './SerialOrderModal'
 import useIsMobile from './useIsMobile'
 import EditGuard from './EditGuard'
 import usePasswordPrompt from './usePasswordPrompt'
@@ -20,6 +21,7 @@ export default function ContractInDeliveryTab({ contractInId }) {
   const [expandedId, setExpandedId]   = useState(null)
   const [addBatchModal, setAddBatch]  = useState(false)
   const [editBatch, setEditBatch]     = useState(null)
+  const [serialOrder, setSerialOrder] = useState(false)
   const { promptPassword, passwordModal } = usePasswordPrompt()
 
   const load = useCallback(async () => {
@@ -126,7 +128,16 @@ export default function ContractInDeliveryTab({ contractInId }) {
           headerSlot,
         )
       ) : (
-        <div style={{ display:'flex', justifyContent:'flex-end' }}>
+        <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+          <EditGuard>
+            <button
+              onClick={() => setSerialOrder(true)}
+              title="Giao cho Kỹ thuật nhập serial cho hàng đã nhận (tạo công việc + báo Telegram)"
+              style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 16px', background:'#eef2ff', color:'#4338ca', border:'1px solid #c7d2fe', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600 }}
+            >
+              📤 Gửi lệnh nhập serial
+            </button>
+          </EditGuard>
           <EditGuard>
             <button
               onClick={() => { setEditBatch(null); setAddBatch(true) }}
@@ -168,6 +179,13 @@ export default function ContractInDeliveryTab({ contractInId }) {
           batch={editBatch}
           onSave={handleSaveBatch}
           onClose={() => { setAddBatch(false); setEditBatch(null) }}
+        />
+      )}
+
+      {serialOrder && (
+        <SerialOrderModal
+          contractInId={contractInId}
+          onClose={() => setSerialOrder(false)}
         />
       )}
 

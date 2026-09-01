@@ -57,6 +57,11 @@ export const FIELD_LABELS = {
   unit: 'Đơn vị',
   vat_rate: 'Thuế suất VAT',
   hide_amount: 'Ẩn số tiền (dòng hệ thống)',
+  warranty_period: 'Ghi chú bảo hành',
+  warranty_months: 'Số tháng bảo hành',
+  warranty_bb_id: 'Biên bản mốc bảo hành',
+  boq_warranty_months: 'Số tháng BH mặc định (bảng giá)',
+  boq_warranty_bb_id: 'Biên bản mốc BH mặc định (bảng giá)',
   vat_percent: 'Thuế suất VAT',
   currency_code: 'Loại tiền',
   exchange_rate: 'Tỷ giá',
@@ -83,6 +88,17 @@ export const FIELD_LABELS = {
   supplier_id: 'Nhà cung cấp',
   file_name: 'Tên tệp',
   folder_id: 'Thư mục',
+  // Tiến độ theo biên bản (HĐ bán + HĐ nhập)
+  penalty_note: 'Ghi chú',
+  planned_date: 'Ngày theo HĐ',
+  actual_date: 'Ngày thực tế',
+  reason: 'Nguyên nhân chậm trễ',
+  hd_offset_days: 'Ngày theo HĐ — số ngày từ mốc gốc',
+  hd_base_bb_type_id: 'Ngày theo HĐ — mốc gốc (biên bản)',
+  hd_base_anchor: 'Ngày theo HĐ — mốc gốc (ngày ký HĐ)',
+  offset_days: 'Ngày dự kiến — số ngày từ mốc gốc',
+  base_bb_type_id: 'Ngày dự kiến — mốc gốc (biên bản)',
+  base_anchor: 'Ngày dự kiến — mốc gốc (ngày ký HĐ)',
 }
 
 export const fieldLabel = (col) => FIELD_LABELS[col] || col

@@ -77,12 +77,14 @@ export async function saveImportedBOQ(req, res) {
         const { rows } = await client.query(`
           INSERT INTO public.contract_out_boq
             (contract_out_id, sort_order, parent_id, row_kind, item_name, hs_code, unit, quantity,
-             unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+             unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty,
+             warranty_months)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
           RETURNING *
         `, [contractId, sortOrder++, parentId, kind,
             f.item_name, f.hs_code, f.unit, f.quantity,
-            f.price, f.before, f.vat_rate, f.after, f.warranty_period, f.item_type, f.multiply_qty])
+            f.price, f.before, f.vat_rate, f.after, f.warranty_period, f.item_type, f.multiply_qty,
+            f.warranty_months])
         idByIdx[i] = rows[0].id
         saved.push(rows[0])
       }

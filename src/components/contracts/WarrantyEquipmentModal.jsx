@@ -2,22 +2,7 @@ import { useState } from 'react'
 import Modal from '../common/Modal'
 import DateInput, { isoToDisplay } from './DateInput'
 import useBienBanOptions from './useBienBanOptions'
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const pad = (n) => String(n).padStart(2, '0')
-
-// Cộng N tháng vào ngày ISO 'yyyy-mm-dd' (kẹp ngày về cuối tháng nếu tràn, vd 31/1 +1 tháng).
-function addMonths(iso, months) {
-  const m = String(iso || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  const n = parseInt(months, 10)
-  if (!m || !Number.isFinite(n)) return ''
-  const y = +m[1], mo = +m[2], d = +m[3]
-  const dt = new Date(y, mo - 1 + n, 1)
-  const lastDay = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()
-  dt.setDate(Math.min(d, lastDay))
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
-}
+import { addMonths } from './boqWarranty'
 
 // ── Equipment Form Modal ──────────────────────────────────────────────────────
 

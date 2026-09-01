@@ -1,17 +1,20 @@
 import { Router } from 'express'
 import {
-  excelUploadIn,
-  downloadPurchaseBOQTemplate,
   getPurchaseBOQ,
   createPurchaseBOQItem,
   insertPurchaseBOQAfter,
   updatePurchaseBOQItem,
   deletePurchaseBOQItem,
-  importPurchaseBOQPreview,
-  saveImportedPurchaseBOQ,
   reorderPurchaseBOQ,
   bulkDeletePurchaseBOQItems,
+  setPurchaseBOQWarrantyDefault,
 } from '../controllers/contractInBOQController.js'
+import {
+  excelUploadIn,
+  downloadPurchaseBOQTemplate,
+  importPurchaseBOQPreview,
+  saveImportedPurchaseBOQ,
+} from '../controllers/contractInBOQExcel.js'
 import { getSupplyTargets, setLinksForInBoqRow } from '../controllers/supplyLinkController.js'
 import { getTargets, getTargetCandidates, addTarget, removeTarget } from '../controllers/contractInTargetController.js'
 import {
@@ -31,6 +34,8 @@ router.post('/contract-ins/:contractInId/boq/after/:refId',             ownerOfC
 router.post('/contract-ins/:contractInId/boq/import',    ownerOfCI, excelUploadIn.single('file'), importPurchaseBOQPreview)
 router.post('/contract-ins/:contractInId/boq/save-import',              ownerOfCI, saveImportedPurchaseBOQ)
 router.post('/contract-ins/:contractInId/boq/reorder',                  ownerOfCI, reorderPurchaseBOQ)
+// Mốc bảo hành mặc định của cả bảng giá mua
+router.patch('/contract-ins/:contractInId/boq-warranty-default',        ownerOfCI, setPurchaseBOQWarrantyDefault)
 router.post('/purchase-boq/bulk-delete',                                ownerViaBody('inBoq'), bulkDeletePurchaseBOQItems)
 router.put('/purchase-boq/:id',                                         ownerVia('inBoq'), updatePurchaseBOQItem)
 router.delete('/purchase-boq/:id',                                      ownerVia('inBoq'), deletePurchaseBOQItem)

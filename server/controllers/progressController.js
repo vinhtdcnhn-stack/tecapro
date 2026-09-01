@@ -222,6 +222,9 @@ export async function deleteProgress(req, res) {
   }
 }
 
+// Ô "số ngày" để trống → NULL (không ép về 0, tránh biến "chưa đặt" thành "cùng ngày").
+const intOrNull = (v) => (v === '' || v == null ? null : parseInt(v, 10))
+
 // ── Contract_In Progress CRUD ─────────────────────────────────────────────────
 
 const IN_PROGRESS_SELECT = `
@@ -256,17 +259,22 @@ function invalidateProgressIn(contractInId) {
 export async function createProgressIn(req, res) {
   try {
     const { contractInId } = req.params
-    const { bb_type_id, planned_date, actual_date, reason, penalty_note } = req.body
+    const { bb_type_id, planned_date, actual_date, reason, penalty_note,
+            offset_days, base_bb_type_id, base_anchor,
+            hd_offset_days, hd_base_bb_type_id, hd_base_anchor } = req.body
     const { rows: mx } = await pool.query(
       'SELECT COALESCE(MAX(sort_order), 0) AS m FROM contract_in_progress WHERE contract_in_id = $1',
       [contractInId]
     )
     const { rows } = await pool.query(`
       INSERT INTO contract_in_progress
-        (contract_in_id, bb_type_id, sort_order, planned_date, actual_date, reason, penalty_note)
-      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        (contract_in_id, bb_type_id, sort_order, planned_date, actual_date, reason, penalty_note,
+         offset_days, base_bb_type_id, base_anchor, hd_offset_days, hd_base_bb_type_id, hd_base_anchor)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [contractInId, bb_type_id||null, Number(mx[0].m)+1,
-       planned_date||null, actual_date||null, reason||'', penalty_note||'']
+       planned_date||null, actual_date||null, reason||'', penalty_note||'',
+       intOrNull(offset_days), base_bb_type_id||null, base_anchor||null,
+       intOrNull(hd_offset_days), hd_base_bb_type_id||null, hd_base_anchor||null]
     )
     const { rows: full } = await pool.query(IN_PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id])
     invalidateProgressIn(contractInId)
@@ -280,14 +288,22 @@ export async function createProgressIn(req, res) {
 export async function updateProgressIn(req, res) {
   try {
     if (await rejectIfStale(req, res, 'contract_in_progress')) return
-    const { bb_type_id, planned_date, actual_date, reason, penalty_note } = req.body
+    const { bb_type_id, planned_date, actual_date, reason, penalty_note,
+            offset_days, base_bb_type_id, base_anchor,
+            hd_offset_days, hd_base_bb_type_id, hd_base_anchor } = req.body
     const { rows } = await pool.query(`
       UPDATE contract_in_progress SET
         bb_type_id=$1, planned_date=$2, actual_date=$3,
-        reason=$4, penalty_note=$5, updated_at=NOW()
-      WHERE id=$6 RETURNING *`,
+        reason=$4, penalty_note=$5,
+        offset_days=$6, base_bb_type_id=$7, base_anchor=$8,
+        hd_offset_days=$9, hd_base_bb_type_id=$10, hd_base_anchor=$11,
+        updated_at=NOW()
+      WHERE id=$12 RETURNING *`,
       [bb_type_id||null, planned_date||null, actual_date||null,
-       reason||'', penalty_note||'', req.params.id]
+       reason||'', penalty_note||'',
+       intOrNull(offset_days), base_bb_type_id||null, base_anchor||null,
+       intOrNull(hd_offset_days), hd_base_bb_type_id||null, hd_base_anchor||null,
+       req.params.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     const { rows: full } = await pool.query(IN_PROGRESS_SELECT + ' WHERE p.id = $1', [rows[0].id])

@@ -135,6 +135,21 @@
   border: none; background: #ef4444; color: #fff; cursor: pointer; font-weight: 700; line-height: 1;
 }
 
+/* Tài liệu (không phải ảnh) đính kèm mục dòng thời gian → liên kết tải về */
+.task-tl-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.task-tl-file {
+  display: inline-block; max-width: 100%; padding: 5px 10px; border-radius: 8px;
+  border: 1px solid #e5e7eb; background: #f9fafb; color: #1d4ed8;
+  font-size: 13px; text-decoration: none; word-break: break-all;
+}
+.task-tl-file:hover { background: #eff6ff; border-color: #bfdbfe; }
+.task-tl-preview-file { display: inline-flex; align-items: center; }
+.task-tl-file-chip {
+  display: inline-block; padding: 5px 10px; border-radius: 8px;
+  border: 1px solid #e5e7eb; background: #f9fafb; color: #374151;
+  font-size: 13px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* Lightbox phóng to ảnh */
 .task-tl-lightbox {
   position: fixed; inset: 0; background: rgba(0, 0, 0, .8); z-index: 1000;

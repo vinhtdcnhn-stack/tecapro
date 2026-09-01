@@ -10,7 +10,7 @@ import { useContractPerm } from '../../context/ContractPermContext'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function ContractInPayableTab({ contractInId }) {
+export default function ContractInPayableTab({ contractInId, currency = 'VND', exchangeRate = 1 }) {
   const { canSection } = useContractPerm()
   const showAmounts = canSection('ci.payment.amounts')
   const mVND = (n) => showAmounts ? fmtVND(n) : '•••'
@@ -41,6 +41,8 @@ export default function ContractInPayableTab({ contractInId }) {
     }
     loadRef()
   }, [contractInId])
+
+  const boqTotal = contractRef?.boqTotal || 0
 
   // Đợt thanh toán chưa gắn khoản nào (dữ liệu cũ trước khi có liên kết, hoặc khoản đã bị xóa)
   const orphanPayments = pay.rows.filter(p => p.payable_id == null)
@@ -77,6 +79,24 @@ export default function ContractInPayableTab({ contractInId }) {
         </div>
       </div>
 
+      {/* ── Giá trị HĐ nhập theo bảng giá mua — mốc để nhập "% giá trị" ── */}
+      {contractRef && (
+        <div className="recv-ref-banner">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          <span>
+            Giá trị hợp đồng nhập (theo bảng giá mua):&nbsp;
+            <strong>{mVND(boqTotal)} {currency === 'VND' ? 'đ' : currency}</strong>
+            {currency !== 'VND' && exchangeRate > 0 && (
+              <span className="recv-ref-sub">
+                &nbsp;≈ {mVND(boqTotal * exchangeRate)} đ&nbsp;(tỷ giá {exchangeRate})
+              </span>
+            )}
+            &nbsp;— Nhập <strong>% giá trị</strong> để tự tính giá trị phải trả từng khoản.
+          </span>
+          {boqTotal === 0 && <span className="recv-ref-warn"> Chưa có dữ liệu bảng giá mua.</span>}
+        </div>
+      )}
+
       {/* ── Khóa nhập/sửa khi không phải PM ── */}
       <EditGuard>
       {/* ── Lịch phải trả — mỗi khoản kèm các đợt thanh toán đã gắn vào nó ── */}
@@ -85,7 +105,7 @@ export default function ContractInPayableTab({ contractInId }) {
         setRows={sched.setRows}
         contractInId={contractInId}
         reload={sched.reload}
-        refTotal={contractRef?.boqTotal || 0}
+        refTotal={boqTotal}
         showAmounts={showAmounts}
         payRows={pay.rows}
         setPayRows={pay.setRows}

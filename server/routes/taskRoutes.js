@@ -37,7 +37,9 @@ router.get('/contract-tasks/unread-count',      getUnreadCount)
 router.get('/tasks/:taskId/entries',            getEntries)
 router.post('/tasks/:taskId/entries',           addEntry)
 router.delete('/task-entries/:id',              deleteEntry)
-// Đính ảnh cho một mục dòng thời gian (quyền gác trong controller theo tác giả/PM).
+// Đính TỆP (ảnh hoặc tài liệu) cho một mục dòng thời gian — quyền gác trong controller
+// theo tác giả/PM. Đường dẫn /images là bản cũ, giữ lại cho client chưa nạp lại trang.
+router.post('/task-entries/:id/attachments',    uploadEntryImage.single('file'),  addEntryImage)
 router.post('/task-entries/:id/images',         uploadEntryImage.single('image'), addEntryImage)
 
 export default router

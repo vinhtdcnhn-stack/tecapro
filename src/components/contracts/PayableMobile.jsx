@@ -11,6 +11,7 @@ import { tmpId, paymentsOf, payableStatus, savePaymentRow } from './contractInPa
 
 export function PayableSectionMobile({
   rows, set, saveRow, deleteRow, addRow, currencies, methods, calcVND, fmtVND, showAmounts = true,
+  refTotal = 0, ratioOf = () => '',
   payRows = [], setPayRows, contractInId, reloadPayments,
 }) {
   const [key, setKey] = useState(null)
@@ -75,6 +76,12 @@ export function PayableSectionMobile({
           saving={editing._saving} onClose={() => setKey(null)} onSave={onSave} onDelete={onDel}>
           <Field label="Mô tả điều kiện thanh toán">
             <input value={editing.description || ''} placeholder="VD: 30% tạm ứng..." onChange={e => set(editing._key, 'description', e.target.value)} />
+          </Field>
+          <Field label="% giá trị (theo bảng giá mua)">
+            <input type="number" min="0" max="100" step="0.0001"
+              value={editing.hd_ratio != null ? editing.hd_ratio : ratioOf(editing.amount)}
+              placeholder={refTotal > 0 ? '30' : '—'} disabled={refTotal === 0}
+              onChange={e => set(editing._key, 'hd_ratio', e.target.value)} />
           </Field>
           <Field label="Phương thức">
             <select value={editing.payment_method || 'TT'} onChange={e => set(editing._key, 'payment_method', e.target.value)}>

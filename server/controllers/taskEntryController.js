@@ -29,7 +29,10 @@ const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads')
 
 const ENTRY_TYPES = new Set(['report', 'directive', 'decision', 'discussion'])
 
-// ── Ảnh đính kèm cho mục dòng thời gian (chỉ ảnh) ─────────────────────────────
+// ── Tệp đính kèm cho mục dòng thời gian ───────────────────────────────────────
+// Nhận MỌI loại tệp an toàn (ảnh, PDF, Word/Excel, nén…) — kỹ thuật phản hồi kết quả
+// nhận/kiểm tra hàng bằng file. Ảnh vẫn hiện thu nhỏ trong dòng thời gian, tệp khác
+// hiện thành liên kết tải về. Bảng lưu vẫn là contract_task_entry_image (giữ tên cũ).
 const imgStorage = multer.diskStorage({
   destination(req, file, cb) {
     const entryId = String(req.params.id)
@@ -44,25 +47,14 @@ const imgStorage = multer.diskStorage({
   },
 })
 
-// Chỉ nhận ảnh: chạy bộ lọc an toàn chung rồi siết thêm mime ảnh.
-function imageOnlyFilter(req, file, cb) {
-  safeUploadFilter(req, file, (err) => {
-    if (err) { cb(err); return }
-    if (!String(file.mimetype || '').startsWith('image/')) {
-      cb(new Error('Chỉ cho phép đính kèm ảnh.')); return
-    }
-    cb(null, true)
-  })
-}
+export const uploadEntryImage = multer({ storage: imgStorage, limits: UPLOAD_LIMITS, fileFilter: safeUploadFilter })
 
-export const uploadEntryImage = multer({ storage: imgStorage, limits: UPLOAD_LIMITS, fileFilter: imageOnlyFilter })
-
-// Gắn mảng ảnh vào từng mục (1 truy vấn cho cả danh sách).
+// Gắn mảng tệp đính kèm vào từng mục (1 truy vấn cho cả danh sách).
 async function attachImages(entries) {
   if (!entries.length) return entries
   const ids = entries.map(e => e.id)
   const { rows } = await pool.query(
-    `SELECT id, entry_id, file_name, file_path, mime_type
+    `SELECT id, entry_id, file_name, file_path, file_size, mime_type
        FROM contract_task_entry_image WHERE entry_id = ANY($1) ORDER BY id`,
     [ids],
   )
@@ -171,10 +163,10 @@ export async function addEntry(req, res) {
   }
 }
 
-// POST /task-entries/:id/images  (field 'image') — chỉ tác giả mục (hoặc PM/admin) đính ảnh.
+// POST /task-entries/:id/attachments (field 'file') — chỉ tác giả mục (hoặc PM/admin) đính tệp.
 export async function addEntryImage(req, res) {
   const id = parseInt(req.params.id)
-  if (!req.file) return res.status(400).json({ error: 'Chưa có ảnh.' })
+  if (!req.file) return res.status(400).json({ error: 'Chưa chọn tệp.' })
   try {
     const { rows } = await pool.query(
       `SELECT e.author_id, t.contract_out_id
@@ -191,13 +183,13 @@ export async function addEntryImage(req, res) {
       || await isPmOfContract(req.user.id, String(rows[0].contract_out_id))
     if (Number(rows[0].author_id) !== Number(req.user.id) && !isManager) {
       discardUploadedFile(req.file)
-      return res.status(403).json({ error: 'Không có quyền đính kèm ảnh.' })
+      return res.status(403).json({ error: 'Không có quyền đính kèm tệp.' })
     }
     const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8')
     const filePath = `/uploads/task-entries/${id}/${req.file.filename}`
     const { rows: img } = await pool.query(
       `INSERT INTO contract_task_entry_image (entry_id, file_name, file_path, file_size, mime_type)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id, entry_id, file_name, file_path, mime_type`,
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, entry_id, file_name, file_path, file_size, mime_type`,
       [id, fileName, filePath, req.file.size, req.file.mimetype],
     )
     res.status(201).json(img[0])
@@ -205,7 +197,7 @@ export async function addEntryImage(req, res) {
     console.error('contractTask addEntryImage:', err)
     if (!res.headersSent) {
       discardUploadedFile(req.file) // chưa lưu được bản ghi DB → file trên đĩa là mồ côi
-      res.status(500).json({ error: 'Không lưu được ảnh.' })
+      res.status(500).json({ error: 'Không lưu được tệp.' })
     }
   }
 }
@@ -223,7 +215,7 @@ export async function deleteEntry(req, res) {
       return res.status(403).json({ error: ENTRY_DELETE_DENIED })
     }
     await pool.query('DELETE FROM contract_task_entry WHERE id = $1', [id])
-    // Xóa luôn thư mục ảnh trên đĩa (DB đã CASCADE; defense-in-depth: chỉ trong uploads/task-entries).
+    // Xóa luôn thư mục tệp đính kèm trên đĩa (DB đã CASCADE; defense-in-depth: chỉ trong uploads/task-entries).
     const dir = path.resolve(UPLOADS_ROOT, 'task-entries', String(id))
     if (dir.startsWith(path.join(UPLOADS_ROOT, 'task-entries') + path.sep) && fs.existsSync(dir)) {
       fs.rmSync(dir, { recursive: true, force: true })

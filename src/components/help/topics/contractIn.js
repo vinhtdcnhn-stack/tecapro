@@ -95,6 +95,19 @@ export const CONTRACT_IN_GROUP = {
             'Trên điện thoại, bảng chuyển thành danh sách thẻ: chạm vào một thẻ để mở ô sửa dòng đó (tên hàng, ĐVT, số lượng, đơn giá, VAT, bảo hành). Riêng cột "Nhập cho" phải làm trên máy tính.',
           ],
         },
+        {
+          heading: 'Thời hạn & hiệu lực bảo hành của nhà cung cấp',
+          items: [
+            'Mỗi dòng hàng có 2 cột bảo hành: "Thời hạn bảo hành" (nơi NHẬP) và "Hiệu lực bảo hành" (phần mềm TỰ TÍNH, không sửa được).',
+            'Ô "Thời hạn bảo hành" gồm 2 thứ: số THÁNG nhà cung cấp bảo hành, và ô chọn BIÊN BẢN làm mốc bắt đầu tính.',
+            'Danh sách biên bản lấy từ tab "Tiến độ theo BB" của CHÍNH HỢP ĐỒNG NHẬP này (biên bản nghiệm thu/bàn giao với nhà cung cấp) — không phải biên bản của hợp đồng bán.',
+            'Cách tính: NGÀY BẮT ĐẦU = ngày THỰC TẾ của biên bản đã chọn; NGÀY HẾT HẠN = ngày bắt đầu + số tháng. Cột Hiệu lực hiện "01/03/2026 → 01/03/2029" kèm nhãn 🟢 Còn bảo hành / 🟡 Còn N ngày / 🔴 Hết bảo hành.',
+            'Biên bản chưa điền ngày thực tế thì chưa tính được — cột Hiệu lực ghi rõ lý do; điền ngày ở tab Tiến độ là hạn tự hiện ra.',
+            'Đặt CHUNG cho cả bảng: ô "Mốc BH mặc định:" ở dải bộ lọc phía trên — chọn biên bản + số tháng một lần, áp cho mọi dòng chưa tự đặt riêng (dòng đang ăn theo mặc định hiện chữ mờ "↳ mặc định: …"). Dòng nào khác thì gõ đè ngay tại dòng đó.',
+            'Khi Import Excel, phần mềm tự đọc số tháng từ cột "Thời hạn bảo hành" trong file (ví dụ "36 tháng" → 36 tháng, "3 năm" → 36 tháng); mốc biên bản vẫn phải chọn trong phần mềm.',
+            'Đây là bảo hành theo HỢP ĐỒNG MUA. Bảo hành theo từng serial thực nhận vẫn quản lý ở tab "Bảo hành NCC".',
+          ],
+        },
       ],
     },
     {
@@ -112,6 +125,16 @@ export const CONTRACT_IN_GROUP = {
           heading: 'Cách thao tác',
           items: [
             'Mỗi lần nhận hàng về kho: thêm một đợt nhận, chọn các dòng hàng + số lượng nhận, kèm ngày và ghi chú.',
+          ],
+        },
+        {
+          heading: 'Nút "Gửi lệnh nhập serial" — giao việc cho Kỹ thuật',
+          items: [
+            'Dùng khi hàng đã về nhưng serial chưa được nhập: bấm "📤 Gửi lệnh nhập serial" ở góc phải, chọn người của Ban Dự án & chuyển giao công nghệ / Ban Kỹ thuật, đặt hạn hoàn thành (mặc định 3 ngày) và ghi chú thêm nếu cần, rồi bấm "Gửi lệnh".',
+            'Hệ thống tự tạo MỘT CÔNG VIỆC ở tab "Công việc triển khai" của hợp đồng BÁN mẹ, giao cho người được chọn, kèm mô tả liệt kê các đợt nhận và số serial đã có.',
+            'Người nhận có Telegram sẽ nhận ngay thông báo 🔔 "Lệnh nhập serial" kèm hạn và ghi chú.',
+            'Người nhận báo cáo kết quả ngay trong việc đó: mở việc → "Dòng thời gian", chọn loại "Báo cáo", gõ nội dung và đính kèm ảnh hoặc FILE (biên bản kiểm tra hàng, ảnh tem serial...).',
+            'Chỉ người tạo hợp đồng nhập (hoặc admin) mới gửi được lệnh này.',
           ],
         },
       ],
@@ -133,6 +156,15 @@ export const CONTRACT_IN_GROUP = {
             'Serial phải DUY NHẤT trong toàn bộ hợp đồng nhập của hệ thống (không phân biệt hoa/thường); trùng sẽ báo lỗi. Serial bên nhập và bên bán được phép trùng nhau (là cùng một thiết bị).',
           ],
         },
+        {
+          heading: 'Xuất file serial ra Excel',
+          items: [
+            'Bấm nút "Xuất file serial" ở thanh công cụ để tải về file Excel danh sách serial của hợp đồng nhập này.',
+            'File xuất ĐÚNG những dòng đang hiển thị: nếu đang gõ tìm kiếm hoặc lọc theo chủng loại / tình trạng thì chỉ xuất phần đã lọc — muốn xuất đủ thì xóa hết bộ lọc trước.',
+            'Các cột trong file: #, Chủng loại hàng, Serial, Đợt nhận, Tình trạng, Thuộc máy, Ghi chú.',
+            'Nút này ẩn trên điện thoại (mọi thao tác Excel chỉ làm trên máy tính).',
+          ],
+        },
       ],
     },
     {
@@ -146,6 +178,7 @@ export const CONTRACT_IN_GROUP = {
             'Bảng xếp theo 2 tầng giống tab Công nợ của hợp đồng bán: mỗi KHOẢN PHẢI TRẢ (theo điều khoản hợp đồng) là một dòng, ngay bên dưới nó là các ĐỢT THANH TOÁN thực tế đã chi cho khoản đó.',
             'Cuối mỗi khoản có dòng so sánh: Phải trả — Đã trả — Còn thiếu (hoặc Thừa nếu chi vượt).',
             'Số liệu ở đây đổ vào báo cáo "Công nợ phải trả" của bảng điều khiển Kế toán; đợt quá hạn trả sẽ bị cảnh báo.',
+            'Ngay dưới 4 ô tổng có một dòng xanh ghi "Giá trị hợp đồng nhập (theo bảng giá mua)" — đây là tổng thành tiền của tab "Bảng giá mua", dùng làm gốc để tính cột "% giá trị". Hợp đồng ngoại tệ hiện thêm số quy đổi VNĐ theo tỷ giá.',
           ],
         },
         {
@@ -163,6 +196,8 @@ export const CONTRACT_IN_GROUP = {
           heading: 'Cách thao tác',
           items: [
             'Bước 1 — Thêm khoản: bấm "Thêm khoản" ở góc phải, nhập mô tả điều kiện thanh toán (VD "30% tạm ứng khi ký"), phương thức, đồng tiền, giá trị, hạn trả, rồi lưu dòng.',
+            'Cột "% giá trị": gõ số phần trăm (VD 30) là ô Giá trị TỰ TÍNH ra tiền theo tổng bảng giá mua; ngược lại gõ thẳng Giá trị thì cột % tự hiện tỷ lệ tương ứng — nhập kiểu nào cũng được, hai ô luôn khớp nhau.',
+            'Chưa nhập bảng giá mua thì ô "% giá trị" bị khóa (hiện dấu —) vì chưa có gốc để tính; nhập bảng giá xong quay lại là dùng được.',
             'Bước 2 — Ghi nhận tiền đã chuyển: bấm "Thêm đợt thanh toán" NẰM NGAY DƯỚI khoản tương ứng, nhập ngày chuyển tiền, số tiền, ghi chú. Phải lưu khoản phải trả trước thì nút này mới bấm được.',
             'Đợt thanh toán tự dùng đồng tiền và tỷ giá của khoản chứa nó, không phải chọn lại.',
             'Nhấn Ctrl+S để lưu một lượt tất cả khoản và đợt đang sửa.',
@@ -180,7 +215,18 @@ export const CONTRACT_IN_GROUP = {
           heading: 'Cách dùng',
           items: [
             'Ghi nhận các biên bản ký với NHÀ CUNG CẤP (giao nhận, nghiệm thu, thanh lý...) — giống tab "Tiến độ theo biên bản" bên hợp đồng bán nhưng cho chiều mua vào.',
-            'Thêm dòng: chọn loại biên bản, số, ngày ký, ghi chú.',
+            'Thêm dòng: chọn loại biên bản, rồi điền 2 cột ngày (xem bên dưới), ngày thực tế đã ký, nguyên nhân chậm trễ và ghi chú.',
+            'Cột cuối cùng tên là "Ghi chú" (trước đây là "Biên bản phạt") — ghi tự do bất cứ điều gì cần lưu ý về biên bản đó.',
+          ],
+        },
+        {
+          heading: 'Hai cột ngày và công thức tính tự động',
+          items: [
+            'Cột "Ngày theo HĐ" = hạn cam kết với nhà cung cấp. Ô chọn bên trái quyết định cách lấy ngày: "Nhập ngày" là tự gõ; "Ngày ký HĐ" là ngày ký của CHÍNH hợp đồng nhập này cộng thêm số ngày; hoặc chọn mã một biên bản khác để tính từ NGÀY THEO HĐ của biên bản đó.',
+            'Cột "Ngày dự kiến" = dự báo theo thực tế. Ô chọn bên trái: "BB trước" (mặc định, tính từ ngày THỰC TẾ của biên bản liền trên), "Ngày ký HĐ", hoặc mã một biên bản khác — rồi nhập số ngày.',
+            'Khác nhau ở chỗ: "Ngày theo HĐ" tính theo hạn giấy tờ, còn "Ngày dự kiến" tính theo ngày THỰC TẾ đã ký của mốc gốc, nên mốc gốc chưa ký thì ô này còn trống.',
+            'Ngày tự tính hiện ngay dưới ô chọn với dấu "→"; bên dưới là nhãn trạng thái (Đúng hạn / Trễ N ngày / Quá hạn N ngày / Chưa hoàn thành).',
+            'Cách dùng giống hệt tab "Tiến độ theo biên bản" của hợp đồng bán — chỉ khác là mốc "Ngày ký HĐ" ở đây là ngày ký hợp đồng NHẬP.',
           ],
         },
       ],
@@ -208,6 +254,7 @@ export const CONTRACT_IN_GROUP = {
           items: [
             'Theo dõi các thư bảo lãnh liên quan hợp đồng nhập (bảo lãnh thanh toán, tạm ứng...): ngân hàng, số tiền, ngày hết hạn.',
             'Theo dõi hạn để kịp xử lý trước khi hết hiệu lực.',
+            'Cột "% giá trị": tỷ lệ thư bảo lãnh so với giá trị hợp đồng nhập (lấy từ bảng giá mua, quy về VNĐ). Gõ % thì ô Giá trị tự tính ra tiền; gõ Giá trị thì ô % tự hiện — hai chiều đều được. Chưa có bảng giá mua thì ô % bị khóa.',
           ],
         },
       ],

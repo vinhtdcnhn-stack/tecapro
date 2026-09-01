@@ -1,113 +1,27 @@
-import { useState, useEffect, useCallback } from 'react'
 import './ContractProgressTab.css'
-import DateInput from './DateInput'
-import useCtrlSave from './useCtrlSave'
+
+import { getStatusInfo } from './progressUtils'
+import useProgressRows from './useProgressRows'
+import ProgressTable from './ProgressTable'
 import useIsMobile from './useIsMobile'
 import ProgressMobile from './ProgressMobile'
 import EditGuard from './EditGuard'
-import { auditRowAttrs } from '../common/rowAudit'
 
-import { API } from '../../config/api'
-import { apiGet } from '../../lib/api'
-import { withStamp, handledConflict } from './conflict'
-import { todayISO } from '../../lib/dateOnly'
+// ── Tiến độ theo biên bản — HỢP ĐỒNG NHẬP ─────────────────────────────────────
+// Dùng chung công thức tính ngày với bên HĐ bán: "Ngày theo HĐ" neo theo ngày theo
+// HĐ của mốc gốc (hoặc nhập tay), "Ngày dự kiến" neo theo ngày THỰC TẾ của mốc gốc.
+// Mốc "Ngày ký HĐ" ở đây là ngày ký của CHÍNH hợp đồng nhập.
 
-function dateDiff(planned, actual) {
-  if (!planned || !actual) return null
-  return Math.round((new Date(actual) - new Date(planned)) / 86400000)
-}
-
-function getStatusInfo(planned, actual) {
-  if (!actual) {
-    if (!planned) return { type: 'unknown', label: '—' }
-    const daysLeft = dateDiff(todayISO(), planned)
-    if (daysLeft < 0) return { type: 'overdue', label: `Quá hạn ${Math.abs(daysLeft)} ngày` }
-    return { type: 'pending', label: 'Chưa hoàn thành' }
-  }
-  const diff = dateDiff(planned, actual)
-  if (diff === null) return { type: 'done', label: 'Hoàn thành' }
-  if (diff <= 0)     return { type: 'ok',   label: 'Đúng hạn' }
-  return              { type: 'late', label: `Trễ ${diff} ngày` }
-}
-
-let _ctr = 0
-const tmpId = () => `tmp_${++_ctr}`
-
-export default function ContractInProgressTab({ contractInId }) {
-  const [rows, setRows]           = useState([])
-  const [bbTypes, setBBTypes]     = useState([])
-  const [loading, setLoading]     = useState(true)
-
-  const toLocal = (r) => ({ ...r, _key: String(r.id), _dirty: false, _isNew: false, _saving: false })
-
-  const load = useCallback(async () => {
-    try {
-      const [pData, tData] = await Promise.all([
-        apiGet(`/contract-ins/${contractInId}/progress`, { conditional: true }),
-        apiGet(`/bb-types`, { conditional: true }),
-      ])
-      setRows((Array.isArray(pData) ? pData : []).map(r => toLocal(r)))
-      setBBTypes(Array.isArray(tData) ? tData : [])
-    } catch (e) { console.error('load progress in:', e) }
-    finally { setLoading(false) }
-  }, [contractInId])
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- load() là async: setState xảy ra SAU await, không phải cascade đồng bộ
-  useEffect(() => { load() }, [load])
-
-  const emptyRow = () => ({
-    id: null, _key: tmpId(), _dirty: true, _isNew: true, _saving: false,
-    bb_type_id: '', planned_date: '', actual_date: '', reason: '', penalty_note: '', bb_code: '', bb_name: '',
+export default function ContractInProgressTab({ contractInId, contractDate = null }) {
+  const p = useProgressRows({
+    listPath:   `/contract-ins/${contractInId}/progress`,
+    createPath: `/contract-ins/${contractInId}/progress`,
+    itemPath:   (id) => `/progress-in/${id}`,
+    signDate:   contractDate,   // không có API GET 1 HĐ nhập → ngày ký lấy từ cha
   })
-  const set = (key, field, value) =>
-    setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: value, _dirty: true } : r))
-
-  const saveRow = async (row) => {
-    setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: true } : r))
-    const body = {
-      bb_type_id:   row.bb_type_id || null,
-      planned_date: row.planned_date || null,
-      actual_date:  row.actual_date  || null,
-      reason:       row.reason,
-      penalty_note: row.penalty_note,
-    }
-    try {
-      const url    = row._isNew ? `${API}/contract-ins/${contractInId}/progress` : `${API}/progress-in/${row.id}`
-      const method = row._isNew ? 'POST' : 'PUT'
-      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withStamp(body, row)) })
-      const saved  = await res.json()
-      if (await handledConflict(res, saved, load)) return
-      if (!res.ok) throw new Error(saved.error || 'Save failed')
-      setRows(prev => prev.map(r => r._key === row._key ? { ...toLocal(saved), _key: row._key } : r))
-    } catch (e) {
-      alert('Lỗi: ' + e.message)
-      setRows(prev => prev.map(r => r._key === row._key ? { ...r, _saving: false } : r))
-    }
-  }
-
-  const deleteRow = async (row) => {
-    if (row._isNew) { setRows(prev => prev.filter(r => r._key !== row._key)); return }
-    const label = bbTypes.find(t => String(t.id) === String(row.bb_type_id))?.code || 'biên bản này'
-    if (!confirm(`Xóa "${label}"?`)) return
-    try {
-      await fetch(`${API}/progress-in/${row.id}`, { method: 'DELETE' })
-      setRows(prev => prev.filter(r => r._key !== row._key))
-    } catch { alert('Không thể xóa.') }
-  }
-
-  const addRow = () => { const r = emptyRow(); setRows(p => [...p, r]); return r._key }
   const isMobile = useIsMobile()
 
-  // Ctrl+S: lưu tất cả dòng đang sửa
-  useCtrlSave(() => rows.filter(r => r._dirty && !r._saving).forEach(saveRow))
-
-  const savedRows = rows.filter(r => !r._isNew)
-  // status phía nhập tính theo planned_date vs actual_date (không có forecast)
-  const planMap = Object.fromEntries(rows.map(r => [r._key, r.planned_date?.slice(0, 10)]))
-  const doneCount = savedRows.filter(r => r.actual_date).length
-  const lateCount = savedRows.filter(r => ['late','overdue'].includes(getStatusInfo(r.planned_date, r.actual_date).type)).length
-
-  if (loading) return <div className="prog-loading">Đang tải...</div>
+  if (p.loading) return <div className="prog-loading">Đang tải...</div>
 
   return (
     <div className="prog-tab">
@@ -115,16 +29,16 @@ export default function ContractInProgressTab({ contractInId }) {
       <div className="prog-toolbar">
         <div className="prog-toolbar-left">
           <EditGuard>
-            <button className="prog-btn prog-btn-primary" onClick={addRow}>
+            <button className="prog-btn prog-btn-primary" onClick={p.addRow}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
               Thêm biên bản
             </button>
           </EditGuard>
         </div>
         <div className="prog-stats">
-          <span className="stat-chip stat-total">{savedRows.length} biên bản</span>
-          <span className="stat-chip stat-done">{doneCount} hoàn thành</span>
-          {lateCount > 0 && <span className="stat-chip stat-late">{lateCount} trễ hạn</span>}
+          <span className="stat-chip stat-total">{p.savedRows.length} biên bản</span>
+          <span className="stat-chip stat-done">{p.doneCount} hoàn thành</span>
+          {p.lateCount > 0 && <span className="stat-chip stat-late">{p.lateCount} trễ hạn</span>}
         </div>
       </div>
 
@@ -133,105 +47,22 @@ export default function ContractInProgressTab({ contractInId }) {
       {isMobile ? (
         <ProgressMobile
           auditTable="contract_in_progress"
-          rows={rows} bbTypes={bbTypes} forecasts={planMap} getStatusInfo={getStatusInfo}
-          set={set} setBase={() => {}} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
-          showBase={false}
+          rows={p.rows} bbTypes={p.bbTypes} baseOptions={p.baseOptions}
+          forecasts={p.forecasts} plannedDates={p.plannedDates}
+          getStatusInfo={getStatusInfo}
+          set={p.set} setBase={p.setBase} setHdBase={p.setHdBase}
+          saveRow={p.saveRow} deleteRow={p.deleteRow} addRow={p.addRow}
         />
       ) : (
-      <div className="prog-table-wrapper">
-        <table className="prog-table">
-          <thead>
-            <tr>
-              <th className="th-stt">#</th>
-              <th className="th-type">Loại biên bản</th>
-              <th className="th-date">Ngày theo HĐ</th>
-              <th className="th-date">Ngày thực tế</th>
-              <th className="th-status">Trạng thái</th>
-              <th className="th-reason">Nguyên nhân chậm trễ</th>
-              <th className="th-penalty">Biên bản phạt</th>
-              <th className="th-action"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr><td colSpan="8" className="prog-empty">
-                Chưa có biên bản nào. Nhấn <strong>Thêm biên bản</strong> để bắt đầu.
-              </td></tr>
-            ) : rows.map((row, idx) => {
-              const status = getStatusInfo(row.planned_date, row.actual_date)
-              const isLate = status.type === 'late' || status.type === 'overdue'
-              return (
-                <tr key={row._key} {...auditRowAttrs('contract_in_progress', row.id)} className={[
-                  `status-${status.type}`,
-                  row._dirty  ? 'row-dirty'  : '',
-                  row._isNew  ? 'row-new'    : '',
-                  row._saving ? 'row-saving' : '',
-                ].filter(Boolean).join(' ')}>
-                  <td className="td-stt">
-                    {row._dirty && <span className="dirty-dot" title="Chưa lưu" />}
-                    <span>{idx + 1}</span>
-                  </td>
-                  <td className="td-type">
-                    <select value={row.bb_type_id || ''}
-                      onChange={e => set(row._key, 'bb_type_id', e.target.value)}>
-                      <option value="">— Chọn loại —</option>
-                      {bbTypes.map(t => (
-                        <option key={t.id} value={t.id}>{t.code} – {t.name}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="td-date">
-                    <DateInput value={row.planned_date?.slice(0,10) || ''}
-                      onChange={e => set(row._key, 'planned_date', e.target.value)} />
-                  </td>
-                  <td className="td-date">
-                    <DateInput value={row.actual_date?.slice(0,10) || ''}
-                      onChange={e => set(row._key, 'actual_date', e.target.value)} />
-                  </td>
-                  <td className="td-status">
-                    <span className={`status-badge badge-${status.type}`}>
-                      {status.type === 'ok'      && '✓ '}
-                      {status.type === 'late'    && '⚠ '}
-                      {status.type === 'overdue' && '⚠ '}
-                      {status.type === 'pending' && '⏳ '}
-                      {status.label}
-                    </span>
-                  </td>
-                  <td className="td-reason">
-                    <input type="text" value={row.reason || ''}
-                      placeholder={isLate ? 'Nhập nguyên nhân...' : ''}
-                      className={isLate && !row.reason ? 'input-warn' : ''}
-                      onChange={e => set(row._key, 'reason', e.target.value)} />
-                  </td>
-                  <td className="td-penalty">
-                    <input type="text" value={row.penalty_note || ''}
-                      placeholder="Số/ký hiệu BB phạt..."
-                      onChange={e => set(row._key, 'penalty_note', e.target.value)} />
-                  </td>
-                  <td className="td-action">
-                    <div className="action-group">
-                      {row._dirty && (
-                        <button className="act save" onClick={() => saveRow(row)} disabled={row._saving} title="Lưu">
-                          {row._saving
-                            ? <span className="spin">⟳</span>
-                            : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
-                          }
-                        </button>
-                      )}
-                      <button className="act delete" onClick={() => deleteRow(row)} title="Xóa">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+        <ProgressTable
+          auditTable="contract_in_progress"
+          rows={p.rows} bbTypes={p.bbTypes} baseOptions={p.baseOptions}
+          plannedDates={p.plannedDates} forecasts={p.forecasts}
+          set={p.set} setBase={p.setBase} setHdBase={p.setHdBase}
+          saveRow={p.saveRow} deleteRow={p.deleteRow}
+        />
       )}
       </EditGuard>
-
     </div>
   )
 }

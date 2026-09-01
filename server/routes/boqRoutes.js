@@ -10,6 +10,7 @@ import {
   importBOQPreview,
   saveImportedBOQ,
   setBOQLock,
+  setBOQWarrantyDefault,
 } from '../controllers/boqController.js'
 import { downloadBOQTemplate, excelUpload } from '../controllers/boqExcel.js'
 import {
@@ -37,6 +38,9 @@ router.post('/contracts/:contractId/boq/import',  contractPermFromParam(M), lock
 router.post('/contracts/:contractId/boq/save-import', contractPermFromParam(M), lockByContract, saveImportedBOQ)
 // Khóa/mở khóa toàn bộ bảng giá — cần co.boq.lock (TP/PP + admin). KHÔNG gắn blockIfLocked.
 router.patch('/contracts/:contractId/boq-lock',   contractPermFromParam(L), setBOQLock)
+// Mốc bảo hành mặc định của cả bảng giá — như mọi thao tác ghi bảng giá khác.
+router.patch('/contracts/:contractId/boq-warranty-default',
+  contractPermFromParam(M), lockByContract, setBOQWarrantyDefault)
 
 // Item routes
 router.post('/boq/bulk-delete', contractPermViaBody(M, 'boq'), blockIfLockedViaBody('boqItem', 'Bảng giá'), bulkDeleteBOQItems)

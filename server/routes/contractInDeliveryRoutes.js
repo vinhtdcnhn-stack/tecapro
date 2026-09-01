@@ -10,6 +10,7 @@ import {
   getDeliverySerials, createDeliverySerial, deleteDeliverySerial, importDeliverySerials, saveScanBatch, saveScanStandalone, getDeliveryItemExport, getSerialComponents,
   getAllDeliverySerials, getAllDeliveryItems, updateDeliverySerial, bulkDeleteDeliverySerials, replaceDeliverySerial,
 } from '../controllers/contractInDeliverySerialController.js'
+import { getSerialOrderCandidates, createSerialOrder } from '../controllers/serialOrderController.js'
 import { ownerOfContractIn, ownerVia, ownerOrTechVia, ownerOrTechViaBody,
   blockIfLockedVia, blockIfLockedViaBody } from '../middleware/contractAccess.js'
 
@@ -48,5 +49,10 @@ router.get('/contract-ins/:contractInId/all-items',     getAllDeliveryItems)
 router.post('/delivery-serials/bulk-delete',            ownerOrTechViaBody('deliverySerial'), blockIfLockedViaBody('deliverySerial'), bulkDeleteDeliverySerials)
 router.put('/delivery-serials/:id',                     ownerOrTechVia('deliverySerial'), blockIfLockedVia('deliverySerial'), updateDeliverySerial)
 router.post('/delivery-serials/:id/replace',            ownerOrTechVia('deliverySerial'), blockIfLockedVia('deliverySerial'), replaceDeliverySerial)
+
+// "Gửi lệnh nhập serial" cho Kỹ thuật — tạo công việc + báo Telegram. Người gửi là
+// người tạo HĐ nhập (hoặc admin), cùng luật ghi với các thao tác nhận hàng khác.
+router.get('/serial-order-candidates',                  getSerialOrderCandidates)
+router.post('/contract-ins/:contractInId/serial-order', ownerOfContractIn('contractInId'), createSerialOrder)
 
 export default router

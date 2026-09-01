@@ -1,6 +1,7 @@
 import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { KIND, calc, classifyExcelKind, linkHierarchy } from './boqTreeUtils.js'
+import { parseWarrantyMonths } from '../utils/warrantyMonths.js'
 
 // Nhập / xuất Excel cho bảng giá HĐ bán. Tách khỏi boqController.js để giữ file dưới 500 dòng.
 
@@ -25,6 +26,7 @@ function rowToItem(arr) {
   const price   = isLeaf ? (parseFloat(arr[4]) || 0) : 0
   const vatRate = isLeaf ? (parseFloat(arr[5]) || 0) : 0
   const { before, after } = isLeaf ? calc(qty, price, vatRate) : { before: 0, after: 0 }
+  const warranty = String(arr[6] ?? '').trim()
   return {
     row_kind:        kind,
     item_name:       String(arr[0] ?? '').trim(),
@@ -35,7 +37,10 @@ function rowToItem(arr) {
     vat_rate:        vatRate,
     amount_before_vat: before,
     amount_after_vat:  after,
-    warranty_period: String(arr[6] ?? '').trim(),
+    warranty_period: warranty,
+    // Đọc luôn số tháng ra từ chữ ("36 tháng" → 36) để dòng nhập từ Excel cũng tính
+    // được ngày hết hạn khi gán mốc biên bản. Mốc biên bản vẫn phải chọn trong app.
+    warranty_months: isLeaf ? parseWarrantyMonths(warranty) : null,
   }
 }
 

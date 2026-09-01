@@ -6,11 +6,13 @@ import BOQGroupRow from './BOQGroupRow'
 import EditGuard from './EditGuard'
 import { auditRowAttrs } from '../common/rowAudit'
 import { statusMeta } from './supplyCoverageUtils'
+import { WarrantyInputCell, WarrantyRangeCell } from './BOQWarrantyCells'
 
 // Một dòng trong bảng giá (BOQ). Phân nhánh theo row_kind: zone / group / leaf.
 // Tách riêng để giữ ContractBOQTab gọn dưới 500 dòng.
 export default function BOQRow({
   row, idx, no, depth = 0, rollupAmt, currency, showPrice = true, coverageStatus, onToggleNoImport, selected, onToggleSelect, set, saveRow, insertAfter, deleteRow, onAddChild, onToggleMultiply, onToggleHideAmount,
+  bbList = [], bbById, warrantyDefault,
   canDrag, canDrop, isDragging, isDragOver, dropMode, onDragStart, onDragOver, onDragEnter, onDrop, onDragEnd,
 }) {
   const kind = row.row_kind || 'leaf'
@@ -148,14 +150,8 @@ export default function BOQRow({
 
       <td className="td-amt computed">{showPrice ? fmtNum(after, currency) : '•••'}</td>
 
-      <td className="td-warranty">
-        <input
-          type="text"
-          value={row.warranty_period}
-          onChange={e => set(row._key, 'warranty_period', e.target.value)}
-          placeholder="12 tháng"
-        />
-      </td>
+      <WarrantyInputCell row={row} set={set} bbList={bbList} fallback={warrantyDefault} />
+      <WarrantyRangeCell row={row} bbById={bbById} fallback={warrantyDefault} />
 
       <td className="td-item-type">
         <select

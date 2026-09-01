@@ -25,7 +25,7 @@ export default function GuaranteeMobile({
   const openAdd = () => setEditingKey(addRow())
   const onSave  = () => { if (editing) saveRow(editing); setEditingKey(null) }
   const onDel   = () => { if (editing) deleteRow(editing); setEditingKey(null) }
-  // Chỉ tab có truyền ratioOf (bảo lãnh HĐ bán) mới hỗ trợ ô % so với GTHĐ; HĐ nhập không có.
+  // Tab nào truyền ratioOf thì có ô % so với giá trị HĐ (cả HĐ bán và HĐ nhập).
   const supportsPct = typeof ratioOf === 'function'
   const hdRatio = editing && supportsPct ? (editing.hd_ratio != null ? editing.hd_ratio : ratioOf(editing.amount)) : ''
 

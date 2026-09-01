@@ -219,19 +219,22 @@ export default function ContractInDetail({ item, suppliers, initialTab, viewCont
           />
         ) : activeTab === 'pricing' ? (
           <ContractInBOQTab contractInId={item.id} currency={item.currency_code || 'VND'}
-            viewContractId={viewContractId ?? item.contract_out_id} />
+            viewContractId={viewContractId ?? item.contract_out_id}
+            warrantyDefault={{ bbId: item.boq_warranty_bb_id ?? null, months: item.boq_warranty_months ?? null }} />
         ) : activeTab === 'delivery' ? (
           <ContractInDeliveryTab contractInId={item.id} />
         ) : activeTab === 'serials' ? (
-          <ContractInSerialTab contractInId={item.id} />
+          <ContractInSerialTab contractInId={item.id} contractNo={item.contract_no || ''} />
         ) : activeTab === 'payment' ? (
-          <ContractInPayableTab contractInId={item.id} />
+          <ContractInPayableTab contractInId={item.id} currency={item.currency_code || 'VND'}
+            exchangeRate={parseFloat(item.exchange_rate) || 1} />
         ) : activeTab === 'progress' ? (
-          <ContractInProgressTab contractInId={item.id} />
+          <ContractInProgressTab contractInId={item.id} contractDate={item.contract_date} />
         ) : activeTab === 'warranty' ? (
           <ContractInSupplierWarrantyTab contractInId={item.id} />
         ) : activeTab === 'guarantee' ? (
-          <ContractInGuaranteeTab contractInId={item.id} />
+          <ContractInGuaranteeTab contractInId={item.id}
+            contractValue={(parseFloat(item.amount) || 0) * ((item.currency_code || 'VND') === 'VND' ? 1 : (parseFloat(item.exchange_rate) || 1))} />
         ) : activeTab === 'customs' ? (
           <ContractInCustomsTab contractInId={item.id} />
         ) : activeTab === 'logistics' ? (

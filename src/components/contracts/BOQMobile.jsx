@@ -4,11 +4,13 @@ import { ROW_KIND, kindOf } from './boqTree'
 import MobileEditSheet, { Field } from './MobileEditSheet'
 import NumberInput from '../common/NumberInput'
 import { auditRowAttrs } from '../common/rowAudit'
+import { rowWarranty, warrantyMissingHint } from './boqWarranty'
+import { isoToDisplay } from './DateInput'
 
 // Phiên bản mobile của Bảng giá phân cấp: danh sách thẻ theo cây (thụt lề + nhãn
 // PHẦN/NHÓM), chạm để mở sheet sửa đúng dòng. Lá sửa đủ trường; zone/nhóm sửa tên +
 // (nhóm: ĐVT/SL mô tả). Số tiền nhóm/zone là roll-up (read-only).
-export default function BOQMobile({ items, rollup, currency, set, saveRow, deleteRow, addRow, addZone, addGroup, addChild, toggleMultiply, toggleHideAmount, totals, showHs = true, showType = true, showPrice = true }) {
+export default function BOQMobile({ items, rollup, currency, set, saveRow, deleteRow, addRow, addZone, addGroup, addChild, toggleMultiply, toggleHideAmount, totals, showHs = true, showType = true, showPrice = true, bbList = [], bbById, warrantyDefault }) {
   const [editingKey, setEditingKey] = useState(null)
   const flat = items.map(it => it.r)
   const editing = flat.find(r => r._key === editingKey) || null
@@ -19,6 +21,11 @@ export default function BOQMobile({ items, rollup, currency, set, saveRow, delet
   const onDel   = () => { if (editing) deleteRow(editing); setEditingKey(null) }
 
   const amt = editing ? calcAmounts(editing.quantity, editing.unit_price, editing.vat_rate, currency) : null
+  // Hiệu lực bảo hành của dòng đang sửa (kế thừa mặc định của cả bảng giá khi để trống).
+  const editWarranty = editing && bbById ? rowWarranty(editing, warrantyDefault, bbById) : null
+  const defBBName = warrantyDefault?.bbId != null
+    ? (bbList.find(b => b.id === String(warrantyDefault.bbId))?.name || '')
+    : ''
 
   return (
     <div className="boq-mobile">
@@ -134,8 +141,31 @@ export default function BOQMobile({ items, rollup, currency, set, saveRow, delet
                 <input type="number" min="0" max="100" value={editing.vat_rate} placeholder="10"
                   onChange={e => set(editing._key, 'vat_rate', e.target.value)} />
               </Field>
-              <Field label="Thời hạn bảo hành">
-                <input value={editing.warranty_period} placeholder="12 tháng"
+              <Field label="Thời hạn bảo hành (tháng)">
+                <input type="number" min="0" max="1200" value={editing.warranty_months ?? ''}
+                  placeholder={warrantyDefault?.months != null ? `${warrantyDefault.months} (mặc định)` : '0'}
+                  onChange={e => set(editing._key, 'warranty_months', e.target.value === '' ? null : e.target.value)} />
+              </Field>
+              <Field label="Mốc bắt đầu BH (biên bản)">
+                <select
+                  value={editing.warranty_bb_id != null && editing.warranty_bb_id !== '' ? String(editing.warranty_bb_id) : ''}
+                  onChange={e => set(editing._key, 'warranty_bb_id', e.target.value || null)}
+                >
+                  <option value="">
+                    {defBBName ? `↳ mặc định: ${defBBName}` : '— chưa chọn biên bản —'}
+                  </option>
+                  {bbList.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
+                </select>
+              </Field>
+              {editWarranty && (
+                <div className="mcard-meta">
+                  {editWarranty.to
+                    ? <>Hiệu lực BH: <strong>{isoToDisplay(editWarranty.from)} → {isoToDisplay(editWarranty.to)}</strong></>
+                    : warrantyMissingHint(editWarranty)}
+                </div>
+              )}
+              <Field label="Ghi chú bảo hành">
+                <input value={editing.warranty_period || ''} placeholder="VD: bảo hành tại chỗ"
                   onChange={e => set(editing._key, 'warranty_period', e.target.value)} />
               </Field>
               {showType && (

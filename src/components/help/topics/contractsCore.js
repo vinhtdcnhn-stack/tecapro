@@ -135,6 +135,29 @@ export const CONTRACTS_CORE_PAGES = [
         ],
       },
       {
+        heading: 'Thời hạn & hiệu lực bảo hành',
+        items: [
+          'Mỗi dòng thiết bị có 2 cột bảo hành: "Thời hạn bảo hành" (nơi NHẬP) và "Hiệu lực bảo hành" (phần mềm TỰ TÍNH, không sửa được).',
+          'Ô "Thời hạn bảo hành" gồm 2 thứ: số THÁNG bảo hành, và ô chọn BIÊN BẢN làm mốc bắt đầu tính bảo hành.',
+          'Danh sách biên bản trong ô chọn lấy từ tab "Tiến độ theo biên bản" của chính hợp đồng này — muốn có biên bản nào thì phải khai ở tab đó trước.',
+          'Cách tính: NGÀY BẮT ĐẦU bảo hành = ngày THỰC TẾ của biên bản đã chọn; NGÀY HẾT HẠN = ngày bắt đầu + số tháng.',
+          'Ví dụ: chọn "Biên bản nghiệm thu bàn giao" có ngày thực tế 01/03/2026 và nhập 36 tháng → cột Hiệu lực hiện "01/03/2026 → 01/03/2029" kèm nhãn 🟢 Còn bảo hành / 🟡 Còn N ngày (dưới 30 ngày) / 🔴 Hết bảo hành.',
+          'Biên bản CHƯA có ngày thực tế (chưa ký) thì chưa tính ra ngày được — cột Hiệu lực ghi "Biên bản chưa có ngày thực tế". Khi tab Tiến độ điền ngày thực tế thì hạn bảo hành tự hiện ra.',
+        ],
+      },
+      {
+        heading: 'Đặt mốc bảo hành CHUNG cho cả bảng giá',
+        items: [
+          'Đa số hàng trong một hợp đồng dùng chung một mốc và một thời hạn — không cần chọn lại cho từng dòng.',
+          'Ở dải bộ lọc phía trên bảng có ô "Mốc BH mặc định:" — chọn biên bản + gõ số tháng một lần, phần mềm áp cho MỌI dòng chưa tự đặt riêng.',
+          'Ô chọn biên bản của các dòng đang dùng mặc định hiện chữ mờ dạng "↳ mặc định: <tên biên bản>", viền nét đứt — nhìn là biết dòng đó đang ăn theo mặc định.',
+          'Dòng nào bảo hành khác (ví dụ pin chỉ 12 tháng, còn lại 36 tháng) thì gõ đè số tháng / chọn biên bản khác ngay tại dòng đó; dòng đã đặt riêng KHÔNG bị mặc định ghi đè.',
+          'Muốn một dòng quay lại dùng mặc định: xóa trắng ô số tháng và chọn lại mục "↳ mặc định: …" ở ô biên bản.',
+          'Lưu ý: đổi mặc định lưu ngay lập tức (không cần Ctrl+S), còn sửa ở từng dòng thì vẫn phải lưu dòng như bình thường.',
+          'Khi Import Excel, phần mềm tự đọc số tháng từ cột "Thời hạn bảo hành" trong file (ví dụ "36 tháng" → 36 tháng, "3 năm" → 36 tháng); mốc biên bản vẫn phải chọn trong phần mềm sau khi import.',
+        ],
+      },
+      {
         heading: 'Sắp xếp thứ tự (kéo - thả)',
         items: [
           'Đưa chuột vào cột STT của một dòng sẽ hiện tay nắm ⠿ — giữ chuột vào đó rồi kéo dòng tới vị trí mới.',

@@ -1,5 +1,6 @@
 import { pool } from '../db.js'
 import { KIND, calc } from './boqTreeUtils.js'
+import { clampMonths, bbIdOrNull } from '../utils/warrantyMonths.js'
 
 // Helpers dùng chung cho bảng giá HĐ bán (boqController + boqImportController).
 // Tách ra để giữ mỗi file controller dưới 500 dòng.
@@ -19,12 +20,17 @@ export async function getContractCurrency(contractId, db = pool) {
 export function buildRowFields(body, kind, currency) {
   const { item_name, hs_code, unit, quantity, unit_price, vat_rate, warranty_period, item_type } = body
   const type = item_type === 'di_thang' ? 'di_thang' : 'trong_nuoc'
+  // Mốc bảo hành riêng của dòng: biên bản (contract_out_progress) + số tháng.
+  // Bỏ trống ⇒ dòng dùng mặc định cấp hợp đồng (contract_out.boq_warranty_*).
+  const warranty_bb_id  = bbIdOrNull(body.warranty_bb_id)
+  const warranty_months = clampMonths(body.warranty_months)
   if (kind === KIND.LEAF) {
     const { price, before, after } = calc(quantity, unit_price, vat_rate, currency)
     return {
       item_name: item_name || '', hs_code: hs_code || '', unit: unit || '',
       quantity: parseFloat(quantity) || 0, price, before,
       vat_rate: parseFloat(vat_rate) || 0, after, warranty_period: warranty_period || '', item_type: type,
+      warranty_bb_id, warranty_months,
       multiply_qty: false, hide_amount: false,
     }
   }
@@ -33,10 +39,23 @@ export function buildRowFields(body, kind, currency) {
     item_name: item_name || '', hs_code: hs_code || '', unit: isGroup ? (unit || '') : '',
     quantity: isGroup ? (parseFloat(quantity) || 0) : 0, price: 0, before: 0,
     vat_rate: 0, after: 0, warranty_period: warranty_period || '', item_type: type,
+    // Phần/hệ thống không phải hàng cụ thể → không gán mốc bảo hành.
+    warranty_bb_id: null, warranty_months: null,
     multiply_qty: isGroup ? !!body.multiply_qty : false,
     // Cờ CHỈ HIỂN THỊ: ẩn số tiền trên chính dòng hệ thống (không đổi cách tính tổng).
     hide_amount: isGroup ? !!body.hide_amount : false,
   }
+}
+
+// Biên bản làm mốc bảo hành phải thuộc chính hợp đồng này (chặn client gửi id lạ).
+// Trả chuỗi lỗi nếu sai, null nếu hợp lệ (hoặc không gán mốc).
+export async function validateWarrantyBB(contractId, bbId, db = pool) {
+  if (bbId == null) return null
+  const { rows } = await db.query(
+    'SELECT 1 FROM public.contract_out_progress WHERE id = $1 AND contract_out_id = $2',
+    [bbId, contractId]
+  )
+  return rows.length ? null : 'Biên bản làm mốc bảo hành không thuộc hợp đồng này.'
 }
 
 // Khi thêm con cho một node đang là 'leaf', node đó trở thành nhóm tổng hợp.

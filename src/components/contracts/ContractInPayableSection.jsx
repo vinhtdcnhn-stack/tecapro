@@ -15,19 +15,30 @@ import { withStamp, handledConflict } from './conflict'
 // (giống công nợ HĐ bán) — đợt thanh toán không còn đứng rời thành bảng riêng.
 
 export default function PayableSection({
-  rows, setRows, contractInId, reload, showAmounts = true,
+  rows, setRows, contractInId, reload, refTotal = 0, showAmounts = true,
   payRows = [], setPayRows, reloadPayments,
 }) {
+  // "% giá trị" tính trên TỔNG BẢNG GIÁ MUA (nguyên tệ của HĐ nhập); giữ 4 chữ số
+  // thập phân để khoản nhỏ trên hợp đồng lớn vẫn hiện ra. Không lưu DB — suy từ giá trị.
+  const ratioOf = (amt) => refTotal > 0 ? parseFloat((((parseFloat(amt) || 0) / refTotal) * 100).toFixed(4)) : ''
+
   const set = (key, field, val) =>
     setRows(prev => prev.map(r => {
       if (r._key !== key) return r
       const updated = { ...r, [field]: val, _dirty: true }
+      // Nhập % giá trị → tự tính giá trị phải trả từ tổng bảng giá mua
+      if (field === 'hd_ratio' && refTotal > 0) {
+        updated.amount = parseFloat((refTotal * (parseFloat(val) || 0) / 100).toFixed(2))
+        updated.amount_vnd = calcVND(updated.amount, updated.exchange_rate, updated.currency_code)
+      }
       if (field === 'amount' || field === 'exchange_rate' || field === 'currency_code') {
         const cur = field === 'currency_code' ? val : updated.currency_code
         const amt = field === 'amount'        ? val : updated.amount
         const rt  = field === 'exchange_rate' ? val : updated.exchange_rate
         updated.amount_vnd = calcVND(amt, rt, cur)
         if (cur === 'VND') updated.exchange_rate = 1
+        // Nhập giá trị (hoặc đổi tỷ giá/đồng tiền) → tự tính ngược % giá trị
+        if (field === 'amount') updated.hd_ratio = ratioOf(amt)
       }
       return updated
     }))
@@ -105,7 +116,7 @@ export default function PayableSection({
         <PayableSectionMobile
           rows={rows} set={set} saveRow={saveRow} deleteRow={deleteRow} addRow={addRow}
           currencies={CURRENCIES} methods={PAYMENT_METHODS} calcVND={calcVND} fmtVND={fmtVND}
-          showAmounts={showAmounts}
+          refTotal={refTotal} ratioOf={ratioOf} showAmounts={showAmounts}
           payRows={payRows} setPayRows={setPayRows} contractInId={contractInId} reloadPayments={reloadPayments}
         />
       ) : (
@@ -115,6 +126,7 @@ export default function PayableSection({
             <tr>
               <th className="th-stt">#</th>
               <th className="th-desc">Mô tả điều kiện thanh toán</th>
+              <th className="th-ratio2">% giá trị</th>
               <th style={{ minWidth:100 }}>Phương thức</th>
               <th className="th-cur">Đồng tiền</th>
               <th className="th-num">Giá trị</th>
@@ -127,13 +139,14 @@ export default function PayableSection({
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan="10" className="recv-empty">Chưa có khoản phải trả nào. Nhấn <strong>Thêm khoản</strong>.</td></tr>
+              <tr><td colSpan="11" className="recv-empty">Chưa có khoản phải trả nào. Nhấn <strong>Thêm khoản</strong>.</td></tr>
             ) : rows.map((row, idx) => {
               // Quá hạn tính theo TIẾN ĐỘ TRẢ THỰC TẾ: khoản đã trả đủ thì không còn quá hạn,
               // chỉ đánh dấu "trễ" nếu ngày trả cuối cùng vượt thời hạn.
               const status  = row._isNew ? null : payableStatus(row, paymentsOf(payRows, row))
               const overdue = status?.color === 'red'
               const vnd = calcVND(row.amount, row.exchange_rate, row.currency_code)
+              const hdRatio = row.hd_ratio != null ? row.hd_ratio : ratioOf(row.amount)
               return (
                 <Fragment key={row._key}>
                 <tr {...auditRowAttrs('contract_in_payable', row.id)} className={[
@@ -151,6 +164,19 @@ export default function PayableSection({
                     <input type="text" value={row.description || ''}
                       placeholder="VD: 30% đặt cọc khi ký HĐ..."
                       onChange={e => set(row._key, 'description', e.target.value)} />
+                  </td>
+                  <td className="td-ratio2">
+                    <div className="ratio-cell">
+                      <input type="number" value={hdRatio === '' ? '' : hdRatio}
+                        min="0" max="100" step="0.0001"
+                        placeholder={refTotal > 0 ? '30' : '—'}
+                        disabled={refTotal === 0}
+                        title={refTotal > 0
+                          ? 'Nhập % → tự tính giá trị phải trả từ tổng bảng giá mua'
+                          : 'Chưa có dữ liệu bảng giá mua'}
+                        onChange={e => set(row._key, 'hd_ratio', e.target.value)} />
+                      <span className="ratio-pct">%</span>
+                    </div>
                   </td>
                   <td>
                     <select value={row.payment_method || 'TT'}
@@ -199,10 +225,10 @@ export default function PayableSection({
                   setPayRows={setPayRows}
                   contractInId={contractInId}
                   reloadPayments={reloadPayments}
-                  colSpan={10}
+                  colSpan={11}
                   showAmounts={showAmounts}
                 />
-                <tr className="recv-group-gap" aria-hidden="true"><td colSpan="10" /></tr>
+                <tr className="recv-group-gap" aria-hidden="true"><td colSpan="11" /></tr>
                 </Fragment>
               )
             })}
@@ -210,7 +236,7 @@ export default function PayableSection({
           {rows.filter(r => !r._isNew).length > 0 && (
             <tfoot>
               <tr className="totals-row">
-                <td colSpan="6" className="totals-label">TỔNG PHẢI TRẢ</td>
+                <td colSpan="7" className="totals-label">TỔNG PHẢI TRẢ</td>
                 <td className="td-vnd">{showAmounts ? fmtVND(totalVND) : '•••'}</td>
                 <td colSpan="3" />
               </tr>

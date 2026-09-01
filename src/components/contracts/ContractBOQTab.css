@@ -184,7 +184,8 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 1080px;
+  /* +1 cột "Hiệu lực bảo hành" so với trước (1080px) */
+  min-width: 1250px;
 }
 
 /* Header */
@@ -292,7 +293,8 @@
 .th-num       { width: 110px; }
 .th-amt       { width: 130px; }
 .th-vat       { width: 68px; }
-.th-warranty  { width: 110px; }
+.th-warranty  { width: 130px; }
+.th-wty-range { width: 170px; }
 .th-item-type { width: 110px; }
 .th-action    { width: 90px; }
 
@@ -685,3 +687,58 @@
 .supply-cov-off { margin-left: 5px; color: #9ca3af; font-weight: 700; }
 .supply-noimp { margin-left: 4px; display: inline-flex; align-items: center; vertical-align: middle; }
 .supply-noimp input { cursor: pointer; }
+
+/* ── Mốc bảo hành trong bảng giá ────────────────────────────────────────────
+   Ô "Thời hạn bảo hành": số tháng + biên bản làm mốc bắt đầu.
+   Ô "Hiệu lực bảo hành": chỉ đọc, ngày bắt đầu → ngày hết hạn + trạng thái. */
+
+.bwty-cell { display: flex; flex-direction: column; gap: 4px; }
+.bwty-months-row { display: flex; align-items: center; gap: 5px; }
+.boq-table .bwty-months { width: 56px; flex: 0 0 auto; text-align: center; }
+.bwty-unit { font-size: 11.5px; color: #9ca3af; }
+
+.boq-table .bwty-bb {
+  width: 100%; max-width: 100%; font-size: 11.5px; padding: 3px 4px;
+  border: 1px solid #d1d5db; border-radius: 5px; background: #fff; color: #374151;
+}
+/* Dòng đang kế thừa mặc định của cả bảng giá → hiện mờ để phân biệt với gán riêng */
+.boq-table .bwty-bb--inherit { color: #94a3b8; border-style: dashed; }
+
+.td-wty-range { text-align: center; white-space: nowrap; }
+.bwty-range {
+  font-size: 12px; font-weight: 600; color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+.bwty-missing { font-size: 11.5px; color: #cbd5e1; font-style: italic; }
+.bwty-badge {
+  display: inline-block; margin-top: 3px; padding: 1px 8px; border-radius: 99px;
+  font-size: 10.5px; font-weight: 600;
+}
+.bwty-badge--active   { background: #dcfce7; color: #15803d; }
+.bwty-badge--expiring { background: #fef3c7; color: #b45309; }
+.bwty-badge--expired  { background: #fee2e2; color: #b91c1c; }
+
+/* Thanh đặt mốc bảo hành MẶC ĐỊNH cho cả bảng giá (nằm trong dải bộ lọc) */
+.bwty-default {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 3px 8px; border: 1px dashed #cbd5e1; border-radius: 7px; background: #f8fafc;
+}
+.bwty-default-label { font-size: 12px; font-weight: 600; color: #475569; }
+.bwty-default select {
+  max-width: 210px; font-size: 12px; padding: 3px 6px;
+  border: 1px solid #d1d5db; border-radius: 5px; background: #fff;
+}
+.bwty-default .bwty-default-months {
+  width: 56px; text-align: center; font-size: 12px; padding: 3px 6px;
+  border: 1px solid #d1d5db; border-radius: 5px;
+}
+.bwty-default-unit { font-size: 12px; color: #6b7280; }
+.bwty-default-preview { font-size: 11.5px; color: #64748b; font-variant-numeric: tabular-nums; }
+.bwty-default-preview.empty { color: #cbd5e1; font-style: italic; }
+.bwty-default-err { font-size: 11.5px; color: #b91c1c; }
+
+/* Trên điện thoại thanh mặc định chiếm trọn dòng cho dễ bấm */
+@media (max-width: 768px) {
+  .bwty-default { width: 100%; }
+  .bwty-default select { flex: 1 1 auto; max-width: none; }
+}

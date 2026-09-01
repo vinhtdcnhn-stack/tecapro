@@ -8,13 +8,14 @@ import useIsMobile from './useIsMobile'
 import InSerialMobile from './InSerialMobile'
 import { AddComponentModal, ImportSerialModal, ReplaceSerialModal } from './ContractInSerialModals'
 import BarcodeScanStandaloneModal from './BarcodeScanStandaloneModal'
+import { exportInSerials } from './inSerialExport'
 import EditGuard from './EditGuard'
 
 // ── Quản lý serial tập trung cho hợp đồng NHẬP ─────────────────────────────────
 // Gom mọi serial của mọi đợt nhận vào 1 bảng: tìm kiếm/lọc, sửa inline, gắn linh
 // kiện vào máy cha (parent), thay thế, chọn nhiều & xóa hàng loạt, import Excel.
 
-export default function ContractInSerialTab({ contractInId }) {
+export default function ContractInSerialTab({ contractInId, contractNo = '' }) {
   const [serials, setSerials] = useState([])
   const [items, setItems]     = useState([])
   const [loading, setLoading] = useState(true)
@@ -169,6 +170,12 @@ export default function ContractInSerialTab({ contractInId }) {
         {isFiltering && <span style={{ fontSize:12, color:'#6b7280' }}>Hiển thị {filtered.length}/{serials.length}</span>}
 
         <div style={{ flex:1 }} />
+
+        <button onClick={() => exportInSerials(filtered, contractNo)} className="hide-on-mobile"
+          title={isFiltering ? 'Xuất các serial đang hiển thị (đã lọc)' : 'Xuất toàn bộ serial của hợp đồng'}
+          style={{ padding:'8px 14px', background:'#ecfdf5', color:'#047857', border:'1px solid #a7f3d0', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer' }}>
+          Xuất file serial
+        </button>
 
         <EditGuard serial>
         {selected.size > 0 && (

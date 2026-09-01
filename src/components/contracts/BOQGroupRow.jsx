@@ -74,6 +74,8 @@ export default function BOQGroupRow({
       <td className="td-warranty">
         <input type="text" value={row.warranty_period} onChange={e => set(row._key, 'warranty_period', e.target.value)} placeholder="—" />
       </td>
+      {/* Hiệu lực BH tính theo TỪNG dòng hàng — dòng hệ thống không có mốc riêng. */}
+      <td className="td-wty-range" />
       <td className="td-item-type" />
       <td className="td-action">
         <div className="action-group">

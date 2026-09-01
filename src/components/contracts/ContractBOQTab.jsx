@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import BOQImportModal from './BOQImportModal'
 import BOQRow from './BOQRow'
 import BOQMobile from './BOQMobile'
+import BOQWarrantyDefaultBar from './BOQWarrantyDefaultBar'
 import { fmtNum } from './boqUtils'
 import { API } from '../../config/api'
 import useBOQTab from './useBOQTab'
@@ -22,6 +23,7 @@ const fmtDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN') : ''
 export default function ContractBOQTab({ contractId }) {
   const {
     rows, currency, loading, totals, isMobile, rollup, lock, applyLock,
+    bbList, bbById, warrantyDefault, saveWarrantyDefault,
     search, setSearch, typeFilter, setTypeFilter, isFiltering, visibleRows,
     selected, toggleSelect, allSelected, toggleSelectAll, selectableKeys, selectedCount,
     bulkDelete, bulkDeleting,
@@ -269,6 +271,15 @@ export default function ContractBOQTab({ contractId }) {
           <span className="boq-filter-count">Hiển thị {visibleRows.length}/{rows.length} dòng</span>
         )}
 
+        {/* Mốc bảo hành mặc định cho cả bảng giá — dòng nào cần khác thì tự điền ở cột của dòng đó */}
+        <EditGuard perm="co.boq.manage" disabled={locked}>
+          <BOQWarrantyDefaultBar
+            bbList={bbList}
+            value={warrantyDefault}
+            onSave={saveWarrantyDefault}
+          />
+        </EditGuard>
+
         <div className="boq-filter-spacer" />
 
         {selectedCount > 0 && (
@@ -306,6 +317,9 @@ export default function ContractBOQTab({ contractId }) {
           toggleMultiply={toggleMultiply}
           toggleHideAmount={toggleHideAmount}
           totals={totals}
+          bbList={bbList}
+          bbById={bbById}
+          warrantyDefault={warrantyDefault}
         />
       ) : (
       <>
@@ -337,6 +351,7 @@ export default function ContractBOQTab({ contractId }) {
               <th className="th-vat">VAT<br/>(%)</th>
               <th className="th-amt">Thành tiền<br/>sau VAT</th>
               <th className="th-warranty">Thời hạn<br/>bảo hành</th>
+              <th className="th-wty-range">Hiệu lực<br/>bảo hành</th>
               <th className="th-item-type">Loại hàng</th>
               <th className="th-action"></th>
             </tr>
@@ -344,14 +359,14 @@ export default function ContractBOQTab({ contractId }) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="13" className="boq-empty">
+                <td colSpan="14" className="boq-empty">
                   Chưa có dữ liệu bảng giá.
                   Nhấn <strong>Thêm dòng</strong> hoặc <strong>Import Excel</strong> để bắt đầu.
                 </td>
               </tr>
             ) : visibleRows.length === 0 ? (
               <tr>
-                <td colSpan="13" className="boq-empty">Không có dòng nào khớp bộ lọc.</td>
+                <td colSpan="14" className="boq-empty">Không có dòng nào khớp bộ lọc.</td>
               </tr>
             ) : visibleRows.map(({ r, idx, depth, no }) => (
               <BOQRow
@@ -374,6 +389,9 @@ export default function ContractBOQTab({ contractId }) {
                 onAddChild={addChild}
                 onToggleMultiply={toggleMultiply}
                 onToggleHideAmount={toggleHideAmount}
+                bbList={bbList}
+                bbById={bbById}
+                warrantyDefault={warrantyDefault}
                 canDrag={canEdit && !locked && !isFiltering && !r._isNew && !!r.id}
                 canDrop={canEdit && !locked && !isFiltering && !r._isNew && !!r.id}
                 isDragging={dragKey === r._key}
@@ -395,7 +413,7 @@ export default function ContractBOQTab({ contractId }) {
                 <td className="td-amt">{showPrice ? fmtNum(totals.before, currency) : '•••'}</td>
                 <td />
                 <td className="td-amt">{showPrice ? fmtNum(totals.after, currency) : '•••'}</td>
-                <td colSpan="3" />
+                <td colSpan="4" />
               </tr>
             </tfoot>
           )}

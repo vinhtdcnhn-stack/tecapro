@@ -5,7 +5,9 @@ import {
 import { excelUpload, downloadBOQTemplate } from './boqExcel.js'
 import {
   getContractCurrency, buildRowFields, promoteParentToGroup, invoicedQty, validateSiblingName,
+  validateWarrantyBB,
 } from './boqHelpers.js'
+import { clampMonths, bbIdOrNull } from '../utils/warrantyMonths.js'
 import { rejectIfStale } from '../utils/staleGuard.js'
 import { cacheWrap } from '../cache.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
@@ -77,6 +79,32 @@ export async function setBOQLock(req, res) {
   }
 }
 
+// ── PATCH /contracts/:contractId/boq-warranty-default ─────────────────────────
+// Mốc bảo hành MẶC ĐỊNH của cả bảng giá: { warranty_bb_id, warranty_months }.
+// Dòng nào không tự điền mốc/số tháng thì hiển thị theo mặc định này (chỉ là giá trị
+// dùng chung — KHÔNG ghi đè dữ liệu đã điền riêng ở từng dòng).
+export async function setBOQWarrantyDefault(req, res) {
+  const { contractId } = req.params
+  try {
+    const bbId   = bbIdOrNull(req.body.warranty_bb_id)
+    const months = clampMonths(req.body.warranty_months)
+    const bbErr  = await validateWarrantyBB(contractId, bbId)
+    if (bbErr) return res.status(400).json({ error: bbErr })
+
+    const { rows } = await pool.query(
+      `UPDATE public.contract_out SET boq_warranty_bb_id = $1, boq_warranty_months = $2
+        WHERE id = $3 RETURNING id, boq_warranty_bb_id, boq_warranty_months`,
+      [bbId, months, contractId]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy hợp đồng.' })
+    invalidateContract(contractId, 'info')   // mặc định nằm trong payload getContractById
+    res.json(rows[0])
+  } catch (err) {
+    console.error('setBOQWarrantyDefault:', err)
+    res.status(500).json({ error: 'Không thể lưu mốc bảo hành mặc định.' })
+  }
+}
+
 // ── POST /contracts/:contractId/boq  (append at end) ─────────────────────────
 
 export async function createBOQItem(req, res) {
@@ -97,16 +125,20 @@ export async function createBOQItem(req, res) {
 
     const currency = await getContractCurrency(contractId)
     const fields = buildRowFields(req.body, kind, currency)
+    const bbErr = await validateWarrantyBB(contractId, fields.warranty_bb_id)
+    if (bbErr) return res.status(400).json({ error: bbErr })
 
     const { rows } = await pool.query(`
       INSERT INTO public.contract_out_boq
         (contract_out_id, sort_order, parent_id, row_kind, item_name, hs_code, unit, quantity,
-         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty, hide_amount)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty, hide_amount,
+         warranty_bb_id, warranty_months)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       RETURNING *
     `, [contractId, sortOrder, parent_id || null, kind,
         fields.item_name, fields.hs_code, fields.unit, fields.quantity,
-        fields.price, fields.before, fields.vat_rate, fields.after, fields.warranty_period, fields.item_type, fields.multiply_qty, fields.hide_amount])
+        fields.price, fields.before, fields.vat_rate, fields.after, fields.warranty_period, fields.item_type, fields.multiply_qty, fields.hide_amount,
+        fields.warranty_bb_id, fields.warranty_months])
 
     await promoteParentToGroup(parent_id, pool)
     await recomputeTree(contractId)
@@ -146,16 +178,20 @@ export async function insertBOQAfter(req, res) {
 
     const currency = await getContractCurrency(contractId)
     const fields = buildRowFields(req.body, kind, currency)
+    const bbErr = await validateWarrantyBB(contractId, fields.warranty_bb_id)
+    if (bbErr) return res.status(400).json({ error: bbErr })
 
     const { rows } = await pool.query(`
       INSERT INTO public.contract_out_boq
         (contract_out_id, sort_order, parent_id, row_kind, item_name, hs_code, unit, quantity,
-         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty, hide_amount)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         unit_price, amount_before_vat, vat_rate, amount_after_vat, warranty_period, item_type, multiply_qty, hide_amount,
+         warranty_bb_id, warranty_months)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       RETURNING *
     `, [contractId, refSort + 1, parentId, kind,
         fields.item_name, fields.hs_code, fields.unit, fields.quantity,
-        fields.price, fields.before, fields.vat_rate, fields.after, fields.warranty_period, fields.item_type, fields.multiply_qty, fields.hide_amount])
+        fields.price, fields.before, fields.vat_rate, fields.after, fields.warranty_period, fields.item_type, fields.multiply_qty, fields.hide_amount,
+        fields.warranty_bb_id, fields.warranty_months])
 
     await promoteParentToGroup(parentId, pool)
     await recomputeTree(contractId)
@@ -189,6 +225,8 @@ export async function updateBOQItem(req, res) {
     // row_kind giữ theo DB (không cho đổi qua update để tránh phá cấu trúc cây); nếu client gửi thì tôn trọng.
     const kind = req.body.row_kind ? normKind(req.body.row_kind) : normKind(cur[0].row_kind)
     const fields = buildRowFields(req.body, kind, currency)
+    const bbErr = await validateWarrantyBB(cur[0].contract_out_id, fields.warranty_bb_id)
+    if (bbErr) return res.status(400).json({ error: bbErr })
 
     // Dòng thuộc một HỆ THỐNG đã xuất hóa đơn (tổ tiên là nhóm bật multiply_qty đã xuất)
     // → khóa, vì sửa sẽ làm lệch đơn giá hệ thống đã chốt trên hóa đơn.
@@ -231,14 +269,14 @@ export async function updateBOQItem(req, res) {
         quantity = $4, unit_price = $5,
         amount_before_vat = $6, vat_rate = $7, amount_after_vat = $8,
         warranty_period = $9, item_type = $10, row_kind = $11, multiply_qty = $12,
-        hide_amount = $13, updated_at = now()
-      WHERE id = $14
+        hide_amount = $13, warranty_bb_id = $14, warranty_months = $15, updated_at = now()
+      WHERE id = $16
       RETURNING *
     `, [fields.item_name, fields.hs_code, fields.unit,
         fields.quantity, fields.price,
         fields.before, fields.vat_rate, fields.after,
         fields.warranty_period, fields.item_type, kind, fields.multiply_qty,
-        fields.hide_amount, req.params.id])
+        fields.hide_amount, fields.warranty_bb_id, fields.warranty_months, req.params.id])
 
     if (!rows.length) return res.status(404).json({ error: 'Not found' })
     await recomputeTree(rows[0].contract_out_id)

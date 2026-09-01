@@ -9,8 +9,16 @@ import {
 // Dòng thời gian trao đổi của một việc HĐ: Báo cáo / Chỉ đạo / Quyết định / Trao đổi.
 // Đăng được loại nào suy từ vai trò người dùng với việc (rel). Mở mục này (GET) tự
 // ghi mốc đã đọc ở server → dòng việc hết chấm chưa đọc sau khi tab tải lại.
-// Mỗi mục kèm được ảnh (dán Ctrl+V hoặc chọn tệp), hiển thị thu nhỏ ngay trong dòng
-// thời gian; bấm ảnh để phóng to.
+// Mỗi mục kèm được TỆP: ảnh (dán Ctrl+V hoặc chọn) hiện thu nhỏ, bấm để phóng to;
+// tài liệu (PDF/Word/Excel/nén…) hiện thành liên kết tải về — dùng khi kỹ thuật phản
+// hồi kết quả nhận/kiểm tra hàng bằng file.
+
+// Ảnh (hiện thu nhỏ) hay tài liệu (hiện liên kết tải về).
+const isImage = (f) => String(f?.mime_type || '').startsWith('image/')
+const fmtSize = (n) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`
+// Nội dung mặc định khi người dùng chỉ đính tệp mà không gõ gì.
+const defaultContent = (pending) =>
+  pending.every(p => p.url) ? '📷 Hình ảnh' : '📎 Tệp đính kèm'
 export default function ContractTaskTimeline({ taskId, task, currentUser, canManage, onChanged, onRead }) {
   const isMobile = useIsMobile()
   const [entries, setEntries] = useState([])
@@ -18,7 +26,7 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
   const [content, setContent] = useState('')
   const [type, setType] = useState('discussion')
   const [saving, setSaving] = useState(false)
-  const [pending, setPending] = useState([]) // { file, url }
+  const [pending, setPending] = useState([]) // { file, url } — url chỉ có với ảnh
   const [lightbox, setLightbox] = useState(null) // src ảnh phóng to
   const fileInputRef = useRef(null)
 
@@ -49,18 +57,23 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
   useEffect(() => { load() }, [load])
 
   // Dọn URL xem trước khi rời trang.
-  useEffect(() => () => { pending.forEach(p => URL.revokeObjectURL(p.url)) }, [pending])
+  useEffect(() => () => { pending.forEach(p => p.url && URL.revokeObjectURL(p.url)) }, [pending])
 
   function resetComposer() {
     setContent('')
-    setPending(prev => { prev.forEach(p => URL.revokeObjectURL(p.url)); return [] })
+    setPending(prev => { prev.forEach(p => p.url && URL.revokeObjectURL(p.url)); return [] })
     setAdding(false)
   }
   const openComposer = () => { setType(defaultType); setContent(''); setPending([]); setAdding(true) }
 
-  function addImages(files) {
-    const imgs = [...files].filter(f => f && f.type.startsWith('image/'))
-    if (imgs.length) setPending(prev => [...prev, ...imgs.map(f => ({ file: f, url: URL.createObjectURL(f) }))])
+  // Nhận mọi tệp; ảnh có thêm url để xem trước.
+  function addFiles(files) {
+    const picked = [...files].filter(Boolean)
+    if (!picked.length) return
+    setPending(prev => [...prev, ...picked.map(f => ({
+      file: f,
+      url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null,
+    }))])
   }
 
   // Dán ảnh từ clipboard (Ctrl+V vào ô nội dung).
@@ -69,35 +82,35 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
       .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
       .map(it => it.getAsFile())
       .filter(Boolean)
-    if (files.length) { e.preventDefault(); addImages(files) }
+    if (files.length) { e.preventDefault(); addFiles(files) }
   }
 
   function removePending(idx) {
     setPending(prev => {
       const next = [...prev]
       const [rm] = next.splice(idx, 1)
-      if (rm) URL.revokeObjectURL(rm.url)
+      if (rm?.url) URL.revokeObjectURL(rm.url)
       return next
     })
   }
 
   async function submit() {
     const text = content.trim()
-    if (!text && pending.length === 0) { alert('Vui lòng nhập nội dung hoặc đính kèm ảnh.'); return }
+    if (!text && pending.length === 0) { alert('Vui lòng nhập nội dung hoặc đính kèm tệp.'); return }
     setSaving(true)
     try {
       const res = await fetch(`${API}/tasks/${taskId}/entries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entry_type: type, content: text || '📷 Hình ảnh' }),
+        body: JSON.stringify({ entry_type: type, content: text || defaultContent(pending) }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) { alert(d.error || 'Gửi thất bại'); return }
-      // Tải ảnh đính kèm (nếu có) lên mục vừa tạo.
+      // Tải tệp đính kèm (nếu có) lên mục vừa tạo.
       for (const p of pending) {
         const form = new FormData()
-        form.append('image', p.file)
-        await fetch(`${API}/task-entries/${d.id}/images`, { method: 'POST', body: form })
+        form.append('file', p.file)
+        await fetch(`${API}/task-entries/${d.id}/attachments`, { method: 'POST', body: form })
       }
       resetComposer()
       await load(); onChanged?.()
@@ -117,13 +130,15 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
 
   const typeOptions = ENTRY_TYPES.filter(t => allowed.includes(t.key))
 
-  // Xem trước ảnh đã chọn trong ô soạn (dùng chung desktop + mobile).
+  // Xem trước tệp đã chọn trong ô soạn (dùng chung desktop + mobile).
   const previewStrip = pending.length > 0 && (
     <div className="task-tl-preview">
       {pending.map((p, idx) => (
-        <div key={idx} className="task-tl-preview-item">
-          <img src={p.url} alt="" />
-          <button type="button" onClick={() => removePending(idx)} title="Bỏ ảnh">×</button>
+        <div key={idx} className={`task-tl-preview-item${p.url ? '' : ' task-tl-preview-file'}`}>
+          {p.url
+            ? <img src={p.url} alt="" />
+            : <span className="task-tl-file-chip" title={p.file.name}>📎 {p.file.name}</span>}
+          <button type="button" onClick={() => removePending(idx)} title="Bỏ tệp">×</button>
         </div>
       ))}
     </div>
@@ -152,13 +167,14 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
               multiple
               style={{ display: 'none' }}
-              onChange={e => { addImages(e.target.files); e.target.value = '' }}
+              onChange={e => { addFiles(e.target.files); e.target.value = '' }}
             />
             <div className="task-tl-add-actions">
-              <button type="button" className="task-tl-img-btn" onClick={() => fileInputRef.current?.click()}>🖼️ Thêm ảnh</button>
+              <button type="button" className="task-tl-img-btn"
+                title="Đính kèm ảnh hoặc tài liệu (PDF, Word, Excel, nén…)"
+                onClick={() => fileInputRef.current?.click()}>📎 Thêm tệp / ảnh</button>
               <button className="cancel-btn" onClick={resetComposer}>Hủy</button>
               <button className="save-btn" onClick={submit} disabled={saving}>{saving ? 'Đang gửi…' : 'Gửi'}</button>
             </div>
@@ -185,9 +201,9 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
               )}
             </div>
             <p className="task-pre task-tl-content">{e.content}</p>
-            {e.images?.length > 0 && (
+            {e.images?.some(isImage) && (
               <div className="task-tl-imgs">
-                {e.images.map(img => (
+                {e.images.filter(isImage).map(img => (
                   <img
                     key={img.id}
                     src={`${API_BASE}${img.file_path}`}
@@ -195,6 +211,16 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
                     title={img.file_name}
                     onClick={() => setLightbox(`${API_BASE}${img.file_path}`)}
                   />
+                ))}
+              </div>
+            )}
+            {e.images?.some(f => !isImage(f)) && (
+              <div className="task-tl-files">
+                {e.images.filter(f => !isImage(f)).map(f => (
+                  <a key={f.id} className="task-tl-file" href={`${API_BASE}${f.file_path}`}
+                     target="_blank" rel="noreferrer" title={`Mở / tải ${f.file_name}`}>
+                    📎 {f.file_name}{f.file_size ? ` (${fmtSize(f.file_size)})` : ''}
+                  </a>
                 ))}
               </div>
             )}
@@ -213,17 +239,22 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
           <Field label="Nội dung">
             <textarea value={content} onChange={e => setContent(e.target.value)} onPaste={handlePaste} placeholder="Báo cáo, chỉ đạo, quyết định hoặc trao đổi…" />
           </Field>
-          <Field label="Ảnh đính kèm">
+          <Field label="Tệp đính kèm">
             {previewStrip}
             <label className="task-tl-img-btn" title="Chụp ảnh từ camera" style={{ display: 'inline-block', marginRight: 8, cursor: 'pointer' }}>
               📷
               <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
-                onChange={e => { addImages(e.target.files); e.target.value = '' }} />
+                onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
             </label>
-            <label className="task-tl-img-btn" title="Chọn ảnh từ thư viện" style={{ display: 'inline-block', cursor: 'pointer' }}>
+            <label className="task-tl-img-btn" title="Chọn ảnh từ thư viện" style={{ display: 'inline-block', marginRight: 8, cursor: 'pointer' }}>
               🖼️
               <input type="file" accept="image/*" multiple style={{ display: 'none' }}
-                onChange={e => { addImages(e.target.files); e.target.value = '' }} />
+                onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+            </label>
+            <label className="task-tl-img-btn" title="Chọn tài liệu (PDF, Word, Excel, nén…)" style={{ display: 'inline-block', cursor: 'pointer' }}>
+              📎
+              <input type="file" multiple style={{ display: 'none' }}
+                onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
             </label>
           </Field>
         </MobileEditSheet>

@@ -142,6 +142,8 @@ export async function getContractById(req, res) {
         co.status,
         co.boq_locked,
         co.boq_locked_at,
+        co.boq_warranty_bb_id,
+        co.boq_warranty_months,
         lu.full_name AS boq_locked_by_name
       FROM contract_out co
       LEFT JOIN customer c ON c.id = co.customer_id
