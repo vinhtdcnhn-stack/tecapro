@@ -52,6 +52,10 @@ export default function HandoverBatchCard({
     })
     const data = await res.json()
     if (!res.ok) { alert(data.error); return }
+    if (data.skipped_linked > 0) {
+      alert(`${data.skipped_linked} thiết bị đang lấy bảo hành từ BẢNG GIÁ nên được bỏ qua.\n`
+        + 'Muốn đổi hạn bảo hành của chúng thì sửa ở tab Bảng giá (hoặc trong ô sửa từng thiết bị).')
+    }
     setShowBulk(false); setSelected(new Set()); await reload()
   }
 
@@ -304,7 +308,13 @@ export default function HandoverBatchCard({
                         <input type="checkbox" checked={selected.has(eq.id)} onChange={() => toggleOne(eq.id)} />
                       </td>
                       <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>{idx + 1}</td>
-                      <td><strong>{eq.name}</strong>{eq.note && <div style={{ fontSize: 11, color: '#9ca3af' }}>{eq.note}</div>}</td>
+                      <td>
+                        <strong>{eq.name}</strong>
+                        {eq.boq_id != null && (
+                          <span className="wty-boq-tag" title="Tên và hạn bảo hành lấy từ dòng bảng giá">🔗 bảng giá</span>
+                        )}
+                        {eq.note && <div style={{ fontSize: 11, color: '#9ca3af' }}>{eq.note}</div>}
+                      </td>
                       <td><div style={{ fontSize: 13 }}>{eq.brand || '—'}</div><div style={{ fontSize: 11, color: '#6b7280' }}>{eq.model || '—'}</div></td>
                       <td>{eq.quantity}</td>
                       <td>

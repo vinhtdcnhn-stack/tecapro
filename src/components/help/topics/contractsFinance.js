@@ -117,6 +117,29 @@ export const CONTRACTS_FINANCE_PAGES = [
           'Khi đổi máy cho khách (thay thiết bị hỏng): dùng chức năng THAY THẾ SERIAL — serial cũ được ghi lại là "đã thay bằng serial mới", tra cứu vẫn thấy lịch sử.',
         ],
       },
+      {
+        heading: 'Thêm thiết bị: LẤY TỪ BẢNG GIÁ (khuyến nghị)',
+        items: [
+          'Ở tab con "Thiết bị bàn giao", bấm "+ Thêm thiết bị" (hoặc ✏️ ở dòng có sẵn) để mở ô "Thêm/Cập nhật thiết bị".',
+          'Ô đầu tiên "Lấy từ bảng giá": chọn đúng DÒNG HÀNG trong bảng giá của hợp đồng. Khi đã chọn, TÊN THIẾT BỊ và MỐC BẢO HÀNH lấy thẳng từ dòng đó — tên hiện ở ô chỉ-xem (không gõ tay được) để hai bên luôn khớp nhau.',
+          'Chọn dòng bảng giá xong, số lượng được điền sẵn theo bảng giá (thêm mới) — sửa lại nếu đợt này chỉ giao một phần.',
+          'Dòng thiết bị nào đang lấy từ bảng giá thì ở bảng có nhãn nhỏ "🔗 bảng giá" cạnh tên.',
+          'Chọn "— Không gắn: tự nhập tên và mốc bảo hành —" cho trường hợp đặc biệt (hàng không có trong bảng giá): lúc đó nhập tên và ngày bảo hành tay như trước.',
+          'Đổi tên hàng ở tab Bảng giá thì tên thiết bị bàn giao tự đổi theo; xóa dòng bảng giá thì thiết bị trở về chế độ tự nhập (không mất dữ liệu).',
+        ],
+      },
+      {
+        heading: 'Hạn bảo hành ("Bảo hành từ" / "Bảo hành đến")',
+        items: [
+          'Ô "Bảo hành từ" = chọn một BIÊN BẢN (danh sách lấy từ tab "Tiến độ theo biên bản"); mốc bảo hành = NGÀY THỰC TẾ của biên bản đó. Thiết bị KHÔNG gắn bảng giá thì còn cách "Nhập ngày" để gõ tay.',
+          'Ô "Bảo hành đến" = số THÁNG kể từ "Bảo hành từ" (VD 36). Thiết bị không gắn bảng giá còn được chọn "Nhập ngày" để gõ ngày hết hạn tay.',
+          'Ngay dưới mỗi ô, phần mềm hiện kết quả đã tính: "→ BH từ: 30/08/2026" và "→ BH đến: 30/08/2029". Đây chính là 2 ngày được lưu và dùng cho trang "Tra cứu bảo hành".',
+          'QUAN TRỌNG — thiết bị đang gắn bảng giá: sửa mốc/số tháng ở đây là SỬA LUÔN DÒNG BẢNG GIÁ (hai nơi không bao giờ lệch nhau).',
+          'Vì vậy chỉ người có quyền sửa bảng giá mới đổi được, và bảng giá đang KHÓA thì hai ô này chuyển sang chỉ-xem kèm dòng nhắc 🔒 — mở khóa bảng giá (Trưởng/Phó phòng) rồi mới sửa được.',
+          'Biên bản chưa điền ngày thực tế thì chưa ra được hạn: dòng kết quả ghi "biên bản chưa có ngày thực tế". Vào tab "Tiến độ theo biên bản" điền ngày thực tế — hạn bảo hành của MỌI thiết bị gắn bảng giá tự tính lại ngay, không phải sửa từng cái.',
+          'Nút "Sửa bảo hành hàng loạt" chỉ áp cho thiết bị KHÔNG gắn bảng giá; thiết bị đã gắn sẽ bị bỏ qua và phần mềm báo lại số lượng — muốn đổi thì sửa ở bảng giá.',
+        ],
+      },
     ],
   },
   {

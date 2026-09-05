@@ -12,6 +12,7 @@ import { rejectIfStale } from '../utils/staleGuard.js'
 import { cacheWrap } from '../cache.js'
 import { verifyUserPassword } from '../auth/verifyPassword.js'
 import { contractKey, contractTabNotModified, invalidateContract, invalidateContractMembers, invalidateReports } from '../services/cacheKeys.js'
+import { syncEquipmentFromBOQSafe } from '../services/equipmentWarrantySync.js'
 
 export { excelUpload, downloadBOQTemplate }
 export { importBOQPreview, saveImportedBOQ } from './boqImportController.js'
@@ -25,6 +26,8 @@ export function invalidateBOQ(contractId) {
   invalidateContract(contractId, 'boq', 'invoice-summary', 'info')
   invalidateContractMembers(contractId)
   invalidateReports('debt')
+  // Thiết bị bàn giao gắn dòng bảng giá lấy tên + mốc BH từ đây → kéo lại cho khớp.
+  syncEquipmentFromBOQSafe(contractId)
 }
 
 // Đồng bộ tổng + roll-up cây bảng giá → contract_out qua recomputeTree (boqTreeUtils):
@@ -98,6 +101,7 @@ export async function setBOQWarrantyDefault(req, res) {
     )
     if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy hợp đồng.' })
     invalidateContract(contractId, 'info')   // mặc định nằm trong payload getContractById
+    syncEquipmentFromBOQSafe(contractId)      // dòng bỏ trống mốc → thiết bị theo mặc định này
     res.json(rows[0])
   } catch (err) {
     console.error('setBOQWarrantyDefault:', err)

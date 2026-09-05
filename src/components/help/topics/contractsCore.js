@@ -143,6 +143,8 @@ export const CONTRACTS_CORE_PAGES = [
           'Cách tính: NGÀY BẮT ĐẦU bảo hành = ngày THỰC TẾ của biên bản đã chọn; NGÀY HẾT HẠN = ngày bắt đầu + số tháng.',
           'Ví dụ: chọn "Biên bản nghiệm thu bàn giao" có ngày thực tế 01/03/2026 và nhập 36 tháng → cột Hiệu lực hiện "01/03/2026 → 01/03/2029" kèm nhãn 🟢 Còn bảo hành / 🟡 Còn N ngày (dưới 30 ngày) / 🔴 Hết bảo hành.',
           'Biên bản CHƯA có ngày thực tế (chưa ký) thì chưa tính ra ngày được — cột Hiệu lực ghi "Biên bản chưa có ngày thực tế". Khi tab Tiến độ điền ngày thực tế thì hạn bảo hành tự hiện ra.',
+          'Bảng giá là nguồn chuẩn: thiết bị bàn giao ở tab "Bảo hành" gắn vào dòng nào thì lấy TÊN và HẠN BẢO HÀNH của dòng đó. Sửa ở đây là hạn bảo hành của thiết bị (và trang Tra cứu bảo hành) đổi theo ngay.',
+          'Chiều ngược lại cũng vậy: người có quyền sửa bảng giá đổi mốc/số tháng trong ô "Cập nhật thiết bị" bên tab Bảo hành thì dòng bảng giá này được ghi lại luôn. Bảng giá đang khóa thì bên đó không sửa được.',
         ],
       },
       {

@@ -8,6 +8,7 @@ import {
   invalidateContractInMembers, invalidateReports, lookupNotModified,
 } from '../services/cacheKeys.js'
 import { rejectIfStale } from '../utils/staleGuard.js'
+import { syncEquipmentFromBOQSafe } from '../services/equipmentWarrantySync.js'
 
 const BB_TTL = 24 * 60 * 60      // loại biên bản: danh mục ít đổi
 const TAB_TTL = 30 * 60         // tab chi tiết HĐ: 30'
@@ -119,6 +120,8 @@ function invalidateProgressOut(contractId) {
   invalidateContract(contractId, 'progress')
   invalidateContractMembers(contractId)
   invalidateReports('debt')
+  // Ngày THỰC TẾ của biên bản là mốc bảo hành → thiết bị gắn bảng giá phải tính lại hạn BH.
+  syncEquipmentFromBOQSafe(contractId)
 }
 
 export async function createProgress(req, res) {

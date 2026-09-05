@@ -1,4 +1,5 @@
 import { pool } from '../db.js'
+import { loadPositionContractPerms } from '../auth/permissions.js'
 
 // Nguyên liệu dùng chung cho các middleware phân quyền hợp đồng. Tách khỏi contractAccess.js
 // để file đó (và contractInAccess.js) giữ dưới 500 dòng, đồng thời tránh vòng import: file
@@ -60,6 +61,24 @@ export function makeGuard(pick, resolverSql, roles = ['PM']) {
       next(err)
     }
   }
+}
+
+// Kiểm tra quyền HĐ (RBAC lớp B) NGOÀI middleware — dùng khi controller cần tự quyết định,
+// vd tab Bảo hành ghi ngược mốc bảo hành vào bảng giá thì phải có co.boq.manage.
+// Cùng quy tắc với makeContractPermGuard: admin → true; quyền cấp theo VỊ TRÍ áp cho mọi HĐ;
+// còn lại xét vai trò thành viên trong chính hợp đồng đó.
+export async function hasContractPerm(user, contractId, permKey) {
+  if (Number(user?.role) === 1) return true
+  if (!user?.id || contractId == null) return false
+  const posPerms = await loadPositionContractPerms(user.id, user.role)
+  if (posPerms.includes(permKey)) return true
+  const { rows } = await pool.query(
+    `SELECT 1 FROM contract_out_member m
+       JOIN contract_role_permission crp ON crp.member_role = m.member_role
+      WHERE m.user_id = $1 AND crp.perm_key = $2 AND m.contract_out_id = $3 LIMIT 1`,
+    [user.id, permKey, contractId],
+  )
+  return rows.length > 0
 }
 
 export async function isPmOfContract(userId, contractId) {

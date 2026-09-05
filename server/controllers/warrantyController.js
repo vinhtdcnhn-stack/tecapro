@@ -3,51 +3,11 @@ import { TABLE_EQUIPMENT, TABLE_DELIVERY, serialExists, findExistingSerials } fr
 import { pullImportComponents } from './importComponentSync.js'
 import { notifyAction, pmUserIds, contractLabel } from '../services/notify.js'
 import { cacheWrap } from '../cache.js'
-import { contractKey, contractTabNotModified, invalidateContract, invalidateReports, invalidateSerialLookup } from '../services/cacheKeys.js'
-
-const TAB_TTL = 30 * 60 // 30'
-
-// Thiết bị/serial đổi → tab equipment (serial nhúng trong getEquipment) + đợt giao (đếm
-// thiết bị) + báo cáo bảo hành.
-function invalidateEquip(contractId) {
-  if (contractId == null) return
-  invalidateContract(contractId, 'equipment', 'deliveries')
-  invalidateReports('warranty')
-}
-// Case bảo hành đổi → tab warranty-cases + báo cáo bảo hành.
-function invalidateCases(contractId) {
-  if (contractId == null) return
-  invalidateContract(contractId, 'warranty-cases')
-  invalidateReports('warranty')
-}
-// Nhật ký bảo hành đổi → tab activities + đếm hoạt động ở tab cases.
-function invalidateActs(contractId) {
-  if (contractId == null) return
-  invalidateContract(contractId, 'warranty-activities', 'warranty-cases')
-}
-// Tra HĐ bán từ id thiết bị / id case (khi handler chỉ có id con).
-async function contractOfEquipment(equipmentId) {
-  const { rows } = await pool.query('SELECT contract_out_id FROM contract_equipment WHERE id=$1', [equipmentId])
-  return rows[0]?.contract_out_id
-}
-async function contractOfCase(caseId) {
-  const { rows } = await pool.query('SELECT contract_out_id FROM warranty_case WHERE id=$1', [caseId])
-  return rows[0]?.contract_out_id
-}
-// Tra danh sách HĐ bán từ nhiều id serial (cho thao tác hàng loạt).
-async function contractsOfSerials(serialIds) {
-  if (!serialIds?.length) return []
-  const { rows } = await pool.query(
-    `SELECT DISTINCT e.contract_out_id FROM equipment_serial s
-       JOIN contract_equipment e ON e.id = s.equipment_id WHERE s.id = ANY($1::int[])`, [serialIds])
-  return rows.map(r => r.contract_out_id)
-}
-async function contractsOfEquipment(equipmentIds) {
-  if (!equipmentIds?.length) return []
-  const { rows } = await pool.query(
-    'SELECT DISTINCT contract_out_id FROM contract_equipment WHERE id = ANY($1::int[])', [equipmentIds])
-  return rows.map(r => r.contract_out_id)
-}
+import { contractKey, contractTabNotModified, invalidateSerialLookup } from '../services/cacheKeys.js'
+import {
+  TAB_TTL, invalidateEquip, invalidateCases, invalidateActs,
+  contractOfEquipment, contractOfCase, contractsOfSerials, contractsOfEquipment,
+} from './warrantyShared.js'
 
 // POST /serials/check-import — kiểm tra danh sách serial có trong hệ thống NHẬP chưa
 // (contract_in_delivery_serial, đối chiếu toàn hệ thống, không phân biệt hoa/thường).
@@ -74,107 +34,11 @@ export async function checkImportSerials(req, res) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// EQUIPMENT
-// ═══════════════════════════════════════════════════════════════
-
-export async function getEquipment(req, res) {
-  const contractId = parseInt(req.params.id)
-  try {
-    if (await contractTabNotModified(req, res, contractId, 'equipment')) return
-    const rows = await cacheWrap(contractKey(contractId, 'equipment'), TAB_TTL, async () => {
-      const { rows } = await pool.query(
-        `SELECT
-           e.*,
-           COALESCE(
-             json_agg(s ORDER BY s.serial_no) FILTER (WHERE s.id IS NOT NULL),
-             '[]'
-           ) AS serials
-         FROM contract_equipment e
-         LEFT JOIN equipment_serial s ON s.equipment_id = e.id
-         WHERE e.contract_out_id = $1
-         GROUP BY e.id
-         ORDER BY e.name, e.brand`,
-        [contractId]
-      )
-      return rows
-    })
-    res.json(rows)
-  } catch (err) {
-    console.error('getEquipment:', err)
-    res.status(500).json({ error: 'Không thể tải danh sách thiết bị' })
-  }
-}
-
-// Chuẩn hóa số nguyên tùy chọn (id biên bản, số tháng) → int | null.
-const intOrNull = (v) => {
-  const n = parseInt(v, 10)
-  return Number.isFinite(n) ? n : null
-}
-
-export async function createEquipment(req, res) {
-  const contractId = parseInt(req.params.id)
-  const { name, brand, model, quantity, location, warranty_from, warranty_to,
-          has_serial, note, warranty_bb_id, warranty_months, delivery_id } = req.body
-  if (!name?.trim()) return res.status(400).json({ error: 'Tên thiết bị không được để trống' })
-  try {
-    const { rows } = await pool.query(
-      `INSERT INTO contract_equipment
-         (contract_out_id, name, brand, model, quantity, location, warranty_from, warranty_to,
-          has_serial, note, warranty_bb_id, warranty_months, delivery_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-       RETURNING *`,
-      [contractId, name.trim(), brand?.trim()||null, model?.trim()||null,
-       parseFloat(quantity)||1, location?.trim()||null,
-       warranty_from||null, warranty_to||null, has_serial||false, note?.trim()||null,
-       intOrNull(warranty_bb_id), intOrNull(warranty_months), intOrNull(delivery_id)]
-    )
-    invalidateEquip(contractId)
-    res.json({ ...rows[0], serials: [] })
-  } catch (err) {
-    console.error('createEquipment:', err)
-    res.status(500).json({ error: 'Không thể thêm thiết bị' })
-  }
-}
-
-export async function updateEquipment(req, res) {
-  const id = parseInt(req.params.id)
-  const { name, brand, model, quantity, location, warranty_from, warranty_to,
-          has_serial, note, warranty_bb_id, warranty_months } = req.body
-  if (!name?.trim()) return res.status(400).json({ error: 'Tên thiết bị không được để trống' })
-  try {
-    const { rows } = await pool.query(
-      `UPDATE contract_equipment SET
-         name=$1, brand=$2, model=$3, quantity=$4, location=$5,
-         warranty_from=$6, warranty_to=$7, has_serial=$8, note=$9,
-         warranty_bb_id=$10, warranty_months=$11, updated_at=NOW()
-       WHERE id=$12 RETURNING *`,
-      [name.trim(), brand?.trim()||null, model?.trim()||null,
-       parseFloat(quantity)||1, location?.trim()||null,
-       warranty_from||null, warranty_to||null, has_serial||false, note?.trim()||null,
-       intOrNull(warranty_bb_id), intOrNull(warranty_months), id]
-    )
-    if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy thiết bị' })
-    const serials = await pool.query('SELECT * FROM equipment_serial WHERE equipment_id=$1 ORDER BY serial_no', [id])
-    invalidateEquip(rows[0].contract_out_id)
-    res.json({ ...rows[0], serials: serials.rows })
-  } catch (err) {
-    console.error('updateEquipment:', err)
-    res.status(500).json({ error: 'Không thể cập nhật thiết bị' })
-  }
-}
-
-export async function deleteEquipment(req, res) {
-  const id = parseInt(req.params.id)
-  try {
-    const { rows } = await pool.query('DELETE FROM contract_equipment WHERE id=$1 RETURNING contract_out_id', [id])
-    if (rows[0]) invalidateEquip(rows[0].contract_out_id)
-    res.json({ success: true })
-  } catch (err) {
-    console.error('deleteEquipment:', err)
-    res.status(500).json({ error: 'Không thể xóa thiết bị' })
-  }
-}
+// Thiết bị bàn giao: ở equipmentController.js (gắn dòng bảng giá + đồng bộ BH).
+// Re-export để routes/warrantyRoutes.js giữ nguyên `import * as c`.
+export {
+  getEquipment, createEquipment, updateEquipment, deleteEquipment,
+} from './equipmentController.js'
 
 // ═══════════════════════════════════════════════════════════════
 // SERIALS
@@ -367,13 +231,17 @@ async function bulkWarranty(table, req, res) {
   if (sets.length === 0) return res.status(400).json({ error: 'Chưa nhập ngày để cập nhật' })
   if (isEquip) sets.push('updated_at=NOW()')
   params.push(ids.map(Number))
+  // Thiết bị đã gắn dòng bảng giá thì hạn BH do BẢNG GIÁ quyết định — bỏ qua ở thao tác
+  // hàng loạt (nếu ghi vào đây, lần đồng bộ kế tiếp cũng ghi đè lại) và báo lại cho người dùng.
+  const skipLinked = isEquip ? ' AND boq_id IS NULL' : ''
   try {
     const { rowCount } = await pool.query(
-      `UPDATE ${table} SET ${sets.join(', ')} WHERE id = ANY($${i})`, params
+      `UPDATE ${table} SET ${sets.join(', ')} WHERE id = ANY($${i})${skipLinked}`, params
     )
     const contracts = isEquip ? await contractsOfEquipment(ids.map(Number)) : await contractsOfSerials(ids.map(Number))
     contracts.forEach(invalidateEquip)
-    res.json({ success: true, updated: rowCount })
+    const skipped = isEquip ? ids.length - rowCount : 0
+    res.json({ success: true, updated: rowCount, skipped_linked: skipped > 0 ? skipped : 0 })
   } catch (err) {
     console.error('bulkWarranty:', err)
     res.status(500).json({ error: 'Không thể cập nhật bảo hành hàng loạt' })
