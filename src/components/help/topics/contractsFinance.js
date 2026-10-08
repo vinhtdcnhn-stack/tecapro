@@ -107,6 +107,7 @@ export const CONTRACTS_FINANCE_PAGES = [
         items: [
           'Danh sách thiết bị bán ra kèm SERIAL và thời hạn bảo hành cho khách: serial nào, thuộc thiết bị nào, bảo hành đến ngày nào, còn hạn hay hết hạn.',
           'Đây là nguồn dữ liệu cho trang "Tra cứu bảo hành" — khách hỏi thì tra serial là ra.',
+          'Khi hợp đồng đã "Hoàn thành": thiết bị và serial bị khóa (chỉ xem), nhưng phiếu yêu cầu bảo hành (Case bảo hành) và nhật ký xử lý VẪN tạo/cập nhật được bình thường.',
         ],
       },
       {

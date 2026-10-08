@@ -18,6 +18,7 @@ import ContractTaskTab from '../components/contracts/ContractTaskTab'
 import ContractWarrantyTab from '../components/contracts/ContractWarrantyTab'
 import ContractInTab from '../components/contracts/ContractInTab'
 import { ContractPermProvider, useContractPerm } from '../context/ContractPermContext'
+import { CompletedBanner, CompleteContractButton } from '../components/contracts/ContractCompletionControls'
 import { auditRowAttrs } from '../components/common/rowAudit'
 
 export default function ContractManagementPage({ selectedContractId, initialMenu, initialInId, initialInTab, initialTaskId }) {
@@ -76,16 +77,20 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
   // Quyền HĐ lớp B (RBAC theo member_role) để ẩn/hiện TAB + khối "xem một phần".
   // Server tính từ vai trò của user trong HĐ; admin nhận toàn bộ.
   const [contractPerms, setContractPerms] = useState([])
+  // Được chốt "Hoàn thành"/mở lại HĐ (Trưởng/Phó Ban Triển khai Dự án + admin) — server tính.
+  const [canToggleCompletion, setCanToggleCompletion] = useState(false)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset khi đổi HĐ rồi nạp async
-    if (!contractId) { setContractPerms([]); return }
+    if (!contractId) { setContractPerms([]); setCanToggleCompletion(false); return }
     let alive = true
     fetch(`${API_BASE}/api/contracts/${contractId}/my-permissions`)
       .then(r => (r.ok ? r.json() : { perms: [] }))
-      .then(d => { if (alive) setContractPerms(d.perms || []) })
-      .catch(() => { if (alive) setContractPerms([]) })
+      .then(d => { if (alive) { setContractPerms(d.perms || []); setCanToggleCompletion(!!d.canToggleCompletion) } })
+      .catch(() => { if (alive) { setContractPerms([]); setCanToggleCompletion(false) } })
     return () => { alive = false }
   }, [contractId])
+  // HĐ đã Hoàn thành → khóa mọi thao tác ghi (trừ bảo hành) — xem ContractPermContext.
+  const frozen = contract?.status === 'Completed'
 
   // Dữ liệu (chi tiết HĐ, users, customers) nay do TanStack Query tự nạp + cache; người dùng
   // hiện tại lấy từ AuthContext. Không còn effect tải thủ công ở đây.
@@ -142,7 +147,7 @@ export default function ContractManagementPage({ selectedContractId, initialMenu
   const renderContent = () => {
     switch (activeMenu) {
       case 'contract-info':
-        return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} />
+        return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} canToggleCompletion={canToggleCompletion} />
       case 'contract-documents':
         return <ContractDocumentsTab contractId={contractId} />
       case 'contract-pricing':
@@ -164,7 +169,7 @@ case 'contract-debt':
       case 'purchase-contract-info':
         return <ContractInTab contractId={contractId} initialContractInId={initialInId} initialTab={initialInTab} currentUser={currentUser} contract={contract} />
 default:
-        return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} />
+        return <ContractInfoTab contract={contract} onEdit={() => setIsEditModalOpen(true)} canToggleCompletion={canToggleCompletion} />
     }
   }
 
@@ -201,7 +206,7 @@ default:
   }
 
   return (
-    <ContractPermProvider canEdit={canEdit} canEditSerial={canEditSerial} perms={contractPerms}>
+    <ContractPermProvider canEdit={canEdit} canEditSerial={canEditSerial} perms={contractPerms} frozen={frozen}>
       <div className="contract-management-page">
         <ContractHeader contract={contract} onTitleClick={() => setMobileNavOpen(true)} />
         <div className="contract-management-body">
@@ -212,6 +217,7 @@ default:
             onClose={() => setMobileNavOpen(false)}
           />
           <div className="contract-management-content" ref={contentRef}>
+            <CompletedBanner contract={contract} canToggle={canToggleCompletion} />
             {renderContent()}
           </div>
         </div>
@@ -227,13 +233,14 @@ default:
           customers={customers}
           editMode={true}
           editData={contract}
+          canComplete={canToggleCompletion}
         />
       </div>
     </ContractPermProvider>
   )
 }
 
-function ContractInfoTab({ contract, onEdit }) {
+function ContractInfoTab({ contract, onEdit, canToggleCompletion }) {
   const { canEdit, canSection } = useContractPerm()
   const showAmounts = canSection('co.info.amounts') // view-một-phần: che trước/sau VAT
   if (!contract) {
@@ -289,6 +296,7 @@ function ContractInfoTab({ contract, onEdit }) {
               Cập nhật thông tin hợp đồng
             </button>
           )}
+          <CompleteContractButton contract={contract} canToggle={canToggleCompletion} />
         </div>
         <div className="contract-info-form">
           <div className="form-row">

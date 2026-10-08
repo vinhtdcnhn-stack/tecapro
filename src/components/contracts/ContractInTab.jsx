@@ -13,7 +13,7 @@ import { auditRowAttrs } from '../common/rowAudit'
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ContractInTab({ contractId, initialContractInId, initialTab, currentUser, contract }) {
-  const { perms: outerPerms, canSection } = useContractPerm() // perms lớp B từ provider ngoài
+  const { perms: outerPerms, canSection, frozen } = useContractPerm() // perms lớp B từ provider ngoài
   const showAmounts = canSection('ci.info.amounts')           // che giá trị HĐ nhập ở danh sách
   const [items, setItems]           = useState([])
   const [suppliers, setSuppliers]   = useState([])
@@ -43,8 +43,9 @@ export default function ContractInTab({ contractId, initialContractInId, initial
   const isPmMember = !!myId && memberIds('pm_member_ids').includes(myId)
   const isImportExportMember = !!myId && memberIds('import_export_member_ids').includes(myId)
   const isTechnicalMember    = !!myId && memberIds('technical_member_ids').includes(myId)
-  const canCreate   = isAdmin || isPmMember || isImportExportMember
-  const canEditItem = (item) => isAdmin || (!!myId && String(item?.created_by) === myId)
+  // HĐ bán đã Hoàn thành → khóa luôn tạo/sửa HĐ nhập (server chặn bằng trigger, migration 108).
+  const canCreate   = !frozen && (isAdmin || isPmMember || isImportExportMember)
+  const canEditItem = (item) => !frozen && (isAdmin || (!!myId && String(item?.created_by) === myId))
 
   const load = useCallback(async () => {
     try {
@@ -135,7 +136,7 @@ export default function ContractInTab({ contractId, initialContractInId, initial
     // (không phải chủ) vẫn theo perms lớp B từ provider ngoài (lọc tab + che số tiền).
     const perms = canEditThis ? undefined : outerPerms
     return (
-      <ContractPermProvider canEdit={canEditThis} canEditSerial={canEditThis || isTechnicalMember}
+      <ContractPermProvider canEdit={canEditThis} canEditSerial={canEditThis || (!frozen && isTechnicalMember)}
         // Cột "Nhập cho": PM của HĐ BÁN đang xem tự ghép hàng cho dự án mình, dù HĐ nhập do
         // người khác tạo (khớp guard canLinkSupplyForContractOut ở server).
         canLinkSupply={canEditThis || isPmMember} perms={perms}>

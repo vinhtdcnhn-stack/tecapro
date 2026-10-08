@@ -11,7 +11,7 @@ export const CONTRACTS_CORE_PAGES = [
         items: [
           'Vào menu "Hợp đồng bán" — bảng liệt kê toàn bộ hợp đồng bạn được xem: số hợp đồng, tên dự án, chủ đầu tư, trạng thái, giá trị...',
           'Các cột GIÁ TRỊ TIỀN chỉ hiện với người được cấp quyền xem số tiền; không thấy cột tiền nghĩa là bạn chưa được cấp quyền đó.',
-          'Trạng thái hợp đồng gồm: Chờ xử lý, Đang thực hiện, Hoàn thành, Hủy bỏ.',
+          'Trạng thái hợp đồng gồm: Chờ xử lý, Đang thực hiện, Hoàn thành, Hủy bỏ. Hợp đồng "Hoàn thành" bị khóa toàn bộ (trừ bảo hành) — xem mục "Chốt Hoàn thành" ở tab Thông tin hợp đồng.',
         ],
       },
       {
@@ -83,6 +83,18 @@ export const CONTRACTS_CORE_PAGES = [
           'Vai trò quyết định quyền: PM chính được sửa mọi tab; Xuất nhập khẩu được tạo hợp đồng nhập; Kỹ thuật được nhập serial...',
           'PM bấm nút thêm thành viên, chọn người + vai trò, rồi lưu. Một người có thể giữ nhiều vai trò.',
           'Danh sách "Kỹ thuật triển khai" còn được bổ sung TỰ ĐỘNG: khi Trưởng/Phó ban của Ban Dự án và chuyển giao công nghệ hoặc Ban Kỹ thuật dùng "Chuyển việc" ở tab Công việc triển khai để giao việc cho một người của hai ban này, người đó tự vào danh sách Kỹ thuật (nếu chưa có). Muốn bỏ ra thì sửa bảng thành viên như bình thường.',
+        ],
+      },
+      {
+        heading: 'Chốt "Hoàn thành" — khóa toàn bộ hợp đồng',
+        items: [
+          'Chỉ TRƯỞNG BAN / PHÓ BAN của Ban Triển khai Dự án (và quản trị hệ thống) được chuyển hợp đồng sang "Hoàn thành" hoặc mở lại về "Đang thực hiện". PM và các vai trò khác KHÔNG tự đổi được.',
+          'Cách chốt: mở tab "Thông tin hợp đồng" → bấm nút xanh "✅ Chuyển sang Hoàn thành" (cạnh nút cập nhật) → đọc kỹ hộp xác nhận rồi bấm OK. Người có quyền cũng có thể chọn "Hoàn thành" trong ô Trạng thái của form cập nhật; với người khác, lựa chọn này bị mờ.',
+          'Khi hợp đồng đã Hoàn thành: mọi tab hiện dải xanh "🔒 Hợp đồng đã Hoàn thành". KHÔNG AI (kể cả quản trị) thêm/sửa/xóa được bất cứ nội dung nào — thông tin hợp đồng, thành viên, bảng giá, tiến độ, công nợ, hóa đơn, bảo lãnh, công việc và trao đổi trong công việc, tài liệu, thiết bị/serial, và các hợp đồng nhập của hợp đồng này. Các nút sửa tự mờ đi; xem và xuất Excel vẫn bình thường.',
+          'NGOẠI LỆ: phiếu yêu cầu bảo hành và nhật ký xử lý bảo hành (tab Bảo hành → Case bảo hành) VẪN tạo/cập nhật được, vì bảo hành phát sinh sau khi dự án xong.',
+          'Muốn sửa lại: Trưởng/Phó Ban Triển khai Dự án bấm "↩ Chuyển về Đang thực hiện" trên dải xanh → mọi người có quyền sửa được trở lại. Sửa xong thì chốt Hoàn thành lại.',
+          'Mỗi lần chốt hoặc mở lại, PM của hợp đồng nhận tin Telegram báo.',
+          'Hợp đồng nhập dùng chung cho nhiều hợp đồng bán bị khóa theo hợp đồng bán GỐC của nó (hợp đồng bán nơi hợp đồng nhập được tạo).',
         ],
       },
     ],

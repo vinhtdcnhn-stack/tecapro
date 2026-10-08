@@ -4,6 +4,7 @@ import Modal from '../common/Modal'
 import MultiSelect from '../common/MultiSelect'
 import CustomerSelect from '../common/CustomerSelect'
 import DateInput from './DateInput'
+import ContractStatusField from './ContractStatusField'
 import { selectableUsers, userLabel } from '../../lib/userStatus'
 
 export default function ContractModal({ 
@@ -14,7 +15,8 @@ export default function ContractModal({
   users = [],
   customers = [],
   editMode = false,
-  editData = null
+  editData = null,
+  canComplete = false, // được chọn "Hoàn thành" (TP/PP Ban Triển khai Dự án + admin)
 }) {
   const [formData, setFormData] = useState({
     contract_no: '',
@@ -363,18 +365,7 @@ export default function ContractModal({
                   </p>
                 )}
               </div>
-              <div className="form-group">
-                <label>Trạng thái</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => updateField('status', e.target.value)}
-                >
-                  <option value="Pending">Chờ xử lý</option>
-                  <option value="Active">Đang thực hiện</option>
-                  <option value="Completed">Hoàn thành</option>
-                  <option value="Cancelled">Hủy bỏ</option>
-                </select>
-              </div>
+              <ContractStatusField value={formData.status} onChange={(v) => updateField('status', v)} canComplete={canComplete} />
             </div>
 
             <div className="form-row">

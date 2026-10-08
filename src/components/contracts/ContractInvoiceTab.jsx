@@ -23,7 +23,7 @@ const LockOpenIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill=
 // Tab "Xuất hóa đơn" trong chi tiết HĐ bán (dưới "Công nợ"). Nhập theo từng đợt,
 // xem số lượng tồn chưa xuất hóa đơn theo bảng giá.
 export default function ContractInvoiceTab({ contractId, currentUser }) {
-  const { canSection } = useContractPerm()
+  const { canSection, frozen } = useContractPerm()
   const showAmounts = canSection('co.invoice.amounts')
   const mfmt = (n) => showAmounts ? fmt(n) : '•••' // che số tiền hóa đơn
   const [contract, setContract] = useState(null)
@@ -156,8 +156,9 @@ export default function ContractInvoiceTab({ contractId, currentUser }) {
   //   • admin được cả hai (lối thoát khi kế toán nghỉ/đổi người)
   const isAdmin = Number(currentUser?.role) === 1
   const isAccountant = (contract?.accounting_member_ids || []).map(String).includes(String(currentUser?.id))
-  const canLock = isAdmin || isAccountant
-  const canUnlock = (inv) => isAdmin || String(inv.locked_by ?? '') === String(currentUser?.id)
+  // HĐ đã Hoàn thành → không khóa/mở khóa đợt được nữa (mọi nội dung đã bị khóa).
+  const canLock = !frozen && (isAdmin || isAccountant)
+  const canUnlock = (inv) => !frozen && (isAdmin || String(inv.locked_by ?? '') === String(currentUser?.id))
 
   // Khóa/mở khóa đợt. Khi khóa, đợt không sửa/xóa được tới khi mở.
   // MỞ KHÓA cần nhập lại mật khẩu để xác nhận.

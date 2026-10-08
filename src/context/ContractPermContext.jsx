@@ -11,7 +11,13 @@ import { createContext, useContext } from 'react'
 //                   TAB theo .view và ẩn khối "xem một phần" theo section. KHÔNG chặn GET.
 // Nếu `perms` không được cung cấp (vd tab tài liệu gói thầu) → không lọc (canView=true),
 // canManage lùi về canEdit để giữ tương thích.
-const ContractPermContext = createContext({ canEdit: false, canEditSerial: false })
+//   frozen        = HĐ bán đã "Hoàn thành" → KHÓA mọi thao tác ghi (canEdit/canManage = false),
+//                   trừ quyền bảo hành trong FROZEN_EXEMPT (server chặn tương ứng bằng trigger,
+//                   migration 108). Provider lồng (ContractInTab) tự kế thừa cờ từ provider ngoài.
+const ContractPermContext = createContext({ canEdit: false, canEditSerial: false, frozen: false })
+
+// Quyền vẫn dùng được khi HĐ đã Hoàn thành: phiếu yêu cầu bảo hành + nhật ký xử lý.
+const FROZEN_EXEMPT = new Set(['co.warranty.cases.manage', 'co.warranty.activities.manage'])
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useCanEdit = () => useContext(ContractPermContext).canEdit
@@ -20,17 +26,21 @@ export const useCanEditSerial = () => useContext(ContractPermContext).canEditSer
 // eslint-disable-next-line react-refresh/only-export-components
 export const useContractPerm = () => useContext(ContractPermContext)
 
-export function ContractPermProvider({ canEdit, canEditSerial, canLinkSupply, perms, children }) {
+export function ContractPermProvider({ canEdit, canEditSerial, canLinkSupply, perms, frozen, children }) {
+  const parent = useContext(ContractPermContext)
+  const isFrozen = frozen === undefined ? !!parent.frozen : !!frozen
   const hasPerms = Array.isArray(perms) || perms instanceof Set
   const set = hasPerms ? new Set(perms) : null
+  const manage = (key) => !hasPerms ? !!canEdit : set.has(key)
   const value = {
-    canEdit: !!canEdit,
-    canEditSerial: !!canEditSerial,
-    canLinkSupply: canLinkSupply === undefined ? !!canEdit : !!canLinkSupply,
+    frozen: isFrozen,
+    canEdit: !isFrozen && !!canEdit,
+    canEditSerial: !isFrozen && !!canEditSerial,
+    canLinkSupply: !isFrozen && (canLinkSupply === undefined ? !!canEdit : !!canLinkSupply),
     // Tập quyền HĐ thô — để provider lồng (vd ContractInTab) truyền tiếp xuống.
     perms: hasPerms ? [...set] : undefined,
     canView: (key) => !hasPerms || set.has(key),
-    canManage: (key) => !hasPerms ? !!canEdit : set.has(key),
+    canManage: (key) => (isFrozen && !FROZEN_EXEMPT.has(key) ? false : manage(key)),
     canSection: (key) => !hasPerms || set.has(key),
   }
   return (

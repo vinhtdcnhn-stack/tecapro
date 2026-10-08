@@ -16,3 +16,7 @@ export const DEPT_KY_THUAT = 8
 // Hai ban làm KỸ THUẬT của dự án — dùng cho luật tự thêm người vào danh sách Kỹ thuật
 // của hợp đồng khi Trưởng/Phó ban chuyển việc (services/autoTechnicalMember.js).
 export const TECH_DEPT_IDS = [DEPT_DU_AN_CGCN, DEPT_KY_THUAT]
+
+// Ban Triển khai Dự án (3) — Trưởng/Phó ban này (cùng admin) là người DUY NHẤT được chuyển
+// HĐ bán sang/khỏi trạng thái "Hoàn thành" (auth/completionAuthority.js, migration 108).
+export const DEPT_TRIEN_KHAI_DU_AN = 3

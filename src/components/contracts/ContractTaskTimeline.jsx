@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import MobileEditSheet, { Field } from './MobileEditSheet'
 import useIsMobile from './useIsMobile'
+import { useContractPerm } from '../../context/ContractPermContext'
 import { API, API_BASE } from '../../config/api'
 import {
   ENTRY_TYPES, ENTRY_TYPE_LABEL, ENTRY_TYPE_CLASS, allowedEntryTypes, fmtDateTime, canDeleteEntry,
@@ -21,6 +22,8 @@ const defaultContent = (pending) =>
   pending.every(p => p.url) ? '📷 Hình ảnh' : '📎 Tệp đính kèm'
 export default function ContractTaskTimeline({ taskId, task, currentUser, canManage, onChanged, onRead }) {
   const isMobile = useIsMobile()
+  // HĐ đã Hoàn thành → chỉ xem, không đăng/xóa trao đổi (server cũng chặn, migration 108).
+  const { frozen } = useContractPerm()
   const [entries, setEntries] = useState([])
   const [adding, setAdding] = useState(false)
   const [content, setContent] = useState('')
@@ -38,7 +41,7 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
     isManager: !!canManage,
   }
   const allowed = allowedEntryTypes(rel)
-  const canPost = allowed.length > 0
+  const canPost = !frozen && allowed.length > 0
 
   // Loại mặc định khi mở ô soạn: ưu tiên Trao đổi nếu được phép.
   const defaultType = allowed.includes('discussion') ? 'discussion' : allowed[0]
@@ -196,7 +199,7 @@ export default function ContractTaskTimeline({ taskId, task, currentUser, canMan
               <span className={`task-tl-tag ${ENTRY_TYPE_CLASS[e.entry_type] || ''}`}>{ENTRY_TYPE_LABEL[e.entry_type] || e.entry_type}</span>
               <span className="task-tl-author">{e.author_name || '—'}</span>
               <span className="task-tl-time">{fmtDateTime(e.created_at)}</span>
-              {canDeleteEntry(e, currentUser) && (
+              {!frozen && canDeleteEntry(e, currentUser) && (
                 <button className="task-tl-del" onClick={() => remove(e.id)} title="Xóa (chỉ trong 3 phút đầu; sau đó chỉ admin)">✕</button>
               )}
             </div>

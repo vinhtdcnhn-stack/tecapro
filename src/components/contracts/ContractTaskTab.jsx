@@ -5,7 +5,7 @@ import './ContractTaskTab.css'
 import { API } from '../../config/api'
 import { qk } from '../../lib/queries'
 import { isOverdue, groupByDept, groupByAssignee, buildTaskTree, visibleTaskIds, buildTaskCopyText, copyToClipboard, transferredParentIds } from './taskUtils'
-import { useCanEdit } from '../../context/ContractPermContext'
+import { useCanEdit, useContractPerm } from '../../context/ContractPermContext'
 import DeptGroup from './TaskDeptGroup'
 import TaskModal from './TaskModal'
 import TaskGantt from './TaskGantt'
@@ -38,6 +38,8 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   const [highlightId, setHighlightId] = useState(null)  // id việc cần làm nổi bật khi đến từ đường dẫn
   const jumpedFor = useRef(null)  // id đã nhảy tới (tránh nhảy lặp lại mỗi lần render)
   const canEdit = useCanEdit()
+  // HĐ đã Hoàn thành → khóa cả quyền theo dòng của người được giao/người tạo việc.
+  const { frozen } = useContractPerm()
   const queryClient = useQueryClient()
 
   // ── Load data ───────────────────────────────────────────────────────────────
@@ -144,11 +146,12 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
 
   // ── Quyền theo dòng (khớp backend canCreateTask/canWriteTask) ─────────────────
   const uid = Number(currentUser?.id)
-  const canAddSub  = (task) => canEdit || Number(task.assigned_to) === uid
+  const canAddSub  = (task) => !frozen && (canEdit || Number(task.assigned_to) === uid)
   // Chuyển việc (đổi người thực hiện): khớp backend canTransferTask — PM/admin, người
   // được giao, hoặc người tạo việc.
-  const canTransferRow = (task) => canEdit || Number(task.assigned_to) === uid || Number(task.created_by) === uid
+  const canTransferRow = (task) => !frozen && (canEdit || Number(task.assigned_to) === uid || Number(task.created_by) === uid)
   const canWriteRow = (task) => {
+    if (frozen) return false
     if (canEdit) return true
     if (task.parent_task_id == null) return false           // việc gốc: chỉ PM/admin
     if (Number(task.assigned_to) === uid) return true        // assignee của việc con
@@ -158,13 +161,15 @@ export default function ContractTaskTab({ contractId, currentUser, contract = nu
   // Đổi TRẠNG THÁI rộng hơn sửa việc (khớp backend canChangeTaskStatus): người được giao
   // tự cập nhật được việc của mình, kể cả việc gốc.
   const canChangeStatusRow = (task) => {
+    if (frozen) return false
     if (canWriteRow(task)) return true
     return Number(task.assigned_to) === uid || Number(task.created_by) === uid
   }
   // Xác nhận / trả lại kết quả: người GIAO việc, PM của HĐ, admin (khớp canConfirmTaskCompletion).
-  const canConfirmRow = (task) => canEdit || Number(task.created_by) === uid
+  const canConfirmRow = (task) => !frozen && (canEdit || Number(task.created_by) === uid)
   // Sắp xếp 1 việc trong nhóm anh-em: PM/admin (mọi việc) hoặc assignee của VIỆC CHA.
   const canReorderRow = (task) => {
+    if (frozen) return false
     if (canEdit) return true
     if (task.parent_task_id == null) return false           // việc gốc: chỉ PM/admin
     const p = byId.get(String(task.parent_task_id))

@@ -1,0 +1,17 @@
+/* Khóa HĐ đã Hoàn thành (ContractCompletionControls.jsx) */
+.contract-completed-banner {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  margin: 0 0 14px; padding: 10px 14px; font-size: 13px; line-height: 1.5;
+  color: #166534; background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px;
+}
+.contract-completed-banner button,
+.btn-complete-contract {
+  padding: 6px 14px; font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer;
+  white-space: nowrap;
+}
+.contract-completed-banner button { color: #92400e; background: #fffbeb; border: 1px solid #fcd34d; }
+.contract-completed-banner button:hover:not(:disabled) { background: #fef3c7; }
+.btn-complete-contract { margin-left: 12px; vertical-align: middle; color: #fff; background: #16a34a; border: 1px solid #16a34a; }
+.btn-complete-contract:hover:not(:disabled) { background: #15803d; }
+.contract-completed-banner button:disabled,
+.btn-complete-contract:disabled { opacity: .5; cursor: not-allowed; }
