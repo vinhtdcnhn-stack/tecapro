@@ -59,11 +59,29 @@
 /* Bảng báo cáo */
 .acc-table-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; }
 .acc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.acc-table th, .acc-table td { padding: 8px 10px; border-bottom: 1px solid #f1f3f5; text-align: left; white-space: nowrap; }
+/* Chữ (tên KH, dự án, nội dung) được xuống dòng để bảng vừa khung, không phải cuộn ngang;
+   tiêu đề, số tiền, số HĐ (mono) giữ trên một dòng. */
+.acc-table th, .acc-table td { padding: 8px 10px; border-bottom: 1px solid #f1f3f5; text-align: left; vertical-align: top; }
+.acc-table th, .acc-table td.num, .acc-table td.mono { white-space: nowrap; }
+.acc-table td { white-space: normal; overflow-wrap: anywhere; min-width: 70px; }
+.acc-table td.num, .acc-table td.mono { overflow-wrap: normal; min-width: 0; }
 .acc-table th { background: #f9fafb; font-weight: 700; color: #374151; position: sticky; top: 0; }
 .acc-table td.num, .acc-table th.num { text-align: right; }
 .acc-table td.mono { font-family: ui-monospace, monospace; }
 .acc-table tbody tr:hover { background: #fafbfc; }
+
+/* Phân trang bảng báo cáo (AccPager) */
+.acc-pager { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.acc-pager-info { font-size: 12px; color: #6b7280; }
+.acc-pager-btns { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.acc-pager-btns button {
+  min-width: 32px; height: 30px; padding: 0 8px; font-size: 13px; font-weight: 600; color: #374151;
+  background: #fff; border: 1px solid #d1d5db; border-radius: 7px; cursor: pointer;
+}
+.acc-pager-btns button:hover:not(:disabled) { background: #f3f4f6; }
+.acc-pager-btns button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.acc-pager-btns button:disabled { opacity: .4; cursor: not-allowed; }
+.acc-pager-gap { padding: 0 4px; color: #9ca3af; }
 
 /* Nhãn nhóm nợ */
 .acc-tier { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }

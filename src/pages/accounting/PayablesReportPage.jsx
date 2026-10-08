@@ -6,6 +6,7 @@ import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import { usePaged } from './AccPager.jsx'
 import AccSearch, { useReportSearch } from './AccSearch.jsx'
 import './Accounting.css'
 
@@ -24,6 +25,7 @@ export default function PayablesReportPage() {
   const [to, setTo]     = useState(todayLocal)
   const [allRows, setRows] = useState([])
   const { query, setQuery, filtered: rows } = useReportSearch(allRows, SEARCH_FIELDS)
+  const { pageRows, offset, pager } = usePaged(rows)
   const [loading, setLoading] = useState(true)
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải trả',
     (r) => contractPath(r.contract_out_id, { tab: 'purchase-contract-info', inId: r.contract_in_id, inTab: 'payment' }))
@@ -71,7 +73,7 @@ export default function PayablesReportPage() {
         : rows.length === 0 ? <p className="dash-empty">{query ? 'Không có khoản nào khớp tìm kiếm.' : 'Không có công nợ phải trả trong kỳ.'}</p>
         : isMobile ? (
         <div className="acc-cards">
-          {rows.map((r) => (
+          {pageRows.map((r) => (
             <AccCard key={r.id}
               title={<span className="mono">{r.contract_no || '—'}</span>}
               sub={r.supplier_name}
@@ -99,11 +101,11 @@ export default function PayablesReportPage() {
               <th className="num">Quy đổi VNĐ</th><th>Hạn trả</th><th className="num">Quá hạn</th><th>Nhóm nợ</th>
             </tr></thead>
             <tbody>
-              {rows.map((r, i) => (
+              {pageRows.map((r, i) => (
                 <tr key={r.id} className="acc-row-link" title="Bấm để mở thanh toán của hợp đồng nhập"
                     {...getRowProps(r)}
                     onClick={() => goContract(r.contract_out_id, { tab: 'purchase-contract-info', inId: r.contract_in_id, inTab: 'payment' })}>
-                  <td>{i + 1}</td><td>{r.supplier_code || '—'}</td><td>{r.supplier_name || '—'}</td>
+                  <td>{offset + i + 1}</td><td>{r.supplier_code || '—'}</td><td>{r.supplier_name || '—'}</td>
                   <td className="mono">{r.contract_no || '—'}</td><td>{r.description || '—'}</td>
                   <td className="num">{fmtMoney(r.amount)} {r.currency_code}</td>
                   <td className="num">{fmtMoney(r.paid)}</td>
@@ -118,6 +120,7 @@ export default function PayablesReportPage() {
           </table>
         </div>
       )}
+      {!loading && pager}
       {copyMenu}
     </div>
   )

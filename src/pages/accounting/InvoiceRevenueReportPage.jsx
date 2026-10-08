@@ -6,6 +6,7 @@ import { contractPath } from '../../components/common/deepLink'
 import DateInput from '../../components/contracts/DateInput.jsx'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import { usePaged } from './AccPager.jsx'
 import AccSearch, { useReportSearch } from './AccSearch.jsx'
 import './Accounting.css'
 
@@ -108,6 +109,7 @@ export default function InvoiceRevenueReportPage() {
 
   const allRows = useMemo(() => (data && Array.isArray(data.rows) ? data.rows : []), [data])
   const { query, setQuery, filtered: rows } = useReportSearch(allRows, SEARCH_FIELDS)
+  const { pageRows, offset, pager } = usePaged(rows)
   const total = useMemo(() => rows.reduce((s, r) => s + (parseFloat(r.amount_vnd) || 0), 0), [rows])
   // Tổng trước VAT cộng theo bản QUY VNĐ — các hóa đơn có thể khác loại tiền, cộng nguyên tệ
   // với nhau là sai (xem quy ước nguyên tệ trong CLAUDE.md).
@@ -157,7 +159,7 @@ export default function InvoiceRevenueReportPage() {
         : rows.length === 0 ? <p className="dash-empty">{query ? 'Không có hóa đơn nào khớp tìm kiếm.' : 'Không có hóa đơn nào trong khoảng ngày đã chọn.'}</p>
         : isMobile ? (
         <div className="acc-cards">
-          {rows.map((r) => (
+          {pageRows.map((r) => (
             <AccCard key={r.id}
               title={<span className="mono">{r.invoice_no || '(chưa số)'}</span>}
               sub={r.customer_name}
@@ -185,10 +187,10 @@ export default function InvoiceRevenueReportPage() {
               <th className="num">Giá trị (nguyên tệ)</th><th className="num">Quy đổi VNĐ</th>
             </tr></thead>
             <tbody>
-              {rows.map((r, i) => (
+              {pageRows.map((r, i) => (
                 <tr key={r.id} className="acc-row-link" title="Bấm để mở hóa đơn của hợp đồng"
                     {...getRowProps(r)} onClick={() => goContract(r.contract_out_id, { tab: 'contract-invoice' })}>
-                  <td>{i + 1}</td>
+                  <td>{offset + i + 1}</td>
                   <td className="mono">{r.invoice_no || '—'}</td>
                   <td>{fmtDate(r.invoice_date)}</td>
                   <td className="mono">{r.contract_no || '—'}</td>
@@ -211,6 +213,7 @@ export default function InvoiceRevenueReportPage() {
           </table>
         </div>
       )}
+      {!loading && pager}
       {copyMenu}
     </div>
   )

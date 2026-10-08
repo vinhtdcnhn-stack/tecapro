@@ -5,6 +5,7 @@ import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import { usePaged } from './AccPager.jsx'
 import AccSearch, { useReportSearch } from './AccSearch.jsx'
 import './Accounting.css'
 
@@ -53,6 +54,7 @@ export default function OverdueAlertsPage() {
 
   const allOverdue = rows.filter(r => r.days_overdue > 0)
   const { query, setQuery, filtered: overdueRows } = useReportSearch(allOverdue, SEARCH_FIELDS)
+  const { pageRows, offset, pager } = usePaged(overdueRows)
   const totalVnd = overdueRows.reduce((s, r) => s + (parseFloat(r.remaining_vnd) || 0), 0)
 
   return (
@@ -72,7 +74,7 @@ export default function OverdueAlertsPage() {
         <p className="dash-empty">{query ? 'Không có khoản nợ nào khớp tìm kiếm.' : 'Không có khoản nợ quá hạn. 🎉'}</p>
       ) : isMobile ? (
         <div className="acc-cards">
-          {overdueRows.map((r) => (
+          {pageRows.map((r) => (
             <AccCard key={r.id}
               title={<span className="mono">{r.contract_no || '—'}</span>}
               sub={r.customer_name}
@@ -101,10 +103,10 @@ export default function OverdueAlertsPage() {
               </tr>
             </thead>
             <tbody>
-              {overdueRows.map((r, i) => (
+              {pageRows.map((r, i) => (
                 <tr key={r.id} className="acc-row-link" title="Bấm để mở công nợ phải thu của hợp đồng"
                     {...getRowProps(r)} onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}>
-                  <td>{i + 1}</td>
+                  <td>{offset + i + 1}</td>
                   <td>{r.customer_code || '—'}</td>
                   <td>{r.customer_name || '—'}</td>
                   <td className="mono">{r.contract_no || '—'}</td>
@@ -121,6 +123,7 @@ export default function OverdueAlertsPage() {
           </table>
         </div>
       )}
+      {!loading && pager}
       {copyMenu}
     </div>
   )

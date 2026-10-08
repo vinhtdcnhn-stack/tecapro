@@ -6,6 +6,7 @@ import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import { usePaged } from './AccPager.jsx'
 import AccSearch, { useReportSearch } from './AccSearch.jsx'
 import './Accounting.css'
 
@@ -25,6 +26,7 @@ export default function ReceivablesReportPage() {
   const [basis, setBasis] = useState('actual')
   const [allRows, setRows] = useState([])
   const { query, setQuery, filtered: rows } = useReportSearch(allRows, SEARCH_FIELDS)
+  const { pageRows, offset, pager } = usePaged(rows)
   const [loading, setLoading] = useState(true)
   const { getRowProps, copyMenu } = useCopyMenu(buildCopyText, (r) => r.description || r.contract_no || 'Khoản phải thu',
     (r) => contractPath(r.contract_out_id, { tab: 'contract-debt' }))
@@ -76,7 +78,7 @@ export default function ReceivablesReportPage() {
         : rows.length === 0 ? <p className="dash-empty">{query ? 'Không có khoản nào khớp tìm kiếm.' : 'Không có công nợ phải thu trong kỳ.'}</p>
         : isMobile ? (
         <div className="acc-cards">
-          {rows.map((r) => (
+          {pageRows.map((r) => (
             <AccCard key={r.id}
               title={<span className="mono">{r.contract_no || '—'}</span>}
               sub={r.customer_name}
@@ -106,10 +108,10 @@ export default function ReceivablesReportPage() {
               <th className="num">Quá hạn</th><th>Nhóm nợ</th>
             </tr></thead>
             <tbody>
-              {rows.map((r, i) => (
+              {pageRows.map((r, i) => (
                 <tr key={r.id} className="acc-row-link" title="Bấm để mở công nợ phải thu của hợp đồng"
                     {...getRowProps(r)} onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}>
-                  <td>{i + 1}</td><td>{r.customer_code || '—'}</td><td>{r.customer_name || '—'}</td>
+                  <td>{offset + i + 1}</td><td>{r.customer_code || '—'}</td><td>{r.customer_name || '—'}</td>
                   <td className="mono">{r.contract_no}</td><td>{r.description || '—'}</td>
                   <td className="num">{r.ratio_pct == null ? '—' : r.ratio_pct.toFixed(1) + '%'}</td>
                   <td className="num">{fmtMoney(r.amount)} {r.currency_code}</td>
@@ -125,6 +127,7 @@ export default function ReceivablesReportPage() {
           </table>
         </div>
       )}
+      {!loading && pager}
       {copyMenu}
     </div>
   )

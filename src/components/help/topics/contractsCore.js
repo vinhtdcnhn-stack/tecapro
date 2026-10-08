@@ -18,6 +18,8 @@ export const CONTRACTS_CORE_PAGES = [
         heading: 'Tìm và mở một hợp đồng',
         items: [
           'Gõ vào ô "🔍 Tìm kiếm (Số HĐ, Tên dự án, Chủ đầu tư...)" — bảng lọc ngay khi bạn gõ.',
+          'Muốn biết hợp đồng nào có bán một mặt hàng: gõ vào ô "📦 Tìm theo tên hàng hóa..." (ví dụ "máy chủ", "switch"). Bảng chỉ còn các hợp đồng có mặt hàng chứa từ đó trong tab Bảng giá. Gõ có dấu hay không dấu đều được, từ 2 ký tự trở lên; chờ khoảng nửa giây là có kết quả.',
+          'Ô hàng hóa dùng KẾT HỢP với ô tìm kiếm, khoảng ngày ký và bộ lọc cột (hợp đồng phải thỏa tất cả). Dòng "Hiển thị: ..." ghi thêm "có hàng hóa khớp ..." — bấm dấu × ở đó (hoặc xóa chữ trong ô) để bỏ lọc hàng hóa.',
           'Bấm vào dòng hợp đồng cần xem để mở trang chi tiết.',
         ],
       },

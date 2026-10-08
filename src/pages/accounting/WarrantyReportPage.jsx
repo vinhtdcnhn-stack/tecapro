@@ -5,6 +5,7 @@ import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import { usePaged } from './AccPager.jsx'
 import './Accounting.css'
 
 const ST_CLASS = { 'Còn hiệu lực': 'st-in', 'Sắp hết hạn': 'st-warn', 'Hết hiệu lực': 'st-over' }
@@ -48,6 +49,10 @@ export default function WarrantyReportPage() {
   useEffect(() => { load() }, [load])
   useRefetchOnFocus(() => load(true))   // quay lại tab → làm mới ngầm (người khác vừa sửa số)
 
+  const topPaged = usePaged(data?.top_products || [])
+  const contractPaged = usePaged(data?.contracts || [])
+  const casePaged = usePaged(data?.cases || [])
+
   if (loading) return <p className="dash-empty">Đang tải...</p>
   if (!data) return <p className="dash-empty">Không tải được dữ liệu.</p>
   const s = data.summary
@@ -77,7 +82,7 @@ export default function WarrantyReportPage() {
           <div className="acc-section-title">Top sản phẩm/dịch vụ phát sinh lỗi nhiều nhất</div>
           {isMobile ? (
             <div className="acc-cards" style={{ marginBottom: 18 }}>
-              {data.top_products.map((t, i) => (
+              {topPaged.pageRows.map((t, i) => (
                 <AccCard key={i} title={t.name || '—'}
                   badge={<span className="acc-tier tier-2">{t.n} lần</span>} />
               ))}
@@ -85,10 +90,11 @@ export default function WarrantyReportPage() {
           ) : (
           <div className="acc-table-wrap" style={{ marginBottom: 18 }}>
             <table className="acc-table"><thead><tr><th>Sản phẩm/Dịch vụ</th><th className="num">Số lần BH</th></tr></thead>
-              <tbody>{data.top_products.map((t, i) => <tr key={i}><td>{t.name || '—'}</td><td className="num">{t.n}</td></tr>)}</tbody>
+              <tbody>{topPaged.pageRows.map((t, i) => <tr key={i}><td>{t.name || '—'}</td><td className="num">{t.n}</td></tr>)}</tbody>
             </table>
           </div>
           )}
+          {topPaged.pager}
         </>
       )}
 
@@ -99,7 +105,7 @@ export default function WarrantyReportPage() {
       {isMobile ? (
         <div className="acc-cards">
           {data.contracts.length === 0 && <p className="dash-empty">Chưa có thiết bị nào có ngày bảo hành.</p>}
-          {data.contracts.map(c => {
+          {contractPaged.pageRows.map(c => {
             const isOpen = open === c.contract_out_id
             return (
               <AccCard key={c.contract_out_id}
@@ -138,7 +144,7 @@ export default function WarrantyReportPage() {
             <th className="num">Hết hạn</th><th>Hết BH sớm nhất</th><th>Hết BH muộn nhất</th><th>Trạng thái</th>
           </tr></thead>
           <tbody>
-            {data.contracts.map(c => {
+            {contractPaged.pageRows.map(c => {
               const isOpen = open === c.contract_out_id
               return (
                 <Fragment key={c.contract_out_id}>
@@ -166,12 +172,13 @@ export default function WarrantyReportPage() {
         </table>
       </div>
       )}
+      {contractPaged.pager}
 
       <div className="acc-section-title" style={{ marginTop: 18 }}>Danh sách yêu cầu bảo hành</div>
       {isMobile ? (
         <div className="acc-cards">
           {data.cases.length === 0 && <p className="dash-empty">Chưa có yêu cầu bảo hành.</p>}
-          {data.cases.map(c => (
+          {casePaged.pageRows.map(c => (
             <AccCard key={c.id}
               title={<span className="mono">{c.case_no || c.id}</span>}
               sub={c.title}
@@ -191,7 +198,7 @@ export default function WarrantyReportPage() {
         <table className="acc-table">
           <thead><tr><th>Mã phiếu</th><th>Số HĐ</th><th>Nội dung</th><th>Người báo</th><th>Ngày tiếp nhận</th><th>Ngày hoàn thành</th><th>Trạng thái</th></tr></thead>
           <tbody>
-            {data.cases.map(c => (
+            {casePaged.pageRows.map(c => (
               <tr key={c.id} className="acc-row-link" title="Bấm để mở bảo hành của hợp đồng"
                   {...caseCopy.getRowProps(c)} onClick={() => goContract(c.contract_out_id, { tab: 'contract-warranty' })}>
                 <td className="mono">{c.case_no || c.id}</td><td className="mono">{c.contract_no}</td>
@@ -205,6 +212,7 @@ export default function WarrantyReportPage() {
         </table>
       </div>
       )}
+      {casePaged.pager}
       {contractCopy.copyMenu}
       {caseCopy.copyMenu}
     </div>

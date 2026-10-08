@@ -25,6 +25,16 @@ export const ACCOUNTING_GROUP = {
             'Nếu vào bảng mà hiện khung vàng "Bạn chưa có quyền xem báo cáo tài chính" thì là do chưa được cấp quyền — KHÔNG phải mất dữ liệu. Nhờ quản trị cấp quyền ở trang Phân quyền rồi đăng nhập lại.',
           ],
         },
+        {
+          heading: 'Xem bảng nhiều dòng (phân trang)',
+          items: [
+            'Mọi bảng trong các tab Kế toán hiện 10 dòng mỗi trang. Khi có hơn 10 dòng, phía dưới bảng có dòng "1–10 / 25 dòng" và các nút số trang: bấm số trang, hoặc nút ‹ / › để lùi/tiến một trang.',
+            'Cột STT đánh số liên tục qua các trang (trang 2 bắt đầu từ 11).',
+            'Gõ ô "Tìm kiếm" hoặc đổi bộ lọc thì bảng tự quay về trang 1. Các con số tổng ở góc phải và nút "Excel" luôn tính/xuất TOÀN BỘ các dòng, không chỉ trang đang xem.',
+            'Tên khách hàng, dự án, nội dung dài sẽ tự xuống dòng để bảng hiện đủ trong khung, hạn chế phải kéo ngang.',
+            'Ở tab có dòng bấm để bung ra (Tổng hợp theo KH/HĐ, Tình trạng bảo hành), mỗi trang là 10 dòng chính; các dòng con bung ra không tính vào 10 dòng đó.',
+          ],
+        },
       ],
     },
     {
@@ -47,7 +57,7 @@ export const ACCOUNTING_GROUP = {
             'Chọn "Từ ngày" / "Đến ngày" để xem doanh thu một giai đoạn bất kỳ.',
             'Ba nút bấm nhanh: "Tháng trước", "Tháng hiện tại", "Tháng sau" — tự đặt khoảng ngày theo tháng.',
             'Ô "Tìm kiếm" lọc nhanh theo số hóa đơn, số HĐ, chủ đầu tư hoặc dự án — gõ tới đâu bảng lọc tới đó, hai tổng "Tổng trước VAT" / "Tổng sau VAT" cũng cập nhật theo kết quả lọc.',
-            'Bấm nút "Excel" để tải bảng đang xem về file Excel.',
+            'Bấm nút "Excel" để tải bảng đang xem về file Excel (gồm mọi dòng khớp bộ lọc, không chỉ trang đang xem).',
             'Máy nhớ khoảng ngày bạn chọn cho lần sau. Nếu bạn để mặc định "đến hôm nay" thì lần mở sau ô "Đến ngày" tự nhảy sang ngày hiện tại; còn nếu bạn tự gõ một mốc cụ thể thì máy giữ nguyên mốc đó.',
             'Khi ô "Đến ngày" nhỏ hơn hôm nay, thanh công cụ hiện dòng vàng "⚠ Chỉ tính tới ..." — nghĩa là hóa đơn xuất sau ngày đó CHƯA được tính. Bấm nút "Tới hôm nay" cạnh đó để xem đầy đủ.',
             'Nếu hiện "Không có hóa đơn nào trong khoảng ngày đã chọn" — thử nới rộng khoảng ngày.',

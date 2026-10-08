@@ -1,11 +1,14 @@
 import { Router } from 'express'
 import * as contractController from '../controllers/contractController.js'
+import { searchContractsByItem } from '../controllers/contractItemSearchController.js'
 import { contractPermFromParam } from '../middleware/contractAccess.js'
 import { loadContractPermissions } from '../auth/permissions.js'
 
 const router = Router()
 
 router.get('/', contractController.getAllContracts)
+// Tìm HĐ theo tên hàng hóa trong bảng giá (đặt trước '/:id')
+router.get('/search-items', searchContractsByItem)
 // Quyền HĐ (lớp B) hiệu lực của user hiện tại trong HĐ này — FE dùng ẩn/hiện tab + section.
 router.get('/:id/my-permissions', async (req, res, next) => {
   try {

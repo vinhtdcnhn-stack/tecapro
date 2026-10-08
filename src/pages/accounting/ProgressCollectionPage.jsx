@@ -6,6 +6,7 @@ import { contractPath } from '../../components/common/deepLink'
 import NumberInput from '../../components/common/NumberInput.jsx'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import { usePaged } from './AccPager.jsx'
 import AccSearch from './AccSearch.jsx'
 import './Accounting.css'
 
@@ -48,6 +49,7 @@ export default function ProgressCollectionPage() {
       return true
     })
   }, [rows, minRemaining, maxRemaining, query])
+  const { pageRows, offset, pager } = usePaged(filtered)
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -96,7 +98,7 @@ export default function ProgressCollectionPage() {
         : filtered.length === 0 ? <p className="dash-empty">Không có hợp đồng nào khớp bộ lọc.</p>
         : isMobile ? (
         <div className="acc-cards">
-          {filtered.map((r) => (
+          {pageRows.map((r) => (
             <AccCard key={r.contract_out_id}
               title={<span className="mono">{r.contract_no}</span>}
               sub={r.customer_name}
@@ -122,10 +124,10 @@ export default function ProgressCollectionPage() {
               <th className="num">Số ngày chậm</th><th>Phân loại</th>
             </tr></thead>
             <tbody>
-              {filtered.map((r, i) => (
+              {pageRows.map((r, i) => (
                 <tr key={r.contract_out_id} className="acc-row-link" title="Bấm để mở công nợ phải thu của hợp đồng"
                     {...getRowProps(r)} onClick={() => goContract(r.contract_out_id, { tab: 'contract-debt' })}>
-                  <td>{i + 1}</td><td className="mono">{r.contract_no}</td><td>{r.customer_name || '—'}</td>
+                  <td>{offset + i + 1}</td><td className="mono">{r.contract_no}</td><td>{r.customer_name || '—'}</td>
                   <td>{r.project_name || '—'}</td><td>{fmtDate(r.contract_date)}</td>
                   <td className="num">{fmtMoney(r.value_vnd)}</td>
                   <td className="num">{fmtMoney(r.collected_vnd)}</td>
@@ -138,6 +140,7 @@ export default function ProgressCollectionPage() {
           </table>
         </div>
       )}
+      {!loading && pager}
       {copyMenu}
     </div>
   )

@@ -9,6 +9,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { LOCKED_COLUMNS, MOVABLE_COLUMN_KEYS, COLUMNS_BY_KEY } from './contractListColumns'
 import { useColumnPrefs } from './useColumnPrefs'
 import { useContractListNav } from './useContractListNav'
+import { useItemSearch } from './useItemSearch'
 
 // Mặc định lọc theo ngày ký: từ 1/1 đến 31/12 năm hiện tại
 const currentYear = new Date().getFullYear()
@@ -50,6 +51,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
   const [dragOverColKey, setDragOverColKey] = useState(null)
 
   const isMobile = useIsMobile()
+  // Tìm theo tên hàng hóa trong bảng giá (server) → Map id HĐ → số dòng hàng khớp
+  const { itemTerm, setItemTerm, matches: itemMatches, loading: itemLoading } = useItemSearch()
   const { has } = usePermission()
   // Xem cột tiền (Trước VAT / Sau VAT / USD + card Tổng giá trị). Thiếu quyền → ẩn hết cột tiền.
   // Backend cũng strip số tiền cho user thiếu quyền nên đây chỉ là ẩn hiển thị.
@@ -91,7 +94,8 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
     const matchesCustomerName = !filters.customer_name || c.customer_name?.toLowerCase().includes(filters.customer_name.toLowerCase())
     const matchesPM = !filters.pm_name || c.pm_name === filters.pm_name
     const matchesStatus = !filters.status || c.status === filters.status
-    return matchesSearch && matchesContractNo && matchesProjectName && matchesCustomerName && matchesPM && matchesStatus
+    const matchesItem = !itemMatches || itemMatches.has(String(c.id))
+    return matchesSearch && matchesItem && matchesContractNo && matchesProjectName && matchesCustomerName && matchesPM && matchesStatus
   }).sort((a, b) => {
     if (!sortConfig.key || !sortConfig.direction) return 0
     let aVal = a[sortConfig.key], bVal = b[sortConfig.key]
@@ -257,6 +261,14 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
           onChange={(e) => { setLocalSearchTerm(e.target.value); window.dispatchEvent(new CustomEvent('contract-search-change', { detail: e.target.value })) }}
           className="search-input ml-auto shrink-0"
         />
+        <input
+          type="text"
+          placeholder="📦 Tìm theo tên hàng hóa..."
+          value={itemTerm}
+          onChange={(e) => setItemTerm(e.target.value)}
+          className="search-input shrink-0"
+          title="Lọc hợp đồng có mặt hàng chứa từ khóa trong Bảng giá (không phân biệt dấu, gõ từ 2 ký tự)"
+        />
 
         {/* Tùy chỉnh cột (chỉ desktop — mobile dùng danh sách thẻ) */}
         {!isMobile && (
@@ -310,6 +322,12 @@ export default function ContractListPage({ contracts, searchTerm: parentSearchTe
       {!isMobile && (
       <div className="mb-2 text-sm text-gray-500">
         Hiển thị: <span className="font-medium text-gray-700">{filteredAndSortedContracts.length}</span> / {dateFilteredContracts.length} hợp đồng
+        {itemTerm.trim().length >= 2 && (
+          <span className="ml-2 text-tecapro-700">
+            · {itemLoading ? 'đang tìm hàng hóa…' : `có hàng hóa khớp "${itemTerm.trim()}"`}
+            <button onClick={() => setItemTerm('')} className="ml-1 hover:text-tecapro-900" title="Bỏ lọc hàng hóa">×</button>
+          </span>
+        )}
       </div>
       )}
 

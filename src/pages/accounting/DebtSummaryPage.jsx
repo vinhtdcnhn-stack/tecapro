@@ -5,6 +5,7 @@ import { useCopyMenu } from '../../components/common/useCopyMenu.jsx'
 import { contractPath } from '../../components/common/deepLink'
 import useIsMobile from '../../components/contracts/useIsMobile'
 import AccCard from './AccCard.jsx'
+import { usePaged } from './AccPager.jsx'
 import AccSearch from './AccSearch.jsx'
 import './Accounting.css'
 
@@ -68,6 +69,7 @@ export default function DebtSummaryPage() {
       || contracts.some(k => String(k.customer_id) === String(c.customer_id) && contractMatches(k)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [custs, contracts, q])
+  const { pageRows: pageCusts, pager } = usePaged(filteredCusts)
 
   // Hợp đồng hiển thị dưới một KH: không tìm → toàn bộ; khớp ở tên KH → toàn bộ;
   // khớp qua hợp đồng con → chỉ những hợp đồng khớp.
@@ -109,7 +111,7 @@ export default function DebtSummaryPage() {
 
       {isMobile ? (
         <div className="acc-cards">
-          {filteredCusts.map(c => {
+          {pageCusts.map(c => {
             const isOpen = isCustOpen(c)
             const kids = isOpen ? childrenFor(c) : []
             return (
@@ -155,7 +157,7 @@ export default function DebtSummaryPage() {
             <th className="num">Đã thu</th><th className="num">Công nợ còn lại</th><th className="num">Tỷ lệ thu</th>
           </tr></thead>
           <tbody>
-            {filteredCusts.map(c => {
+            {pageCusts.map(c => {
               const isOpen = isCustOpen(c)
               const kids = isOpen ? childrenFor(c) : []
               return [
@@ -185,6 +187,7 @@ export default function DebtSummaryPage() {
         </table>
       </div>
       )}
+      {pager}
       {custCopy.copyMenu}
       {conCopy.copyMenu}
     </div>
