@@ -10,6 +10,7 @@ export const CONTRACTS_CORE_PAGES = [
         heading: 'Màn hình thể hiện gì?',
         items: [
           'Vào menu "Hợp đồng bán" — bảng liệt kê toàn bộ hợp đồng bạn được xem: số hợp đồng, tên dự án, chủ đầu tư, trạng thái, giá trị...',
+          'Bạn thấy những hợp đồng nào? Mặc định chỉ thấy hợp đồng mà bạn có tên trong bảng thành viên (PM, kinh doanh, kỹ thuật, kế toán, người theo dõi...). Người được cấp quyền "Hợp đồng bán — Xem tất cả HĐ (danh sách)" (theo vị trí hoặc phòng ban) thì thấy TẤT CẢ hợp đồng. Danh sách trống nghĩa là bạn chưa được gán vào hợp đồng nào và cũng chưa có quyền xem tất cả — hãy báo quản trị.',
           'Các cột GIÁ TRỊ TIỀN chỉ hiện với người được cấp quyền xem số tiền; không thấy cột tiền nghĩa là bạn chưa được cấp quyền đó.',
           'Trạng thái hợp đồng gồm: Chờ xử lý, Đang thực hiện, Hoàn thành, Hủy bỏ. Hợp đồng "Hoàn thành" bị khóa toàn bộ (trừ bảo hành) — xem mục "Chốt Hoàn thành" ở tab Thông tin hợp đồng.',
         ],

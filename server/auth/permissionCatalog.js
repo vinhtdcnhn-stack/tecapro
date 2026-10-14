@@ -40,6 +40,9 @@ const GLOBAL = [
   // card "Tổng giá trị". Thiếu quyền này → vào được trang nhưng mọi cột tiền bị ẩn.
   // requires module.contracts.view (phải vào được module mới nói tới xem tiền).
   { key: 'module.contracts.amounts',     group: 'Vào module', label: 'Hợp đồng bán — Xem giá trị tiền (danh sách)', requires: ['module.contracts.view'] },
+  // Xem TẤT CẢ HĐ bán ở danh sách (/qlda) như admin — không cần là thành viên HĐ. Thiếu quyền
+  // này → chỉ thấy HĐ mình được phân công. Chỉ mở rộng phạm vi XEM; ghi vẫn theo vai trò HĐ.
+  { key: 'module.contracts.view_all',    group: 'Vào module', label: 'Hợp đồng bán — Xem tất cả HĐ (danh sách)', requires: ['module.contracts.view'] },
   { key: 'module.deptwork.view',         group: 'Vào module', label: 'Công việc — Dự án & chuyển giao công nghệ' },
   { key: 'module.tender.view',           group: 'Vào module', label: 'Công việc — Kế hoạch đấu thầu' },
   { key: 'module.approvals.view',        group: 'Vào module', label: 'Đề xuất' },
@@ -224,7 +227,7 @@ export const PAGES = [
   {
     id: 'contracts', label: 'Hợp đồng bán', scope: 'global',
     test: (p) => p === '/qlda',
-    permKeys: ['module.contracts.view', 'module.contracts.amounts'],
+    permKeys: ['module.contracts.view', 'module.contracts.amounts', 'module.contracts.view_all'],
   },
   {
     id: 'contract-detail', label: 'Chi tiết hợp đồng', scope: 'contract',

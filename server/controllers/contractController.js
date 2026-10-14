@@ -23,8 +23,11 @@ export async function getAllContracts(req, res) {
     // Phân quyền xem danh sách dựa trên danh tính đã xác thực (req.user từ cookie phiên),
     // KHÔNG dựa vào tham số client tự truyền: admin (role=1) xem tất cả, còn lại xem
     // mọi HĐ mình được phân công BẤT KỲ vai trò nào (PM/sale/presale/kỹ thuật/kế toán/
-    // người theo dõi) — tức toàn bộ dự án mình tham gia.
-    const restrictMemberUserId = Number(req.user?.role) === 1 ? null : (req.user?.id ?? null)
+    // người theo dõi) — tức toàn bộ dự án mình tham gia; trừ khi có quyền xem tất cả.
+    // Quyền module.contracts.view_all (cấp theo vị trí/phòng ban) → xem tất cả như admin.
+    const gk = await loadGlobalPermissions(req.user.id, req.user.role)
+    const seeAll = Number(req.user?.role) === 1 || gk.includes('module.contracts.view_all')
+    const restrictMemberUserId = seeAll ? null : (req.user?.id ?? null)
 
     const listKey = await contractListKey(restrictMemberUserId ?? 'all')
     const rows = await cacheWrap(listKey, LIST_TTL, async () => {
@@ -77,7 +80,6 @@ export async function getAllContracts(req, res) {
 
     // Ẩn giá trị tiền server-side nếu user thiếu quyền module.contracts.amounts (admin luôn có).
     // Strip SAU cacheWrap (cache lưu bản đầy đủ) để bản trả về đúng theo quyền từng user.
-    const gk = await loadGlobalPermissions(req.user.id, req.user.role)
     if (!gk.includes('module.contracts.amounts')) {
       const stripped = rows.map(r => ({
         ...r, amount_before_vat: null, amount_after_vat: null, currency_code: null, exchange_rate: null,
