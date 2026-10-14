@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
 import './ContractBOQTab.css'
+import './ContractBOQCells.css'
 import useIsMobile from './useIsMobile'
 import BOQMobile from './BOQMobile'
 import PurchaseBOQRow from './PurchaseBOQRow'
