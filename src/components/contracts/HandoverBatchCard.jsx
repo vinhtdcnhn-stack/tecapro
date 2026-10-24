@@ -192,7 +192,7 @@ export default function HandoverBatchCard({
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
             Export serial bàn giao
           </button>
-          <EditGuard>
+          <EditGuard perm="co.warranty.equipment.manage">
             <button className="wty-act edit" onClick={onEdit} title="Sửa đợt">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.46a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
             </button>
@@ -213,7 +213,7 @@ export default function HandoverBatchCard({
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                 Tải mẫu Excel
               </button>
-              <EditGuard>
+              <EditGuard perm="co.warranty.equipment.manage">
                 <label className="wty-btn wty-btn-blue hide-on-mobile" style={{ cursor: 'pointer' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
                   Import Excel
@@ -236,7 +236,7 @@ export default function HandoverBatchCard({
                   {hasBlocking && <span style={{ fontSize: 13, color: '#b91c1c', fontWeight: 600 }}>Sửa lỗi bên dưới rồi import lại</span>}
                   <button className="wty-btn wty-btn-secondary" onClick={() => setImportPreview(null)}>Hủy</button>
                   {!hasBlocking && (
-                    <EditGuard>
+                    <EditGuard perm="co.warranty.equipment.manage">
                       <button className="wty-btn wty-btn-primary" onClick={confirmImport} disabled={importing}>
                         {importing ? 'Đang import...' : 'Xác nhận import'}
                       </button>
@@ -267,7 +267,7 @@ export default function HandoverBatchCard({
             <div className="wty-bulk-bar">
               <span>Đã chọn <strong>{selected.size}</strong> thiết bị</span>
               <div style={{ display: 'flex', gap: 8 }}>
-                <EditGuard>
+                <EditGuard perm="co.warranty.equipment.manage">
                   <button className="wty-btn wty-btn-primary" onClick={() => setShowBulk(true)}>Sửa bảo hành hàng loạt</button>
                   <button className="wty-btn wty-btn-danger" onClick={handleBulkDelete}>Xóa đã chọn ({selected.size})</button>
                 </EditGuard>
@@ -335,7 +335,7 @@ export default function HandoverBatchCard({
                           <button className="wty-act expand" onClick={() => toggleExpand(eq.id)} title="Quản lý serial">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
                           </button>
-                          <EditGuard>
+                          <EditGuard perm="co.warranty.equipment.manage">
                             <button className="wty-act edit" onClick={() => { setEditItem(eq); setModal(true) }} title="Sửa">
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.46a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                             </button>
@@ -392,7 +392,7 @@ function SerialInlineManager({ equipment, onAddSerial, onDeleteSerial }) {
   }
   return (
     <div className="wty-expand-inner">
-      <EditGuard>
+      <EditGuard perm="co.warranty.serials.manage">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {equipment.serials?.map(s => (
             <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', background: '#fff', border: '1px solid #86efac', borderRadius: 99, fontSize: 12, fontWeight: 600, color: '#15803d' }}>
