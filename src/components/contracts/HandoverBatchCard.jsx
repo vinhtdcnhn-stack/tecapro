@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { API } from '../../config/api'
-import { fmtDate, warrantyStatus } from './warrantyUtils'
+import { fmtDate, warrantyStatus, splitSerials } from './warrantyUtils'
 import { parseEquipmentRows } from './warrantyImportUtils'
 import EquipmentModal from './WarrantyEquipmentModal'
 import WarrantyBulkDateModal from './WarrantyBulkDateModal'
@@ -99,20 +99,36 @@ export default function HandoverBatchCard({
     } catch { return [] }
   }
 
-  async function handleAddSerial(equipmentId, serialNo) {
-    const missing = await missingInImport([serialNo])
-    if (missing.length && !confirm(`Serial "${serialNo}" chưa có trong hệ thống nhập.\nVẫn tiếp tục cập nhật?`)) return
-    const res = await fetch(`${API}/equipment/${equipmentId}/serials`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serial_no: serialNo }),
-    })
-    const data = await res.json()
-    if (!res.ok) { alert(data.error); return }
-    if (data.pulled_components > 0) {
-      alert(`Đã tự thêm ${data.pulled_components} linh kiện kèm theo từ phía nhập.`)
-      await reload(); return
+  // Thêm 1 hoặc nhiều serial (dán từ Excel). Trả về các serial CHƯA thêm được (lỗi /
+  // người dùng hủy) để ô nhập giữ lại cho sửa tiếp.
+  async function handleAddSerials(equipmentId, serialList) {
+    const missing = await missingInImport(serialList)
+    if (missing.length) {
+      const shown = missing.slice(0, 10).map(s => `"${s}"`).join(', ') + (missing.length > 10 ? `… (+${missing.length - 10})` : '')
+      const msg = serialList.length === 1
+        ? `Serial ${shown} chưa có trong hệ thống nhập.\nVẫn tiếp tục cập nhật?`
+        : `${missing.length}/${serialList.length} serial chưa có trong hệ thống nhập: ${shown}.\nVẫn tiếp tục cập nhật cả ${serialList.length} serial?`
+      if (!confirm(msg)) return serialList
     }
-    setEquipment(prev => prev.map(e =>
-      e.id === equipmentId ? { ...e, serials: [...(e.serials || []), data], has_serial: true } : e))
+    const added = [], failed = [], errors = []
+    let pulled = 0
+    for (const sn of serialList) {
+      const res = await fetch(`${API}/equipment/${equipmentId}/serials`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serial_no: sn }),
+      })
+      const data = await res.json()
+      if (!res.ok) { failed.push(sn); errors.push(data.error || `Lỗi thêm "${sn}"`); continue }
+      added.push(data); pulled += data.pulled_components || 0
+    }
+    if (pulled > 0) await reload()
+    else if (added.length) setEquipment(prev => prev.map(e =>
+      e.id === equipmentId ? { ...e, serials: [...(e.serials || []), ...added], has_serial: true } : e))
+    const notes = []
+    if (serialList.length > 1) notes.push(`Đã thêm ${added.length}/${serialList.length} serial.`)
+    if (pulled > 0) notes.push(`Đã tự thêm ${pulled} linh kiện kèm theo từ phía nhập.`)
+    if (errors.length) notes.push(`Không thêm được ${failed.length} serial:\n- ${errors.slice(0, 10).join('\n- ')}${errors.length > 10 ? '\n…' : ''}`)
+    if (notes.length && (serialList.length > 1 || pulled > 0 || errors.length)) alert(notes.join('\n\n'))
+    return failed
   }
 
   async function handleDeleteSerial(equipmentId, serialId) {
@@ -350,7 +366,7 @@ export default function HandoverBatchCard({
                       <tr key={`${eq.id}_expand`} className="wty-expand-row">
                         <td colSpan="11">
                           <SerialInlineManager equipment={eq}
-                            onAddSerial={sn => handleAddSerial(eq.id, sn)}
+                            onAddSerials={list => handleAddSerials(eq.id, list)}
                             onDeleteSerial={sId => handleDeleteSerial(eq.id, sId)} />
                         </td>
                       </tr>
@@ -383,12 +399,19 @@ export default function HandoverBatchCard({
 // ── Inline serial manager ─────────────────────────────────────────────────────
 // Serial hiển thị gọn dạng chip (như phía nhập). Click số serial → xem linh kiện con
 // + trạng thái của máy đó trong SerialComponentsModal.
-function SerialInlineManager({ equipment, onAddSerial, onDeleteSerial }) {
+// Ô nhập là textarea để giữ được xuống dòng/Tab khi dán từ Excel → tách thành nhiều serial.
+function SerialInlineManager({ equipment, onAddSerials, onDeleteSerial }) {
   const [newSN, setNewSN] = useState('')
+  const [busy, setBusy] = useState(false)
   const [compSerial, setCompSerial] = useState(null)   // serial đang xem linh kiện
-  function submit() {
-    if (!newSN.trim()) return
-    onAddSerial(newSN.trim()); setNewSN('')
+  const pending = splitSerials(newSN)
+  async function submit() {
+    if (!pending.length || busy) return
+    setBusy(true)
+    try {
+      const failed = await onAddSerials(pending)
+      setNewSN(failed?.length ? failed.join('\n') : '')
+    } finally { setBusy(false) }
   }
   return (
     <div className="wty-expand-inner">
@@ -414,9 +437,14 @@ function SerialInlineManager({ equipment, onAddSerial, onDeleteSerial }) {
           )}
         </div>
         <div className="wty-serial-add-row">
-          <input placeholder="Nhập số serial mới..." value={newSN}
-            onChange={e => setNewSN(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} />
-          <button className="wty-btn wty-btn-primary" style={{ padding: '5px 12px', fontSize: 12 }} onClick={submit}>+ Thêm</button>
+          <textarea placeholder="Nhập số serial mới... (dán được nhiều serial copy từ Excel)" value={newSN}
+            rows={Math.min(Math.max(newSN.split('\n').length, 1), 6)}
+            onChange={e => setNewSN(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }} />
+          <button className="wty-btn wty-btn-primary" style={{ padding: '5px 12px', fontSize: 12, alignSelf: 'flex-start' }}
+            onClick={submit} disabled={busy}>
+            {busy ? 'Đang thêm...' : pending.length > 1 ? `+ Thêm ${pending.length} serial` : '+ Thêm'}
+          </button>
         </div>
       </EditGuard>
 
