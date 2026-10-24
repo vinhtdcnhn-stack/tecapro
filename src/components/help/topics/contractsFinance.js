@@ -116,6 +116,7 @@ export const CONTRACTS_FINANCE_PAGES = [
           'Nhập serial cho từng thiết bị (PM/Kỹ thuật của hợp đồng được nhập).',
           'Nhập NHIỀU serial một lần: bôi đen các ô serial trong Excel (theo cột hoặc theo hàng đều được) → Ctrl+C → bấm vào ô "Nhập số serial mới..." → Ctrl+V. Mỗi ô Excel thành 1 serial, nút đổi thành "+ Thêm N serial" — bấm nút hoặc Enter để lưu. Serial nào lỗi (ví dụ bị trùng) sẽ được báo và giữ lại trong ô để sửa.',
           'Trong ô nhập: Enter = lưu; Shift+Enter = xuống dòng để gõ tay serial tiếp theo.',
+          'Tab con "Quản lý Serial" → nút thêm linh kiện: ô "Serial" cũng dán được nhiều serial từ Excel (mỗi dòng 1 serial). Mỗi serial thành 1 linh kiện cùng tên/hãng/model/hạn bảo hành đã điền; nút đổi thành "Thêm N linh kiện". Nếu có serial bị trùng thì KHÔNG lưu serial nào — hệ thống báo các serial trùng, sửa trong ô rồi bấm lại.',
           'Serial phải DUY NHẤT trong toàn bộ hợp đồng bán của hệ thống (không phân biệt hoa/thường) — trùng sẽ bị báo lỗi.',
           'Khi đổi máy cho khách (thay thiết bị hỏng): dùng chức năng THAY THẾ SERIAL — serial cũ được ghi lại là "đã thay bằng serial mới", tra cứu vẫn thấy lịch sử.',
         ],

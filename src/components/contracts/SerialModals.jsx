@@ -1,21 +1,26 @@
 import { useState } from 'react'
 import Modal from '../common/Modal'
 import DateInput from './DateInput'
+import { splitSerials } from './serialPaste'
 
 // Modal dùng chung cho phần Quản lý Serial.
 
-// ── Thêm 1 linh kiện (tự tạo loại nếu chưa có) ──────────────────────────────────
+// ── Thêm linh kiện (tự tạo loại nếu chưa có) ────────────────────────────────────
+// Ô Serial nhận được nhiều serial dán từ Excel → mỗi serial thành 1 linh kiện cùng
+// tên/hãng/model/hạn BH. onSave nhận MẢNG form.
 export function ComponentModal({ equipment, serials, onClose, onSave }) {
   const [f, setF] = useState({ name: '', brand: '', model: '', serial_no: '',
     warranty_from: '', warranty_to: '', parent_serial_id: '' })
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setF(prev => ({ ...prev, [k]: v }))
+  const list = splitSerials(f.serial_no)
 
   async function submit() {
-    if (!f.name.trim() || !f.serial_no.trim()) { alert('Nhập tên linh kiện và serial.'); return }
+    if (!f.name.trim() || !list.length) { alert('Nhập tên linh kiện và serial.'); return }
     setSaving(true)
-    await onSave({ ...f, warranty_from: f.warranty_from || null, warranty_to: f.warranty_to || null,
-      parent_serial_id: f.parent_serial_id || null })
+    const base = { ...f, warranty_from: f.warranty_from || null, warranty_to: f.warranty_to || null,
+      parent_serial_id: f.parent_serial_id || null }
+    await onSave(list.map(sn => ({ ...base, serial_no: sn })))
     setSaving(false)
   }
 
@@ -45,8 +50,10 @@ export function ComponentModal({ equipment, serials, onClose, onSave }) {
               <input value={f.model} onChange={e => set('model', e.target.value)} /></div>
           </div>
           <div className="wty-form-row">
-            <div className="wty-form-group full"><label>Serial *</label>
-              <input value={f.serial_no} onChange={e => set('serial_no', e.target.value)} /></div>
+            <div className="wty-form-group full">
+              <label>Serial *{list.length > 1 && <span style={{ fontWeight: 400, color: '#2563eb' }}> — {list.length} serial</span>}</label>
+              <textarea value={f.serial_no} onChange={e => set('serial_no', e.target.value)}
+                placeholder="Mỗi dòng 1 serial — dán được nhiều serial copy từ Excel" /></div>
           </div>
           <div className="wty-form-row">
             <div className="wty-form-group"><label>Bảo hành từ</label>
@@ -66,7 +73,7 @@ export function ComponentModal({ equipment, serials, onClose, onSave }) {
         <div className="wty-modal-footer">
           <button className="wty-modal-btn cancel" onClick={onClose}>Hủy</button>
           <button className="wty-modal-btn save" onClick={submit} disabled={saving}>
-            {saving ? 'Đang lưu...' : 'Thêm'}
+            {saving ? 'Đang lưu...' : list.length > 1 ? `Thêm ${list.length} linh kiện` : 'Thêm'}
           </button>
         </div>
     </Modal>

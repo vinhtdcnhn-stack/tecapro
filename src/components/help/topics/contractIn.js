@@ -154,7 +154,8 @@ export const CONTRACT_IN_GROUP = {
         {
           heading: 'Cách thao tác',
           items: [
-            'Người tạo hợp đồng (hoặc Kỹ thuật triển khai) nhập serial cho từng dòng hàng; có thể dán nhiều serial cùng lúc.',
+            'Người tạo hợp đồng (hoặc Kỹ thuật triển khai) nhập serial cho từng dòng hàng.',
+            'Dán nhiều serial một lần: bôi đen các ô serial trong Excel (theo cột hoặc theo hàng) → Ctrl+C → bấm vào ô "Nhập serial rồi Enter..." → Ctrl+V. Mỗi ô Excel thành 1 serial, nút đổi thành "+ Thêm N serial" — bấm nút hoặc Enter để lưu (Shift+Enter = xuống dòng để gõ tay serial tiếp). Serial nào lỗi (ví dụ bị trùng) được báo lý do và giữ lại trong ô để sửa.',
             'Serial phải DUY NHẤT trong toàn bộ hợp đồng nhập của hệ thống (không phân biệt hoa/thường); trùng sẽ báo lỗi. Serial bên nhập và bên bán được phép trùng nhau (là cùng một thiết bị).',
           ],
         },

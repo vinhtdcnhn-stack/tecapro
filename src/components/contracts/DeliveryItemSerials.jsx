@@ -5,6 +5,7 @@ import EditGuard from './EditGuard'
 import BarcodeScanImportModal from './BarcodeScanImportModal'
 import SerialComponentsModal from './SerialComponentsModal'
 import { exportItemSerials, downloadSerialTemplate } from './deliverySerialExport'
+import { splitSerials, serialRows, enterToSubmit, postSerialsEach, addResultMessage } from './serialPaste'
 
 // ── Panel quản lý serial của một chủng loại hàng ──────────────────────────────
 // Dùng chung cho desktop (mở trong dòng bảng) và mobile (mở trong sheet riêng).
@@ -12,6 +13,7 @@ export default function DeliveryItemSerials({ item, deliveryId, contractInId, lo
   const [serials, setSerials]       = useState([])
   const [serialsLoaded, setSLoaded] = useState(false)
   const [newSerial, setNewSerial]   = useState('')
+  const [adding, setAdding]         = useState(false)
   const [showBarcode, setShowBarcode] = useState(false)
   const [compSerial, setCompSerial] = useState(null)   // serial đang xem linh kiện
   const importRef = useRef(null)
@@ -24,18 +26,23 @@ export default function DeliveryItemSerials({ item, deliveryId, contractInId, lo
     }
   }, [item.id, serialsLoaded])
 
+  // Thêm 1 hoặc nhiều serial (dán từ Excel: xuống dòng/Tab). Serial lỗi giữ lại trong ô.
   async function addSerial() {
-    if (!newSerial.trim()) return
-    const res  = await fetch(`${API}/delivery-items/${item.id}/serials`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ serial_no: newSerial.trim() }),
-    })
-    const data = await res.json()
-    if (!res.ok) { alert(data.error); return }
-    setSerials(prev => [...prev, data])
-    onSerialCountChange(1)
-    setNewSerial('')
+    const list = splitSerials(newSerial)
+    if (!list.length || adding) return
+    setAdding(true)
+    try {
+      const result = await postSerialsEach(`${API}/delivery-items/${item.id}/serials`, list)
+      if (result.added.length) {
+        setSerials(prev => [...prev, ...result.added])
+        onSerialCountChange(result.added.length)
+      }
+      setNewSerial(result.failed.join('\n'))
+      const msg = addResultMessage(list.length, result)
+      if (msg) alert(msg)
+    } finally { setAdding(false) }
   }
+  const pendingCount = splitSerials(newSerial).length
 
   async function deleteSerial(sId, serialNo) {
     if (!confirm(`Xóa serial "${serialNo}"?`)) return
@@ -118,15 +125,15 @@ export default function DeliveryItemSerials({ item, deliveryId, contractInId, lo
       {/* Add serial inline — ẩn khi đã khóa */}
       {!locked && (
         <div style={{ display:'flex', gap:6 }}>
-          <input
-            type="text" value={newSerial}
+          <textarea
+            value={newSerial} rows={serialRows(newSerial)}
             onChange={e => setNewSerial(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && addSerial()}
-            placeholder="Nhập serial rồi Enter..."
-            style={{ flex:1, maxWidth:260, padding:'5px 10px', border:'1px solid #93c5fd', borderRadius:5, fontSize:12, outline:'none' }}
+            onKeyDown={enterToSubmit(addSerial)}
+            placeholder="Nhập serial rồi Enter... (dán được nhiều serial từ Excel)"
+            style={{ flex:1, maxWidth:300, padding:'5px 10px', border:'1px solid #93c5fd', borderRadius:5, fontSize:12, outline:'none', resize:'vertical', fontFamily:'inherit', lineHeight:1.5 }}
           />
-          <button onClick={addSerial} style={{ padding:'5px 12px', background:'#2563eb', color:'#fff', border:'none', borderRadius:5, cursor:'pointer', fontSize:12, fontWeight:600 }}>
-            + Thêm
+          <button onClick={addSerial} disabled={adding} style={{ alignSelf:'flex-start', padding:'5px 12px', background:'#2563eb', color:'#fff', border:'none', borderRadius:5, cursor:'pointer', fontSize:12, fontWeight:600 }}>
+            {adding ? 'Đang thêm...' : pendingCount > 1 ? `+ Thêm ${pendingCount} serial` : '+ Thêm'}
           </button>
         </div>
       )}

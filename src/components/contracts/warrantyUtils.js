@@ -96,18 +96,3 @@ export function activityIcon(type) {
     type === 'Khắc phục' ? '🔧' : type === 'Thay thế thiết bị' ? '🔄' :
     type === 'Hoàn thành' ? '✅' : '📝'
 }
-
-// Tách chuỗi dán từ Excel thành danh sách serial: copy theo CỘT → cách nhau bởi xuống
-// dòng, copy theo HÀNG → cách nhau bởi Tab. Bỏ ô trống + bỏ trùng (không phân biệt
-// hoa/thường, giữ thứ tự xuất hiện đầu tiên).
-export function splitSerials(text) {
-  const seen = new Set()
-  const out = []
-  for (const raw of String(text || '').split(/[\r\n\t]+/)) {
-    const sn = raw.trim()
-    const key = sn.toLowerCase()
-    if (!sn || seen.has(key)) continue
-    seen.add(key); out.push(sn)
-  }
-  return out
-}

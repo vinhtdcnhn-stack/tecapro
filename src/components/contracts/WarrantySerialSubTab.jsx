@@ -5,6 +5,7 @@ import { API } from '../../config/api'
 import { SERIAL_STATUSES, warrantyStatus, flattenSerials, toISODate } from './warrantyUtils'
 import WarrantyBulkDateModal from './WarrantyBulkDateModal'
 import { ComponentModal, ReplaceSerialModal } from './SerialModals'
+import { shortList } from './serialPaste'
 import useCtrlSave from './useCtrlSave'
 import useIsMobile from './useIsMobile'
 import SerialMobile from './SerialMobile'
@@ -97,17 +98,24 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
     } catch { return [] }
   }
 
-  // Thêm 1 linh kiện (tự tạo loại nếu chưa có) qua endpoint import
-  async function addComponent(form) {
-    const missing = await missingInImport([form.serial_no])
-    if (missing.length && !confirm(`Serial "${form.serial_no}" chưa có trong hệ thống nhập.\nVẫn tiếp tục cập nhật?`)) return
+  // Thêm 1 hoặc nhiều linh kiện (tự tạo loại nếu chưa có) qua endpoint import. Endpoint
+  // lưu cả lô hoặc không lưu gì (trùng serial → báo lỗi, modal giữ nguyên để sửa).
+  async function addComponent(forms) {
+    const missing = await missingInImport(forms.map(f => f.serial_no))
+    if (missing.length) {
+      const msg = forms.length === 1
+        ? `Serial ${shortList(missing)} chưa có trong hệ thống nhập.\nVẫn tiếp tục cập nhật?`
+        : `${missing.length}/${forms.length} serial chưa có trong hệ thống nhập: ${shortList(missing)}.\nVẫn tiếp tục cập nhật cả ${forms.length} serial?`
+      if (!confirm(msg)) return
+    }
     const res = await fetch(`${API}/contracts/${contractId}/serials/import`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([form]),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(forms),
     })
     const data = await res.json()
     if (!res.ok) { alert(data.error); return }
     setShowAdd(false)
     await reload()
+    if (forms.length > 1) alert(`Đã thêm ${forms.length} linh kiện.`)
   }
 
   // ── Excel ──

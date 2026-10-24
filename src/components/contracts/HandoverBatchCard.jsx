@@ -1,7 +1,8 @@
 import { useState } from 'react'
 
 import { API } from '../../config/api'
-import { fmtDate, warrantyStatus, splitSerials } from './warrantyUtils'
+import { fmtDate, warrantyStatus } from './warrantyUtils'
+import { splitSerials, serialRows, enterToSubmit, shortList, postSerialsEach, addResultMessage } from './serialPaste'
 import { parseEquipmentRows } from './warrantyImportUtils'
 import EquipmentModal from './WarrantyEquipmentModal'
 import WarrantyBulkDateModal from './WarrantyBulkDateModal'
@@ -104,31 +105,22 @@ export default function HandoverBatchCard({
   async function handleAddSerials(equipmentId, serialList) {
     const missing = await missingInImport(serialList)
     if (missing.length) {
-      const shown = missing.slice(0, 10).map(s => `"${s}"`).join(', ') + (missing.length > 10 ? `… (+${missing.length - 10})` : '')
+      const shown = shortList(missing)
       const msg = serialList.length === 1
         ? `Serial ${shown} chưa có trong hệ thống nhập.\nVẫn tiếp tục cập nhật?`
         : `${missing.length}/${serialList.length} serial chưa có trong hệ thống nhập: ${shown}.\nVẫn tiếp tục cập nhật cả ${serialList.length} serial?`
       if (!confirm(msg)) return serialList
     }
-    const added = [], failed = [], errors = []
-    let pulled = 0
-    for (const sn of serialList) {
-      const res = await fetch(`${API}/equipment/${equipmentId}/serials`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serial_no: sn }),
-      })
-      const data = await res.json()
-      if (!res.ok) { failed.push(sn); errors.push(data.error || `Lỗi thêm "${sn}"`); continue }
-      added.push(data); pulled += data.pulled_components || 0
-    }
+    const result = await postSerialsEach(`${API}/equipment/${equipmentId}/serials`, serialList)
+    const { added } = result
+    const pulled = added.reduce((n, s) => n + (s.pulled_components || 0), 0)
     if (pulled > 0) await reload()
     else if (added.length) setEquipment(prev => prev.map(e =>
       e.id === equipmentId ? { ...e, serials: [...(e.serials || []), ...added], has_serial: true } : e))
-    const notes = []
-    if (serialList.length > 1) notes.push(`Đã thêm ${added.length}/${serialList.length} serial.`)
-    if (pulled > 0) notes.push(`Đã tự thêm ${pulled} linh kiện kèm theo từ phía nhập.`)
-    if (errors.length) notes.push(`Không thêm được ${failed.length} serial:\n- ${errors.slice(0, 10).join('\n- ')}${errors.length > 10 ? '\n…' : ''}`)
-    if (notes.length && (serialList.length > 1 || pulled > 0 || errors.length)) alert(notes.join('\n\n'))
-    return failed
+    const msg = addResultMessage(serialList.length, result,
+      pulled > 0 ? [`Đã tự thêm ${pulled} linh kiện kèm theo từ phía nhập.`] : [])
+    if (msg) alert(msg)
+    return result.failed
   }
 
   async function handleDeleteSerial(equipmentId, serialId) {
@@ -438,9 +430,9 @@ function SerialInlineManager({ equipment, onAddSerials, onDeleteSerial }) {
         </div>
         <div className="wty-serial-add-row">
           <textarea placeholder="Nhập số serial mới... (dán được nhiều serial copy từ Excel)" value={newSN}
-            rows={Math.min(Math.max(newSN.split('\n').length, 1), 6)}
+            rows={serialRows(newSN)}
             onChange={e => setNewSN(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }} />
+            onKeyDown={enterToSubmit(submit)} />
           <button className="wty-btn wty-btn-primary" style={{ padding: '5px 12px', fontSize: 12, alignSelf: 'flex-start' }}
             onClick={submit} disabled={busy}>
             {busy ? 'Đang thêm...' : pending.length > 1 ? `+ Thêm ${pending.length} serial` : '+ Thêm'}
