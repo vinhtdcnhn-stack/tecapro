@@ -80,8 +80,10 @@ export default function WarrantySerialSubTab({ contractId, equipment, setEquipme
   }
 
   async function del(row) {
-    if (!confirm(`Xóa serial "${row.serial_no}"?`)) return
-    await fetch(`${API}/serials/${row.id}`, { method: 'DELETE' })
+    if (!confirm(`Xóa serial "${row.serial_no}"?\n(Linh kiện gắn trong máy này cũng bị xóa theo.)`)) return
+    const res = await fetch(`${API}/serials/${row.id}`, { method: 'DELETE' })
+    const data = await res.json().catch(() => ({}))
+    if (data.removed_components > 0) { await reload(); return }
     setEquipment(prev => prev.map(eq =>
       eq.id === row.equipment_id ? { ...eq, serials: eq.serials.filter(s => s.id !== row.id) } : eq
     ))

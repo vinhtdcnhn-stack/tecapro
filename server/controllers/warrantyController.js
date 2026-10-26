@@ -7,6 +7,7 @@ import { contractKey, contractTabNotModified, invalidateSerialLookup } from '../
 import {
   TAB_TTL, invalidateEquip, invalidateCases, invalidateActs,
   contractOfEquipment, contractOfCase, contractsOfSerials, contractsOfEquipment,
+  deleteSerialsWithComponents,
 } from './warrantyShared.js'
 
 // POST /serials/check-import — kiểm tra danh sách serial có trong hệ thống NHẬP chưa
@@ -163,12 +164,13 @@ export async function updateSerial(req, res) {
 export async function deleteSerial(req, res) {
   const id = parseInt(req.params.id)
   try {
-    const { rows } = await pool.query('DELETE FROM equipment_serial WHERE id=$1 RETURNING serial_no, equipment_id', [id])
-    if (rows[0]) {
-      invalidateEquip(await contractOfEquipment(rows[0].equipment_id))
-      invalidateSerialLookup(rows[0].serial_no)
+    const contractId = (await contractsOfSerials([id]))[0]
+    const rows = await deleteSerialsWithComponents(pool, [id])
+    if (rows.length) {
+      invalidateEquip(contractId)
+      invalidateSerialLookup(rows.map(r => r.serial_no))
     }
-    res.json({ success: true })
+    res.json({ success: true, removed_components: rows.filter(r => r.is_child).length })
   } catch (err) {
     res.status(500).json({ error: 'Không thể xóa serial' })
   }
@@ -180,7 +182,7 @@ export async function bulkDeleteSerials(req, res) {
   if (!ids.length) return res.status(400).json({ error: 'Chưa chọn dòng nào' })
   try {
     const contracts = await contractsOfSerials(ids)
-    const { rows } = await pool.query('DELETE FROM equipment_serial WHERE id = ANY($1::int[]) RETURNING serial_no', [ids])
+    const rows = await deleteSerialsWithComponents(pool, ids)
     contracts.forEach(invalidateEquip)
     invalidateSerialLookup(rows.map(r => r.serial_no))
     res.json({ success: true, count: rows.length })

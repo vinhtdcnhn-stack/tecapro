@@ -48,3 +48,25 @@ export async function contractsOfEquipment(equipmentIds) {
     'SELECT DISTINCT contract_out_id FROM contract_equipment WHERE id = ANY($1::int[])', [equipmentIds])
   return rows.map(r => r.contract_out_id)
 }
+
+// Xóa serial KÈM toàn bộ linh kiện con (đệ quy theo parent_serial_id). Không xóa con thì
+// FK SET NULL biến chúng thành serial "rời" → cả loại linh kiện hiện thành mục riêng ở tab
+// bàn giao. Loại linh kiện bị xóa hết serial (không gắn bảng giá, không có case BH) cũng
+// xóa luôn để không còn dòng rỗng. Trả các dòng serial đã xóa { serial_no, equipment_id }.
+export async function deleteSerialsWithComponents(db, ids) {
+  const { rows } = await db.query(
+    `WITH RECURSIVE t AS (
+       SELECT id, false AS is_child FROM equipment_serial WHERE id = ANY($1::int[])
+       UNION
+       SELECT s.id, true FROM equipment_serial s JOIN t ON s.parent_serial_id = t.id)
+     DELETE FROM equipment_serial d USING t WHERE d.id = t.id
+     RETURNING d.serial_no, d.equipment_id, t.is_child`, [ids])
+  const rootEq = new Set(rows.filter(r => !r.is_child).map(r => r.equipment_id))
+  const childEq = [...new Set(rows.filter(r => r.is_child).map(r => r.equipment_id))].filter(id => !rootEq.has(id))
+  if (childEq.length)
+    await db.query(
+      `DELETE FROM contract_equipment e WHERE e.id = ANY($1::int[]) AND e.boq_id IS NULL
+          AND NOT EXISTS (SELECT 1 FROM equipment_serial s WHERE s.equipment_id = e.id)
+          AND NOT EXISTS (SELECT 1 FROM warranty_case_equipment w WHERE w.equipment_id = e.id)`, [childEq])
+  return rows
+}

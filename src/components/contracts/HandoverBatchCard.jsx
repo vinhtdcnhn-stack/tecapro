@@ -124,8 +124,10 @@ export default function HandoverBatchCard({
   }
 
   async function handleDeleteSerial(equipmentId, serialId) {
-    if (!confirm('Xóa serial này?')) return
-    await fetch(`${API}/serials/${serialId}`, { method: 'DELETE' })
+    if (!confirm('Xóa serial này?\n(Linh kiện gắn trong máy này cũng bị xóa theo.)')) return
+    const res = await fetch(`${API}/serials/${serialId}`, { method: 'DELETE' })
+    const data = await res.json().catch(() => ({}))
+    if (data.removed_components > 0) { await reload(); return }
     setEquipment(prev => prev.map(e =>
       e.id === equipmentId ? { ...e, serials: e.serials.filter(s => s.id !== serialId) } : e))
   }

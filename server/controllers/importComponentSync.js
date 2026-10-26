@@ -73,6 +73,27 @@ export async function pullImportComponents(db, contractId, machines) {
   const existing = await findExistingSerials(db, TABLE_EQUIPMENT, childSNs)
   const existSet = new Set(existing.map(s => s.trim().toLowerCase()))
 
+  // 3b. Linh kiện đã có nhưng "mồ côi" (máy cha từng bị xóa → parent_serial_id = NULL):
+  // gắn lại vào máy vừa thêm, nếu không chúng làm cả loại linh kiện hiện thành mục riêng.
+  if (existSet.size) {
+    const orphans = await db.query(
+      `SELECT s.id, lower(trim(s.serial_no)) AS low FROM equipment_serial s
+         JOIN contract_equipment e ON e.id = s.equipment_id
+        WHERE e.contract_out_id = $1 AND s.parent_serial_id IS NULL
+          AND lower(trim(s.serial_no)) = ANY($2)`, [contractId, [...existSet]])
+    const orphanByLow = new Map(orphans.rows.map(r => [r.low, r.id]))
+    for (const k of kids.rows) {
+      const low = (k.serial_no || '').trim().toLowerCase()
+      const orphanId = orphanByLow.get(low)
+      const machine = impIdToMachine.get(k.parent_serial_id)
+      if (!orphanId || !machine || orphanId === machine.serialId) continue
+      await db.query('UPDATE equipment_serial SET parent_serial_id=$1 WHERE id=$2', [machine.serialId, orphanId])
+      orphanByLow.delete(low)
+      result.added++
+      result.names.push(k.serial_no.trim())
+    }
+  }
+
   // 4. Tạo linh kiện bên bán, kế thừa hạn máy chính.
   const findOrCreateEquipment = makeFindOrCreateEquipment(db, contractId)
   // Tránh chèn trùng trong chính lô này.
